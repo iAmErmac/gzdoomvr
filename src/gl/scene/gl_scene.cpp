@@ -56,7 +56,6 @@
 #include "a_hexenglobal.h"
 #include "p_local.h"
 #include "gl/gl_functions.h"
-
 #include "gl/system/gl_interface.h"
 #include "gl/system/gl_framebuffer.h"
 #include "gl/system/gl_cvars.h"
@@ -68,6 +67,7 @@
 #include "gl/dynlights/gl_lightbuffer.h"
 #include "gl/models/gl_models.h"
 #include "gl/scene/gl_clipper.h"
+#include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/scene/gl_portal.h"
 #include "gl/shaders/gl_shader.h"
@@ -208,13 +208,6 @@ void FGLRenderer::SetViewport(GL_IRECT *bounds)
 	}
 	glEnable(GL_SCISSOR_TEST);
 	
-	#ifdef _DEBUG
-		glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	#else
-		glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	#endif
-
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_STENCIL_TEST);
@@ -245,6 +238,7 @@ void FGLRenderer::SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angl
 // SetProjection
 // sets projection matrix
 //
+// eyeShift is the off-center eye position for stereo 3D, in doom units.
 //-----------------------------------------------------------------------------
 
 void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift)
@@ -262,10 +256,14 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	float screenZ = 25.0;
 	float frustumShift = eyeShift * zNear / screenZ;
 
+	// Use glFrustum instead of gluPerspective, so we can use
+	// asymmetric frustum shift for stereo 3D
+	// http://www.orthostereo.com/geometryopengl.html
 	// gluPerspective(fovy, ratio, zNear, zFar);
 	glFrustum( -fW - frustumShift, fW - frustumShift, 
 		-fH, fH, 
 		zNear, zFar);
+	// Translation to align left and right eye views at screen distance
 	glTranslatef(-eyeShift, 0, 0);
 
 	gl_RenderState.Set2DMode(false);
@@ -854,6 +852,20 @@ void FGLRenderer::SetFixedColormap (player_t *player)
 	}
 }
 
+// Renders on eye position of one viewpoint in a scene
+void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
+{
+#ifdef _DEBUG
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+#else
+	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+#endif
+	clipper.Clear();
+	clipper.SafeAddClipRangeRealAngles(viewangle+frustumAngle, viewangle-frustumAngle);
+	ProcessScene(toscreen);
+}
+
 //-----------------------------------------------------------------------------
 //
 // Renders one viewpoint in a scene
@@ -889,28 +901,25 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	SetViewMatrix(false, false);
 	angle_t a1 = FrustumAngle();
 
-	// Stereo 
-	// 1 doom unit = about 3 cm
-	float iod = 2.0; // intraocular distance
-
-	// Left eye
 	SetViewport(bounds);
+	SetProjection(fov, ratio, fovratio, 0);	// switch to perspective mode and set up clipper
 	mCurrentFoV = fov;
-	SetProjection(fov, ratio, fovratio, -iod/2);	// switch to perspective mode and set up clipper
-	clipper.Clear();
-	clipper.SafeAddClipRangeRealAngles(viewangle+a1, viewangle-a1);
-	glColorMask(false, true, false, true); // green
-	ProcessScene(toscreen);
 
-	// Right eye
-	glColorMask(true, false, true, true); // magenta
-	SetViewport(bounds);
-	SetProjection(fov, ratio, fovratio, +iod/2);	// switch to perspective mode and set up clipper
-	clipper.Clear();
-	clipper.SafeAddClipRangeRealAngles(viewangle+a1, viewangle-a1);
-	ProcessScene(toscreen);
+	// Stereo 
+	{ // Local scope for color mask
+		// 1 doom unit = about 3 cm
+		float iod = 2.0; // intraocular distance
 
-	glColorMask(true, true, true, true); // restore full color
+		// Left eye
+		LocalScopeGLColorMask colorMask(false, true, false, true); // green
+		SetProjection(fov, ratio, fovratio, -iod/2);	// switch to perspective mode and set up clipper
+		RenderOneEye(a1, toscreen);
+
+		// Right eye
+		colorMask.setColorMask(true, false, true, true); // magenta
+		SetProjection(fov, ratio, fovratio, +iod/2);	// switch to perspective mode and set up clipper
+		RenderOneEye(a1, toscreen);
+	} // close scope to auto-revert glColorMask
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();

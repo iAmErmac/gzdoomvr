@@ -54,6 +54,7 @@
 #include "gl/dynlights/gl_glow.h"
 #include "gl/data/gl_data.h"
 #include "gl/scene/gl_clipper.h"
+#include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/scene/gl_portal.h"
 #include "gl/shaders/gl_shader.h"
@@ -185,7 +186,7 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 		// Create stencil 
 		glStencilFunc(GL_EQUAL,recursion,~0);		// create stencil
 		glStencilOp(GL_KEEP,GL_KEEP,GL_INCR);		// increment stencil of valid pixels
-		glPushAttrib(GL_COLOR_BUFFER_BIT); glColorMask(0,0,0,0); // don't write to the graphics buffer
+		LocalScopeGLColorMask colorMask(0,0,0,0); // glColorMask(0,0,0,0); // don't write to the graphics buffer
 		gl_RenderState.EnableTexture(false);
 		glColor3f(1,1,1);
 		glDepthFunc(GL_LESS);
@@ -227,7 +228,7 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 			// set normal drawing mode
 			gl_RenderState.EnableTexture(true);
 			glDepthFunc(GL_LESS);
-			glPopAttrib(); // glColorMask(1,1,1,1); // restore previous color mask
+			colorMask.revert(); // glColorMask(1,1,1,1); // restore previous color mask
 			glDepthRange(0,1);
 
 			if (doquery && gl.flags&RFL_OCCLUSION_QUERY)
@@ -259,7 +260,7 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 			glStencilFunc(GL_EQUAL,recursion+1,~0);		// draw sky into stencil
 			glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);		// this stage doesn't modify the stencil
 			gl_RenderState.EnableTexture(true);
-			glPopAttrib(); glColorMask(1,1,1,1);
+			colorMask.revert(); //  glColorMask(1,1,1,1);
 			glDisable(GL_DEPTH_TEST);
 			glDepthMask(false);							// don't write to Z-buffer!
 		}
@@ -356,7 +357,7 @@ void GLPortal::End(bool usestencil)
 		GLRenderer->SetupView(viewx, viewy, viewz, viewangle, !!(MirrorFlag&1), !!(PlaneMirrorFlag&1));
 
 		glColor4f(1,1,1,1);
-		glPushAttrib(GL_COLOR_BUFFER_BIT); glColorMask(0,0,0,0); // don't write to the graphics buffer
+		LocalScopeGLColorMask colorMask(0,0,0,0); //  glColorMask(0,0,0,0); // don't write to the graphics buffer
 		glColor3f(1,1,1);
 		gl_RenderState.EnableTexture(false);
 		gl_RenderState.Apply();
@@ -383,7 +384,7 @@ void GLPortal::End(bool usestencil)
 
 
 		gl_RenderState.EnableTexture(true);
-		glPopAttrib(); // glColorMask(1,1,1,1);
+		colorMask.revert(); // glColorMask(1,1,1,1);
 		recursion--;
 
 		// restore old stencil op.
@@ -417,11 +418,11 @@ void GLPortal::End(bool usestencil)
 		glColor4f(1,1,1,1);
 		glDepthFunc(GL_LEQUAL);
 		glDepthRange(0,1);
-		glPushAttrib(GL_COLOR_BUFFER_BIT); glColorMask(0,0,0,0); // don't write to the graphics buffer
+		LocalScopeGLColorMask colorMask(0,0,0,0); //  glColorMask(0,0,0,0); // don't write to the graphics buffer
 		gl_RenderState.EnableTexture(false);
 		DrawPortalStencil();
 		gl_RenderState.EnableTexture(true);
-		glPopAttrib(); // glColorMask(1,1,1,1);
+		colorMask.revert(); // glColorMask(1,1,1,1);
 		glDepthFunc(GL_LESS);
 	}
 	PortalAll.Unclock();
