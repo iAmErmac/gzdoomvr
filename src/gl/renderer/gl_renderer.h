@@ -77,7 +77,7 @@ public:
 	angle_t FrustumAngle();
 	void SetViewArea();
 	void ResetViewport();
-	void SetViewport(GL_IRECT *bounds);
+	void SetViewport(GL_IRECT *bounds, int x_scale=1, int x_offset=0);
 	void RenderOneEye(angle_t frustumAngle, bool toscreen);
 	sector_t *RenderViewpoint (AActor * camera, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);
 	void RenderView(player_t *player);

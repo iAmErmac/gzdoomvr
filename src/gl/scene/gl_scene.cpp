@@ -67,7 +67,6 @@
 #include "gl/dynlights/gl_lightbuffer.h"
 #include "gl/models/gl_models.h"
 #include "gl/scene/gl_clipper.h"
-#include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/scene/gl_portal.h"
 #include "gl/scene/gl_stereo3d.h"
@@ -87,6 +86,9 @@ CVAR(Bool, gl_no_skyclear, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
+CVAR(Int, st3d_mode, 0, CVAR_GLOBALCONFIG)
+CVAR(Float, st3d_screendist, 20.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CVAR(Float, st3d_iod, 2.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)
@@ -177,7 +179,7 @@ void FGLRenderer::ResetViewport()
 //
 //-----------------------------------------------------------------------------
 
-void FGLRenderer::SetViewport(GL_IRECT *bounds)
+void FGLRenderer::SetViewport(GL_IRECT *bounds, int x_scale, int x_offset)
 {
 	if (!bounds)
 	{
@@ -201,13 +203,17 @@ void FGLRenderer::SetViewport(GL_IRECT *bounds)
 
 		int vw = viewwidth;
 		int vh = viewheight;
-		glViewport(viewwindowx, trueheight-bars-(height+viewwindowy-((height-vh)/2)), vw, height);
-		glScissor(viewwindowx, trueheight-bars-(vh+viewwindowy), vw, vh);
+
+		vw = vw/x_scale;
+
+		glViewport(viewwindowx+x_offset*vw, trueheight-bars-(height+viewwindowy-((height-vh)/2)), vw, height);
+		glScissor(viewwindowx+x_offset*vw, trueheight-bars-(vh+viewwindowy), vw, vh);
 	}
 	else
 	{
-		glViewport(bounds->left, bounds->top, bounds->width, bounds->height);
-		glScissor(bounds->left, bounds->top, bounds->width, bounds->height);
+		int vw = bounds->width/x_scale;
+		glViewport(bounds->left+vw*x_offset, bounds->top, vw, bounds->height);
+		glScissor(bounds->left+vw*x_offset, bounds->top, vw, bounds->height);
 	}
 	glEnable(GL_SCISSOR_TEST);
 	
@@ -904,6 +910,9 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	SetViewMatrix(false, false);
 	mCurrentFoV = fov;
 
+	// Use the Stereo3D object to set up the viewport and projection matrix
+	stereo3d.iod = st3d_iod; // distance between eyes in doom units
+	stereo3d.setMode(st3d_mode); // stereo mode: 0: mono; 1: green/magenta
 	stereo3d.render(*this, bounds, fov, ratio, fovratio, toscreen);
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
