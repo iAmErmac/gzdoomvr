@@ -247,13 +247,27 @@ void FGLRenderer::SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angl
 //
 //-----------------------------------------------------------------------------
 
-void FGLRenderer::SetProjection(float fov, float ratio, float fovratio)
+void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift)
 {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
 	float fovy = 2 * RAD2DEG(atan(tan(DEG2RAD(fov) / 2) / fovratio));
-	gluPerspective(fovy, ratio, 5.f, 65536.f);
+	const float zNear = 5.0f;
+	const float zFar = 65536.0f;
+	const float pi = 3.1415926535897932384626433832795;
+	double fH = tan( fovy / 360 * pi ) * zNear;
+	double fW = fH * ratio;
+
+	float screenZ = 25.0;
+	float frustumShift = eyeShift * zNear / screenZ;
+
+	// gluPerspective(fovy, ratio, zNear, zFar);
+	glFrustum( -fW - frustumShift, fW - frustumShift, 
+		-fH, fH, 
+		zNear, zFar);
+	glTranslatef(-eyeShift, 0, 0);
+
 	gl_RenderState.Set2DMode(false);
 }
 
@@ -871,17 +885,32 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 
 	retval = viewsector;
 
-	SetViewport(bounds);
-	mCurrentFoV = fov;
-	SetProjection(fov, ratio, fovratio);	// switch to perspective mode and set up clipper
 	SetCameraPos(viewx, viewy, viewz, viewangle);
 	SetViewMatrix(false, false);
-
-	clipper.Clear();
 	angle_t a1 = FrustumAngle();
-	clipper.SafeAddClipRangeRealAngles(viewangle+a1, viewangle-a1);
 
+	// Stereo 
+	// 1 doom unit = about 3 cm
+	float iod = 2.0; // intraocular distance
+
+	// Left eye
+	SetViewport(bounds);
+	mCurrentFoV = fov;
+	SetProjection(fov, ratio, fovratio, -iod/2);	// switch to perspective mode and set up clipper
+	clipper.Clear();
+	clipper.SafeAddClipRangeRealAngles(viewangle+a1, viewangle-a1);
+	glColorMask(false, true, false, true); // green
 	ProcessScene(toscreen);
+
+	// Right eye
+	glColorMask(true, false, true, true); // magenta
+	SetViewport(bounds);
+	SetProjection(fov, ratio, fovratio, +iod/2);	// switch to perspective mode and set up clipper
+	clipper.Clear();
+	clipper.SafeAddClipRangeRealAngles(viewangle+a1, viewangle-a1);
+	ProcessScene(toscreen);
+
+	glColorMask(true, true, true, true); // restore full color
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();
