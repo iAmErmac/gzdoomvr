@@ -70,6 +70,10 @@ public:
 
 	FFlatVertexBuffer *mVBO;
 
+	// hack for stereo 3D viewports
+	int viewport_scalex; // shrink by this factor
+	int viewport_offsetx; // translate by this many scaled widths
+
 
 	FGLRenderer(OpenGLFrameBuffer *fb);
 	~FGLRenderer() ;
@@ -77,7 +81,7 @@ public:
 	angle_t FrustumAngle();
 	void SetViewArea();
 	void ResetViewport();
-	void SetViewport(GL_IRECT *bounds, int x_scale=1, int x_offset=0);
+	void SetViewport(GL_IRECT *bounds);
 	void RenderOneEye(angle_t frustumAngle, bool toscreen);
 	sector_t *RenderViewpoint (AActor * camera, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);
 	void RenderView(player_t *player);

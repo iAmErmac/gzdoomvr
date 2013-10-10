@@ -83,6 +83,8 @@ EXTERN_CVAR(Bool, gl_render_segs)
 //-----------------------------------------------------------------------------
 
 FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb) 
+	: viewport_scalex(1) // shrink by this factor
+	, viewport_offsetx(0) // translate by this many scaled widths
 {
 	framebuffer = fb;
 	mCurrentPortal = NULL;

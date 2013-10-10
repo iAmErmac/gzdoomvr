@@ -1051,6 +1051,7 @@ add_executable( zdoom WIN32
 	gl/scene/gl_renderhacks.cpp
 	gl/scene/gl_weapon.cpp
 	gl/scene/gl_scene.cpp
+	gl/scene/gl_stereo3d.cpp
 	gl/scene/gl_sky.cpp
 	gl/scene/gl_portal.cpp
 	gl/scene/gl_walls_draw.cpp
