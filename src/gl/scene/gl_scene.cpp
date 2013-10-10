@@ -70,6 +70,7 @@
 #include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/scene/gl_portal.h"
+#include "gl/scene/gl_stereo3d.h"
 #include "gl/shaders/gl_shader.h"
 #include "gl/textures/gl_material.h"
 #include "gl/utility/gl_clock.h"
@@ -99,6 +100,8 @@ area_t			in_area;
 TArray<BYTE> currentmapsection;
 
 void gl_ParseDefs();
+
+static Stereo3D stereo3d;
 
 //-----------------------------------------------------------------------------
 //
@@ -899,27 +902,9 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 
 	SetCameraPos(viewx, viewy, viewz, viewangle);
 	SetViewMatrix(false, false);
-	angle_t a1 = FrustumAngle();
-
-	SetViewport(bounds);
-	SetProjection(fov, ratio, fovratio, 0);	// switch to perspective mode and set up clipper
 	mCurrentFoV = fov;
 
-	// Stereo 
-	{ // Local scope for color mask
-		// 1 doom unit = about 3 cm
-		float iod = 2.0; // intraocular distance
-
-		// Left eye
-		LocalScopeGLColorMask colorMask(false, true, false, true); // green
-		SetProjection(fov, ratio, fovratio, -iod/2);	// switch to perspective mode and set up clipper
-		RenderOneEye(a1, toscreen);
-
-		// Right eye
-		colorMask.setColorMask(true, false, true, true); // magenta
-		SetProjection(fov, ratio, fovratio, +iod/2);	// switch to perspective mode and set up clipper
-		RenderOneEye(a1, toscreen);
-	} // close scope to auto-revert glColorMask
+	stereo3d.render(*this, bounds, fov, ratio, fovratio, toscreen);
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();
