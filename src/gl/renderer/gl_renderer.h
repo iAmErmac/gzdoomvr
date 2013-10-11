@@ -77,7 +77,7 @@ public:
 	void SetViewArea();
 	void ResetViewport();
 	void SetViewport(GL_IRECT *bounds);
-	void RenderOneEye(angle_t frustumAngle, bool toscreen, sector_t * viewsector);
+	void RenderOneEye(angle_t frustumAngle, bool toscreen);
 	sector_t *RenderViewpoint (AActor * camera, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);
 	void RenderView(player_t *player);
 	void SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angle_t viewangle);

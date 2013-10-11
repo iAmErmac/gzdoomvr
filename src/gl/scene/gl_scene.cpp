@@ -860,7 +860,7 @@ void FGLRenderer::SetFixedColormap (player_t *player)
 }
 
 // Renders on eye position of one viewpoint in a scene
-void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen, sector_t * viewsector)
+void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
 {
 #ifdef _DEBUG
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
@@ -977,7 +977,7 @@ void FGLRenderer::RenderView (player_t* player)
 	GLRenderer->mLightCount = ((it.Next()) != NULL);
 
 	sector_t * viewsector = RenderViewpoint(player->camera, NULL, FieldOfView * 360.0f / FINEANGLES, ratio, fovratio, true, true);
-	EndDrawScene(viewsector);
+	// EndDrawScene(viewsector); // moved into Stereo3d logic
 
 	All.Unclock();
 }

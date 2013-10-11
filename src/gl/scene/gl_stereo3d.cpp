@@ -27,7 +27,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 	case MONO:
 		setViewportFull(renderer, bounds);
 		setMonoView(renderer, fov, ratio, fovratio);
-		renderer.RenderOneEye(a1, toscreen, viewsector);			
+		renderer.RenderOneEye(a1, toscreen);
+		renderer.EndDrawScene(viewsector);
 		break;
 
 	case GREEN_MAGENTA:
@@ -36,14 +37,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			// Left eye green
 			LocalScopeGLColorMask colorMask(0,1,0,1); // green
 			setLeftEyeView(renderer, fov, ratio, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);
+			renderer.RenderOneEye(a1, toscreen);
 
 			// Right eye magenta
 			colorMask.setColorMask(1,0,1,1); // magenta
 			setRightEyeView(renderer, fov, ratio, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);
-			break;
+			renderer.RenderOneEye(a1, toscreen);
 		} // close scope to auto-revert glColorMask
+		renderer.EndDrawScene(viewsector);
+		break;
 
 	case RED_CYAN:
 		setViewportFull(renderer, bounds);
@@ -51,17 +53,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			// Left eye red
 			LocalScopeGLColorMask colorMask(1,0,0,1); // red
 			setLeftEyeView(renderer, fov, ratio, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);
+			renderer.RenderOneEye(a1, toscreen);
 
 			// Right eye cyan
 			colorMask.setColorMask(0,1,1,1); // cyan
 			setRightEyeView(renderer, fov, ratio, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);
-			break;
+			renderer.RenderOneEye(a1, toscreen);
 		} // close scope to auto-revert glColorMask
+		renderer.EndDrawScene(viewsector);
+		break;
 
 	case SIDE_BY_SIDE:
 		{
+			// FIRST PASS - 3D
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
 			int oldViewwidth = viewwidth;
@@ -69,30 +73,38 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			// left
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov, ratio/2, fovratio);
-			renderer.RenderOneEye(a1, false, viewsector); // False, to not swap yet
+			renderer.RenderOneEye(a1, false); // False, to not swap yet
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
 			viewwindowx += viewwidth;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov, ratio/2, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);
+			renderer.RenderOneEye(a1, toscreen);
+			//
+			// SECOND PASS weapon sprite
+			renderer.EndDrawScene(viewsector); // right view
+			viewwindowx -= viewwidth;
+			renderer.EndDrawScene(viewsector); // left view
+			//
 			// restore global state
 			viewwidth = oldViewwidth;
 			viewwindowx = oldViewwindowx;
-		break;
+			break;
 		}
 
 	case LEFT_EYE_VIEW:
 		setViewportFull(renderer, bounds);
 		setLeftEyeView(renderer, fov, ratio, fovratio);
-		renderer.RenderOneEye(a1, toscreen, viewsector);
+		renderer.RenderOneEye(a1, toscreen);
+		renderer.EndDrawScene(viewsector);
 		break;
 
 	case RIGHT_EYE_VIEW:
 		setViewportFull(renderer, bounds);
 		setRightEyeView(renderer, fov, ratio, fovratio);
-		renderer.RenderOneEye(a1, toscreen, viewsector);
+		renderer.RenderOneEye(a1, toscreen);
+		renderer.EndDrawScene(viewsector);
 		break;
 
 	case QUAD_BUFFERED: // TODO - NOT TESTED! Run on a Quadro system with gl stereo enabled...
@@ -104,22 +116,23 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			// Right first this time, so more generic GL_BACK_LEFT will remain for other modes
 			glDrawBuffer(GL_BACK_RIGHT);
 			setRightEyeView(renderer, fov, ratio, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);
+			renderer.RenderOneEye(a1, toscreen);
 			// Left
 			glDrawBuffer(GL_BACK_LEFT);
 			setLeftEyeView(renderer, fov, ratio, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);
-			break;
+			renderer.RenderOneEye(a1, toscreen);
 		} else { // mono view, in case hardware stereo is not supported
 			setMonoView(renderer, fov, ratio, fovratio);
-			renderer.RenderOneEye(a1, toscreen, viewsector);			
-			break;
+			renderer.RenderOneEye(a1, toscreen);			
 		}
+		renderer.EndDrawScene(viewsector);
+		break;
 
 	default:
 		setViewportFull(renderer, bounds);
 		setMonoView(renderer, fov, ratio, fovratio);
-		renderer.RenderOneEye(a1, toscreen, viewsector);			
+		renderer.RenderOneEye(a1, toscreen);			
+		renderer.EndDrawScene(viewsector);
 		break;
 
 	}
