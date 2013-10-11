@@ -24,7 +24,7 @@ public:
 
 	Stereo3D();
 
-	void render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen);
+	void render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector);
 
 	void setMode(int m);
 

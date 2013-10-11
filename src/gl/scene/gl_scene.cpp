@@ -86,6 +86,7 @@ CVAR(Bool, gl_no_skyclear, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
+CVAR(Float, st3d_screendist, 20.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)
@@ -167,7 +168,8 @@ void FGLRenderer::SetViewArea()
 void FGLRenderer::ResetViewport()
 {
 	int trueheight = static_cast<OpenGLFrameBuffer*>(screen)->GetTrueHeight();	// ugh...
-	glViewport(0, (trueheight-screen->GetHeight())/2, screen->GetWidth(), screen->GetHeight()); 
+	glViewport(0, (trueheight-screen->GetHeight())/2, screen->GetWidth(), screen->GetHeight());
+	// glViewport(viewwindowx, (trueheight-screen->GetHeight())/2, viewwidth, screen->GetHeight()); // CMB change to maybe work with side-by-side stereo
 }
 
 //-----------------------------------------------------------------------------
@@ -201,16 +203,15 @@ void FGLRenderer::SetViewport(GL_IRECT *bounds)
 		int vw = viewwidth;
 		int vh = viewheight;
 
-		vw = vw/viewport_scalex;
-
-		glViewport(viewwindowx+viewport_offsetx*vw, trueheight-bars-(height+viewwindowy-((height-vh)/2)), vw, height);
-		glScissor(viewwindowx+viewport_offsetx*vw, trueheight-bars-(vh+viewwindowy), vw, vh);
+		// Viewport is scene without status bar
+		glViewport(viewwindowx, trueheight-bars-(height+viewwindowy-((height-vh)/2)), vw, height);
+		// Scissor includes status bar
+		glScissor(viewwindowx, trueheight-bars-(vh+viewwindowy), vw, vh);
 	}
 	else
 	{
-		int vw = bounds->width/viewport_scalex;
-		glViewport(bounds->left+vw*viewport_offsetx, bounds->top, vw, bounds->height);
-		glScissor(bounds->left+vw*viewport_offsetx, bounds->top, vw, bounds->height);
+		glViewport(bounds->left, bounds->top, bounds->width, bounds->height);
+		glScissor(bounds->left, bounds->top, bounds->width, bounds->height);
 	}
 	glEnable(GL_SCISSOR_TEST);
 	
@@ -259,8 +260,8 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	double fH = tan( fovy / 360 * pi ) * zNear;
 	double fW = fH * ratio;
 
-	float screenZ = 25.0;
-	float frustumShift = eyeShift * zNear / screenZ;
+	// float screenZ = 25.0;
+	float frustumShift = eyeShift * zNear / st3d_screendist;
 
 	// Use glFrustum instead of gluPerspective, so we can use
 	// asymmetric frustum shift for stereo 3D
@@ -859,7 +860,7 @@ void FGLRenderer::SetFixedColormap (player_t *player)
 }
 
 // Renders on eye position of one viewpoint in a scene
-void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
+void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen, sector_t * viewsector)
 {
 #ifdef _DEBUG
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
@@ -908,10 +909,11 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	mCurrentFoV = fov;
 
 	// Use the Stereo3D object to set up the viewport and projection matrix
-	stereo3d.render(*this, bounds, fov, ratio, fovratio, toscreen);
+	stereo3d.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector);
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();
+
 	return retval;
 }
 
