@@ -21,7 +21,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 	angle_t a1 = renderer.FrustumAngle();
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
-	float oculusFov = 90 * fovratio;
+	float oculusFov = 90 * fovratio; // Hard code probably wider fov for oculus
 
 	switch(mode) 
 	{
@@ -82,6 +82,36 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			viewwindowx += viewwidth;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov, ratio/2, fovratio);
+			renderer.RenderOneEye(a1, toscreen);
+			//
+			// SECOND PASS weapon sprite
+			renderer.EndDrawScene(viewsector); // right view
+			viewwindowx -= viewwidth;
+			renderer.EndDrawScene(viewsector); // left view
+			//
+			// restore global state
+			viewwidth = oldViewwidth;
+			viewwindowx = oldViewwindowx;
+			break;
+		}
+
+	case SIDE_BY_SIDE_SQUISHED:
+		{
+			// FIRST PASS - 3D
+			// Temporarily modify global variables, so HUD could draw correctly
+			// each view is half width
+			int oldViewwidth = viewwidth;
+			viewwidth = viewwidth/2;
+			// left
+			setViewportLeft(renderer, bounds);
+			setLeftEyeView(renderer, fov, ratio, fovratio*2);
+			renderer.RenderOneEye(a1, false); // False, to not swap yet
+			// right
+			// right view is offset to right
+			int oldViewwindowx = viewwindowx;
+			viewwindowx += viewwidth;
+			setViewportRight(renderer, bounds);
+			setRightEyeView(renderer, fov, ratio, fovratio*2);
 			renderer.RenderOneEye(a1, toscreen);
 			//
 			// SECOND PASS weapon sprite
