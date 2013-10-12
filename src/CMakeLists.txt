@@ -277,6 +277,14 @@ else( FMOD_LIBRARY )
 	message( SEND_ERROR "Could not find FMOD library" )
 endif( FMOD_LIBRARY )
 
+# install fmod dll
+if (FMOD_LIBRARY AND WIN32)
+	get_filename_component(FMOD_DIR "${FMOD_LIBRARY}" PATH)
+	file(GLOB FMOD_SHLIBS "${FMOD_DIR}/../fmodex*.dll" "${FMOD_DIR}/fmodex*.dll")
+	foreach(FMOD_SHLIB "" ${FMOD_SHLIBS})
+	    install(PROGRAMS ${FMOD_SHLIB} DESTINATION ".")
+	endforeach()
+endif()
 
 # Search for FluidSynth
 
@@ -1272,3 +1280,7 @@ source_group("Versioning" FILES version.h win32/zdoom.rc)
 source_group("Win32 Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/win32/.+")
 source_group("Xlat" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/xlat/.+" FILES ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.h)
 source_group("Source Files" FILES ${CMAKE_CURRENT_BINARY_DIR}/sc_man_scanner.h sc_man_scanner.re)
+
+
+# install rules
+install(TARGETS zdoom DESTINATION ".")

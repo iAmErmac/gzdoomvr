@@ -105,14 +105,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			// left
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov, ratio, fovratio*2);
-			renderer.RenderOneEye(a1, false); // False, to not swap yet
+			renderer.RenderOneEye(a1, toscreen); // False, to not swap yet
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
 			viewwindowx += viewwidth;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov, ratio, fovratio*2);
-			renderer.RenderOneEye(a1, toscreen);
+			renderer.RenderOneEye(a1, false);
 			//
 			// SECOND PASS weapon sprite
 			renderer.EndDrawScene(viewsector); // right view
@@ -140,14 +140,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			// left
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, oculusFov, ratio/2, fovratio, false);
-			renderer.RenderOneEye(a1, false); // False, to not swap yet
+			renderer.RenderOneEye(a1, toscreen);
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
 			viewwindowx += viewwidth;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, oculusFov, ratio/2, fovratio, false);
-			renderer.RenderOneEye(a1, toscreen);
+			renderer.RenderOneEye(a1, false);
 			//
 			// SECOND PASS weapon sprite
 			// TODO Sprite needs some offset to appear at correct distance

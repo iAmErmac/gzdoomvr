@@ -1,5 +1,5 @@
 cmake_minimum_required( VERSION 2.4 )
-project(GZDoom)
+project(GZ3Doom)
 
 # Generator expression are available some time in CMake 2.8. Due to
 # cmake_minimum_required, we can assume a minor version of > 7 implies major >= 2
@@ -32,6 +32,8 @@ function( add_pk3 PK3_NAME PK3_DIR )
 
 	add_custom_target( ${PK3_TARGET} ALL
 		DEPENDS ${ZDOOM_OUTPUT_DIR}/${PK3_NAME} )
+
+	install(FILES ${ZDOOM_OUTPUT_DIR}/${PK3_NAME} DESTINATION ".")
 endfunction( add_pk3 )
 
 IF( NOT CMAKE_BUILD_TYPE )
@@ -41,7 +43,7 @@ IF( NOT CMAKE_BUILD_TYPE )
 ENDIF( NOT CMAKE_BUILD_TYPE )
 
 set( ZDOOM_OUTPUT_DIR ${CMAKE_BINARY_DIR} CACHE PATH "Directory where zdoom.pk3 and the executable will be created." )
-set( ZDOOM_EXE_NAME "gzdoom" CACHE FILEPATH "Name of the executable to create" )
+set( ZDOOM_EXE_NAME "gz3doom" CACHE FILEPATH "Name of the executable to create" )
 
 if( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
 	set( PROFILE 0 CACHE BOOL "Enable profiling with gprof for Debug and RelWithDebInfo build types." )
@@ -150,3 +152,15 @@ add_subdirectory( src )
 if( NOT WIN32 AND NOT APPLE )
 	add_subdirectory( output_sdl )
 endif( NOT WIN32 AND NOT APPLE )
+
+# INSTALL
+
+install(DIRECTORY docs DESTINATION docs)
+
+# Optionally install a wad file to simplify install->run
+set(ZDOOM_DEFAULT_WAD "" CACHE FILEPATH "WAD file to install with zdoom")
+if (ZDOOM_DEFAULT_WAD)
+    install(FILES ${ZDOOM_DEFAULT_WAD} DESTINATION ".")
+endif()
+
+# PACKAGE TODO
