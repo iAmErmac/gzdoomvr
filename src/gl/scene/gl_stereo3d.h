@@ -2,6 +2,7 @@
 #define GZDOOM_GL_STEREO3D_H_
 
 #include "gl/renderer/gl_renderer.h"
+#include "gl/scene/gl_oculustexture.h"
 
 /**
  * Stereo3D class controls OpenGL viewport and projection matrix,
@@ -31,13 +32,14 @@ public:
 private:
 
 	void setMonoView(FGLRenderer& renderer, float fov, float ratio, float fovratio);
-	void setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio);
-	void setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio);
+	void setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift=true);
+	void setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift=true);
 	void setViewportFull(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportLeft(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
 
 	Mode mode;
+	OculusTexture* oculusTexture;
 };
 
 #endif // GZDOOM_GL_STEREO3D_H_

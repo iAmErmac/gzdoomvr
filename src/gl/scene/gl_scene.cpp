@@ -86,7 +86,7 @@ CVAR(Bool, gl_no_skyclear, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
-CVAR(Float, st3d_screendist, 20.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CVAR(Float, st3d_screendist, 25.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)
@@ -248,7 +248,7 @@ void FGLRenderer::SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angl
 // eyeShift is the off-center eye position for stereo 3D, in doom units.
 //-----------------------------------------------------------------------------
 
-void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift)
+void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift)
 {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -261,7 +261,9 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	double fW = fH * ratio;
 
 	// float screenZ = 25.0;
-	float frustumShift = eyeShift * zNear / st3d_screendist;
+	float frustumShift = 0;
+	if (doFrustumShift)
+		frustumShift = eyeShift * zNear / st3d_screendist; // to recenter 3D offset view, but not for Oculus Rift
 
 	// Use glFrustum instead of gluPerspective, so we can use
 	// asymmetric frustum shift for stereo 3D

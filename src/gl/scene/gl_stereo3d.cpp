@@ -11,6 +11,7 @@ CVAR(Float, st3d_iod, 2.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 Stereo3D::Stereo3D() 
 	: mode(MONO)
+	, oculusTexture(NULL)
 {}
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector) 
@@ -20,6 +21,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 	angle_t a1 = renderer.FrustumAngle();
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
+	float oculusFov = 90 * fovratio;
 
 	switch(mode) 
 	{
@@ -93,6 +95,45 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			break;
 		}
 
+	case OCULUS_RIFT:
+		{
+			if (oculusTexture == NULL) {
+				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT);
+			}
+			// Render unwarped image to offscreen frame buffer
+			oculusTexture->bindToFrameBuffer();
+			// FIRST PASS - 3D
+			// Temporarily modify global variables, so HUD could draw correctly
+			// each view is half width
+			int oldViewwidth = viewwidth;
+			viewwidth = viewwidth/2;
+			// left
+			setViewportLeft(renderer, bounds);
+			setLeftEyeView(renderer, oculusFov, ratio/2, fovratio, false);
+			renderer.RenderOneEye(a1, false); // False, to not swap yet
+			// right
+			// right view is offset to right
+			int oldViewwindowx = viewwindowx;
+			viewwindowx += viewwidth;
+			setViewportRight(renderer, bounds);
+			setRightEyeView(renderer, oculusFov, ratio/2, fovratio, false);
+			renderer.RenderOneEye(a1, toscreen);
+			//
+			// SECOND PASS weapon sprite
+			// TODO Sprite needs some offset to appear at correct distance
+			renderer.EndDrawScene(viewsector); // right view
+			viewwindowx -= viewwidth;
+			renderer.EndDrawScene(viewsector); // left view
+			//
+			// restore global state
+			viewwidth = oldViewwidth;
+			viewwindowx = oldViewwindowx;
+			// Warp offscreen framebuffer to screen
+			oculusTexture->unbind();
+			oculusTexture->renderToScreen();
+			break;
+		}
+
 	case LEFT_EYE_VIEW:
 		setViewportFull(renderer, bounds);
 		setLeftEyeView(renderer, fov, ratio, fovratio);
@@ -146,12 +187,12 @@ void Stereo3D::setMonoView(FGLRenderer& renderer, float fov, float ratio, float 
 	renderer.SetProjection(fov, ratio, fovratio, 0);
 }
 
-void Stereo3D::setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio) {
-	renderer.SetProjection(fov, ratio, fovratio, st3d_swap ? +st3d_iod/2 : -st3d_iod/2);
+void Stereo3D::setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift) {
+	renderer.SetProjection(fov, ratio, fovratio, st3d_swap ? +st3d_iod/2 : -st3d_iod/2, frustumShift);
 }
 
-void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio) {
-	renderer.SetProjection(fov, ratio, fovratio, st3d_swap ? -st3d_iod/2 : +st3d_iod/2);
+void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift) {
+	renderer.SetProjection(fov, ratio, fovratio, st3d_swap ? -st3d_iod/2 : +st3d_iod/2, frustumShift);
 }
 
 // Normal full screen viewport
