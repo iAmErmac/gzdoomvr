@@ -57,15 +57,50 @@ OculusTexture::OculusTexture(int width, int height)
 	// Framebuffer
 	glGenFramebuffers(1, &frameBuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
-	// Image texture
 	glGenTextures(1, &renderedTexture);
+	glBindTexture(GL_TEXTURE_2D, renderedTexture);
+	glGenRenderbuffers(1, &depthBuffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
+	init(width, height);
+	// shader
+	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShader, 1, &vertexProgramString, NULL);
+	glCompileShader(vertexShader);
+	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader, 1, &fragmentProgramString, NULL);
+	glCompileShader(fragmentShader);
+	shader = glCreateProgram();
+	glAttachShader(shader, vertexShader);
+	glAttachShader(shader, fragmentShader);
+	glLinkProgram(shader);
+	GLsizei infoLength;
+	GLchar infoBuffer[1001];
+	glGetProgramInfoLog(shader, 1000, &infoLength, infoBuffer);
+	if (*infoBuffer) {
+		// error... TODO
+	}
+	// clean up
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+}
+
+bool OculusTexture::checkSize(int width, int height) {
+	if ((w == width) && (h == height))
+		return true; // no change
+	return false;
+}
+
+void OculusTexture::init(int width, int height) {
+	// Framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+	// Image texture
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 	// Poor filtering. Needed !
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);	
 	// Depth bufer
-	glGenRenderbuffers(1, &depthBuffer);
 	glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);

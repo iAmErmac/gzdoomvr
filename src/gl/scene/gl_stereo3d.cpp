@@ -127,7 +127,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 
 	case OCULUS_RIFT:
 		{
-			if (oculusTexture == NULL) {
+			if ( (oculusTexture == NULL) || (! oculusTexture->checkSize(SCREENWIDTH, SCREENHEIGHT)) ) {
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT);
 			}
 			// Render unwarped image to offscreen frame buffer

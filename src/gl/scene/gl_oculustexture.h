@@ -6,10 +6,12 @@ class OculusTexture {
 public:
 	OculusTexture(int width, int height);
 	void bindToFrameBuffer();
+	bool checkSize(int width, int height);
 	void renderToScreen();
 	void unbind();
 
 private:
+	void init(int width, int height);
 	unsigned int w, h;
 	unsigned int frameBuffer;
 	unsigned int renderedTexture;
