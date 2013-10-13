@@ -86,7 +86,9 @@ CVAR(Bool, gl_no_skyclear, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
-CVAR(Float, st3d_screendist, 25.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CVAR(Float, st3d_screendist, 0.6f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
+// Especially Oculus Rift VR geometry depends on exact mapping between doom map units and real world.
+CVAR(Float, doomunits_per_meter, 32.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D; TODO is this specified elsewhere?
 
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)
@@ -245,7 +247,7 @@ void FGLRenderer::SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angl
 // SetProjection
 // sets projection matrix
 //
-// eyeShift is the off-center eye position for stereo 3D, in doom units.
+// eyeShift is the off-center eye position for stereo 3D, in meters
 //-----------------------------------------------------------------------------
 
 void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift)
@@ -262,8 +264,9 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 
 	// float screenZ = 25.0;
 	float frustumShift = 0;
-	if (doFrustumShift)
-		frustumShift = eyeShift * zNear / st3d_screendist; // to recenter 3D offset view, but not for Oculus Rift
+	if (doFrustumShift) {
+		frustumShift = eyeShift * zNear / st3d_screendist; // meters cancel; to recenter 3D offset view, but not for Oculus Rift
+	}
 
 	// Use glFrustum instead of gluPerspective, so we can use
 	// asymmetric frustum shift for stereo 3D
@@ -273,7 +276,8 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 		-fH, fH, 
 		zNear, zFar);
 	// Translation to align left and right eye views at screen distance
-	glTranslatef(-eyeShift, 0, 0);
+	float eyeShift_doomunits = eyeShift * doomunits_per_meter;
+	glTranslatef(-eyeShift_doomunits, 0, 0);
 
 	gl_RenderState.Set2DMode(false);
 }

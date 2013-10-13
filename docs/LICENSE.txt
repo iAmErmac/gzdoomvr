@@ -1,4 +1,6 @@
-ZDoom is available for non-commercial use only
+ZDoom is available for non-commercial use only.
+
+For latest license information , see http://zdoom.org/wiki/license
 
 ZDoom uses code from several sources which varied licensing schemes.
 

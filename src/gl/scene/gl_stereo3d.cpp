@@ -7,7 +7,7 @@
 CVAR(Int, st3d_mode, 0, CVAR_GLOBALCONFIG)
 CVAR(Bool, st3d_swap, false, CVAR_GLOBALCONFIG)
 // intraocular distance in doom units; 1 doom unit = about 3 cm
-CVAR(Float, st3d_iod, 2.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CVAR(Float, st3d_iod, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 
 Stereo3D::Stereo3D() 
 	: mode(MONO)
@@ -18,10 +18,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 {
 	setMode(st3d_mode);
 
-	angle_t a1 = renderer.FrustumAngle();
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
 	float oculusFov = 90 * fovratio; // Hard code probably wider fov for oculus
+	if (mode == OCULUS_RIFT)
+		renderer.mCurrentFoV = oculusFov; // needed for Frustum angle calculation
+	angle_t a1 = renderer.FrustumAngle();
 
 	switch(mode) 
 	{
