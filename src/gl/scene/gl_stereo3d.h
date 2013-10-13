@@ -3,6 +3,7 @@
 
 #include "gl/renderer/gl_renderer.h"
 #include "gl/scene/gl_oculustexture.h"
+#include "gl/scene/gl_oculustracker.h"
 
 /**
  * Stereo3D class controls OpenGL viewport and projection matrix,
@@ -27,7 +28,7 @@ public:
 	Stereo3D();
 
 	void render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector);
-
+	void setViewDirection(FGLRenderer& renderer);
 	void setMode(int m);
 
 private:
@@ -41,6 +42,7 @@ private:
 
 	Mode mode;
 	OculusTexture* oculusTexture;
+	OculusTracker* oculusTracker;
 };
 
 #endif // GZDOOM_GL_STEREO3D_H_

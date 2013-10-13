@@ -886,7 +886,7 @@ void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
 //-----------------------------------------------------------------------------
 
 sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen)
-{       
+{
 	sector_t * retval;
 	R_SetupFrame (camera);
 	SetViewArea();
@@ -911,6 +911,9 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	retval = viewsector;
 
 	SetCameraPos(viewx, viewy, viewz, viewangle);
+
+	stereo3d.setViewDirection(*this); // oculus can override pitch and roll...
+
 	SetViewMatrix(false, false);
 	mCurrentFoV = fov;
 

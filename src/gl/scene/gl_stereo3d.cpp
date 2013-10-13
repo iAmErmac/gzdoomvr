@@ -3,6 +3,7 @@
 #include "gl/renderer/gl_renderer.h"
 #include "gl/scene/gl_colormask.h"
 #include "doomstat.h"
+#include "r_utility.h" // viewpitch
 
 CVAR(Int, st3d_mode, 0, CVAR_GLOBALCONFIG)
 CVAR(Bool, st3d_swap, false, CVAR_GLOBALCONFIG)
@@ -12,6 +13,7 @@ CVAR(Float, st3d_iod, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 Stereo3D::Stereo3D() 
 	: mode(MONO)
 	, oculusTexture(NULL)
+	, oculusTracker(NULL)
 {}
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector) 
@@ -227,6 +229,25 @@ void Stereo3D::setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, flo
 
 void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift) {
 	renderer.SetProjection(fov, ratio, fovratio, st3d_swap ? -st3d_iod/2 : +st3d_iod/2, frustumShift);
+}
+
+void Stereo3D::setViewDirection(FGLRenderer& renderer) {
+	static float previousYaw = 0;
+	if (mode == OCULUS_RIFT) {
+		if (oculusTracker == NULL) {
+			oculusTracker = new OculusTracker();
+		}
+		if (oculusTracker->isGood()) {
+			oculusTracker->update();
+			// Pitch and roll can be local, because they don't affect gameplay.
+			renderer.mAngles.Pitch = -oculusTracker->pitch * 180.0 / 3.14159;
+			renderer.mAngles.Roll = -oculusTracker->roll * 180.0 / 3.14159;
+			// How to set Yaw correctly? viewangle...
+			float yaw = oculusTracker->yaw;
+			float dYaw = yaw - previousYaw;
+			previousYaw = yaw;
+		}
+	}
 }
 
 // Normal full screen viewport

@@ -814,6 +814,37 @@ set( NOT_COMPILED_SOURCE_FILES
 	asm_x86_64/tmap3.s
 )
 
+
+# OCULUS
+# Maybe compile in support for Oculus Rift CMB Oct 2013
+find_path(OCULUS_SDK_PATH
+    NAMES
+        LibOVR/Include/OVR.h
+    PATHS 
+        "C:/Program Files/OculusSDK"
+        "C:/Program Files (x86)/OculusSDK"
+)
+find_path(OCULUS_INCLUDE_DIRECTORY
+    NAMES
+        OVR.h
+    PATHS 
+        ${OCULUS_SDK_PATH}/LibOVR/Include
+)
+set(OCULUS_LIB_SEARCH_PATHS "")
+if(WIN32)
+    LIST(APPEND OCULUS_LIB_SEARCH_PATHS
+        "${OCULUS_SDK_PATH}/LibOVR/Lib/WIn32"
+)
+endif()
+find_library(OCULUS_LIBRARY
+    NAMES libovr
+    PATHS ${OCULUS_LIB_SEARCH_PATHS}
+)
+if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
+    add_definitions(-DHAVE_OCULUS_API)
+    include_directories(${OCULUS_INCLUDE_DIRECTORY})
+endif()
+
 add_executable( zdoom WIN32
 	${HEADER_FILES}
 	${NOT_COMPILED_SOURCE_FILES}
@@ -1054,6 +1085,7 @@ add_executable( zdoom WIN32
 	gl/scene/gl_drawinfo.cpp
 	gl/scene/gl_flats.cpp
 	gl/scene/gl_oculustexture.cpp
+	gl/scene/gl_oculustracker.cpp
 	gl/scene/gl_walls.cpp
 	gl/scene/gl_sprite.cpp
 	gl/scene/gl_skydome.cpp
@@ -1177,6 +1209,11 @@ add_executable( zdoom WIN32
 	r_data/r_translate.cpp
 	autozend.cpp
 )
+
+
+if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
+    target_link_libraries(zdoom ${OCULUS_LIBRARY})
+endif()
 
 set_source_files_properties( xlat/parse_xlat.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c" )
 set_source_files_properties( sc_man.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/sc_man_scanner.h" )
