@@ -912,7 +912,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 
 	SetCameraPos(viewx, viewy, viewz, viewangle);
 
-	stereo3d.setViewDirection(*this); // oculus can override pitch and roll...
+	// stereo3d.setViewDirection(*this); // oculus can override pitch and roll...
 
 	SetViewMatrix(false, false);
 	mCurrentFoV = fov;
