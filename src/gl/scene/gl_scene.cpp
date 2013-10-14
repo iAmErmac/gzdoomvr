@@ -306,10 +306,23 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	float mult = mirror? -1:1;
 	float planemult = planemirror? -1:1;
 
+	// Try to correct stretching during roll in Oculus Rift.
+	// Calibrate stretch by rolling from zero to 90 degrees.
+	// If ceiling height appears to get higher at 90 degrees, stretch is too large.
+	// If ceiling height appears to get lower at 90 degrees, stretch is too small.
+	// If roll rotation looks correct, stretch is just right.
+	// 1.30 is too large; 1.20 is too small.
+	const float stretch = 1.27; // What is this number??? Original doom aspect ratio?
+	glScalef(1, 1.0/stretch, 1); // unstretch before rotate
+
 	glRotatef(GLRenderer->mAngles.Roll,  0.0f, 0.0f, 1.0f);
 	glRotatef(GLRenderer->mAngles.Pitch, 1.0f, 0.0f, 0.0f);
 	glRotatef(GLRenderer->mAngles.Yaw,   0.0f, mult, 0.0f);
+
+	glScalef(1, stretch, 1); // restretch after rotate
+
 	glTranslatef( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
+
 	glScalef(-mult, planemult, 1);
 }
 

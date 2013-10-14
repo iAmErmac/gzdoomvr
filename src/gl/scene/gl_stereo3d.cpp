@@ -23,7 +23,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
-	float oculusFov = 90 * fovratio; // Hard code probably wider fov for oculus
+	// Calibrate oculusFov by slowly yawing view. 
+	// If subjects approach center of view too fast, oculusFov is too small.
+	// If subjects approach center of view too slowly, oculusFov is too large.
+	// If subjects approach correctly , oculusFov is just right.
+	// 90 is too large, 80 is too small.
+	float oculusFov = 85 * fovratio; // Hard code probably wider fov for oculus
 	if (mode == OCULUS_RIFT)
 		renderer.mCurrentFoV = oculusFov; // needed for Frustum angle calculation
 	angle_t a1 = renderer.FrustumAngle();
@@ -157,14 +162,20 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			renderer.RenderOneEye(a1, false);
 			//
 			// SECOND PASS weapon sprite
-			// TODO Sprite needs some offset to appear at correct distance
+			// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
+			int spriteOffsetX = (int)(0.008*viewwidth); // kludge to set weapon distance
+			viewwindowx -= spriteOffsetX;
+			int oldViewwindowy = viewwindowy;
+			int spriteOffsetY = (int)(-0.05*viewheight); // kludge to adjust weapon height
+			viewwindowy += spriteOffsetY;
 			renderer.EndDrawScene(viewsector); // right view
-			viewwindowx -= viewwidth;
+			viewwindowx = oldViewwindowx + spriteOffsetX;
 			renderer.EndDrawScene(viewsector); // left view
 			//
 			// restore global state
 			viewwidth = oldViewwidth;
 			viewwindowx = oldViewwindowx;
+			viewwindowy = oldViewwindowy;
 			// Warp offscreen framebuffer to screen
 			oculusTexture->unbind();
 			oculusTexture->renderToScreen();
