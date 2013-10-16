@@ -162,14 +162,18 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			renderer.RenderOneEye(a1, false);
 			//
 			// SECOND PASS weapon sprite
+			float fullWidth = SCREENWIDTH / 2.0;
+			float weaponScale = 0.40;
+			viewwidth = weaponScale * fullWidth;
+			float left = (1.0 - weaponScale) * fullWidth * 0.5; // left edge of scaled viewport
 			// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
-			int spriteOffsetX = (int)(0.008*viewwidth); // kludge to set weapon distance
-			viewwindowx -= spriteOffsetX;
+			int spriteOffsetX = (int)(0.020*fullWidth); // kludge to set weapon distance
+			viewwindowx = left + fullWidth - spriteOffsetX;
 			int oldViewwindowy = viewwindowy;
-			int spriteOffsetY = (int)(-0.05*viewheight); // kludge to adjust weapon height
+			int spriteOffsetY = (int)(0.04*viewheight); // kludge to adjust weapon height
 			viewwindowy += spriteOffsetY;
 			renderer.EndDrawScene(viewsector); // right view
-			viewwindowx = oldViewwindowx + spriteOffsetX;
+			viewwindowx = left + spriteOffsetX;
 			renderer.EndDrawScene(viewsector); // left view
 			//
 			// restore global state
@@ -181,6 +185,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			oculusTexture->renderToScreen();
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 			setViewDirection(renderer);
+			// TODO - experiment with setting size of status bar, menus, etc.
 			break;
 		}
 
