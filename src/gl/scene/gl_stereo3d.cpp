@@ -1,7 +1,9 @@
 #include "gl/system/gl_system.h"
+#include "gl/system/gl_cvars.h"
 #include "gl/scene/gl_stereo3d.h"
 #include "gl/renderer/gl_renderer.h"
 #include "gl/scene/gl_colormask.h"
+#include "gl/scene/gl_hudtexture.h"
 #include "doomstat.h"
 #include "r_utility.h" // viewpitch
 #include "g_game.h"
@@ -14,6 +16,7 @@ CVAR(Float, st3d_iod, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 Stereo3D::Stereo3D() 
 	: mode(MONO)
 	, oculusTexture(NULL)
+	, hudTexture(NULL)
 	, oculusTracker(NULL)
 {}
 
@@ -142,6 +145,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 					delete(oculusTexture);
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT);
 			}
+			if ( (hudTexture == NULL) || (! hudTexture->checkSize(SCREENWIDTH/2, SCREENHEIGHT)) ) {
+				if (hudTexture)
+					delete(hudTexture);
+				hudTexture = new HudTexture(SCREENWIDTH/2, SCREENHEIGHT);
+				hudTexture->bindToFrameBuffer();
+				glClearColor(0, 0, 0, 0);
+				glClear(GL_COLOR_BUFFER_BIT);
+				hudTexture->unbind();
+			}
 			// Render unwarped image to offscreen frame buffer
 			oculusTexture->bindToFrameBuffer();
 			// FIRST PASS - 3D
@@ -149,15 +161,22 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			// each view is half width
 			int oldViewwidth = viewwidth;
 			viewwidth = viewwidth/2;
+			int oldScreenBlocks = screenblocks;
+			screenblocks = 12; // full screen
 			// left
-			setViewportLeft(renderer, bounds);
+			GL_IRECT riftBounds; // Always use full screen with Oculus Rift
+			riftBounds.width = SCREENWIDTH;
+			riftBounds.height = SCREENHEIGHT;
+			riftBounds.left = 0;
+			riftBounds.top = 0;
+			setViewportLeft(renderer, &riftBounds);
 			setLeftEyeView(renderer, oculusFov, ratio/2, fovratio, false);
-			renderer.RenderOneEye(a1, toscreen);
+			renderer.RenderOneEye(a1, false);
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
 			viewwindowx += viewwidth;
-			setViewportRight(renderer, bounds);
+			setViewportRight(renderer, &riftBounds);
 			setRightEyeView(renderer, oculusFov, ratio/2, fovratio, false);
 			renderer.RenderOneEye(a1, false);
 			//
@@ -176,16 +195,38 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			viewwindowx = left + spriteOffsetX;
 			renderer.EndDrawScene(viewsector); // left view
 			//
+			// Third pass HUD
+			glEnable(GL_TEXTURE_2D);
+			float hudScale = weaponScale;
+			float h = SCREENHEIGHT * hudScale * 1.20 / 2.0; // 1.20 pixel aspect
+			float w = SCREENWIDTH/2 * hudScale;
+			float x = (SCREENWIDTH/2-w)*0.5;
+			float y = (SCREENHEIGHT-h)*0.5;
+			glViewport(x+spriteOffsetX/2, y, w, h); // Not infinity, but not as close as the weapon.
+			hudTexture->renderToScreen();
+			x += SCREENWIDTH/2;
+			glViewport(x-spriteOffsetX/2, y, w, h);
+			hudTexture->renderToScreen();
+			//
 			// restore global state
 			viewwidth = oldViewwidth;
 			viewwindowx = oldViewwindowx;
 			viewwindowy = oldViewwindowy;
 			// Warp offscreen framebuffer to screen
 			oculusTexture->unbind();
+			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 			oculusTexture->renderToScreen();
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 			setViewDirection(renderer);
 			// TODO - experiment with setting size of status bar, menus, etc.
+			h = SCREENHEIGHT;
+			w = SCREENWIDTH/2;
+			hudTexture->bindToFrameBuffer();
+			glClearColor(0, 0, 0, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+			// glViewport((1.0-hudScale)*0.5*SCREENWIDTH, (SCREENHEIGHT-sh)*0.5, sw, sh); // Render HUD stuff to left eye, smaller
+			glViewport(0, 0, w, h);
+			screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
 			break;
 		}
 

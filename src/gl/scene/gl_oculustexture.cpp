@@ -171,6 +171,7 @@ void OculusTexture::bindToFrameBuffer()
 }
 
 void OculusTexture::renderToScreen() {
+	bool useShader = true;
 	// Load that texture we just rendered
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
@@ -181,14 +182,16 @@ void OculusTexture::renderToScreen() {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
-	glUseProgram(shader);
+	if (useShader)
+		glUseProgram(shader);
 	glBegin(GL_TRIANGLE_STRIP);
 		glTexCoord2d(0, 1); glVertex3f(-1,  1, 0.5);
 		glTexCoord2d(1, 1); glVertex3f( 1,  1, 0.5);
 		glTexCoord2d(0, 0); glVertex3f(-1, -1, 0.5);
 		glTexCoord2d(1, 0); glVertex3f( 1, -1, 0.5);
 	glEnd();
-	glUseProgram(0);
+	if (useShader)
+		glUseProgram(0);
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);

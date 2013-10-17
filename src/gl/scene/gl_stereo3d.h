@@ -2,6 +2,7 @@
 #define GZDOOM_GL_STEREO3D_H_
 
 #include "gl/renderer/gl_renderer.h"
+#include "gl/scene/gl_hudtexture.h"
 #include "gl/scene/gl_oculustexture.h"
 #include "gl/scene/gl_oculustracker.h"
 
@@ -41,6 +42,7 @@ private:
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
 
 	Mode mode;
+	HudTexture* hudTexture;
 	OculusTexture* oculusTexture;
 	OculusTracker* oculusTracker;
 };
