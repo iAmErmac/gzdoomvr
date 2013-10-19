@@ -307,8 +307,9 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	float planemult = planemirror? -1:1;
 
 	// Scale world up, so floor is farther down.
+	float s = 2.0;
 	if (Stereo3DMode.getMode() == Stereo3D::OCULUS_RIFT) {
-		glScalef(1.25, 1.25, 1.25); // Try a scale instead of a translate
+		glScalef(s,s,s); // Try a scale instead of/in addition to a translate
 	}
 
 	// Try to correct stretching during roll in Oculus Rift.
@@ -334,7 +335,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 
 	// Translate so view is at eye level, not gun level; enemy human eye should be at equal height to my viewpoint
 	if (Stereo3DMode.getMode() == Stereo3D::OCULUS_RIFT) {
-		glTranslatef( 0, -5.0, 0 ); // calibrated to almost match eye height of soldier WARNING: can cause missing surfaces
+		// glTranslatef( 0, -5.0, 0 ); // calibrated to almost match eye height of soldier WARNING: can cause missing surfaces
 	}
 
 	glScalef(-mult, planemult, 1);
