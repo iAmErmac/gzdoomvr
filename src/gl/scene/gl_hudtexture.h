@@ -8,6 +8,8 @@ public:
 	~HudTexture() {destroy();}
 	void bindToFrameBuffer();
 	bool checkSize(int width, int height); // is the size still the same?
+	int getWidth() {return w;}
+	int getHeight() {return h;}
 	void renderToScreen();
 	void unbind();
 

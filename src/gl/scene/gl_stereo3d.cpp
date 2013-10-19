@@ -1,13 +1,17 @@
 #include "gl/system/gl_system.h"
 #include "gl/system/gl_cvars.h"
+#include "gl/system/gl_framebuffer.h"
 #include "gl/scene/gl_stereo3d.h"
 #include "gl/renderer/gl_renderer.h"
 #include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_hudtexture.h"
+#include "gl/utility/gl_clock.h"
 #include "doomstat.h"
 #include "r_utility.h" // viewpitch
 #include "g_game.h"
 
+EXTERN_CVAR(Bool, gl_draw_sync)
+//
 CVAR(Int, st3d_mode, 0, CVAR_GLOBALCONFIG)
 CVAR(Bool, st3d_swap, false, CVAR_GLOBALCONFIG)
 // intraocular distance in doom units; 1 doom unit = about 3 cm
@@ -23,6 +27,8 @@ Stereo3D::Stereo3D()
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector) 
 {
 	setMode(st3d_mode);
+	if (hudTexture)
+		hudTexture->unbind();
 
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
@@ -154,6 +160,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 				glClear(GL_COLOR_BUFFER_BIT);
 				hudTexture->unbind();
 			}
+			// Flush previous render
+			if (!gl_draw_sync && toscreen)
+			{
+				All.Unclock();
+				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+				All.Clock();
+			}
 			// Render unwarped image to offscreen frame buffer
 			oculusTexture->bindToFrameBuffer();
 			// FIRST PASS - 3D
@@ -182,14 +195,18 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			//
 			// SECOND PASS weapon sprite
 			float fullWidth = SCREENWIDTH / 2.0;
-			float weaponScale = 0.40;
+			float weaponScale = 0.33;
 			viewwidth = weaponScale * fullWidth;
 			float left = (1.0 - weaponScale) * fullWidth * 0.5; // left edge of scaled viewport
 			// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
-			int spriteOffsetX = (int)(0.020*fullWidth); // kludge to set weapon distance
+			int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
 			viewwindowx = left + fullWidth - spriteOffsetX;
 			int oldViewwindowy = viewwindowy;
-			int spriteOffsetY = (int)(0.04*viewheight); // kludge to adjust weapon height
+			int spriteOffsetY = (int)(-0.00*viewheight); // nudge gun up/down
+			// Counteract effect of status bar on weapon position
+			if (oldScreenBlocks <= 10) { // lower weapon in status mode
+				spriteOffsetY += 0.305 * viewwidth; // empirical
+			}
 			viewwindowy += spriteOffsetY;
 			renderer.EndDrawScene(viewsector); // right view
 			viewwindowx = left + spriteOffsetX;
@@ -201,11 +218,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			float h = SCREENHEIGHT * hudScale * 1.20 / 2.0; // 1.20 pixel aspect
 			float w = SCREENWIDTH/2 * hudScale;
 			float x = (SCREENWIDTH/2-w)*0.5;
-			float y = (SCREENHEIGHT-h)*0.5;
-			glViewport(x+spriteOffsetX/2, y, w, h); // Not infinity, but not as close as the weapon.
+			float hudOffsetY = 0.01 * h; // nudge crosshair up
+			if (oldScreenBlocks <= 10)
+				hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
+			float y = (SCREENHEIGHT-h)*0.5 + hudOffsetY; // offset to move cross hair up to correct spot
+			glViewport(x+spriteOffsetX/5, y, w, h); // Not infinity, but not as close as the weapon.
 			hudTexture->renderToScreen();
 			x += SCREENWIDTH/2;
-			glViewport(x-spriteOffsetX/2, y, w, h);
+			glViewport(x-spriteOffsetX/5, y, w, h);
 			hudTexture->renderToScreen();
 			//
 			// restore global state

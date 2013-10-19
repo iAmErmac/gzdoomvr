@@ -88,7 +88,7 @@ CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
 CVAR(Float, st3d_screendist, 0.6f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 // Especially Oculus Rift VR geometry depends on exact mapping between doom map units and real world.
-CVAR(Float, doomunits_per_meter, 32.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D; TODO is this specified elsewhere?
+CVAR(Float, doomunits_per_meter, 28.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D; TODO is this specified elsewhere?
 
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)
