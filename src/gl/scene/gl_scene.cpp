@@ -86,9 +86,9 @@ CVAR(Bool, gl_no_skyclear, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
-CVAR(Float, st3d_screendist, 0.6f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
+CVAR(Float, vr_screendist, 0.6f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 // Especially Oculus Rift VR geometry depends on exact mapping between doom map units and real world.
-CVAR(Float, doomunits_per_meter, 28.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D; TODO is this specified elsewhere?
+CVAR(Float, vr_units_per_meter, 32.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D; TODO is this specified elsewhere?
 
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)
@@ -103,7 +103,7 @@ TArray<BYTE> currentmapsection;
 
 void gl_ParseDefs();
 
-static Stereo3D stereo3d;
+// static Stereo3D stereo3d;
 
 //-----------------------------------------------------------------------------
 //
@@ -265,7 +265,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	// float screenZ = 25.0;
 	float frustumShift = 0;
 	if (doFrustumShift) {
-		frustumShift = eyeShift * zNear / st3d_screendist; // meters cancel; to recenter 3D offset view, but not for Oculus Rift
+		frustumShift = eyeShift * zNear / vr_screendist; // meters cancel; to recenter 3D offset view, but not for Oculus Rift
 	}
 
 	// Use glFrustum instead of gluPerspective, so we can use
@@ -276,7 +276,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 		-fH, fH, 
 		zNear, zFar);
 	// Translation to align left and right eye views at screen distance
-	float eyeShift_doomunits = eyeShift * doomunits_per_meter;
+	float eyeShift_doomunits = eyeShift * vr_units_per_meter;
 	glTranslatef(-eyeShift_doomunits, 0, 0);
 
 	gl_RenderState.Set2DMode(false);
@@ -306,22 +306,36 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	float mult = mirror? -1:1;
 	float planemult = planemirror? -1:1;
 
+	// Scale world up, so floor is farther down.
+	if (Stereo3DMode.getMode() == Stereo3D::OCULUS_RIFT) {
+		glScalef(1.25, 1.25, 1.25); // Try a scale instead of a translate
+	}
+
 	// Try to correct stretching during roll in Oculus Rift.
 	// Calibrate stretch by rolling from zero to 90 degrees.
 	// If ceiling height appears to get higher at 90 degrees, stretch is too large.
 	// If ceiling height appears to get lower at 90 degrees, stretch is too small.
 	// If roll rotation looks correct, stretch is just right.
 	// 1.30 is too large; 1.20 is too small.
-	const float stretch = 1.27; // What is this number??? Original doom aspect ratio?
+	const float stretch = 1.27; // What is this number??? Original doom aspect ratio? Seems not quite.
 	glScalef(1, 1.0/stretch, 1); // unstretch before rotate
 
 	glRotatef(GLRenderer->mAngles.Roll,  0.0f, 0.0f, 1.0f);
+
+	// glScalef(1, stretch, 1); // restretch after rotate // roll/pitch interaction weird when restretching here
+	// There remains a problem with pitch accuracy. We may need to scale doom pitch from reality pitch. TODO
+
 	glRotatef(GLRenderer->mAngles.Pitch, 1.0f, 0.0f, 0.0f);
 	glRotatef(GLRenderer->mAngles.Yaw,   0.0f, mult, 0.0f);
 
 	glScalef(1, stretch, 1); // restretch after rotate
 
 	glTranslatef( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
+
+	// Translate so view is at eye level, not gun level; enemy human eye should be at equal height to my viewpoint
+	if (Stereo3DMode.getMode() == Stereo3D::OCULUS_RIFT) {
+		glTranslatef( 0, -5.0, 0 ); // calibrated to almost match eye height of soldier WARNING: can cause missing surfaces
+	}
 
 	glScalef(-mult, planemult, 1);
 }
@@ -931,7 +945,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	mCurrentFoV = fov;
 
 	// Use the Stereo3D object to set up the viewport and projection matrix
-	stereo3d.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector);
+	Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector);
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();

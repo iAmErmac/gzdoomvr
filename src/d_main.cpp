@@ -759,7 +759,7 @@ void D_Display ()
 			hw2d = screen->Begin2D(false);
 			C_DrawConsole (false);
 			M_Drawer ();
-			screen->Update ();
+			SCREENUPDATE;
 			return;
 
 		case GS_LEVEL:
@@ -888,7 +888,7 @@ void D_Display ()
 		C_DrawConsole (hw2d);	// draw console
 		M_Drawer ();			// menu is drawn even on top of everything
 		FStat::PrintStat ();
-		screen->Update ();		// page flip or blit buffer
+		SCREENUPDATE;		// page flip or blit buffer
 	}
 	else
 	{
@@ -915,7 +915,7 @@ void D_Display ()
 			done = screen->WipeDo (1);
 			C_DrawConsole (hw2d);	// console and
 			M_Drawer ();			// menu are drawn even on top of wipes
-			screen->Update ();		// page flip or blit buffer
+			SCREENUPDATE;		// page flip or blit buffer
 			NetUpdate ();			// [RH] not sure this is needed anymore
 		} while (!done);
 		screen->WipeCleanup();

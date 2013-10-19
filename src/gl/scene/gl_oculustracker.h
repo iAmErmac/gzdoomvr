@@ -9,10 +9,12 @@ class OculusTracker {
 public:
 	OculusTracker();
 	~OculusTracker();
-	bool isGood();
-	void report();
+	const OVR::HMDInfo& getInfo() const {return Info;}
+	bool isGood() const;
+	void report() const;
 	void update();
 
+	// Head orientation state, refreshed by call to update();
 	float pitch, roll, yaw;
 
 private:

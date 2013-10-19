@@ -1,3 +1,4 @@
+#include "v_video.h"
 #include "gl/system/gl_system.h"
 #include "gl/system/gl_cvars.h"
 #include "gl/system/gl_framebuffer.h"
@@ -10,12 +11,33 @@
 #include "r_utility.h" // viewpitch
 #include "g_game.h"
 
+// #define RIFT_HUDSCALE 0.90
+#define RIFT_HUDSCALE 0.33
+
 EXTERN_CVAR(Bool, gl_draw_sync)
 //
-CVAR(Int, st3d_mode, 0, CVAR_GLOBALCONFIG)
-CVAR(Bool, st3d_swap, false, CVAR_GLOBALCONFIG)
-// intraocular distance in doom units; 1 doom unit = about 3 cm
-CVAR(Float, st3d_iod, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
+CVAR(Int, vr_mode, 0, CVAR_GLOBALCONFIG)
+CVAR(Bool, vr_swap, false, CVAR_GLOBALCONFIG)
+// intraocular distance in meters
+CVAR(Float, vr_ipd, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
+
+
+// Global shared Stereo3DMode object
+Stereo3D Stereo3DMode;
+
+
+// Delegated screen functions from v_video.h
+int getStereoScreenWidth() {
+	return screen->GetWidth();
+}
+int getStereoScreenHeight() {
+	return screen->GetHeight();
+}
+void stereoScreenUpdate() {
+	Stereo3DMode.updateScreen();
+}
+
+
 
 Stereo3D::Stereo3D() 
 	: mode(MONO)
@@ -26,13 +48,16 @@ Stereo3D::Stereo3D()
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector) 
 {
-	setMode(st3d_mode);
+	setMode(vr_mode);
+
+	// Restore actual screen, instead of offscreen single-eye buffer,
+	// in case we just exited Rift mode.
 	if (hudTexture)
 		hudTexture->unbind();
 
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
-	// Calibrate oculusFov by slowly yawing view. 
+	// Task: manually calibrate oculusFov by slowly yawing view. 
 	// If subjects approach center of view too fast, oculusFov is too small.
 	// If subjects approach center of view too slowly, oculusFov is too large.
 	// If subjects approach correctly , oculusFov is just right.
@@ -160,13 +185,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 				glClear(GL_COLOR_BUFFER_BIT);
 				hudTexture->unbind();
 			}
-			// Flush previous render
+			// Flush previous render - for some reason this way always has a good hud image
+			/*
 			if (!gl_draw_sync && toscreen)
 			{
 				All.Unclock();
 				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
 				All.Clock();
 			}
+			*/
 			// Render unwarped image to offscreen frame buffer
 			oculusTexture->bindToFrameBuffer();
 			// FIRST PASS - 3D
@@ -184,6 +211,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			riftBounds.top = 0;
 			setViewportLeft(renderer, &riftBounds);
 			setLeftEyeView(renderer, oculusFov, ratio/2, fovratio, false);
+			glEnable(GL_DEPTH_TEST);
 			renderer.RenderOneEye(a1, false);
 			// right
 			// right view is offset to right
@@ -194,15 +222,16 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			renderer.RenderOneEye(a1, false);
 			//
 			// SECOND PASS weapon sprite
+			glEnable(GL_TEXTURE_2D);
+			screenblocks = 12;
 			float fullWidth = SCREENWIDTH / 2.0;
-			float weaponScale = 0.33;
-			viewwidth = weaponScale * fullWidth;
-			float left = (1.0 - weaponScale) * fullWidth * 0.5; // left edge of scaled viewport
+			viewwidth = RIFT_HUDSCALE * fullWidth;
+			float left = (1.0 - RIFT_HUDSCALE) * fullWidth * 0.5; // left edge of scaled viewport
 			// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
 			int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
 			viewwindowx = left + fullWidth - spriteOffsetX;
 			int oldViewwindowy = viewwindowy;
-			int spriteOffsetY = (int)(-0.00*viewheight); // nudge gun up/down
+			int spriteOffsetY = (int)(0.05*viewheight); // nudge gun up/down
 			// Counteract effect of status bar on weapon position
 			if (oldScreenBlocks <= 10) { // lower weapon in status mode
 				spriteOffsetY += 0.305 * viewwidth; // empirical
@@ -211,42 +240,26 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			renderer.EndDrawScene(viewsector); // right view
 			viewwindowx = left + spriteOffsetX;
 			renderer.EndDrawScene(viewsector); // left view
-			//
 			// Third pass HUD
-			glEnable(GL_TEXTURE_2D);
-			float hudScale = weaponScale;
-			float h = SCREENHEIGHT * hudScale * 1.20 / 2.0; // 1.20 pixel aspect
-			float w = SCREENWIDTH/2 * hudScale;
-			float x = (SCREENWIDTH/2-w)*0.5;
-			float hudOffsetY = 0.01 * h; // nudge crosshair up
-			if (oldScreenBlocks <= 10)
-				hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
-			float y = (SCREENHEIGHT-h)*0.5 + hudOffsetY; // offset to move cross hair up to correct spot
-			glViewport(x+spriteOffsetX/5, y, w, h); // Not infinity, but not as close as the weapon.
-			hudTexture->renderToScreen();
-			x += SCREENWIDTH/2;
-			glViewport(x-spriteOffsetX/5, y, w, h);
-			hudTexture->renderToScreen();
+			screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
+			// Draw HUD again, to avoid flashing? - and render to screen
+			blitHudTextureToScreen(true); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
 			//
 			// restore global state
 			viewwidth = oldViewwidth;
 			viewwindowx = oldViewwindowx;
 			viewwindowy = oldViewwindowy;
-			// Warp offscreen framebuffer to screen
-			oculusTexture->unbind();
-			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-			oculusTexture->renderToScreen();
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 			setViewDirection(renderer);
-			// TODO - experiment with setting size of status bar, menus, etc.
-			h = SCREENHEIGHT;
-			w = SCREENWIDTH/2;
+			// Set up 2D rendering to write to our hud renderbuffer
 			hudTexture->bindToFrameBuffer();
+			
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
-			// glViewport((1.0-hudScale)*0.5*SCREENWIDTH, (SCREENHEIGHT-sh)*0.5, sw, sh); // Render HUD stuff to left eye, smaller
+			
+			int h = hudTexture->getHeight();
+			int w = hudTexture->getWidth();
 			glViewport(0, 0, w, h);
-			screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
 			break;
 		}
 
@@ -295,6 +308,76 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 	}
 }
 
+void Stereo3D::updateScreen() {
+	screen->Update();
+	HudTexture * ht = Stereo3DMode.hudTexture;
+	if ( (ht != NULL) && (ht->isBound()) ) {
+		ht->unbind(); // restore drawing to real screen
+		blitHudTextureToScreen();
+		//
+		ht->bindToFrameBuffer();
+		viewwidth = ht->getWidth();
+		// viewheight = ht->getHeight();
+		viewwindowx = 0;
+		viewwindowy = 0;
+		glViewport(0, 0, ht->getWidth(), ht->getHeight());
+		/*
+		glClearColor(0,0,0,0);
+		glClear(GL_COLOR_BUFFER_BIT);
+		*/
+	}
+}
+
+void Stereo3D::blitHudTextureToScreen(bool toscreen) {
+	glEnable(GL_TEXTURE_2D);
+	if (mode == OCULUS_RIFT) {
+		bool useOculusTexture = true;
+		if (oculusTexture)
+			useOculusTexture = true;
+		// First pass blit unwarped hudTexture into oculusTexture, in two places
+		if (useOculusTexture)
+			oculusTexture->bindToFrameBuffer();
+		// Compute viewport coordinates
+		float h = SCREENHEIGHT * RIFT_HUDSCALE * 1.20 / 2.0; // 1.20 pixel aspect
+		float w = SCREENWIDTH/2 * RIFT_HUDSCALE;
+		float x = (SCREENWIDTH/2-w)*0.5;
+		float hudOffsetY = 0.01 * h; // nudge crosshair up
+		hudOffsetY -= 0.005 * SCREENHEIGHT; // reverse effect of oculus head raising.
+		if (screenblocks <= 10)
+			hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
+		float y = (SCREENHEIGHT-h)*0.5 + hudOffsetY; // offset to move cross hair up to correct spot
+		int hudOffsetX = (int)(0.004*SCREENWIDTH/2); // kludge to set hud distance
+		glViewport(x+hudOffsetX, y, w, h); // Not infinity, but not as close as the weapon.
+		if (useOculusTexture || toscreen)
+			hudTexture->renderToScreen();
+		x += SCREENWIDTH/2;
+		glViewport(x-hudOffsetX, y, w, h);
+		if (useOculusTexture || toscreen)
+			hudTexture->renderToScreen();
+		// Second pass blit warped oculusTexture to screen
+		if (oculusTexture && toscreen) {
+			oculusTexture->unbind();
+			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+			oculusTexture->renderToScreen();
+			if (!gl_draw_sync && toscreen) {
+			// if (gamestate != GS_LEVEL) { // TODO avoids flash by swapping at beginning of 3D render
+				All.Unclock();
+				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+				All.Clock();
+			}
+		}
+	}
+	else { // TODO what else?
+		if (toscreen) {
+			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+			hudTexture->renderToScreen();
+			// if (gamestate != GS_LEVEL) {
+				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+			// }
+		}
+	}
+}
+
 void Stereo3D::setMode(int m) {
 	mode = static_cast<Mode>(m);
 };
@@ -304,11 +387,11 @@ void Stereo3D::setMonoView(FGLRenderer& renderer, float fov, float ratio, float 
 }
 
 void Stereo3D::setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift) {
-	renderer.SetProjection(fov, ratio, fovratio, st3d_swap ? +st3d_iod/2 : -st3d_iod/2, frustumShift);
+	renderer.SetProjection(fov, ratio, fovratio, vr_swap ? +vr_ipd/2 : -vr_ipd/2, frustumShift);
 }
 
 void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift) {
-	renderer.SetProjection(fov, ratio, fovratio, st3d_swap ? -st3d_iod/2 : +st3d_iod/2, frustumShift);
+	renderer.SetProjection(fov, ratio, fovratio, vr_swap ? -vr_ipd/2 : +vr_ipd/2, frustumShift);
 }
 
 void Stereo3D::setViewDirection(FGLRenderer& renderer) {
@@ -317,6 +400,11 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 	if (mode == OCULUS_RIFT) {
 		if (oculusTracker == NULL) {
 			oculusTracker = new OculusTracker();
+			if (oculusTracker->isGood()) {
+				// update cvars TODO
+				const OVR::HMDInfo& info = oculusTracker->getInfo();
+				vr_ipd = info.InterpupillaryDistance;
+			}
 		}
 		if (oculusTracker->isGood()) {
 			oculusTracker->update(); // get new orientation from headset.

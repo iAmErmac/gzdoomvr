@@ -8,6 +8,7 @@ HudTexture::HudTexture(int width, int height)
 	: w(width), h(height)
 	, frameBuffer(0)
 	, renderedTexture(0)
+	, m_isBound(false)
 {
 	// Framebuffer
 	glGenFramebuffers(1, &frameBuffer);
@@ -56,6 +57,7 @@ void HudTexture::bindToFrameBuffer()
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, renderedTexture, 0);
 	glViewport(0, 0, w, h);
+	m_isBound = true;
 }
 
 void HudTexture::renderToScreen() {
@@ -84,5 +86,6 @@ void HudTexture::renderToScreen() {
 
 void HudTexture::unbind() {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	m_isBound = false;
 }
 

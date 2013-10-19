@@ -424,9 +424,24 @@ private:
 // This is the screen updated by I_FinishUpdate.
 extern DFrameBuffer *screen;
 
+
+// I need to delegate screenheight, screenwidth,
+// and screen update, for Oculus Rift, and
+// other side-by-side stereo modes
+
+extern int getStereoScreenWidth();
+extern int getStereoScreenHeight();
+extern void stereoScreenUpdate();
+
+/*
 #define SCREENWIDTH (screen->GetWidth ())
 #define SCREENHEIGHT (screen->GetHeight ())
+ */
 #define SCREENPITCH (screen->GetPitch ())
+
+#define SCREENWIDTH (getStereoScreenWidth())
+#define SCREENHEIGHT (getStereoScreenHeight())
+#define SCREENUPDATE (stereoScreenUpdate())
 
 EXTERN_CVAR (Float, Gamma)
 

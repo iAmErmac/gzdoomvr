@@ -37,7 +37,7 @@ OculusTracker::~OculusTracker() {
 #endif
 }
 
-bool OculusTracker::isGood() {
+bool OculusTracker::isGood() const {
 #ifdef HAVE_OCULUS_API
 	return pSensor.GetPtr() != NULL;
 #else
@@ -45,7 +45,7 @@ bool OculusTracker::isGood() {
 #endif
 }
 
-void OculusTracker::report() {
+void OculusTracker::report() const {
 }
 
 void OculusTracker::update() {

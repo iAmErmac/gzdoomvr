@@ -12,6 +12,7 @@
  */
 class Stereo3D {
 public:
+	// Which Sterescopic 3D modes are available?
 	enum Mode {
 		MONO = 0,
 		GREEN_MAGENTA,
@@ -28,8 +29,19 @@ public:
 
 	Stereo3D();
 
+	Mode getMode() {return mode;}
+
+	// Render OpenGL scene for both eyes. Delegated from FLGRenderer drawing routines.
 	void render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector);
+
+	// Adjusts player orientation on following frame, if OCULUS_RIFT mode is active. Otherwise does nothing.
 	void setViewDirection(FGLRenderer& renderer);
+
+	// Calls screen->Update(), but only after flushing stereo 3d render buffers, if any.
+	void Stereo3D::updateScreen(); 
+
+protected:
+	// Change stereo mode. Users should adjust this with vr_mode CVAR
 	void setMode(int m);
 
 private:
@@ -40,12 +52,15 @@ private:
 	void setViewportFull(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportLeft(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
+	void blitHudTextureToScreen(bool toscreen = true);
 
-	Mode mode;
-	HudTexture* hudTexture;
-	OculusTexture* oculusTexture;
-	OculusTracker* oculusTracker;
+	Mode mode; // Current 3D method
+	OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.
+	OculusTracker* oculusTracker; // Reads head orientation from Oculus Rift
+	HudTexture* hudTexture; // Offscreen render buffer for non-3D content for one eye.
 };
+
+extern Stereo3D Stereo3DMode;
 
 #endif // GZDOOM_GL_STEREO3D_H_
 
