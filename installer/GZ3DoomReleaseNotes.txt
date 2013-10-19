@@ -1,0 +1,15 @@
+
+Version history:
+
+Version 1.8.2_b October 19, 2013
+* Rename CVARS from st3d_<whatever> to vr_<whatever>
+* Rift mode weapon is smaller and lower
+* Rift mode crosshair might be in the right place
+* Menus and intermission screens are now inside the Rift in Rift mode (this is the HARD part)
+* Elevate head position somewhat (though I did it the wrong way...)
+* vr_ipd (interpupillary distance) is read from Rift SDK, if available.
+
+Version 1.8.2 October 14, 2013
+* First release of GZ3Doom
+* Features Oculus Rift mode
+* Features other stereoscopic 3D modes
