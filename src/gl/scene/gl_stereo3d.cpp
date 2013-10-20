@@ -10,6 +10,9 @@
 #include "doomstat.h"
 #include "r_utility.h" // viewpitch
 #include "g_game.h"
+#include "c_console.h"
+#include "sbar.h"
+#include "am_map.h"
 
 // #define RIFT_HUDSCALE 0.90
 #define RIFT_HUDSCALE 0.33
@@ -28,10 +31,10 @@ Stereo3D Stereo3DMode;
 
 // Delegated screen functions from v_video.h
 int getStereoScreenWidth() {
-	return screen->GetWidth();
+	return Stereo3DMode.getScreenWidth();
 }
 int getStereoScreenHeight() {
-	return screen->GetHeight();
+	return Stereo3DMode.getScreenHeight();
 }
 void stereoScreenUpdate() {
 	Stereo3DMode.updateScreen();
@@ -44,6 +47,7 @@ Stereo3D::Stereo3D()
 	, oculusTexture(NULL)
 	, hudTexture(NULL)
 	, oculusTracker(NULL)
+	, adaptScreenSize(false)
 {}
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector) 
@@ -54,6 +58,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 	// in case we just exited Rift mode.
 	if (hudTexture)
 		hudTexture->unbind();
+	adaptScreenSize = false;
 
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
@@ -260,6 +265,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			int h = hudTexture->getHeight();
 			int w = hudTexture->getWidth();
 			glViewport(0, 0, w, h);
+			/*
+			// Experiment...
+			adaptScreenSize = true;
+			C_NewModeAdjust ();
+			ST_LoadCrosshair (true);
+			AM_NewResolution ();
+			*/ // not helping~
+			//
 			break;
 		}
 
@@ -317,15 +330,21 @@ void Stereo3D::updateScreen() {
 		//
 		ht->bindToFrameBuffer();
 		viewwidth = ht->getWidth();
-		// viewheight = ht->getHeight();
 		viewwindowx = 0;
 		viewwindowy = 0;
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
-		/*
-		glClearColor(0,0,0,0);
-		glClear(GL_COLOR_BUFFER_BIT);
-		*/
 	}
+}
+
+int Stereo3D::getScreenWidth() {
+	if (adaptScreenSize && hudTexture && hudTexture->isBound())
+		return hudTexture->getWidth();
+	return screen->GetWidth();
+}
+int Stereo3D::getScreenHeight() {
+	if (adaptScreenSize && hudTexture && hudTexture->isBound())
+		return hudTexture->getHeight();
+	return screen->GetHeight();
 }
 
 void Stereo3D::blitHudTextureToScreen(bool toscreen) {

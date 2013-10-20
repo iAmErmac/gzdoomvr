@@ -721,7 +721,7 @@ void AddToConsole (int printlevel, const char *text)
 	if (ConFont != NULL && screen != NULL)
 	{
 		x = 0;
-		maxwidth = screen->GetWidth() - LEFTMARGIN - RIGHTMARGIN;
+		maxwidth = SCREENWIDTH - LEFTMARGIN - RIGHTMARGIN;
 
 		while (*work_p)
 		{
@@ -1152,16 +1152,16 @@ void C_DrawConsole (bool hw2d)
 		visheight = ConBottom;
 		realheight = (visheight * conpic->GetHeight()) / SCREENHEIGHT;
 
-		screen->DrawTexture (conpic, 0, visheight - screen->GetHeight(),
-			DTA_DestWidth, screen->GetWidth(),
-			DTA_DestHeight, screen->GetHeight(),
+		screen->DrawTexture (conpic, 0, visheight - SCREENHEIGHT,
+			DTA_DestWidth, SCREENWIDTH,
+			DTA_DestHeight, SCREENHEIGHT,
 			DTA_ColorOverlay, conshade,
 			DTA_Alpha, (hw2d && gamestate != GS_FULLCONSOLE) ? FLOAT2FIXED(con_alpha) : FRACUNIT,
 			DTA_Masked, false,
 			TAG_DONE);
 		if (conline && visheight < screen->GetHeight())
 		{
-			screen->Clear (0, visheight, screen->GetWidth(), visheight+1, 0, 0);
+			screen->Clear (0, visheight, SCREENWIDTH, visheight+1, 0, 0);
 		}
 
 		if (ConBottom >= 12)
@@ -1223,7 +1223,7 @@ void C_DrawConsole (bool hw2d)
 			if (player->BlendA != 0 && (gamestate == GS_LEVEL || gamestate == GS_TITLELEVEL))
 			{
 				screen->Dim (PalEntry ((unsigned char)(player->BlendR*255), (unsigned char)(player->BlendG*255), (unsigned char)(player->BlendB*255)),
-					player->BlendA, 0, ConBottom, screen->GetWidth(), screen->GetHeight() - ConBottom);
+					player->BlendA, 0, ConBottom, SCREENWIDTH, SCREENHEIGHT - ConBottom);
 				ST_SetNeedRefresh();
 				V_SetBorderNeedRefresh();
 			}

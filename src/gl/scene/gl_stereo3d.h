@@ -38,7 +38,9 @@ public:
 	void setViewDirection(FGLRenderer& renderer);
 
 	// Calls screen->Update(), but only after flushing stereo 3d render buffers, if any.
-	void Stereo3D::updateScreen(); 
+	void updateScreen(); 
+	int getScreenWidth();
+	int getScreenHeight();
 
 protected:
 	// Change stereo mode. Users should adjust this with vr_mode CVAR
@@ -58,6 +60,8 @@ private:
 	OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.
 	OculusTracker* oculusTracker; // Reads head orientation from Oculus Rift
 	HudTexture* hudTexture; // Offscreen render buffer for non-3D content for one eye.
+	bool adaptScreenSize; // Whether to have SCREENWIDTH/SCREENHEIGHT return size of hudTexture
+
 };
 
 extern Stereo3D Stereo3DMode;
