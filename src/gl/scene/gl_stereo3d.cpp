@@ -14,8 +14,7 @@
 #include "sbar.h"
 #include "am_map.h"
 
-// #define RIFT_HUDSCALE 0.90
-#define RIFT_HUDSCALE 0.33
+#define RIFT_HUDSCALE 0.40
 
 EXTERN_CVAR(Bool, gl_draw_sync)
 //
@@ -236,10 +235,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float
 			int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
 			viewwindowx = left + fullWidth - spriteOffsetX;
 			int oldViewwindowy = viewwindowy;
-			int spriteOffsetY = (int)(0.05*viewheight); // nudge gun up/down
+			int spriteOffsetY = (int)(0.00*viewheight); // nudge gun up/down
 			// Counteract effect of status bar on weapon position
 			if (oldScreenBlocks <= 10) { // lower weapon in status mode
-				spriteOffsetY += 0.305 * viewwidth; // empirical
+				spriteOffsetY += 0.227 * viewwidth; // empirical - lines up brutal doom down sight in 1920x1080 Rift mode
 			}
 			viewwindowy += spriteOffsetY;
 			renderer.EndDrawScene(viewsector); // right view

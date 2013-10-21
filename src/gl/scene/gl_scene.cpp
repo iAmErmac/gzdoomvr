@@ -336,7 +336,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	// Translate so view is at eye level, not gun level; enemy human eye should be at equal height to my viewpoint
 	if (Stereo3DMode.getMode() == Stereo3D::OCULUS_RIFT) {
 		// TODO - this is the wrong way. We should be modifying the camera y position somehow.
-		glTranslatef( 0, -5.0, 0 ); // calibrated to almost match eye height of soldier WARNING: can cause missing surfaces
+		// glTranslatef( 0, -5.0, 0 ); // calibrated to almost match eye height of soldier WARNING: can cause missing surfaces
 	}
 
 	glScalef(-mult, planemult, 1);
