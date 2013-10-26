@@ -455,7 +455,8 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 			G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
 			previousYaw = yaw;
 			// Pitch
-			int pitch = -32768/3.14159*oculusTracker->pitch;
+			float p = oculusTracker->pitch;
+			int pitch = -32768/3.14159*p;
 			int dPitch = (pitch - viewpitch/65536); // empirical
 			G_AddViewPitch(-dPitch);
 			int x = 3;

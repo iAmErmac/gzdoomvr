@@ -329,8 +329,16 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 
 	// glScalef(1, stretch, 1); // restretch after rotate // roll/pitch interaction weird when restretching here
 	// There remains a problem with pitch accuracy. We may need to scale doom pitch from reality pitch. TODO
+	float p = GLRenderer->mAngles.Pitch * PI / 180.0;
+	{
+		// Try to correct weird pitch problem (issue #16), by scaling sin
+		float s = sin(p) * stretch; // Moves bullet to correct place
+		float c = cos(p);
+		p = atan2(s, c);
+	}
+	p *= 180.0/PI;
 
-	glRotatef(GLRenderer->mAngles.Pitch, 1.0f, 0.0f, 0.0f);
+	glRotatef(p, 1.0f, 0.0f, 0.0f);
 	glRotatef(GLRenderer->mAngles.Yaw,   0.0f, mult, 0.0f);
 
 	glScalef(1, stretch, 1); // restretch after rotate
