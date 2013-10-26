@@ -87,9 +87,8 @@ CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
 CVAR(Float, vr_screendist, 0.6f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
-// Especially Oculus Rift VR geometry depends on exact mapping between doom map units and real world.
-CVAR(Float, vr_units_per_meter, 32.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D; TODO is this specified elsewhere?
 
+EXTERN_CVAR(Float, vr_player_height_meters) // Used for stereo 3D
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)
 EXTERN_CVAR (Bool, r_deathcamera)
@@ -250,7 +249,7 @@ void FGLRenderer::SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angl
 // eyeShift is the off-center eye position for stereo 3D, in meters
 //-----------------------------------------------------------------------------
 
-void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift)
+void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, player_t * player, float eyeShift, bool doFrustumShift)
 {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -262,10 +261,16 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	double fH = tan( fovy / 360 * pi ) * zNear;
 	double fW = fH * ratio;
 
+	float vh = 41.0;
+	if (player != NULL)
+		vh = FIXED2FLOAT(player->mo->ViewHeight);
+	float mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
+	float eyeShift_mapunits = eyeShift * mapunits_per_meter;
+
 	// float screenZ = 25.0;
 	float frustumShift = 0;
 	if (doFrustumShift) {
-		frustumShift = eyeShift * zNear / vr_screendist; // meters cancel; to recenter 3D offset view, but not for Oculus Rift
+		frustumShift = eyeShift_mapunits * zNear / vr_screendist; // meters cancel; to recenter 3D offset view, but not for Oculus Rift
 	}
 
 	// Use glFrustum instead of gluPerspective, so we can use
@@ -276,8 +281,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 		-fH, fH, 
 		zNear, zFar);
 	// Translation to align left and right eye views at screen distance
-	float eyeShift_doomunits = eyeShift * vr_units_per_meter;
-	glTranslatef(-eyeShift_doomunits, 0, 0);
+	glTranslatef(-eyeShift_mapunits, 0, 0);
 
 	gl_RenderState.Set2DMode(false);
 }
@@ -317,8 +321,8 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	// If ceiling height appears to get higher at 90 degrees, stretch is too large.
 	// If ceiling height appears to get lower at 90 degrees, stretch is too small.
 	// If roll rotation looks correct, stretch is just right.
-	// 1.30 is too large; 1.20 is too small.
-	const float stretch = 1.27; // What is this number??? Original doom aspect ratio? Seems not quite.
+	// 1.20 is too large; 1.10 is too small.
+	const float stretch = 1.15; // What is this number??? Original doom aspect ratio? Seems not quite.
 	glScalef(1, 1.0/stretch, 1); // unstretch before rotate
 
 	glRotatef(GLRenderer->mAngles.Roll,  0.0f, 0.0f, 1.0f);
@@ -947,7 +951,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	mCurrentFoV = fov;
 
 	// Use the Stereo3D object to set up the viewport and projection matrix
-	Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector);
+	Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector, camera->player);
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();

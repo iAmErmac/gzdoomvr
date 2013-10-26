@@ -32,7 +32,7 @@ public:
 	Mode getMode() {return mode;}
 
 	// Render OpenGL scene for both eyes. Delegated from FLGRenderer drawing routines.
-	void render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector);
+	void render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector, player_t * player);
 
 	// Adjusts player orientation on following frame, if OCULUS_RIFT mode is active. Otherwise does nothing.
 	void setViewDirection(FGLRenderer& renderer);
@@ -48,9 +48,9 @@ protected:
 
 private:
 
-	void setMonoView(FGLRenderer& renderer, float fov, float ratio, float fovratio);
-	void setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift=true);
-	void setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, bool frustumShift=true);
+	void setMonoView(FGLRenderer& renderer, float fov, float ratio, float fovratio, player_t * player);
+	void setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, player_t * player, bool frustumShift=true);
+	void setRightEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, player_t * player, bool frustumShift=true);
 	void setViewportFull(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportLeft(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
