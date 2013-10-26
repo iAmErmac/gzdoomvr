@@ -76,8 +76,27 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	// If subjects approach correctly , oculusFov is just right.
 	// 90 is too large, 80 is too small.
 	// float oculusFov = 85 * fovratio; // Hard code probably wider fov for oculus // use vr_rift_fov
-	if (mode == OCULUS_RIFT)
+
+	if (mode == OCULUS_RIFT) {
 		renderer.mCurrentFoV = vr_rift_fov; // needed for Frustum angle calculation
+		// Adjust player eye height, but only in oculus rift mode...
+		if (savedPlayerViewHeight == 0) {
+			savedPlayerViewHeight = player->mo->ViewHeight;
+		}
+		fixed_t testHeight = savedPlayerViewHeight + FLOAT2FIXED(vr_view_yoffset);
+		if (player->mo->ViewHeight != testHeight) {
+			player->mo->ViewHeight = testHeight;
+			P_CalcHeight(player);
+		}
+	} else {
+		// Revert player eye height when leaving Rift mode
+		if ( (savedPlayerViewHeight != 0) && (player->mo->ViewHeight != savedPlayerViewHeight) ) {
+			player->mo->ViewHeight = savedPlayerViewHeight;
+			savedPlayerViewHeight = 0;
+			P_CalcHeight(player);
+		}
+	}
+
 	angle_t a1 = renderer.FrustumAngle();
 
 	switch(mode) 
@@ -198,11 +217,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClear(GL_COLOR_BUFFER_BIT);
 				hudTexture->unbind();
 			}
-			if (savedPlayerViewHeight == 0) {
-				savedPlayerViewHeight = player->mo->ViewHeight;
-			}
-			player->mo->ViewHeight = savedPlayerViewHeight + FLOAT2FIXED(vr_view_yoffset);
-			P_CalcHeight(player);
 			// Flush previous render - for some reason this way always has a good hud image
 			/*
 			if (!gl_draw_sync && toscreen)
