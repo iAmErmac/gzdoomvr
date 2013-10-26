@@ -1,6 +1,15 @@
 
 Version history:
 
+Version 1.8.2_c October 26, 2013
+* Correct crosshair placement at high pitch angles.
+* Correct placement of site-down-weapon weapon in Brutal Doom in Rift mode.
+* Screenshots in Rift mode work again.
+* Weapon is a bit larger than in version 1.8.2_b.
+* Weapon position is where it should be (for its size)
+* Setting vr_player_height cvar to your personal actual height in meters should make your feet just reach the ground.
+* Setting vr_view_yoffset to a value like 5 (map units) makes you taller so you're not so much shorter than the monsters.
+
 Version 1.8.2_b October 19, 2013
 * Rename CVARS from st3d_<whatever> to vr_<whatever>
 * Rift mode weapon is smaller and lower
