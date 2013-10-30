@@ -270,7 +270,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, player_t
 	// float screenZ = 25.0;
 	float frustumShift = 0;
 	if (doFrustumShift) {
-		frustumShift = eyeShift_mapunits * zNear / vr_screendist; // meters cancel; to recenter 3D offset view, but not for Oculus Rift
+		frustumShift = eyeShift * zNear / vr_screendist; // meters cancel; to recenter 3D offset view, but not for Oculus Rift
 	}
 
 	// Use glFrustum instead of gluPerspective, so we can use

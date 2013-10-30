@@ -24,6 +24,8 @@ OculusTracker::OculusTracker()
 	{
 		pFusionResult->AttachToSensor(pSensor);
 	}
+	pFusionResult->SetPredictionEnabled(true);
+	pFusionResult->SetPrediction(0.020, true); // Never hurts to be 20 ms in future?
 #endif
 }
 
@@ -50,7 +52,12 @@ void OculusTracker::report() const {
 
 void OculusTracker::update() {
 #ifdef HAVE_OCULUS_API
-	OVR::Quatf quaternion = pFusionResult->GetOrientation();
+	bool usePredicted = false;
+	OVR::Quatf quaternion;
+	if (usePredicted)
+		quaternion = pFusionResult->GetPredictedOrientation();
+	else
+		quaternion = pFusionResult->GetOrientation();
 	quaternion.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
 #endif
 }
