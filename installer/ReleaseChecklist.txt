@@ -8,6 +8,8 @@ To create an installer for Distibution on Windows:
      Does crosshair work in Rift mode?
      Do menus work in Rift mode?
      Does intermission screen work (well enough) in Rift mode?
+     Does Rift mode work?
+     Does green/cyan mode work?
  * Create installer by building PACKAGE target.
  * Write release notes.
  * Commit changes to github

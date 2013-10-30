@@ -1,6 +1,10 @@
 
 Version history:
 
+Version 1.8.2_d October 30, 2013
+* Fix terrible units bug in frustum shift for all non-Rift 3D modes.
+* Add Rift view angle prediction with hard-coded latency of 20 ms.
+
 Version 1.8.2_c October 26, 2013
 * Correct crosshair placement at high pitch angles.
 * Correct placement of site-down-weapon weapon in Brutal Doom in Rift mode.
