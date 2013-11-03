@@ -42,6 +42,8 @@ public:
 	int getScreenWidth();
 	int getScreenHeight();
 
+	void bindHudTexture(bool doUse);
+
 protected:
 	// Change stereo mode. Users should adjust this with vr_mode CVAR
 	void setMode(int m);

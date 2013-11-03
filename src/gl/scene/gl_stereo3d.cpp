@@ -31,6 +31,7 @@ CVAR(Float, vr_view_yoffset, 0.0, 0) // MAP UNITS
 // Supposed to be 32 units per meter, according to http://doom.wikia.com/wiki/Map_unit
 // But ceilings and floors look too close at that scale.
 CVAR(Float, vr_player_height_meters, 1.7f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
+CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
 
 // Global shared Stereo3DMode object
 Stereo3D Stereo3DMode;
@@ -238,7 +239,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			//
 			// TODO correct geometry for oculus
 			//
-			float ratio = 0.5 * SCREENWIDTH / SCREENHEIGHT;
+			float ratio = vr_rift_aspect;
 			float fovy = 2.0*atan(tan(0.5*vr_rift_fov*3.14159/180.0)/ratio) * 180.0/3.14159;
 			float fovratio = vr_rift_fov/fovy;
 			//
@@ -355,18 +356,32 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	}
 }
 
-void Stereo3D::updateScreen() {
-	screen->Update();
+void Stereo3D::bindHudTexture(bool doUse)
+{
 	HudTexture * ht = Stereo3DMode.hudTexture;
-	if ( (ht != NULL) && (ht->isBound()) ) {
-		ht->unbind(); // restore drawing to real screen
-		blitHudTextureToScreen();
-		//
+	if (doUse) {
 		ht->bindToFrameBuffer();
 		viewwidth = ht->getWidth();
 		viewwindowx = 0;
 		viewwindowy = 0;
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
+	}
+	else {
+		ht->unbind(); // restore drawing to real screen
+		viewwidth = screen->GetWidth();
+		viewwindowx = 0;
+		viewwindowy = 0;
+		glViewport(0, 0, screen->GetWidth(), screen->GetHeight());
+	}
+}
+
+void Stereo3D::updateScreen() {
+	screen->Update();
+	HudTexture * ht = Stereo3DMode.hudTexture;
+	if ( (ht != NULL) && (ht->isBound()) ) {
+		bindHudTexture(false);
+		blitHudTextureToScreen();
+		bindHudTexture(true);
 	}
 }
 
