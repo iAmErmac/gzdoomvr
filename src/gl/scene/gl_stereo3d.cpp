@@ -354,10 +354,18 @@ void Stereo3D::bindHudTexture(bool doUse)
 }
 
 void Stereo3D::updateScreen() {
+	// Unbind texture before update, so Fraps could work
+	bool htWasBound = false;
+	HudTexture * ht = Stereo3DMode.hudTexture;
+	if (ht && ht->isBound()) {
+		htWasBound = true;
+		ht->unbind();
+	}
 	screen->Update();
+	if (htWasBound)
+		ht->bindToFrameBuffer();
 	if (vr_mode != OCULUS_RIFT)
 		return;
-	HudTexture * ht = Stereo3DMode.hudTexture;
 	if (ht == NULL)
 		return;
 	if (ht->isBound()) {
