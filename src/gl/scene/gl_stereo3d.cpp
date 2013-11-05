@@ -62,6 +62,7 @@ Stereo3D::Stereo3D()
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
+	LocalHudRenderer::unbind();
 	setMode(vr_mode);
 
 	// Restore actual screen, instead of offscreen single-eye buffer,
@@ -286,6 +287,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
 			bindHudTexture(false);
+			LocalHudRenderer::bind();
 			break;
 		}
 

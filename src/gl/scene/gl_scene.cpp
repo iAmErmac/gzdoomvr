@@ -68,7 +68,6 @@
 #include "gl/models/gl_models.h"
 #include "gl/scene/gl_clipper.h"
 #include "gl/scene/gl_drawinfo.h"
-#include "gl/scene/gl_localhudrenderer.h"
 #include "gl/scene/gl_portal.h"
 #include "gl/scene/gl_stereo3d.h"
 #include "gl/shaders/gl_shader.h"
