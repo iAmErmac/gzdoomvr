@@ -14,6 +14,7 @@
 #include "c_console.h"
 #include "sbar.h"
 #include "am_map.h"
+#include "gl/scene/gl_localhudrenderer.h"
 
 extern void P_CalcHeight (player_t *player);
 
@@ -523,4 +524,13 @@ void Stereo3D::setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds) {
 	}
 }
 
+LocalHudRenderer::LocalHudRenderer()
+{
+	Stereo3DMode.bindHudTexture(true);
+}
+
+LocalHudRenderer::~LocalHudRenderer()
+{
+	Stereo3DMode.bindHudTexture(false);
+}
 
