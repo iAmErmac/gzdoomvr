@@ -269,6 +269,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			}
 			viewwindowy += spriteOffsetY;
 			renderer.EndDrawScene(viewsector); // right view
+			setViewportLeft(renderer, &riftBounds);
 			viewwindowx = left + spriteOffsetX;
 			renderer.EndDrawScene(viewsector); // left view
 			// Third pass HUD
@@ -348,10 +349,12 @@ void Stereo3D::bindHudTexture(bool doUse)
 	if (doUse) {
 		ht->bindToFrameBuffer();
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
+		glScissor(0, 0, ht->getWidth(), ht->getHeight());
 	}
 	else {
-		// ht->unbind(); // restore drawing to real screen
+		ht->unbind(); // restore drawing to real screen
 		glViewport(0, 0, screen->GetWidth(), screen->GetHeight());
+		glScissor(0, 0, screen->GetWidth(), screen->GetHeight());
 	}
 }
 
@@ -375,8 +378,10 @@ void Stereo3D::updateScreen() {
 		blitHudTextureToScreen();
 		bindHudTexture(true);
 	}
-	else
+	else {
 		blitHudTextureToScreen();
+		glViewport(0, 0, screen->GetWidth(), screen->GetHeight());
+	}
 }
 
 int Stereo3D::getScreenWidth() {
