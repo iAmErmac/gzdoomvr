@@ -65,8 +65,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 	// Restore actual screen, instead of offscreen single-eye buffer,
 	// in case we just exited Rift mode.
-	if (hudTexture)
-		hudTexture->unbind();
+	bindHudTexture(false);
 	adaptScreenSize = false;
 
 	GLboolean supportsStereo = false;
@@ -218,7 +217,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClear(GL_COLOR_BUFFER_BIT);
 				hudTexture->unbind();
 			}
-			bindHudTexture(false);
 			// Render unwarped image to offscreen frame buffer
 			oculusTexture->bindToFrameBuffer();
 			// FIRST PASS - 3D
@@ -349,15 +347,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 void Stereo3D::bindHudTexture(bool doUse)
 {
+	HudTexture * ht = Stereo3DMode.hudTexture;
+	if (ht == NULL)
+		return;
+	if (! doUse)
+		ht->unbind(); // restore drawing to real screen
 	if (vr_mode != OCULUS_RIFT)
 		return;
-	HudTexture * ht = Stereo3DMode.hudTexture;
 	if (doUse) {
 		ht->bindToFrameBuffer();
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
 	}
 	else {
-		ht->unbind(); // restore drawing to real screen
+		// ht->unbind(); // restore drawing to real screen
 		glViewport(0, 0, screen->GetWidth(), screen->GetHeight());
 	}
 }
