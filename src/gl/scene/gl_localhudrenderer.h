@@ -6,6 +6,9 @@
  */
 class LocalHudRenderer {
 public:
+	static void bind();
+	static void unbind();
+
 	LocalHudRenderer();
 	~LocalHudRenderer();
 

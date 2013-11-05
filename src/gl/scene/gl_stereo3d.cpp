@@ -66,7 +66,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 	// Restore actual screen, instead of offscreen single-eye buffer,
 	// in case we just exited Rift mode.
-	bindHudTexture(false);
 	adaptScreenSize = false;
 
 	GLboolean supportsStereo = false;
@@ -286,18 +285,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			bindHudTexture(true);
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
-			
-			int h = hudTexture->getHeight();
-			int w = hudTexture->getWidth();
-			glViewport(0, 0, w, h);
-			/*
-			// Experiment...
-			adaptScreenSize = true;
-			C_NewModeAdjust ();
-			ST_LoadCrosshair (true);
-			AM_NewResolution ();
-			*/ // not helping~
-			//
+			bindHudTexture(false);
 			break;
 		}
 
@@ -524,13 +512,23 @@ void Stereo3D::setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds) {
 	}
 }
 
-LocalHudRenderer::LocalHudRenderer()
+/* static */ void LocalHudRenderer::bind()
 {
 	Stereo3DMode.bindHudTexture(true);
 }
 
-LocalHudRenderer::~LocalHudRenderer()
+/* static */ void LocalHudRenderer::unbind()
 {
 	Stereo3DMode.bindHudTexture(false);
+}
+
+LocalHudRenderer::LocalHudRenderer()
+{
+	bind();
+}
+
+LocalHudRenderer::~LocalHudRenderer()
+{
+	unbind();
 }
 

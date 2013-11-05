@@ -107,6 +107,7 @@
 #include "resourcefiles/resourcefile.h"
 #include "r_renderer.h"
 #include "p_local.h"
+#include "gl/scene/gl_localhudrenderer.h"
 
 #ifdef USE_POLYMOST
 #include "r_polymost.h"
@@ -776,7 +777,9 @@ void D_Display ()
 			screen->SetBlendingRect(viewwindowx, viewwindowy,
 				viewwindowx + viewwidth, viewwindowy + viewheight);
 			P_PredictPlayer(&players[consoleplayer]);
+			LocalHudRenderer::unbind();
 			Renderer->RenderView(&players[consoleplayer]);
+			LocalHudRenderer::bind();
 			P_UnPredictPlayer();
 			if ((hw2d = screen->Begin2D(viewactive)))
 			{
