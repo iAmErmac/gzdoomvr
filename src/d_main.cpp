@@ -703,6 +703,8 @@ void D_Display ()
 		V_SetBorderNeedRefresh();
 	}
 
+	LocalHudRenderer::bind();
+
 	// [RH] Allow temporarily disabling wipes
 	if (NoWipe)
 	{
@@ -926,6 +928,7 @@ void D_Display ()
 		I_FreezeTime(false);
 		GSnd->SetSfxPaused(false, 1);
 	}
+	LocalHudRenderer::unbind();
 
 	cycles.Unclock();
 	FrameCycles = cycles;
