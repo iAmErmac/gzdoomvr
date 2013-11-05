@@ -218,15 +218,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClear(GL_COLOR_BUFFER_BIT);
 				hudTexture->unbind();
 			}
-			// Flush previous render - for some reason this way always has a good hud image
-			/*
-			if (!gl_draw_sync && toscreen)
-			{
-				All.Unclock();
-				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
-				All.Clock();
-			}
-			*/
+			bindHudTexture(false);
 			// Render unwarped image to offscreen frame buffer
 			oculusTexture->bindToFrameBuffer();
 			// FIRST PASS - 3D
@@ -292,8 +284,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 			setViewDirection(renderer);
 			// Set up 2D rendering to write to our hud renderbuffer
-			hudTexture->bindToFrameBuffer();
-			
+			bindHudTexture(true);
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
 			
@@ -358,31 +349,33 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 void Stereo3D::bindHudTexture(bool doUse)
 {
+	if (vr_mode != OCULUS_RIFT)
+		return;
 	HudTexture * ht = Stereo3DMode.hudTexture;
 	if (doUse) {
 		ht->bindToFrameBuffer();
-		viewwidth = ht->getWidth();
-		viewwindowx = 0;
-		viewwindowy = 0;
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
 	}
 	else {
 		ht->unbind(); // restore drawing to real screen
-		viewwidth = screen->GetWidth();
-		viewwindowx = 0;
-		viewwindowy = 0;
 		glViewport(0, 0, screen->GetWidth(), screen->GetHeight());
 	}
 }
 
 void Stereo3D::updateScreen() {
 	screen->Update();
+	if (vr_mode != OCULUS_RIFT)
+		return;
 	HudTexture * ht = Stereo3DMode.hudTexture;
-	if ( (ht != NULL) && (ht->isBound()) ) {
+	if (ht == NULL)
+		return;
+	if (ht->isBound()) {
 		bindHudTexture(false);
 		blitHudTextureToScreen();
 		bindHudTexture(true);
 	}
+	else
+		blitHudTextureToScreen();
 }
 
 int Stereo3D::getScreenWidth() {
