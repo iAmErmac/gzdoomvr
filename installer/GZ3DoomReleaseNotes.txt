@@ -1,6 +1,11 @@
 
 Version history:
 
+Version 1.8.2_e November 4, 2013
+* Fix aspect ratio for Oculus Rift dev model.
+* Capturing images/movies with FRAPS works again.
+* Right eye no longer gets double effect from radiation suit, pickups, and other "blend" operations
+
 Version 1.8.2_d October 30, 2013
 * Fix terrible units bug in frustum shift for all non-Rift 3D modes.
 * Add Rift view angle prediction with hard-coded latency of 20 ms.
