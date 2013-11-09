@@ -1,6 +1,11 @@
 
 Version history:
 
+Version 1.8.2_f November 9, 2013
+* Implement Nvidia 3D Vision mode (vr_mode 7, Thanks Torr Samaho!)
+* Avoid crash with Alien Colonial Marines wad
+* Fix compile problem when Oculus SDK not available
+
 Version 1.8.2_e November 4, 2013
 * Fix aspect ratio for Oculus Rift dev model.
 * Capturing images/movies with FRAPS works again.
