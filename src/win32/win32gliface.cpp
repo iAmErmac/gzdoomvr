@@ -603,7 +603,7 @@ bool Win32GLVideo::SetupPixelFormat(bool allowsoftware, int multisample)
 {
 	int colorDepth;
 	HDC deskDC;
-	int attributes[26];
+	int attributes[28];
 	int pixelFormat;
 	unsigned int numFormats;
 	float attribsFloat[] = {0.0f, 0.0f};
@@ -633,34 +633,38 @@ bool Win32GLVideo::SetupPixelFormat(bool allowsoftware, int multisample)
 		attributes[15]	=	true;
 		attributes[16]	=	WGL_DOUBLE_BUFFER_ARB;
 		attributes[17]	=	true;
+		// [BB] Starting with driver version 314.07, NVIDIA GeForce cards support OpenGL quad buffered
+		// stereo rendering with 3D Vision hardware. Select the corresponding attribute here.
+		attributes[18]	=	WGL_STEREO_ARB;
+		attributes[19]	=	true;
 	
-		attributes[18]	=	WGL_ACCELERATION_ARB;	//required to be FULL_ACCELERATION_ARB
+		attributes[20]	=	WGL_ACCELERATION_ARB;	//required to be FULL_ACCELERATION_ARB
 		if (allowsoftware)
 		{
-			attributes[19]	=	WGL_NO_ACCELERATION_ARB;
+			attributes[21]	=	WGL_NO_ACCELERATION_ARB;
 		}
 		else
 		{
-			attributes[19]	=	WGL_FULL_ACCELERATION_ARB;
+			attributes[21]	=	WGL_FULL_ACCELERATION_ARB;
 		}
 	
 		if (multisample > 0)
 		{
-			attributes[20]	=	WGL_SAMPLE_BUFFERS_ARB;
-			attributes[21]	=	true;
-			attributes[22]	=	WGL_SAMPLES_ARB;
-			attributes[23]	=	multisample;
+			attributes[22]	=	WGL_SAMPLE_BUFFERS_ARB;
+			attributes[23]	=	true;
+			attributes[24]	=	WGL_SAMPLES_ARB;
+			attributes[25]	=	multisample;
 		}
 		else
 		{
-			attributes[20]	=	0;
-			attributes[21]	=	0;
 			attributes[22]	=	0;
 			attributes[23]	=	0;
+			attributes[24]	=	0;
+			attributes[25]	=	0;
 		}
 	
-		attributes[24]	=	0;
-		attributes[25]	=	0;
+		attributes[26]	=	0;
+		attributes[27]	=	0;
 	
 		if (!wglChoosePixelFormatARB(m_hDC, attributes, attribsFloat, 1, &pixelFormat, &numFormats))
 		{
@@ -681,7 +685,7 @@ bool Win32GLVideo::SetupPixelFormat(bool allowsoftware, int multisample)
 		static PIXELFORMATDESCRIPTOR pfd = {
 			sizeof(PIXELFORMATDESCRIPTOR),
 				1,
-				PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+				PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER | PFD_STEREO,
 				PFD_TYPE_RGBA,
 				32, // color depth
 				0, 0, 0, 0, 0, 0,
