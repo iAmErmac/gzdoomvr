@@ -81,13 +81,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	if (mode == OCULUS_RIFT) {
 		renderer.mCurrentFoV = vr_rift_fov; // needed for Frustum angle calculation
 		// Adjust player eye height, but only in oculus rift mode...
-		if (savedPlayerViewHeight == 0) {
-			savedPlayerViewHeight = player->mo->ViewHeight;
-		}
-		fixed_t testHeight = savedPlayerViewHeight + FLOAT2FIXED(vr_view_yoffset);
-		if (player->mo->ViewHeight != testHeight) {
-			player->mo->ViewHeight = testHeight;
-			P_CalcHeight(player);
+		if (player != NULL) { // null check to avoid aliens crash
+			if (savedPlayerViewHeight == 0) {
+				savedPlayerViewHeight = player->mo->ViewHeight;
+			}
+			fixed_t testHeight = savedPlayerViewHeight + FLOAT2FIXED(vr_view_yoffset);
+			if (player->mo->ViewHeight != testHeight) {
+				player->mo->ViewHeight = testHeight;
+				P_CalcHeight(player);
+			}
 		}
 	} else {
 		// Revert player eye height when leaving Rift mode
