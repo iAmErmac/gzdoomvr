@@ -320,6 +320,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			glDrawBuffer(GL_BACK_LEFT);
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			renderer.RenderOneEye(a1, toscreen);
+			// Want HUD in both views
+			glDrawBuffer(GL_BACK);
 		} else { // mono view, in case hardware stereo is not supported
 			setMonoView(renderer, fov0, ratio0, fovratio0, player);
 			renderer.RenderOneEye(a1, toscreen);			
