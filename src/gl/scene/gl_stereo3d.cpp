@@ -469,8 +469,10 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 			oculusTracker = new OculusTracker();
 			if (oculusTracker->isGood()) {
 				// update cvars TODO
+#ifdef HAVE_OCULUS_API
 				const OVR::HMDInfo& info = oculusTracker->getInfo();
 				vr_ipd = info.InterpupillaryDistance;
+#endif
 			}
 		}
 		if (oculusTracker->isGood()) {

@@ -9,7 +9,9 @@ class OculusTracker {
 public:
 	OculusTracker();
 	~OculusTracker();
+#ifdef HAVE_OCULUS_API
 	const OVR::HMDInfo& getInfo() const {return Info;}
+#endif
 	bool isGood() const;
 	void report() const;
 	void update();
