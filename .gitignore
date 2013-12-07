@@ -27,4 +27,5 @@
 /tools/lemon/build
 /tools/re2c/build
 /wadsrc*/*.pk3
+/build_vc2013
 /build_cmake

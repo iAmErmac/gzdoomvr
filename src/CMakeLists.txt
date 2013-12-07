@@ -406,20 +406,23 @@ endif( APPLE )
 
 set( SSE_MATTERS NO )
 
-# SSE only matters on 32-bit targets. We check compiler flags to know if we can do it.
-if( CMAKE_SIZEOF_VOID_P MATCHES "4" AND NOT CMAKE_OSX_ARCHITECTURES MATCHES ppc )
-	CHECK_CXX_COMPILER_FLAG( "-msse2 -mfpmath=sse" CAN_DO_MFPMATH )
-	CHECK_CXX_COMPILER_FLAG( -arch:SSE2 CAN_DO_ARCHSSE2 )
-	if( CAN_DO_MFPMATH )
-		set( SSE1_ENABLE "-msse -mfpmath=sse" )
-		set( SSE2_ENABLE "-msse2 -mfpmath=sse" )
-		set( SSE_MATTERS YES )
-	elseif( CAN_DO_ARCHSSE2 )
-		set( SSE1_ENABLE -arch:SSE )
-		set( SSE2_ENABLE -arch:SSE2 )
-		set( SSE_MATTERS YES )
-	endif( CAN_DO_MFPMATH )
-endif( CMAKE_SIZEOF_VOID_P MATCHES "4" AND NOT CMAKE_OSX_ARCHITECTURES MATCHES ppc )
+# with global use of SSE 2 we do not need special handling for selected files
+if (NOT ZDOOM_USE_SSE2)
+	# SSE only matters on 32-bit targets. We check compiler flags to know if we can do it.
+	if( CMAKE_SIZEOF_VOID_P MATCHES "4" AND NOT CMAKE_OSX_ARCHITECTURES MATCHES ppc )
+		CHECK_CXX_COMPILER_FLAG( "-msse2 -mfpmath=sse" CAN_DO_MFPMATH )
+		CHECK_CXX_COMPILER_FLAG( -arch:SSE2 CAN_DO_ARCHSSE2 )
+		if( CAN_DO_MFPMATH )
+			set( SSE1_ENABLE "-msse -mfpmath=sse" )
+			set( SSE2_ENABLE "-msse2 -mfpmath=sse" )
+			set( SSE_MATTERS YES )
+		elseif( CAN_DO_ARCHSSE2 )
+			set( SSE1_ENABLE -arch:SSE )
+			set( SSE2_ENABLE -arch:SSE2 )
+			set( SSE_MATTERS YES )
+		endif( CAN_DO_MFPMATH )
+	endif( CMAKE_SIZEOF_VOID_P MATCHES "4" AND NOT CMAKE_OSX_ARCHITECTURES MATCHES ppc )
+endif (NOT ZDOOM_USE_SSE2)
 
 if( SSE_MATTERS )
 	if( WIN32 )
@@ -546,12 +549,14 @@ message( STATUS "Fluid synth libs: ${FLUIDSYNTH_LIBRARIES}" )
 set( ZDOOM_LIBS ${ZDOOM_LIBS} "${ZLIB_LIBRARIES}" "${JPEG_LIBRARIES}" "${BZIP2_LIBRARIES}" "${GME_LIBRARIES}" "${FMOD_LIBRARY}" )
 include_directories( "${ZLIB_INCLUDE_DIR}" "${FMOD_INCLUDE_DIR}" "${BZIP2_INCLUDE_DIR}" "${LZMA_INCLUDE_DIR}" "${JPEG_INCLUDE_DIR}" "${GME_INCLUDE_DIR}" )
 
-if( FLUIDSYNTH_FOUND )
-  if( NOT DYN_FLUIDSYNTH)
-	set( ZDOOM_LIBS ${ZDOOM_LIBS} "${FLUIDSYNTH_LIBRARIES}" )
-	include_directories( "${FLUIDSYNTH_INCLUDE_DIR}" )
-  endif( NOT DYN_FLUIDSYNTH )
-endif( FLUIDSYNTH_FOUND )
+if( NOT DYN_FLUIDSYNTH)
+	if( FLUIDSYNTH_FOUND )
+		set( ZDOOM_LIBS ${ZDOOM_LIBS} "${FLUIDSYNTH_LIBRARIES}" )
+		include_directories( "${FLUIDSYNTH_INCLUDE_DIR}" )
+	endif( FLUIDSYNTH_FOUND )
+else( NOT DYN_FLUIDSYNTH )
+	set( ZDOOM_LIBS ${ZDOOM_LIBS} ${CMAKE_DL_LIBS} )
+endif( NOT DYN_FLUIDSYNTH )
 
 # OpenGL on OS X: GLEW include directory
 
@@ -613,7 +618,7 @@ if( WIN32 )
 	endif( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
 
 	# [BB] Maxim Stepin's hq2x/3x/4x pixel upsampling algorithm as library. Currently only used with VC++.
-	if( MSVC )
+	if( MSVC AND NOT X64 )
 	set( SYSTEM_SOURCES
 		${SYSTEM_SOURCES}
 		gl/hqnx/Image.cpp
@@ -621,7 +626,7 @@ if( WIN32 )
 		gl/hqnx/hq3x.cpp
 		gl/hqnx/hq4x.cpp
 	)
-	endif( MSVC )
+	endif( MSVC AND NOT X64)
 else( WIN32 )
 	set( SYSTEM_SOURCES_DIR sdl )
 	set( SYSTEM_SOURCES ${PLAT_SDL_SOURCES} )
@@ -1255,16 +1260,23 @@ if( NOT ZDOOM_OUTPUT_OLDSTYLE OR NO_GENERATOR_EXPRESSIONS )
 	# Linux distributions are slow to adopt 2.6. :(
 	set_target_properties( zdoom PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${ZDOOM_OUTPUT_DIR} )
 	set_target_properties( zdoom PROPERTIES OUTPUT_NAME ${ZDOOM_EXE_NAME} )
+else( NOT ZDOOM_OUTPUT_OLDSTYLE OR NO_GENERATOR_EXPRESSIONS )
+	set_target_properties( zdoom PROPERTIES
+		RUNTIME_OUTPUT_NAME ${ZDOOM_EXE_NAME}
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE ${ZDOOM_OUTPUT_DIR}
+		RUNTIME_OUTPUT_NAME_DEBUG ${ZDOOM_EXE_NAME}d
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG ${ZDOOM_OUTPUT_DIR}
+		RUNTIME_OUTPUT_NAME_MINSIZEREL ${ZDOOM_EXE_NAME}msr
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${ZDOOM_OUTPUT_DIR}
+		RUNTIME_OUTPUT_NAME_RELWITHDEBINFO ${ZDOOM_EXE_NAME}rd
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${ZDOOM_OUTPUT_DIR}
+	)
 endif( NOT ZDOOM_OUTPUT_OLDSTYLE OR NO_GENERATOR_EXPRESSIONS )
 
 if( MSVC )
 	option( ZDOOM_GENERATE_MAPFILE "Generate .map file for debugging." OFF )
 	if( ZDOOM_GENERATE_MAPFILE )
-		if( NOT MSVC80 )
-			set_target_properties(zdoom PROPERTIES LINK_FLAGS "/MANIFEST:NO /DELAYLOAD:\"fmodex${X64}.dll\" /MAP:${ZDOOM_EXE_NAME}.map")
-		else( NOT MSVC80 ) # 2005 doesn't support naming the map file.
-			set_target_properties(zdoom PROPERTIES LINK_FLAGS "/MANIFEST:NO /DELAYLOAD:\"fmodex${X64}.dll\" /MAP")
-		endif( NOT MSVC80 )
+		set_target_properties(zdoom PROPERTIES LINK_FLAGS "/MANIFEST:NO /DELAYLOAD:\"fmodex${X64}.dll\" /MAP")
 	else( ZDOOM_GENERATE_MAPFILE )
 		set_target_properties(zdoom PROPERTIES LINK_FLAGS "/MANIFEST:NO /DELAYLOAD:\"fmodex${X64}.dll\"")
 	endif( ZDOOM_GENERATE_MAPFILE )
@@ -1276,26 +1288,6 @@ if( MSVC )
 
 	create_default_target_launcher( zdoom WORKING_DIRECTORY ${ZDOOM_OUTPUT_DIR} )
 endif( MSVC )
-
-if( ZDOOM_OUTPUT_OLDSTYLE AND NOT NO_GENERATOR_EXPRESSIONS )
-	set_target_properties( zdoom PROPERTIES
-		RUNTIME_OUTPUT_NAME ${ZDOOM_EXE_NAME}
-		RUNTIME_OUTPUT_NAME_DEBUG ${ZDOOM_EXE_NAME}d
-		RUNTIME_OUTPUT_NAME_MINSIZEREL ${ZDOOM_EXE_NAME}msr
-		RUNTIME_OUTPUT_NAME_RELWITHDEBINFO ${ZDOOM_EXE_NAME}rd
-	)
-
-	if( ZDOOM_GENERATE_MAPFILE )
-		add_custom_command(TARGET zdoom POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:zdoom> ${ZDOOM_OUTPUT_DIR}/$<TARGET_FILE_NAME:zdoom>
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE_DIR:zdoom>/zdoom.map ${ZDOOM_OUTPUT_DIR}/$<TARGET_FILE_NAME:zdoom>.map
-			COMMENT "Copying to output directory..." )
-	else( ZDOOM_GENERATE_MAPFILE )
-		add_custom_command(TARGET zdoom POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:zdoom> ${ZDOOM_OUTPUT_DIR}/$<TARGET_FILE_NAME:zdoom>
-			COMMENT "Copying to output directory..." )
-	endif( ZDOOM_GENERATE_MAPFILE )
-endif( ZDOOM_OUTPUT_OLDSTYLE AND NOT NO_GENERATOR_EXPRESSIONS )
 
 if( NOT WIN32 )
 	FILE( WRITE ${CMAKE_CURRENT_BINARY_DIR}/link-make "if [ ! -e ${ZDOOM_OUTPUT_DIR}/${ZDOOM_EXE_NAME} ]; then ln -sf ${CMAKE_CURRENT_BINARY_DIR}/${ZDOOM_EXE_NAME} ${ZDOOM_OUTPUT_DIR}/${ZDOOM_EXE_NAME}; fi" )
