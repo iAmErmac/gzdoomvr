@@ -873,6 +873,7 @@ public:
 	TObjPtr<AActor>	LastLookActor;	// Actor last looked for (if TIDtoHate != 0)
 	fixed_t			SpawnPoint[3]; 	// For nightmare respawn
 	WORD			SpawnAngle;
+	int				StartHealth;
 	BYTE			WeaveIndexXY;	// Separated from special2 because it's used by globally accessible functions.
 	BYTE			WeaveIndexZ;
 	int				skillrespawncount;
@@ -1007,6 +1008,7 @@ public:
 	bool SetState (FState *newstate, bool nofunction=false);
 	virtual bool UpdateWaterLevel (fixed_t oldz, bool splash=true);
 	bool isFast();
+	bool isSlow();
 	void SetIdle();
 	void ClearCounters();
 

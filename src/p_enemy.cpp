@@ -1542,7 +1542,6 @@ bool P_LookForEnemies (AActor *actor, INTBOOL allaround, FLookExParams *params)
 bool P_LookForPlayers (AActor *actor, INTBOOL allaround, FLookExParams *params)
 {
 	int 		c;
-	int 		stop;
 	int			pnum;
 	player_t*	player;
 	bool chasegoal = params? (!(params->flags & LOF_DONTCHASEGOAL)) : true;
@@ -1615,20 +1614,22 @@ bool P_LookForPlayers (AActor *actor, INTBOOL allaround, FLookExParams *params)
 	{
 		pnum = actor->LastLookPlayerNumber;
 	}
-	stop = (pnum - 1) & (MAXPLAYERS-1);
 		
 	for (;;)
 	{
-		pnum = (pnum + 1) & (MAXPLAYERS-1);
-		if (!playeringame[pnum])
-			continue;
-
-		if (actor->TIDtoHate == 0)
+		// [ED850] Each and every player should only ever be checked once.
+		if (c++ < MAXPLAYERS)
 		{
-			actor->LastLookPlayerNumber = pnum;
-		}
+			pnum = (pnum + 1) & (MAXPLAYERS - 1);
+			if (!playeringame[pnum])
+				continue;
 
-		if (++c == MAXPLAYERS-1 || pnum == stop)
+			if (actor->TIDtoHate == 0)
+			{
+				actor->LastLookPlayerNumber = pnum;
+			}
+		}
+		else
 		{
 			// done looking
 			if (actor->target == NULL)
@@ -1692,11 +1693,11 @@ bool P_LookForPlayers (AActor *actor, INTBOOL allaround, FLookExParams *params)
 					&& P_AproxDistance (player->mo->velx, player->mo->vely)
 					< 5*FRACUNIT)
 				{ // Player is sneaking - can't detect
-					return false;
+					continue;
 				}
 				if (pr_lookforplayers() < 225)
 				{ // Player isn't sneaking, but still didn't detect
-					return false;
+					continue;
 				}
 			}
 		}
@@ -2527,8 +2528,9 @@ static bool P_CheckForResurrection(AActor *self, bool usevilestates)
 			if (!(corpsehit->flags & MF_CORPSE) )
 				continue;	// not a monster
 			
-			if (corpsehit->tics != -1)
-				continue;	// not lying still yet
+			if (corpsehit->tics != -1 && // not lying still yet
+				!corpsehit->state->GetCanRaise()) // or not ready to be raised yet
+				continue;
 			
 			raisestate = corpsehit->FindState(NAME_Raise);
 			if (raisestate == NULL)
@@ -2648,7 +2650,7 @@ static bool P_CheckForResurrection(AActor *self, bool usevilestates)
 			corpsehit->flags5 = info->flags5;
 			corpsehit->flags6 = info->flags6;
 			corpsehit->flags7 = info->flags7;
-			corpsehit->health = info->health;
+			corpsehit->health = corpsehit->SpawnHealth();
 			corpsehit->target = NULL;
 			corpsehit->lastenemy = NULL;
 
