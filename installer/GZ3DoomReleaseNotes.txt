@@ -1,6 +1,9 @@
 
 Version history:
 
+Verson 1.8.2_a May 6, 2014
+* Merge changes from recently released gzdoom version 1.8.5
+
 Version 1.8.2_f November 9, 2013
 * Implement Nvidia 3D Vision mode (vr_mode 7, Thanks Torr Samaho!)
 * Avoid crash with Alien Colonial Marines wad
