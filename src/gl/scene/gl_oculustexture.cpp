@@ -57,13 +57,13 @@ static const char* fragmentProgramString = ""
 "        tcRed.x = 1 - tcRed.x; \n"
 "        tcGreen.x = 1 - tcGreen.x; \n"
 "        tcBlue.x = 1 - tcBlue.x; \n"
-"    } \n"
-"    float red = texture2D(texture, tcRed).r; \n"
-"    vec2 green = texture2D(texture, tcGreen).ga; \n"
-"    float blue = texture2D(texture, tcBlue).b; \n"
-"    \n"
-
-"   gl_FragColor = vec4(red, green.x, blue, green.y); \n"
+"   } \n"
+"   float red = texture2D(texture, tcRed).r; \n"
+"   float green = texture2D(texture, tcGreen).g; \n"
+"   float blue = texture2D(texture, tcBlue).b; \n"
+"   \n"
+"   // Set alpha to 1.0, to counteract hall of mirror problem in complex alpha-blending situations.\n"
+"   gl_FragColor = vec4(red, green, blue, 1.0); \n"
 "} \n";
 
 OculusTexture::OculusTexture(int width, int height)
@@ -172,8 +172,10 @@ void OculusTexture::bindToFrameBuffer()
 
 void OculusTexture::renderToScreen() {
 	bool useShader = true;
+	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // Makes HOM -> black May 2014
 	// Load that texture we just rendered
 	glEnable(GL_TEXTURE_2D);
+	glDisable(GL_BLEND); // Improves color of alpha-sprites in no-shader mode; but does not solve HOM defect.
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
 	// Very simple draw routine maps texture onto entire screen; no glOrtho or whatever!
 	glMatrixMode(GL_PROJECTION);
@@ -182,21 +184,24 @@ void OculusTexture::renderToScreen() {
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
-	if (useShader)
+	if (useShader) {
 		glUseProgram(shader);
+	}
 	glBegin(GL_TRIANGLE_STRIP);
 		glTexCoord2d(0, 1); glVertex3f(-1,  1, 0.5);
 		glTexCoord2d(1, 1); glVertex3f( 1,  1, 0.5);
 		glTexCoord2d(0, 0); glVertex3f(-1, -1, 0.5);
 		glTexCoord2d(1, 0); glVertex3f( 1, -1, 0.5);
 	glEnd();
-	if (useShader)
+	if (useShader) {
 		glUseProgram(0);
+	}
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
 	glBindTexture(GL_TEXTURE_2D, 0);
+	glEnable(GL_BLEND);
 }
 
 void OculusTexture::unbind() {

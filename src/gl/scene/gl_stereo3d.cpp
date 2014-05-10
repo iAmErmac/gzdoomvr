@@ -34,6 +34,13 @@ CVAR(Float, vr_view_yoffset, 0.0, 0) // MAP UNITS
 CVAR(Float, vr_player_height_meters, 1.7f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
 CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
 
+
+// Render HUD items twice, once for each eye
+// TODO - these flags don't work
+const bool doBufferHud = true;
+const bool doBufferOculus = true;
+
+
 // Global shared Stereo3DMode object
 Stereo3D Stereo3DMode;
 
@@ -62,7 +69,8 @@ Stereo3D::Stereo3D()
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
-	LocalHudRenderer::unbind();
+	if (doBufferHud)
+		LocalHudRenderer::unbind();
 	setMode(vr_mode);
 
 	// Restore actual screen, instead of offscreen single-eye buffer,
@@ -221,7 +229,9 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				hudTexture->unbind();
 			}
 			// Render unwarped image to offscreen frame buffer
-			oculusTexture->bindToFrameBuffer();
+			if (doBufferOculus) {
+				oculusTexture->bindToFrameBuffer();
+			}
 			// FIRST PASS - 3D
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
@@ -253,31 +263,39 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportRight(renderer, &riftBounds);
 			setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 			renderer.RenderOneEye(a1, false);
-			//
-			// SECOND PASS weapon sprite
-			glEnable(GL_TEXTURE_2D);
-			screenblocks = 12;
-			float fullWidth = SCREENWIDTH / 2.0;
-			viewwidth = RIFT_HUDSCALE * fullWidth;
-			float left = (1.0 - RIFT_HUDSCALE) * fullWidth * 0.5; // left edge of scaled viewport
-			// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
-			int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
-			viewwindowx = left + fullWidth - spriteOffsetX;
+
+			// Second pass sprites
 			int oldViewwindowy = viewwindowy;
-			int spriteOffsetY = (int)(0.00*viewheight); // nudge gun up/down
-			// Counteract effect of status bar on weapon position
-			if (oldScreenBlocks <= 10) { // lower weapon in status mode
-				spriteOffsetY += 0.227 * viewwidth; // empirical - lines up brutal doom down sight in 1920x1080 Rift mode
+			const bool showSprites = true;
+			if (showSprites) {
+				// SECOND PASS weapon sprite
+				glEnable(GL_TEXTURE_2D);
+				screenblocks = 12;
+				float fullWidth = SCREENWIDTH / 2.0;
+				viewwidth = RIFT_HUDSCALE * fullWidth;
+				float left = (1.0 - RIFT_HUDSCALE) * fullWidth * 0.5; // left edge of scaled viewport
+				// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
+				int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
+				viewwindowx = left + fullWidth - spriteOffsetX;
+				int spriteOffsetY = (int)(0.00*viewheight); // nudge gun up/down
+				// Counteract effect of status bar on weapon position
+				if (oldScreenBlocks <= 10) { // lower weapon in status mode
+					spriteOffsetY += 0.227 * viewwidth; // empirical - lines up brutal doom down sight in 1920x1080 Rift mode
+				}
+				viewwindowy += spriteOffsetY;
+				renderer.EndDrawScene(viewsector); // right view
+				setViewportLeft(renderer, &riftBounds);
+				viewwindowx = left + spriteOffsetX;
+				renderer.EndDrawScene(viewsector); // left view
 			}
-			viewwindowy += spriteOffsetY;
-			renderer.EndDrawScene(viewsector); // right view
-			setViewportLeft(renderer, &riftBounds);
-			viewwindowx = left + spriteOffsetX;
-			renderer.EndDrawScene(viewsector); // left view
+
 			// Third pass HUD
-			screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
-			// Draw HUD again, to avoid flashing? - and render to screen
-			blitHudTextureToScreen(true); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
+			if (doBufferHud) {
+				screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
+				// Draw HUD again, to avoid flashing? - and render to screen
+				blitHudTextureToScreen(true); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
+			}
+
 			//
 			// restore global state
 			viewwidth = oldViewwidth;
@@ -286,11 +304,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 			setViewDirection(renderer);
 			// Set up 2D rendering to write to our hud renderbuffer
-			bindHudTexture(true);
-			glClearColor(0, 0, 0, 0);
-			glClear(GL_COLOR_BUFFER_BIT);
-			bindHudTexture(false);
-			LocalHudRenderer::bind();
+			if (doBufferHud) {
+				bindHudTexture(true);
+				glClearColor(0, 0, 0, 0);
+				glClear(GL_COLOR_BUFFER_BIT);
+				bindHudTexture(false);
+				LocalHudRenderer::bind();
+			}
 			break;
 		}
 
@@ -350,6 +370,8 @@ void Stereo3D::bindHudTexture(bool doUse)
 		ht->unbind(); // restore drawing to real screen
 	if (vr_mode != OCULUS_RIFT)
 		return;
+	if (! doBufferHud)
+		return;
 	if (doUse) {
 		ht->bindToFrameBuffer();
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
@@ -383,7 +405,8 @@ void Stereo3D::updateScreen() {
 		bindHudTexture(true);
 	}
 	else {
-		blitHudTextureToScreen();
+		if (doBufferHud)
+			blitHudTextureToScreen();
 		glViewport(0, 0, screen->GetWidth(), screen->GetHeight());
 	}
 }
@@ -400,11 +423,12 @@ int Stereo3D::getScreenHeight() {
 }
 
 void Stereo3D::blitHudTextureToScreen(bool toscreen) {
+	// if (!showHud) return;
 	glEnable(GL_TEXTURE_2D);
 	if (mode == OCULUS_RIFT) {
-		bool useOculusTexture = true;
-		if (oculusTexture)
-			useOculusTexture = true;
+		bool useOculusTexture = doBufferOculus;
+		if (! oculusTexture)
+			useOculusTexture = false;
 		// First pass blit unwarped hudTexture into oculusTexture, in two places
 		if (useOculusTexture)
 			oculusTexture->bindToFrameBuffer();
