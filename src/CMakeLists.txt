@@ -238,6 +238,30 @@ endif( NOT OPENGL_GLU_FOUND )
 set( ZDOOM_LIBS ${ZDOOM_LIBS} ${OPENGL_LIBRARIES} )
 include_directories( ${OPENGL_INCLUDE_DIR} )
 
+
+# check for GLEW
+find_path( GLEW_INCLUDE_DIR GL/glew.h
+	PATHS "/usr/include"
+	"/usr/local/include" )
+
+if( GLEW_INCLUDE_DIR )
+	message( STATUS "GLEW include files found at ${GLEW_INCLUDE_DIR}" )
+else( GLEW_INCLUDE_DIR )
+	message( SEND_ERROR "Could not find GLEW include files" )
+endif( GLEW_INCLUDE_DIR )
+
+# GLEW include directory
+include_directories( "${GLEW_INCLUDE_DIR}" )
+
+find_library( GLEW_LIBRARY glew32 )
+
+if( NOT GLEW_LIBRARY )
+	message( SEND_ERROR "Could not find GLEW library files" )
+endif( NOT GLEW_LIBRARY )
+	
+set( ZDOOM_LIBS ${ZDOOM_LIBS} ${GLEW_LIBRARY} )
+
+
 # Decide on the name of the FMOD library we want to use.
 
 if( NOT FMOD_LIB_NAME AND MSVC )
@@ -403,20 +427,6 @@ if( NOT NO_ASM )
 	ENDMACRO( ADD_ASM_FILE )
 endif( NOT NO_ASM )
 
-# OpenGL on OS X: Search for GLEW include files
-
-if( APPLE )
-	find_path( GLEW_INCLUDE_DIR GL/glew.h
-		PATHS "/usr/include"
-		"/usr/local/include" )
-
-	if( GLEW_INCLUDE_DIR )
-		message( STATUS "GLEW include files found at ${GLEW_INCLUDE_DIR}" )
-	else( GLEW_INCLUDE_DIR )
-		message( SEND_ERROR "Could not find GLEW include files" )
-	endif( GLEW_INCLUDE_DIR )
-endif( APPLE )
-
 # Decide on SSE setup
 
 set( SSE_MATTERS NO )
@@ -572,12 +582,6 @@ if( NOT DYN_FLUIDSYNTH)
 else( NOT DYN_FLUIDSYNTH )
 	set( ZDOOM_LIBS ${ZDOOM_LIBS} ${CMAKE_DL_LIBS} )
 endif( NOT DYN_FLUIDSYNTH )
-
-# OpenGL on OS X: GLEW include directory
-
-if( APPLE )
-	include_directories( "${GLEW_INCLUDE_DIR}" )
-endif( APPLE )
 
 # Start defining source files for ZDoom
 set( PLAT_WIN32_SOURCES
@@ -1073,8 +1077,6 @@ add_executable( zdoom WIN32
 	menu/playermenu.cpp
 	menu/readthis.cpp
 	menu/videomenu.cpp
-	gl/api/gl_api.cpp
-	gl/data/gl_sections.cpp
 	gl/data/gl_data.cpp
 	gl/data/gl_portaldata.cpp
 	gl/data/gl_setup.cpp
@@ -1335,7 +1337,6 @@ source_group("Games\\Strife Game" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DI
 source_group("Intermission" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/intermission/.+")
 source_group("Menu" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/menu/.+")
 source_group("OpenGL Renderer" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/.+")
-source_group("OpenGL Renderer\\API" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/api/.+")
 source_group("OpenGL Renderer\\Data" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/data/.+")
 source_group("OpenGL Renderer\\Dynamic Lights" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/dynlights/.+")
 source_group("OpenGL Renderer\\HQ Resize" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/hqnx/.+")

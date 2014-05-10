@@ -311,11 +311,11 @@ void GLWall::SplitWall(sector_t * frontsector, bool translucent)
 	}
 	::SplitWall.Clock();
 
-#ifdef _MSC_VER
 #ifdef _DEBUG
 	if (seg->linedef-lines==1)
-		__asm nop
-#endif
+	{
+		int a = 0;
+	}
 #endif
 
 	if (lightlist.Size()>1)
@@ -1445,11 +1445,11 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 	sector_t * realfront;
 	sector_t * realback;
 
-#ifdef _MSC_VER
 #ifdef _DEBUG
 	if (seg->linedef-lines==636)
-		__asm nop
-#endif
+	{
+		int a = 0;
+	}
 #endif
 		
 	// note: we always have a valid sidedef and linedef reference when getting here.
@@ -1539,6 +1539,8 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 
 	topflat=frontsector->GetTexture(sector_t::ceiling);	// for glowing textures. These must be saved because
 	bottomflat=frontsector->GetTexture(sector_t::floor);	// the sector passed here might be a temporary copy.
+	topplane = frontsector->ceilingplane;
+	bottomplane = frontsector->floorplane;
 
 	// Save a little time (up to 0.3 ms per frame ;) )
 	if (frontsector->floorplane.a | frontsector->floorplane.b)
@@ -1775,6 +1777,8 @@ void GLWall::ProcessLowerMiniseg(seg_t *seg, sector_t * frontsector, sector_t * 
 
 		topflat = frontsector->GetTexture(sector_t::ceiling);	// for glowing textures
 		bottomflat = frontsector->GetTexture(sector_t::floor);
+		topplane = frontsector->ceilingplane;
+		bottomplane = frontsector->floorplane;
 
 		zfloor[0] = zfloor[1] = FIXED2FLOAT(ffh);
 

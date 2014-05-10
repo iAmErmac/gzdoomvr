@@ -249,6 +249,30 @@ void FGLRenderer::SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angl
 // eyeShift is the off-center eye position for stereo 3D, in meters
 //-----------------------------------------------------------------------------
 
+static void setPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar)
+{
+	GLdouble m[4][4];
+	double sine, cotangent, deltaZ;
+	double radians = fovy / 2 * M_PI / 180;
+
+	deltaZ = zFar - zNear;
+	sine = sin(radians);
+	if ((deltaZ == 0) || (sine == 0) || (aspect == 0)) {
+		return;
+	}
+	cotangent = cos(radians) / sine;
+
+	memset(m, 0, sizeof(m));
+	m[0][0] = cotangent / aspect;
+	m[1][1] = cotangent;
+	m[2][2] = -(zFar + zNear) / deltaZ;
+	m[2][3] = -1;
+	m[3][2] = -2 * zNear * zFar / deltaZ;
+	m[3][3] = 0;
+	glLoadMatrixd(&m[0][0]);
+}
+
+
 void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, player_t * player, float eyeShift, bool doFrustumShift)
 {
 	glMatrixMode(GL_PROJECTION);
@@ -283,6 +307,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, player_t
 	// Translation to align left and right eye views at screen distance
 	glTranslatef(-eyeShift_mapunits, 0, 0);
 
+	// setPerspective(fovy, ratio, 5.f, 65536.f);
 	gl_RenderState.Set2DMode(false);
 }
 

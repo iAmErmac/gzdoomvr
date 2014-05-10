@@ -1,7 +1,11 @@
 
 Version history:
 
-Verson 1.8.2_a May 6, 2014
+Version 1.8.6_a May 10, 2014
+* Correct hall-of-mirrors defect in collaboration with Benjamin Johnson
+* Merge changes from gzdoom 1.8.6-ish
+
+Version 1.8.5_a May 6, 2014
 * Merge changes from recently released gzdoom version 1.8.5
 
 Version 1.8.2_f November 9, 2013
