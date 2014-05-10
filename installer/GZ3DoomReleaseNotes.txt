@@ -1,6 +1,9 @@
 
 Version history:
 
+Version 1.8.6_b May 10, 2014
+* Include glew32.dll in Windows installer
+
 Version 1.8.6_a May 10, 2014
 * Correct hall-of-mirrors defect in collaboration with Benjamin Johnson
 * Merge changes from gzdoom 1.8.6-ish
