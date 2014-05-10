@@ -259,6 +259,15 @@ if( NOT GLEW_LIBRARY )
 	message( SEND_ERROR "Could not find GLEW library files" )
 endif( NOT GLEW_LIBRARY )
 	
+# install glew dll
+if (GLEW_LIBRARY AND WIN32)
+    find_file(GLEW_DLL glew32.dll)
+    if( NOT GLEW_DLL )
+        message( SEND_ERROR "Could not find glew32.dll" )
+    endif( NOT GLEW_DLL )
+    install(PROGRAMS ${GLEW_DLL} DESTINATION ".")
+endif()
+
 set( ZDOOM_LIBS ${ZDOOM_LIBS} ${GLEW_LIBRARY} )
 
 
