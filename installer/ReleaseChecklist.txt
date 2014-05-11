@@ -2,7 +2,9 @@
 To create an installer for Distibution on Windows:
 
  * Install NSIS on your computer.
+ * Update version number in top level CMakeLists.txt
  * Select FORCE_INTERNAL_ZLIB in CMake for gzdoom project (to eliminate dependency on zlib.dll)
+ * Change version number in top level CMakeLists.txt
  * Build in Release mode (so vcredist_x86.exe libs will work)
  * Test:
      Does crosshair work in Rift mode?
@@ -12,6 +14,7 @@ To create an installer for Distibution on Windows:
      Does green/cyan mode work?
  * Create installer by building PACKAGE target.
  * Write release notes.
+ * Copy installer to installer folder
  * Commit changes to github
  * Post download to site.
  * Post announcement on the web site and the usual forums.

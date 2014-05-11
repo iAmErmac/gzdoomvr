@@ -1,6 +1,11 @@
 
 Version history:
 
+Version 1.8.6_c May 11, 2014
+* Avoid calling drawUnhandledMissingTextures() until final pass.
+* Corrects hall-of-mirrors defect in Doom2 M2
+* Corrects missing doors in right-eye view in Doom E1M4
+
 Version 1.8.6_b May 10, 2014
 * Include glew32.dll in Windows installer
 
