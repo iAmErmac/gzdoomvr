@@ -632,7 +632,7 @@ void GLSkyboxPortal::DrawContents()
 	SaveMapSection();
 	currentmapsection[mapsection>>3] |= 1 << (mapsection & 7);
 
-	GLRenderer->DrawScene();
+	GLRenderer->DrawScene(false, true);
 	origin->flags&=~MF_JUSTHIT;
 	inskybox=false;
 	glEnable(GL_DEPTH_CLAMP_NV);
@@ -727,7 +727,7 @@ void GLSectorStackPortal::DrawContents()
 	SaveMapSection();
 	SetupCoverage();
 	ClearClipper();
-	GLRenderer->DrawScene();
+	GLRenderer->DrawScene(false, true);
 	RestoreMapSection();
 
 	if (origin->plane != -1) instack[origin->plane]--;
@@ -776,7 +776,7 @@ void GLPlaneMirrorPortal::DrawContents()
 	double d[4]={0, static_cast<double>(PlaneMirrorMode), 0, FIXED2FLOAT(origin->d)};
 	glClipPlane(GL_CLIP_PLANE0+renderdepth, d);
 
-	GLRenderer->DrawScene();
+	GLRenderer->DrawScene(false, true);
 	glDisable(GL_CLIP_PLANE0+renderdepth);
 	PlaneMirrorFlag--;
 	PlaneMirrorMode=old_pm;
@@ -885,7 +885,7 @@ void GLMirrorPortal::DrawContents()
 	angle_t a1 = linedef->v2->GetClipAngle();
 	clipper.SafeAddClipRange(a1,a2);
 
-	GLRenderer->DrawScene();
+	GLRenderer->DrawScene(false, true);
 
 	MirrorFlag--;
 }

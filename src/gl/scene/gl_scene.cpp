@@ -398,7 +398,7 @@ void FGLRenderer::CreateScene()
 //
 //-----------------------------------------------------------------------------
 
-void FGLRenderer::RenderScene(int recursion)
+void FGLRenderer::RenderScene(int recursion, bool finalEye)
 {
 	RenderAll.Clock();
 
@@ -567,13 +567,15 @@ void FGLRenderer::RenderScene(int recursion)
 	// flood all the gaps with the back sector's flat texture
 	// This will always be drawn like GLDL_PLAIN or GLDL_FOG, depending on the fog settings
 	
-	glDepthMask(false);							// don't write to Z-buffer!
-	gl_RenderState.EnableFog(true);
-	gl_RenderState.EnableAlphaTest(false);
-	gl_RenderState.BlendFunc(GL_ONE,GL_ZERO);
-	gl_drawinfo->DrawUnhandledMissingTextures();
-	gl_RenderState.EnableAlphaTest(true);
-	glDepthMask(true);
+	if (finalEye) {
+		glDepthMask(false);							// don't write to Z-buffer!
+		gl_RenderState.EnableFog(true);
+		gl_RenderState.EnableAlphaTest(false);
+		gl_RenderState.BlendFunc(GL_ONE,GL_ZERO);
+		// gl_drawinfo->DrawUnhandledMissingTextures();
+		gl_RenderState.EnableAlphaTest(true);
+		glDepthMask(true);
+	}
 
 	glPolygonOffset(0.0f, 0.0f);
 	glDisable(GL_POLYGON_OFFSET_FILL);
@@ -623,7 +625,7 @@ void FGLRenderer::RenderTranslucent()
 //-----------------------------------------------------------------------------
 EXTERN_CVAR(Bool, gl_draw_sync)
 
-void FGLRenderer::DrawScene(bool toscreen)
+void FGLRenderer::DrawScene(bool toscreen, bool finalEye)
 {
 	static int recursion=0;
 
@@ -638,7 +640,7 @@ void FGLRenderer::DrawScene(bool toscreen)
 		static_cast<OpenGLFrameBuffer*>(screen)->Swap();
 		All.Clock();
 	}
-	RenderScene(recursion);
+	RenderScene(recursion, finalEye);
 
 	// Handle all portals after rendering the opaque objects but before
 	// doing all translucent stuff
@@ -838,7 +840,7 @@ void FGLRenderer::EndDrawScene(sector_t * viewsector)
 //
 //-----------------------------------------------------------------------------
 
-void FGLRenderer::ProcessScene(bool toscreen)
+void FGLRenderer::ProcessScene(bool toscreen, bool finalEye)
 {
 	FDrawInfo::StartDrawInfo();
 	iter_dlightf = iter_dlight = draw_dlight = draw_dlightf = 0;
@@ -847,7 +849,7 @@ void FGLRenderer::ProcessScene(bool toscreen)
 	int mapsection = R_PointInSubsector(viewx, viewy)->mapsection;
 	memset(&currentmapsection[0], 0, currentmapsection.Size());
 	currentmapsection[mapsection>>3] |= 1 << (mapsection & 7);
-	DrawScene(toscreen);
+	DrawScene(toscreen, finalEye);
 	FDrawInfo::EndDrawInfo();
 
 }
@@ -896,7 +898,7 @@ void FGLRenderer::SetFixedColormap (player_t *player)
 }
 
 // Renders on eye position of one viewpoint in a scene
-void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
+void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen, bool finalEye)
 {
 #ifdef _DEBUG
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
@@ -906,7 +908,7 @@ void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
 #endif
 	clipper.Clear();
 	clipper.SafeAddClipRangeRealAngles(viewangle+frustumAngle, viewangle-frustumAngle);
-	ProcessScene(toscreen);
+	ProcessScene(toscreen, finalEye);
 }
 
 //-----------------------------------------------------------------------------
