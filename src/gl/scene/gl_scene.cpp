@@ -336,6 +336,11 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	float planemult = planemirror? -1:1;
 
 	glRotatef(GLRenderer->mAngles.Roll,  0.0f, 0.0f, 1.0f);
+
+	// pixel ratio
+	float pixelAspect = 1.20;
+	glScalef(1.0, pixelAspect, 1.0);
+
 	glRotatef(GLRenderer->mAngles.Pitch, 1.0f, 0.0f, 0.0f);
 	glRotatef(GLRenderer->mAngles.Yaw,   0.0f, mult, 0.0f);
 

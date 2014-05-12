@@ -514,7 +514,10 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 			previousYaw = yaw;
 			// Pitch
 			float p = oculusTracker->pitch;
-			int pitch = -32768/3.14159*p;
+			// Correct pitch for doom pixel aspect ratio
+			const float aspect = 1.20;
+			float p2 = atan(aspect * tan(p));
+			int pitch = -32768/3.14159*p2;
 			int dPitch = (pitch - viewpitch/65536); // empirical
 			G_AddViewPitch(-dPitch);
 			int x = 3;
