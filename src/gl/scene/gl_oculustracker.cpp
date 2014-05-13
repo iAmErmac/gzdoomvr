@@ -58,6 +58,21 @@ void OculusTracker::update() {
 		quaternion = pFusionResult->GetPredictedOrientation();
 	else
 		quaternion = pFusionResult->GetOrientation();
+
+	// Compress head tracking orientation in Y, to compensate for Doom pixel aspect ratio
+	/*
+	const double pixelRatio = 1.00;
+	OVR::Vector3<float> axis;
+	float angle;
+	quaternion.GetAxisAngle(&axis, &angle);
+	axis.y *= 1.0/pixelRatio; // 1) squish direction in Y
+	axis.Normalize();
+	float angleFactor = 1.0 + sqrt(1.0 - axis.y*axis.y) * (pixelRatio - 1.0);
+	angle = atan2(angleFactor * sin(angle), cos(angle)); // 2) Expand angle in Y
+	OVR::Quatf squishedQuat(axis, angle);
+	squishedQuat.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
+	*/
+
 	quaternion.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
 #endif
 }

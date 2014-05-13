@@ -433,7 +433,7 @@ void Stereo3D::blitHudTextureToScreen(bool toscreen) {
 		if (useOculusTexture)
 			oculusTexture->bindToFrameBuffer();
 		// Compute viewport coordinates
-		float h = SCREENHEIGHT * RIFT_HUDSCALE * 1.20 / 2.0; // 1.20 pixel aspect
+		float h = SCREENHEIGHT * RIFT_HUDSCALE * 1.00 / 2.0; // 1.20 pixel aspect is handled in view matrix
 		float w = SCREENWIDTH/2 * RIFT_HUDSCALE;
 		float x = (SCREENWIDTH/2-w)*0.5;
 		float hudOffsetY = 0.01 * h; // nudge crosshair up
@@ -505,22 +505,27 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 		}
 		if (oculusTracker->isGood()) {
 			oculusTracker->update(); // get new orientation from headset.
-			// Roll can be local, because it doesn't affect gameplay.
-			renderer.mAngles.Roll = -oculusTracker->roll * 180.0 / 3.14159;
+
 			// Yaw
-			float yaw = oculusTracker->yaw;
-			float dYaw = yaw - previousYaw;
+			double yaw = oculusTracker->yaw;
+			double dYaw = yaw - previousYaw;
 			G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
 			previousYaw = yaw;
 			// Pitch
-			float p = oculusTracker->pitch;
+			double pitch0 = oculusTracker->pitch;
+			
 			// Correct pitch for doom pixel aspect ratio
-			const float aspect = 1.20;
-			float p2 = atan(aspect * tan(p));
-			int pitch = -32768/3.14159*p2;
+			const double aspect = 1.20;
+			double pitch1 = atan( tan(pitch0) / aspect );
+			int pitch = -32768/3.14159*pitch1;
 			int dPitch = (pitch - viewpitch/65536); // empirical
 			G_AddViewPitch(-dPitch);
-			int x = 3;
+
+			// Roll can be local, because it doesn't affect gameplay.
+			double rollAspect = 1.0 + (aspect - 1.0) * cos(pitch1); // correct for pixel aspect
+			double roll0 = -oculusTracker->roll;
+			double roll1 = atan2(rollAspect * sin(roll0), cos(roll0));
+			renderer.mAngles.Roll = roll1 * 180.0 / 3.14159;
 		}
 	}
 }

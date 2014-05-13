@@ -335,14 +335,26 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	float mult = mirror? -1:1;
 	float planemult = planemirror? -1:1;
 
+	// pixel ratio
+	const float pixelAspect = 1.20;
+
 	glRotatef(GLRenderer->mAngles.Roll,  0.0f, 0.0f, 1.0f);
 
-	// pixel ratio
-	float pixelAspect = 1.20;
-	glScalef(1.0, pixelAspect, 1.0);
+	// TODO -
+	// I have found no way to get simultaneously
+	// 1) bullets in crosshair
+	// 2) correct 1.2 aspect ratio
+	// 3) stable ceiling at 90 degree pitch
 
-	glRotatef(GLRenderer->mAngles.Pitch, 1.0f, 0.0f, 0.0f);
+	// Modify openGL pitch angle at the last moment,
+	// so bullet holes line up with crosshair, after pixel aspect correction (below)
+	float viewPitch = DEG2RAD((float)GLRenderer->mAngles.Pitch);
+	viewPitch = atan2( pixelAspect * sin(viewPitch), cos(viewPitch) );
+	glRotatef( RAD2DEG(viewPitch), 1.0f, 0.0f, 0.0f );
+
 	glRotatef(GLRenderer->mAngles.Yaw,   0.0f, mult, 0.0f);
+
+	glScalef(1.0, pixelAspect, 1.0);
 
 	glTranslatef( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
 	glScalef(-mult, planemult, 1);
