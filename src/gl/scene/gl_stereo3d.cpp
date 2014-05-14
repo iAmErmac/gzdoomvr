@@ -33,6 +33,7 @@ CVAR(Float, vr_view_yoffset, 0.0, 0) // MAP UNITS
 // But ceilings and floors look too close at that scale.
 CVAR(Float, vr_player_height_meters, 1.7f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
 CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
+CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for oculus rift
 
 
 // Render HUD items twice, once for each eye
@@ -264,7 +265,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 			renderer.RenderOneEye(a1, false, true);
 
-			// Second pass sprites
+			// Second pass sprites (especially weapon)
 			int oldViewwindowy = viewwindowy;
 			const bool showSprites = true;
 			if (showSprites) {
@@ -277,7 +278,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
 				int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
 				viewwindowx = left + fullWidth - spriteOffsetX;
-				int spriteOffsetY = (int)(0.00*viewheight); // nudge gun up/down
+				int spriteOffsetY = (int)(-0.01 * vr_weapon_height * viewheight); // nudge gun up/down
 				// Counteract effect of status bar on weapon position
 				if (oldScreenBlocks <= 10) { // lower weapon in status mode
 					spriteOffsetY += 0.227 * viewwidth; // empirical - lines up brutal doom down sight in 1920x1080 Rift mode

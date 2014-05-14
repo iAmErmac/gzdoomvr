@@ -1,6 +1,10 @@
 
 Version history:
 
+Version 1.8.6_d May 13, 2014
+* Correct pixel aspect ratio to 1.2
+* Add vr_weapon_height console variable, to adjust weapon sprite position
+
 Version 1.8.6_c May 11, 2014
 * Avoid calling drawUnhandledMissingTextures() until final pass.
 * Corrects hall-of-mirrors defect in Doom2 M2

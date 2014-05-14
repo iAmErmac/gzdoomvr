@@ -2,7 +2,6 @@
 To create an installer for Distibution on Windows:
 
  * Install NSIS on your computer.
- * Update version number in top level CMakeLists.txt
  * Select FORCE_INTERNAL_ZLIB in CMake for gzdoom project (to eliminate dependency on zlib.dll)
  * Change version number in top level CMakeLists.txt
  * Build in Release mode (so vcredist_x86.exe libs will work)

@@ -335,24 +335,35 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	float mult = mirror? -1:1;
 	float planemult = planemirror? -1:1;
 
+	float pitch, roll, yaw;
+	// TODO - actually implement late head tracking
+	const bool doLateScheduledHeadTracking = false;
+	if (doLateScheduledHeadTracking) {
+		pitch = DEG2RAD((float)GLRenderer->mAngles.Pitch); //radians
+		roll = GLRenderer->mAngles.Roll; // degrees
+		yaw = GLRenderer->mAngles.Yaw; // degrees
+	}
+	else {
+		pitch = DEG2RAD((float)GLRenderer->mAngles.Pitch); //radians
+		roll = GLRenderer->mAngles.Roll; // degrees
+		yaw = GLRenderer->mAngles.Yaw; // degrees
+	}
+
 	// pixel ratio
 	const float pixelAspect = 1.20;
+	// Modify openGL pitch angle at the last moment,
+	// so bullet holes line up with crosshair, after pixel aspect correction
+	pitch = atan2( pixelAspect * sin(pitch), cos(pitch) );
+	pitch = RAD2DEG(pitch);
 
-	glRotatef(GLRenderer->mAngles.Roll,  0.0f, 0.0f, 1.0f);
-
-	// TODO -
-	// I have found no way to get simultaneously
+	// We need to simultaneously get:
 	// 1) bullets in crosshair
 	// 2) correct 1.2 aspect ratio
 	// 3) stable ceiling at 90 degree pitch
 
-	// Modify openGL pitch angle at the last moment,
-	// so bullet holes line up with crosshair, after pixel aspect correction (below)
-	float viewPitch = DEG2RAD((float)GLRenderer->mAngles.Pitch);
-	viewPitch = atan2( pixelAspect * sin(viewPitch), cos(viewPitch) );
-	glRotatef( RAD2DEG(viewPitch), 1.0f, 0.0f, 0.0f );
-
-	glRotatef(GLRenderer->mAngles.Yaw,   0.0f, mult, 0.0f);
+	glRotatef( roll,  0.0f, 0.0f, 1.0f );
+	glRotatef( pitch, 1.0f, 0.0f, 0.0f );
+	glRotatef( yaw,   0.0f, mult, 0.0f );
 
 	glScalef(1.0, pixelAspect, 1.0);
 
