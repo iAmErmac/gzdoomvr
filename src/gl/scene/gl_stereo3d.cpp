@@ -88,6 +88,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	// float oculusFov = 85 * fovratio; // Hard code probably wider fov for oculus // use vr_rift_fov
 
 	if (mode == OCULUS_RIFT) {
+	// if (false) {
 		renderer.mCurrentFoV = vr_rift_fov; // needed for Frustum angle calculation
 		// Adjust player eye height, but only in oculus rift mode...
 		if (player != NULL) { // null check to avoid aliens crash

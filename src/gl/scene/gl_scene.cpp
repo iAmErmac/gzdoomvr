@@ -600,7 +600,7 @@ void FGLRenderer::RenderScene(int recursion, bool finalEye)
 		gl_RenderState.EnableFog(true);
 		gl_RenderState.EnableAlphaTest(false);
 		gl_RenderState.BlendFunc(GL_ONE,GL_ZERO);
-		// gl_drawinfo->DrawUnhandledMissingTextures();
+		gl_drawinfo->DrawUnhandledMissingTextures();
 		gl_RenderState.EnableAlphaTest(true);
 		glDepthMask(true);
 	}
