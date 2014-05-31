@@ -6,6 +6,12 @@
 #include "gl/scene/gl_oculustexture.h"
 #include "gl/scene/gl_oculustracker.h"
 
+struct PitchRollYaw {
+	float pitch;
+	float roll;
+	float yaw;
+};
+	 
 /**
  * Stereo3D class controls OpenGL viewport and projection matrix,
  * to drive various stereoscopic modes.
@@ -30,6 +36,8 @@ public:
 	Stereo3D();
 
 	Mode getMode() {return mode;}
+
+	PitchRollYaw getHeadOrientation(FGLRenderer& renderer);
 
 	// Render OpenGL scene for both eyes. Delegated from FLGRenderer drawing routines.
 	void render(FGLRenderer& renderer, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool toscreen, sector_t * viewsector, player_t * player);

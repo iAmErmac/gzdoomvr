@@ -333,12 +333,30 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	float planemult = planemirror? -1:1;
 
 	float pitch, roll, yaw;
-	// TODO - actually implement late head tracking
-	const bool doLateScheduledHeadTracking = false;
-	if (doLateScheduledHeadTracking) {
-		pitch = DEG2RAD((float)GLRenderer->mAngles.Pitch); //radians
-		roll = GLRenderer->mAngles.Roll; // degrees
-		yaw = GLRenderer->mAngles.Yaw; // degrees
+
+	// Late schedule head tracking, to reduce latency, and to avoid nausea in menus
+	const bool doLateScheduledHeadTracking = true;
+	if ( (Stereo3DMode.getMode() == Stereo3D::OCULUS_RIFT) && doLateScheduledHeadTracking) {
+		PitchRollYaw prw = Stereo3DMode.getHeadOrientation(*this);
+		pitch = -prw.pitch; // radians
+		roll = RAD2DEG(prw.roll); // degrees
+
+		// Yaw is relative
+		float currentCameraYaw = GLRenderer->mAngles.Yaw;
+		float currentRiftYaw = RAD2DEG(prw.yaw);
+		static float previousCameraYaw = currentCameraYaw;
+		static float previousRiftYaw = currentRiftYaw;
+		static float latestYaw = currentCameraYaw;
+		if (previousCameraYaw != currentCameraYaw) {
+			yaw = currentCameraYaw; // follow camera, when it's actually moving (so not during cut scenes)
+		}
+		else {
+			float dYaw = currentRiftYaw - previousRiftYaw;
+			yaw = latestYaw - dYaw;
+		}
+		latestYaw = yaw;
+		previousCameraYaw = currentCameraYaw;
+		previousRiftYaw = currentRiftYaw;
 	}
 	else {
 		pitch = DEG2RAD((float)GLRenderer->mAngles.Pitch); //radians

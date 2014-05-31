@@ -582,9 +582,14 @@ void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, fl
 	renderer.SetProjection(fov, ratio, fovratio, vr_swap ? -vr_ipd/2 : +vr_ipd/2, frustumShift);
 }
 
-void Stereo3D::setViewDirection(FGLRenderer& renderer) {
-	// Set HMD angle parameters for NEXT frame
-	static float previousYaw = 0;
+
+PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
+	PitchRollYaw result;
+
+	result.pitch = renderer.mAngles.Pitch;
+	result.roll = renderer.mAngles.Roll;
+	result.yaw = renderer.mAngles.Yaw;
+
 	if (mode == OCULUS_RIFT) {
 		if (oculusTracker == NULL) {
 			oculusTracker = new OculusTracker();
@@ -600,25 +605,41 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 			oculusTracker->update(); // get new orientation from headset.
 
 			// Yaw
-			double yaw = oculusTracker->yaw;
-			double dYaw = yaw - previousYaw;
-			G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
-			previousYaw = yaw;
+			result.yaw = oculusTracker->yaw;
 			// Pitch
-			double pitch0 = oculusTracker->pitch;
-			
+			double pitch0 = oculusTracker->pitch;			
 			// Correct pitch for doom pixel aspect ratio
 			const double aspect = 1.20;
-			double pitch1 = atan( tan(pitch0) / aspect );
-			int pitch = -32768/3.14159*pitch1;
+			result.pitch = atan( tan(pitch0) / aspect );
+
+			// Roll can be local, because it doesn't affect gameplay.
+			double rollAspect = 1.0 + (aspect - 1.0) * cos(result.pitch); // correct for pixel aspect
+			double roll0 = -oculusTracker->roll;
+			result.roll = atan2(rollAspect * sin(roll0), cos(roll0));
+		}
+	}
+
+	return result;
+}
+
+void Stereo3D::setViewDirection(FGLRenderer& renderer) {
+	// Set HMD angle parameters for NEXT frame
+	static float previousYaw = 0;
+	if (mode == OCULUS_RIFT) {
+		PitchRollYaw prw = getHeadOrientation(renderer);
+		if (oculusTracker->isGood()) {
+			oculusTracker->update(); // get new orientation from headset.
+			double dYaw = prw.yaw - previousYaw;
+			G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
+			previousYaw = prw.yaw;
+
+			// Pitch
+			int pitch = -32768/3.14159*prw.pitch;
 			int dPitch = (pitch - viewpitch/65536); // empirical
 			G_AddViewPitch(-dPitch);
 
 			// Roll can be local, because it doesn't affect gameplay.
-			double rollAspect = 1.0 + (aspect - 1.0) * cos(pitch1); // correct for pixel aspect
-			double roll0 = -oculusTracker->roll;
-			double roll1 = atan2(rollAspect * sin(roll0), cos(roll0));
-			renderer.mAngles.Roll = roll1 * 180.0 / 3.14159;
+			renderer.mAngles.Roll = prw.roll * 180.0 / 3.14159;
 		}
 	}
 }
