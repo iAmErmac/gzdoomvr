@@ -37,6 +37,7 @@ public:
 
 	Mode getMode() {return mode;}
 
+	bool hasHeadTracking() const;
 	PitchRollYaw getHeadOrientation(FGLRenderer& renderer);
 
 	// Render OpenGL scene for both eyes. Delegated from FLGRenderer drawing routines.

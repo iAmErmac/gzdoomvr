@@ -336,7 +336,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 
 	// Late schedule head tracking, to reduce latency, and to avoid nausea in menus
 	const bool doLateScheduledHeadTracking = true;
-	if ( (Stereo3DMode.getMode() == Stereo3D::OCULUS_RIFT) && doLateScheduledHeadTracking) {
+	if ( doLateScheduledHeadTracking && Stereo3DMode.hasHeadTracking() ) {
 		PitchRollYaw prw = Stereo3DMode.getHeadOrientation(*this);
 		pitch = -prw.pitch; // radians
 		roll = RAD2DEG(prw.roll); // degrees

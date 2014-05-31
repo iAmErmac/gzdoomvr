@@ -588,6 +588,15 @@ void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, fl
 	renderer.SetProjection(fov, ratio, fovratio, vr_swap ? -vr_ipd/2 : +vr_ipd/2, frustumShift);
 }
 
+bool Stereo3D::hasHeadTracking() const {
+	if (! (mode == OCULUS_RIFT) )
+		return false;
+	if (oculusTracker == 0)
+		return false;
+	if (! oculusTracker->isGood())
+		return false;
+	return true;
+}
 
 PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	PitchRollYaw result;
