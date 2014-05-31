@@ -241,14 +241,7 @@ void FGLRenderer::SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angl
 }
 	
 
-//-----------------------------------------------------------------------------
-//
-// SetProjection
-// sets projection matrix
-//
-// eyeShift is the off-center eye position for stereo 3D, in meters
-//-----------------------------------------------------------------------------
-
+/*
 static void setPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar)
 {
 	GLdouble m[4][4];
@@ -271,9 +264,17 @@ static void setPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdou
 	m[3][3] = 0;
 	glLoadMatrixd(&m[0][0]);
 }
+*/
 
+//-----------------------------------------------------------------------------
+//
+// SetProjection
+// sets projection matrix
+//
+// eyeShift is the off-center eye position for stereo 3D, in meters
+//-----------------------------------------------------------------------------
 
-void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, player_t * player, float eyeShift, bool doFrustumShift)
+void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift)
 {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -285,11 +286,6 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, player_t
 	double fH = tan( fovy / 360 * pi ) * zNear;
 	double fW = fH * ratio;
 
-	float vh = 41.0;
-	if (player != NULL)
-		vh = FIXED2FLOAT(player->mo->ViewHeight);
-	float mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
-	float eyeShift_mapunits = eyeShift * mapunits_per_meter;
 
 	// float screenZ = 25.0;
 	float frustumShift = 0;
@@ -304,10 +300,11 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, player_t
 	glFrustum( -fW - frustumShift, fW - frustumShift, 
 		-fH, fH, 
 		zNear, zFar);
-	// Translation to align left and right eye views at screen distance
-	glTranslatef(-eyeShift_mapunits, 0, 0);
 
-	// setPerspective(fovy, ratio, 5.f, 65536.f);
+	// Translation to align left and right eye views at screen distance
+	// NOTE - this has been moved to Stereo3D::render and viewmatrix
+
+	// setPerspective(fovy, ratio, 5.f, 65536.f); // Do not use Graf Zahl's recent perspective refactoring May 2014 cmb
 	gl_RenderState.Set2DMode(false);
 }
 
@@ -368,6 +365,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	glScalef(1.0, pixelAspect, 1.0);
 
 	glTranslatef( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
+	// Printf("x = %.1f; z = %.1f %.1f %.1f\n", GLRenderer->mCameraPos.X, GLRenderer->mCameraPos.Z, FIXED2FLOAT(viewx), FIXED2FLOAT(viewz));
 	glScalef(-mult, planemult, 1);
 }
 
