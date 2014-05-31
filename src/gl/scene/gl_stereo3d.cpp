@@ -121,6 +121,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 {
 	if (doBufferHud)
 		LocalHudRenderer::unbind();
+
+	// Reset pitch and roll when leaving Rift mode
+	if ( (mode == OCULUS_RIFT) && ((int)mode != vr_mode) ) {
+		renderer.mAngles.Roll = 0;
+		renderer.mAngles.Pitch = 0;
+	}
 	setMode(vr_mode);
 
 	// Restore actual screen, instead of offscreen single-eye buffer,
