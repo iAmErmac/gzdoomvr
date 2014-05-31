@@ -342,6 +342,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 		roll = RAD2DEG(prw.roll); // degrees
 
 		// Yaw is relative
+		// TODO - yaw discontinuity when leaving menu
 		float currentCameraYaw = GLRenderer->mAngles.Yaw;
 		float currentRiftYaw = RAD2DEG(prw.yaw);
 		static float previousCameraYaw = currentCameraYaw;
