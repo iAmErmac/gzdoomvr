@@ -34,12 +34,15 @@
 
 <h3><a name="news">News</a></h3>
 
-<p>May 14, 2014: Release of GZ3Doom version 1.8.6_d (<a href="#download">download</a> below)</p>
+<p>May 31, 2014: Release of GZ3Doom version 1.8.6_e (<a href="#download">download</a> below)</p>
 Summary of changes this release:
 <ul>
-<li>Correct pixel aspect ratio to 1.2</li>
-<li>Add vr_weapon_height console variable, to adjust weapon sprite position</li>
+<li>Apply late-scheduled head tracking, to reduce latency, to make menu viewing more comfortable, and to reduce annoyance of doom mods that force head position.</li>
+<li>Elevate per-eye camera shift from OpenGL-only, up to renderer camera, to avoid missed textures in culling.</li>
+<li>Reset pitch and roll when leaving rift mode, to avoid getting stuck with odd roll value.</li>
 </ul>
+
+<p>May 14, 2014: Release of GZ3Doom version 1.8.6_d</p>
 
 <p>May 11, 2014: Release of GZ3Doom version 1.8.6_c</p>
 
@@ -102,7 +105,14 @@ Other 3D mode (vr_mode) options for vr_mode console command:
 
 <h3><a name="download">Download</a></h3>
 
-<p>Download <a href="GZ3Doom-1.8.6_d-win32.exe">GZ3Doom 1.8.6d Installer for Windows</a> (latest version) here. Changes in version 1.8.6d:</p>
+<p>Download <a href="GZ3Doom-1.8.6_e-win32.exe">GZ3Doom 1.8.6e Installer for Windows</a> (latest version) here. Changes in version 1.8.6e:</p>
+<ul>
+<li>Apply late-scheduled head tracking, to reduce latency, to make menu viewing more comfortable, and to reduce annoyance of doom mods that force head position.</li>
+<li>Elevate per-eye camera shift from OpenGL-only, up to renderer camera, to avoid missed textures in culling.</li>
+<li>Reset pitch and roll when leaving rift mode, to avoid getting stuck with odd roll value.</li>
+</ul>
+
+<p>OLD VERSION Download <a href="GZ3Doom-1.8.6_d-win32_old.exe">GZ3Doom 1.8.6d Installer for Windows</a> here. Changes in version 1.8.6d:</p>
 <ul>
 <li>Correct pixel aspect ratio to 1.2</li>
 <li>Add vr_weapon_height console variable, to adjust weapon sprite position</li>
