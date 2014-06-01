@@ -1,6 +1,10 @@
 
 Version history:
 
+Version 1.8.6_g June 1, 2014
+* Avoid camera problem when viewing Rift mode without a Rift attached.
+* Merge latest changes from gzdoom upstream
+
 Version 1.8.6_e May 31, 2014
 * Apply late-scheduled head tracking, to reduce latency, to make menu viewing more comfortable, and to reduce annoyance of doom mods that force head position.
 * Elevate per-eye camera shift from OpenGL-only, up to renderer camera, to avoid missed textures in culling.
