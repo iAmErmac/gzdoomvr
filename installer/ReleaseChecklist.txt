@@ -11,8 +11,11 @@ To create an installer for Distibution on Windows:
      Does intermission screen work (well enough) in Rift mode?
      Does Rift mode work?
      Does green/cyan mode work?
- * Create installer by building PACKAGE target.
  * Write release notes.
+ * Update web page
+ * Git commit locally
+ * Rerun CMake
+ * Create installer by building PACKAGE target.
  * Copy installer to installer folder
  * Commit changes to github
  * Post download to site.
