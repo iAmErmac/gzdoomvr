@@ -56,6 +56,7 @@
 #include "gl/models/gl_models.h"
 #include "gl/shaders/gl_shader.h"
 #include "gl/textures/gl_material.h"
+#include "gl/scene/gl_stereo3d.h"
 
 EXTERN_CVAR (Bool, r_drawplayersprites)
 EXTERN_CVAR(Float, transsouls)
@@ -102,6 +103,10 @@ void FGLRenderer::DrawPSprite (player_t * player,pspdef_t *psp,fixed_t sx, fixed
 
 	// calculate edges of the shape
 	scalex = xratio[WidescreenRatio] * vw / 320;
+
+	if (Stereo3DMode.getMode() == Stereo3D::SIDE_BY_SIDE_SQUISHED) {
+		scalex = scalex/2;
+	}
 
 	tx = sx - ((160 + tex->GetScaledLeftOffset(GLUSE_PATCH))<<FRACBITS);
 	x1 = (FixedMul(tx, scalex)>>FRACBITS) + (vw>>1);

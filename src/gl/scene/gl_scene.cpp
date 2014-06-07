@@ -377,11 +377,14 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	// 2) correct 1.2 aspect ratio
 	// 3) stable ceiling at 90 degree pitch
 
+	glScalef(1.0, 1.0/pixelAspect, 1.0); // stretch - so aspect correction is world-up, not camera-up
+
 	glRotatef( roll,  0.0f, 0.0f, 1.0f );
+
 	glRotatef( pitch, 1.0f, 0.0f, 0.0f );
 	glRotatef( yaw,   0.0f, mult, 0.0f );
 
-	glScalef(1.0, pixelAspect, 1.0);
+	glScalef(1.0, pixelAspect, 1.0); // unstretch
 
 	glTranslatef( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
 	// Printf("x = %.1f; z = %.1f %.1f %.1f\n", GLRenderer->mCameraPos.X, GLRenderer->mCameraPos.Z, FIXED2FLOAT(viewx), FIXED2FLOAT(viewz));

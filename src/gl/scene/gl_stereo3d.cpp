@@ -22,6 +22,7 @@ extern void P_CalcHeight (player_t *player);
 #define RIFT_HUDSCALE 0.40
 
 EXTERN_CVAR(Bool, gl_draw_sync)
+EXTERN_CVAR(Float, vr_screendist)
 //
 CVAR(Int, vr_mode, 0, CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_swap, false, CVAR_GLOBALCONFIG)
@@ -35,6 +36,7 @@ CVAR(Float, vr_view_yoffset, 0.0, 0) // MAP UNITS
 CVAR(Float, vr_player_height_meters, 1.7f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
 CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
 CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for oculus rift
+CVAR(Float, vr_weapondist, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 
 
 // Render HUD items twice, once for each eye
@@ -283,8 +285,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			}
 			//
 			// SECOND PASS weapon sprite
+			viewwidth = oldViewwidth/2; // TODO - narrow aspect of weapon...
+
+			// TODO - encapsulate weapon shift for other modes
+			int weaponShift = int( -vr_ipd * 0.25 * viewwidth / (vr_weapondist * 2.0*tan(0.5*fov0)) );
+			viewwindowx += weaponShift;
+
 			renderer.EndDrawScene(viewsector); // right view
-			viewwindowx -= viewwidth;
+			viewwindowx -= oldViewwidth/2;
+			viewwindowx -= 2*weaponShift;
 			renderer.EndDrawScene(viewsector); // left view
 			//
 			// restore global state
@@ -323,7 +332,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			//
 			// TODO correct geometry for oculus
 			//
-			float ratio = vr_rift_aspect;
+			float ratio = 1.20 * vr_rift_aspect;
 			float fovy = 2.0*atan(tan(0.5*vr_rift_fov*3.14159/180.0)/ratio) * 180.0/3.14159;
 			float fovratio = vr_rift_fov/fovy;
 			//
@@ -532,7 +541,7 @@ void Stereo3D::blitHudTextureToScreen(bool toscreen) {
 		if (useOculusTexture)
 			oculusTexture->bindToFrameBuffer();
 		// Compute viewport coordinates
-		float h = SCREENHEIGHT * RIFT_HUDSCALE * 1.00 / 2.0; // 1.20 pixel aspect is handled in view matrix
+		float h = SCREENHEIGHT * RIFT_HUDSCALE * 1.00 / 2.0; // 1.20 pixel aspect is handled in view matrix TODO is it?
 		float w = SCREENWIDTH/2 * RIFT_HUDSCALE;
 		float x = (SCREENWIDTH/2-w)*0.5;
 		float hudOffsetY = 0.01 * h; // nudge crosshair up
