@@ -368,19 +368,20 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	// pixel ratio
 	const float pixelAspect = 1.20;
 	// Modify openGL pitch angle at the last moment,
-	// so bullet holes line up with crosshair, after pixel aspect correction
+	// so bullet holes line up with crosshair, after pixel aspect correction (#1, below)
 	pitch = atan2( pixelAspect * sin(pitch), cos(pitch) );
 	pitch = RAD2DEG(pitch);
 
-	// We need to simultaneously get:
-	// 1) bullets in crosshair
-	// 2) correct 1.2 aspect ratio
-	// 3) stable ceiling at 90 degree pitch
+	// Criteria for successful aspect ratio correction:
+	// 1) bullets hit in crosshair, even at high pitch
+	// 2) correct 1.2 pixel aspect ratio, in Rift mode and in other modes (use Trisk's circle test level for this)
+	// 3) stable ceiling view near 90 degree pitch; should not shear nor roll nor shift unexpectedly
+	// 4) stable aspect ratio when rolling view
+	// Apply late-scheduling AFTER getting this all working, and test again.
 
-	glScalef(1.0, 1.0/pixelAspect, 1.0); // stretch - so aspect correction is world-up, not camera-up
+	glScalef(1.0, 1.0/pixelAspect, 1.0); // stretch - so aspect correction is world-up, not camera-up (#4, above)
 
 	glRotatef( roll,  0.0f, 0.0f, 1.0f );
-
 	glRotatef( pitch, 1.0f, 0.0f, 0.0f );
 	glRotatef( yaw,   0.0f, mult, 0.0f );
 

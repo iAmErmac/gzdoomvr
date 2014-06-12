@@ -630,16 +630,23 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 
 			// Yaw
 			result.yaw = oculusTracker->yaw;
-			// Pitch
-			double pitch0 = oculusTracker->pitch;			
-			// Correct pitch for doom pixel aspect ratio
-			const double aspect = 1.20;
-			result.pitch = atan( tan(pitch0) / aspect );
 
-			// Roll can be local, because it doesn't affect gameplay.
-			double rollAspect = 1.0 + (aspect - 1.0) * cos(result.pitch); // correct for pixel aspect
-			double roll0 = -oculusTracker->roll;
-			result.roll = atan2(rollAspect * sin(roll0), cos(roll0));
+			if (true) { // aspect ratio correction was handled in OculusTracker->update()
+				result.pitch = oculusTracker->pitch;
+				result.roll = -oculusTracker->roll;
+			}
+			else {
+				// Pitch
+				double pitch0 = oculusTracker->pitch;
+				// Correct pitch for doom pixel aspect ratio
+				const double aspect = 1.20;
+				result.pitch = atan( tan(pitch0) / aspect );
+
+				// Roll can be local, because it doesn't affect gameplay.
+				double rollAspect = 1.0 + (aspect - 1.0) * cos(result.pitch); // correct for pixel aspect
+				double roll0 = -oculusTracker->roll;
+				result.roll = atan2(rollAspect * sin(roll0), cos(roll0));
+			}
 		}
 	}
 
