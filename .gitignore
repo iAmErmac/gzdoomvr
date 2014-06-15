@@ -32,6 +32,8 @@
 /wadsrc/*.pk3
 /build_vc2013
 /build_cmake
+/build_cmake32
+/build_cmake64
 /bzip2/x64/
 /disasm.txt
 /game-music-emu/x64/

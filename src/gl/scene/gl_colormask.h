@@ -2,7 +2,11 @@
 #ifndef GZDOOM_GL_COLORMASK_H
 #define GZDOOM_GL_COLORMASK_H
 
-#include "gl/GL.h"
+#ifdef __APPLE__
+#include <OpenGL/gl.h>
+#else
+#include <GL/gl.h>
+#endif
 
 /**
  *  RAII wrapper for glColorMask.
