@@ -329,9 +329,10 @@ else( FMOD_LIBRARY )
 endif( FMOD_LIBRARY )
 
 # install fmod dll
-if (FMOD_LIBRARY AND WIN32)
+if (FMOD_LIBRARY)
 	get_filename_component(FMOD_DIR "${FMOD_LIBRARY}" PATH)
-	file(GLOB FMOD_SHLIBS "${FMOD_DIR}/../fmodex*.dll" "${FMOD_DIR}/fmodex*.dll")
+	file(GLOB FMOD_SHLIBS "${FMOD_DIR}/../fmodex*.dll" "${FMOD_DIR}/fmodex*.dll" "${FMOD_DIR}/libfmodex*.dylib")
+        message(${FMOD_SHLIBS})
 	foreach(FMOD_SHLIB "" ${FMOD_SHLIBS})
 	    install(PROGRAMS ${FMOD_SHLIB} DESTINATION ".")
 	endforeach()
@@ -1250,6 +1251,10 @@ add_executable( zdoom WIN32
 
 if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
     target_link_libraries(zdoom ${OCULUS_LIBRARY})
+    if (APPLE)
+        target_link_libraries(zdoom "-framework IOKit")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+    endif()
 endif()
 
 set_source_files_properties( xlat/parse_xlat.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c" )
