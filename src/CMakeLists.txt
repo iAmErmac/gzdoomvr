@@ -254,7 +254,7 @@ endif( GLEW_INCLUDE_DIR )
 include_directories( BEFORE "${GLEW_INCLUDE_DIR}" )
 # Hack for Mac weirdness if glew in /usr/include...
 if (APPLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${GLEW_INCLUDE_DIR}")
+    set(CMAKE_CXX_FLAGS "-I${GLEW_INCLUDE_DIR} ${CMAKE_CXX_FLAGS}")
 endif()
 
 find_library( GLEW_LIBRARY NAMES glew32 GLEW )
