@@ -271,8 +271,11 @@ if (GLEW_LIBRARY AND WIN32)
     endif( NOT GLEW_DLL )
     install(PROGRAMS ${GLEW_DLL} DESTINATION ".")
 endif()
+if (GLEW_LIBRARY AND APPLE)
+	install(PROGRAMS ${GLEW_LIBRARY} DESTINATION ".")
+endif()
 
-set( ZDOOM_LIBS ${ZDOOM_LIBS} ${GLEW_LIBRARY} )
+set( ZDOOM_LIBS ${GLEW_LIBRARY} ${ZDOOM_LIBS} )
 
 
 # Decide on the name of the FMOD library we want to use.
@@ -332,7 +335,7 @@ endif( FMOD_LIBRARY )
 if (FMOD_LIBRARY)
 	get_filename_component(FMOD_DIR "${FMOD_LIBRARY}" PATH)
 	file(GLOB FMOD_SHLIBS "${FMOD_DIR}/../fmodex*.dll" "${FMOD_DIR}/fmodex*.dll" "${FMOD_DIR}/libfmodex*.dylib")
-        message(${FMOD_SHLIBS})
+    # message(${FMOD_SHLIBS})
 	foreach(FMOD_SHLIB "" ${FMOD_SHLIBS})
 	    install(PROGRAMS ${FMOD_SHLIB} DESTINATION ".")
 	endforeach()
