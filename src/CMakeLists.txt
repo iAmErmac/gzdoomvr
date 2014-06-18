@@ -1387,3 +1387,30 @@ source_group("Source Files" FILES ${CMAKE_CURRENT_BINARY_DIR}/sc_man_scanner.h s
 
 # install rules
 install(TARGETS zdoom DESTINATION ".")
+# On Mac, we want to change library paths to be within-bundle
+if(APPLE)
+    if(GLEW_LIBRARY)
+        get_filename_component(GLEW_FNAME ${GLEW_LIBRARY} NAME)
+        add_custom_command(TARGET zdoom
+            POST_BUILD COMMAND
+            ${CMAKE_INSTALL_NAME_TOOL} -change /usr/lib/libGLEW.1.10.0.dylib @executable_path/${GLEW_FNAME} $<TARGET_FILE:zdoom>
+            COMMENT "changing reference to glew library")
+    endif()
+    if(FMOD_LIBRARY)
+        get_filename_component(FMOD_FNAME ${FMOD_LIBRARY} NAME)
+        add_custom_command(TARGET zdoom
+            POST_BUILD COMMAND
+            ${CMAKE_INSTALL_NAME_TOOL} -change ./${FMOD_FNAME} @executable_path/${FMOD_FNAME} $<TARGET_FILE:zdoom>
+            COMMENT "changing reference to fmod library")
+    endif()
+    if(SDL_LIBRARY)
+        LIST(GET SDL_LIBRARY 0 SDL_PATH)
+        # message(${SDL_PATH})
+        install(DIRECTORY ${SDL_PATH} DESTINATION ../Frameworks)
+        add_custom_command(TARGET zdoom
+            POST_BUILD COMMAND
+            ${CMAKE_INSTALL_NAME_TOOL} -add_rpath @executable_path/../Frameworks $<TARGET_FILE:zdoom>
+            COMMENT "changing reference to glew library")
+    endif()
+endif()
+
