@@ -1261,7 +1261,7 @@ if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
     if (UNIX AND NOT APPLE) # Linux
         find_library(XINERAMA_LIBRARY Xinerama)
         target_link_libraries(zdoom ${XINERAMA_LIBRARY})
-        find_library(UDEV_LIBRARY udev)
+        find_library(UDEV_LIBRARY NAMES udev libudev.so.1)
         target_link_libraries(zdoom ${UDEV_LIBRARY})
     endif()
 endif()
