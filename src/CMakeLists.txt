@@ -1258,6 +1258,12 @@ if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
         target_link_libraries(zdoom "-framework IOKit")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
     endif()
+    if (UNIX AND NOT APPLE) # Linux
+        find_library(XINERAMA_LIBRARY Xinerama)
+        target_link_libraries(zdoom ${XINERAMA_LIBRARY})
+        find_library(UDEV_LIBRARY udev)
+        target_link_libraries(zdoom ${UDEV_LIBRARY})
+    endif()
 endif()
 
 set_source_files_properties( xlat/parse_xlat.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c" )
