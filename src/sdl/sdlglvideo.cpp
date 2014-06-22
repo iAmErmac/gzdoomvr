@@ -291,10 +291,10 @@ bool SDLGLVideo::SetupPixelFormat(bool allowsoftware, int multisample)
 	SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE,  24 );
 	SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE,  8 );
 // Mac does not do well with quad-buffered stereo contexts...
-#ifndef __APPLE__
-	SDL_GL_SetAttribute( SDL_GL_STEREO, 1 );
-#endif
-//		SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER,  1 );
+// Linux crashes too with stereo context
+// And Windows does not use SDL, so do not try for stereo here...
+	// SDL_GL_SetAttribute( SDL_GL_STEREO, 1 );
+	// SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER,  1 );
 	if (multisample > 0) {
 		SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, 1 );
 		SDL_GL_SetAttribute( SDL_GL_MULTISAMPLESAMPLES, multisample );
@@ -344,7 +344,7 @@ SDLGLFB::SDLGLFB (void *, int width, int height, int, int, bool fullscreen)
 	Screen = SDL_SetVideoMode (width, height,
 		32,
 		SDL_HWSURFACE|SDL_HWPALETTE|SDL_OPENGL | SDL_GL_DOUBLEBUFFER|SDL_ANYFORMAT| 
-		SDL_GL_STEREO|
+		// SDL_GL_STEREO|
 		(fullscreen ? SDL_FULLSCREEN : 0));
 
 	if (Screen == NULL)
