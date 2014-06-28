@@ -49,7 +49,7 @@ chrpath -cr '$ORIGIN' GZ3Doom
 
 target=GZ3Doom-linux-$(uname -m)
 mkdir -p $target
-cp *.pk3 *.so GZ3Doom ../README.md $target
+cp *.pk3 *.so GZ3Doom ../README.md ../installer/GZ3DoomReleaseNotes.txt $target
 strip $target/liboutput_sdl.so
 chmod 0644 $target/liboutput_sdl.so
 

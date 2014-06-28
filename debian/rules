@@ -45,6 +45,9 @@ override_dh_auto_configure: fmodex
 override_dh_auto_build:
 	cd build && $(MAKE)
 
+override_dh_installchangelogs:
+	dh_installchangelogs installer/GZ3DoomReleaseNotes.txt
+
 override_dh_shlibdeps:
 	dh_shlibdeps -l$(CURDIR)/debian/gz3doom/usr/lib/games/gz3doom
 
