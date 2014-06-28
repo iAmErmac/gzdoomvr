@@ -1,6 +1,7 @@
 #!/bin/sh
 
-mkdir -p build
+rm -rf build
+mkdir build
 cd build
 
 
@@ -32,7 +33,7 @@ mv $dirname/api/lib/$lib-$pointversion.so libfmodex-4.44.so
 
 
 # Install dependencies:
-# sudo apt-get install chrpath cmake libfluidsynth-dev libglew-dev libgtk2.0-dev libsdl1.2-dev
+# sudo apt-get install chrpath cmake makeself libfluidsynth-dev libglew-dev libgtk2.0-dev libsdl1.2-dev
 
 cmake \
 -DCMAKE_INSTALL_PREFIX=/usr \
@@ -48,6 +49,7 @@ make
 chrpath -cr '$ORIGIN' GZ3Doom
 
 target=GZ3Doom-linux-$(uname -m)
+
 mkdir -p $target
 cp *.pk3 *.so GZ3Doom ../README.md ../installer/GZ3DoomReleaseNotes.txt $target
 strip $target/liboutput_sdl.so
@@ -56,5 +58,10 @@ chmod 0644 $target/liboutput_sdl.so
 tar cvf - $target | xz > ../installer/linux/$target.tar.xz
 
 echo ""
-echo "'installer/linux/$target.tar.xz' created."
+echo "Archive \"installer/linux/$target.tar.xz\" successfully created."
+
+
+cp ../installer/linux/makeself/* $target
+makeself --bzip2 $target ../installer/linux/$target.run "GZ3Doom" "sudo ./setup.sh"
+
 

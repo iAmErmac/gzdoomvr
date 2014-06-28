@@ -3,7 +3,7 @@ To build a Debian package, install the following dependencies:<br>
 Then run: `dpkg-buildpackage -b -us -uc`
 
 To build a general distribution independend release, install these dependencies:<br>
-`chrpath cmake libfluidsynth-dev libglew-dev libgtk2.0-dev libsdl1.2-dev`<br>
+`chrpath cmake libfluidsynth-dev libglew-dev libgtk2.0-dev libsdl1.2-dev makeself`<br>
 Then run: `./linux-build-gz3doom.sh`<br>
-A tarball with the compiled code will be saved in installer/linux.
+A tarball with the compiled code and a self-extractable installer will be saved in installer/linux.
 
