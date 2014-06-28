@@ -17,11 +17,13 @@ while true; do
                 rm -f  /usr/local/share/applications/gz3doom.desktop
                 rm -f  /usr/local/share/pixmaps/gz3doom.png
 
-                # remove these directories only if they're empty
-                rmdir /usr/local/bin
-                rmdir /usr/local/share/applications
-                rmdir /usr/local/share/pixmaps
-                rmdir /usr/local/share
+                set +e
+                # Only remove these directories if they're empty.
+                rmdir /usr/local/bin 2>/dev/null
+                rmdir /usr/local/share/applications 2>/dev/null
+                rmdir /usr/local/share/pixmaps 2>/dev/null
+                rmdir /usr/local/share 2>/dev/null
+                set -e
 
                 echo "All files were successfully removed."
                 exit;;
