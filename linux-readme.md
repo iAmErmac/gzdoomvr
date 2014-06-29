@@ -1,5 +1,5 @@
 First you should download the OculusSDK version 0.2: https://developer.oculusvr.com/?action=dl<br>
-Extract it into the source directory. Then configure and compile the OVR library:<br>
+Extract it into the source directory. Then configure and compile the OVR library (you can skip this part if you want):<br>
 ```
 cd OculusSDK && ./ConfigurePermissionsAndPackages.sh
 cd LibOVR && make clean && make
