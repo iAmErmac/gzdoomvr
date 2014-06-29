@@ -144,26 +144,29 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	// 90 is too large, 80 is too small.
 	// float oculusFov = 85 * fovratio; // Hard code probably wider fov for oculus // use vr_rift_fov
 
-	if (mode == OCULUS_RIFT) {
-	// if (false) {
-		renderer.mCurrentFoV = vr_rift_fov; // needed for Frustum angle calculation
-		// Adjust player eye height, but only in oculus rift mode...
-		if (player != NULL) { // null check to avoid aliens crash
-			if (savedPlayerViewHeight == 0) {
-				savedPlayerViewHeight = player->mo->ViewHeight;
+	const bool doAdjustPlayerViewHeight = true; // disable/enable for testing
+	if (doAdjustPlayerViewHeight) {
+		if (mode == OCULUS_RIFT) {
+		// if (false) {
+			renderer.mCurrentFoV = vr_rift_fov; // needed for Frustum angle calculation
+			// Adjust player eye height, but only in oculus rift mode...
+			if (player != NULL) { // null check to avoid aliens crash
+				if (savedPlayerViewHeight == 0) {
+					savedPlayerViewHeight = player->mo->ViewHeight;
+				}
+				fixed_t testHeight = savedPlayerViewHeight + FLOAT2FIXED(vr_view_yoffset);
+				if (player->mo->ViewHeight != testHeight) {
+					player->mo->ViewHeight = testHeight;
+					P_CalcHeight(player);
+				}
 			}
-			fixed_t testHeight = savedPlayerViewHeight + FLOAT2FIXED(vr_view_yoffset);
-			if (player->mo->ViewHeight != testHeight) {
-				player->mo->ViewHeight = testHeight;
+		} else {
+			// Revert player eye height when leaving Rift mode
+			if ( (savedPlayerViewHeight != 0) && (player->mo->ViewHeight != savedPlayerViewHeight) ) {
+				player->mo->ViewHeight = savedPlayerViewHeight;
+				savedPlayerViewHeight = 0;
 				P_CalcHeight(player);
 			}
-		}
-	} else {
-		// Revert player eye height when leaving Rift mode
-		if ( (savedPlayerViewHeight != 0) && (player->mo->ViewHeight != savedPlayerViewHeight) ) {
-			player->mo->ViewHeight = savedPlayerViewHeight;
-			savedPlayerViewHeight = 0;
-			P_CalcHeight(player);
 		}
 	}
 
