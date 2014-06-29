@@ -10,6 +10,8 @@ Build-Depends: debhelper (>= 9),
                libgtk2.0-dev,
                libjpeg-dev,
                libsdl1.2-dev,
+               libudev-dev,
+               libxinerama-dev,
                zlib1g-dev
 Standards-Version: 3.9.5
 Vcs-Git: https://github.com/cmbruns/gz3doom.git

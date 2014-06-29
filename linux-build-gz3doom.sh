@@ -7,8 +7,10 @@ cd build
 
 if [ "$(uname -m)" = "x86_64" ]; then 
     lib=libfmodex64
+    OVRarch=x86_64
 else
     lib=libfmodex
+    OVRarch=i386
 fi
 
 # get latest fmod ex version
@@ -43,7 +45,10 @@ cmake \
 -DFORCE_INTERNAL_JPEG=ON \
 -DFORCE_INTERNAL_ZLIB=ON \
 -DFMOD_LIBRARY=libfmodex-4.44.so \
--DFMOD_INCLUDE_DIR=$dirname/api/inc ..
+-DFMOD_INCLUDE_DIR=$dirname/api/inc \
+-DOCULUS_INCLUDE_DIRECTORY=../OculusSDK/LibOVR/Include \
+-DOCULUS_LIBRARY=../OculusSDK/LibOVR/Lib/Linux/Release/$OVRarch/libovr.a \
+-DOCULUS_SDK_PATH=../OculusSDK ..
 
 make
 chrpath -cr '$ORIGIN' GZ3Doom

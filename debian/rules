@@ -1,8 +1,10 @@
 #!/usr/bin/make -f
 
 DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+OVRARCH = i386
 ifeq ($(DEB_HOST_ARCH), amd64)
 LIB64 = 64
+OVRARCH = x86_64
 endif
 
 
@@ -40,7 +42,11 @@ override_dh_auto_configure: fmodex
 	-DFORCE_INTERNAL_JPEG=OFF \
 	-DFORCE_INTERNAL_ZLIB=OFF \
 	-DFMOD_LIBRARY=libfmodex-4.44.so \
-	-DFMOD_INCLUDE_DIR=$(fmoddirname)/api/inc/ $(CURDIR)
+	-DFMOD_INCLUDE_DIR=$(fmoddirname)/api/inc/ \
+	-DOCULUS_SDK_PATH=$(CURDIR)/OculusSDK \
+	-DOCULUS_INCLUDE_DIRECTORY=$(CURDIR)/OculusSDK/LibOVR/Include \
+	-DOCULUS_LIBRARY=$(CURDIR)/OculusSDK/LibOVR/Lib/Linux/Release/$(OVRARCH)/libovr.a \
+	$(CURDIR)
 
 override_dh_auto_build:
 	cd build && $(MAKE)

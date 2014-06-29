@@ -1,3 +1,9 @@
+gz3doom (1.8.6i-2) trusty; urgency=low
+
+  * Rebuild against LibOVR
+
+ -- Marshall Banana <djcj@gmx.de>  Sun, 29 Jun 2014 13:28:28 +0200
+
 gz3doom (1.8.6i-1) trusty; urgency=low
 
   * New version
