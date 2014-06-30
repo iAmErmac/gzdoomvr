@@ -15,6 +15,9 @@ fmodex:
 	$(CURDIR)/debian/download-fmodex.sh
 	cd build && tar xvf $(CURDIR)/fmodapi*linux.tar.gz
 
+LibOVR:
+	rm -f OculusSDK/LibOVR/Lib/Linux/*/*/libovr.a
+	cd OculusSDK/LibOVR && $(MAKE)
 
 fmodrevision = $(shell ls fmodapi444*linux.tar.gz | sed -e 's/fmodapi444//; s/linux.tar.gz//;')
 fmodpointversion = 4.44.$(fmodrevision)
@@ -23,7 +26,7 @@ fmoddirname = $(CURDIR)/build/fmodapi$(fmodversion)linux
 fmodlib = libfmodex$(LIB64)-$(fmodpointversion).so
 
 
-override_dh_auto_configure: fmodex
+override_dh_auto_configure: fmodex LibOVR
 	# FMOD ex doesn't have a soname entry. The linker will therefore use
 	# its filename to declare dependencies. Using a different filename allows
 	# manual library updates without re-linking the GZ3Doom binary.

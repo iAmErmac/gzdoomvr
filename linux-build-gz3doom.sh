@@ -33,10 +33,10 @@ tar xvf "$fname"
 mv $dirname/api/lib/$lib-$pointversion.so libfmodex-4.44.so
 
 
+rm -f OculusSDK/LibOVR/Lib/Linux/*/*/libovr.a
+cd OculusSDK/LibOVR && make
+cd ../..
 
-
-# Install dependencies:
-# sudo apt-get install chrpath cmake makeself libfluidsynth-dev libglew-dev libgtk2.0-dev libsdl1.2-dev
 
 cmake \
 -DCMAKE_INSTALL_PREFIX=/usr \
