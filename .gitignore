@@ -46,3 +46,4 @@
 /debian/gz3doom.debhelper.log
 /debian/gz3doom.substvars
 /OculusSDK
+fmodapi4*linux.tar.gz
