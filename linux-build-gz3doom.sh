@@ -2,15 +2,12 @@
 
 rm -rf build
 mkdir build
-cd build
 
 
-if [ "$(uname -m)" = "x86_64" ]; then 
+if [ "$(uname -m)" = "x86_64" ] ; then
     lib=libfmodex64
-    OVRarch=x86_64
 else
     lib=libfmodex
-    OVRarch=i386
 fi
 
 # get latest fmod ex version
@@ -19,11 +16,15 @@ wget http://www.fmod.org/files/$changelog
 
 pointversion=$(grep -e "Stable branch update" $changelog | cut -d' ' -f2 | head -n1)
 version=$(echo $pointversion | sed -e 's/\.//g')
+rm $changelog
 
 dirname=fmodapi${version}linux
 fname=${dirname}.tar.gz
 
-wget "http://www.fmod.org/download/fmodex/api/Linux/$fname"
+if [ ! -f $fname ] ; then
+    wget "http://www.fmod.org/download/fmodex/api/Linux/$fname"
+fi
+cd build
 tar xvf "$fname"
 
 # FMOD ex doesn't have a soname entry. The linker will therefore use
@@ -32,10 +33,10 @@ tar xvf "$fname"
 mv $dirname/api/lib/$lib-$pointversion.so libfmodex-4.44.so
 
 
+rm -f OculusSDK/LibOVR/Lib/Linux/*/*/libovr.a
+cd OculusSDK/LibOVR && make
+cd ../..
 
-
-# Install dependencies:
-# sudo apt-get install chrpath cmake makeself libfluidsynth-dev libglew-dev libgtk2.0-dev libsdl1.2-dev
 
 cmake \
 -DCMAKE_INSTALL_PREFIX=/usr \
@@ -46,9 +47,7 @@ cmake \
 -DFORCE_INTERNAL_ZLIB=ON \
 -DFMOD_LIBRARY=libfmodex-4.44.so \
 -DFMOD_INCLUDE_DIR=$dirname/api/inc \
--DOCULUS_INCLUDE_DIRECTORY=../OculusSDK/LibOVR/Include \
--DOCULUS_LIBRARY=../OculusSDK/LibOVR/Lib/Linux/Release/$OVRarch/libovr.a \
--DOCULUS_SDK_PATH=../OculusSDK ..
+..
 
 make
 chrpath -cr '$ORIGIN' GZ3Doom

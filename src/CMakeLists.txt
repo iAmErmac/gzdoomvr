@@ -860,6 +860,7 @@ find_path(OCULUS_SDK_PATH
     PATHS 
         "C:/Program Files/OculusSDK"
         "C:/Program Files (x86)/OculusSDK"
+        "${CMAKE_SOURCE_DIR}/OculusSDK"
 )
 find_path(OCULUS_INCLUDE_DIRECTORY
     NAMES
@@ -868,13 +869,23 @@ find_path(OCULUS_INCLUDE_DIRECTORY
         ${OCULUS_SDK_PATH}/LibOVR/Include
 )
 set(OCULUS_LIB_SEARCH_PATHS "")
+if(UNIX AND NOT APPLE)
+    if(CMAKE_SIZEOF_VOID_P MATCHES "4")
+        set(OVR_ARCH "i386")
+    else(CMAKE_SIZEOF_VOID_P MATCHES "4")
+        set(OVR_ARCH "x86_64")
+    endif(CMAKE_SIZEOF_VOID_P MATCHES "4")
+    LIST(APPEND OCULUS_LIB_SEARCH_PATHS
+        "${OCULUS_SDK_PATH}/LibOVR/Lib/Linux/Release/${OVR_ARCH}"
+    )
+endif()
 if(WIN32)
     LIST(APPEND OCULUS_LIB_SEARCH_PATHS
         "${OCULUS_SDK_PATH}/LibOVR/Lib/WIn32"
 )
 endif()
 find_library(OCULUS_LIBRARY
-    NAMES libovr
+    NAMES libovr ovr
     PATHS ${OCULUS_LIB_SEARCH_PATHS}
 )
 if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
