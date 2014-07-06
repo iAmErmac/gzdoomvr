@@ -1,4 +1,5 @@
 #include "gl/scene/gl_oculustracker.h"
+// #include "doomtype.h" // Printf
 
 OculusTracker::OculusTracker() 
 	: pitch(0)
@@ -53,7 +54,9 @@ OculusTracker::~OculusTracker() {
 
 bool OculusTracker::isGood() const {
 #ifdef HAVE_OCULUS_API
-	return hmd != NULL; // pSensor.GetPtr() != NULL;
+	if (hmd == NULL) return false;
+	return true;
+	// return hmd != NULL; // pSensor.GetPtr() != NULL;
 #else
 	return false;
 #endif
@@ -64,16 +67,19 @@ void OculusTracker::report() const {
 
 void OculusTracker::update() {
 #ifdef HAVE_OCULUS_API
-	bool usePredicted = false;
-	OVR::Quatf quaternion;
+	const bool usePredicted = false;
 
 	double predictionTime = 0.00;
 	if (usePredicted)
-		predictionTime = 0.000; // 20 milliseconds
+		predictionTime = 0.020; // 20 milliseconds - TODO setting to zero does not resolve shake
 	ovrSensorState sensorState = ovrHmd_GetSensorState(hmd, predictionTime);
 	if (sensorState.StatusFlags & (ovrStatus_OrientationTracked) ) {
-		ovrPosef pose = sensorState.Predicted.Pose;
+		// Predicted is extremely unstable; at least in my initial experiments CMB
+		ovrPosef pose = sensorState.Recorded.Pose; // = sensorState.Predicted.Pose;
 		quaternion = pose.Orientation;
+	}
+	else {
+		return;
 	}
 
 	/*

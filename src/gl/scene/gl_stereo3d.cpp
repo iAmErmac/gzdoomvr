@@ -638,6 +638,9 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 			if (true) { // aspect ratio correction was handled in OculusTracker->update()
 				result.pitch = oculusTracker->pitch;
 				result.roll = -oculusTracker->roll;
+				// Printf("yaw = %+06.1f; pitch = %+06.1f; roll = %+06.1f\n", RAD2DEG(result.yaw), RAD2DEG(result.pitch), RAD2DEG(result.roll));
+				// OVR::Quatf foo = oculusTracker->quaternion;
+				// Printf("x = %+05.3f; y = %+05.3f; z = %+05.3f; w = %+05.3f\n", foo.x, foo.y, foo.z, foo.w);
 			}
 			else {
 				// Pitch

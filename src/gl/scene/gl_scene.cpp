@@ -338,6 +338,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	const bool doLateScheduledHeadTracking = true;
 	if ( doLateScheduledHeadTracking && Stereo3DMode.hasHeadTracking() ) {
 		PitchRollYaw prw = Stereo3DMode.getHeadOrientation(*this);
+
 		pitch = -prw.pitch; // radians
 		roll = RAD2DEG(prw.roll); // degrees
 
@@ -384,6 +385,8 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	glRotatef( roll,  0.0f, 0.0f, 1.0f );
 	glRotatef( pitch, 1.0f, 0.0f, 0.0f );
 	glRotatef( yaw,   0.0f, mult, 0.0f );
+			
+	// Printf("yaw = %.1f; pitch = %.1f %.1f roll = %.1f\n", yaw, pitch, roll);
 
 	glScalef(1.0, pixelAspect, 1.0); // unstretch
 
