@@ -10,7 +10,8 @@ public:
 	OculusTracker();
 	~OculusTracker();
 #ifdef HAVE_OCULUS_API
-	const OVR::HMDInfo& getInfo() const {return Info;}
+	// const OVR::HMDInfo& getInfo() const {return Info;}
+	float getRiftInterpupillaryDistance() const {return ovrHmd_GetFloat(hmd, OVR_KEY_IPD, 0.062f);}
 #endif
 	bool isGood() const;
 	void report() const;
@@ -21,12 +22,16 @@ public:
 
 private:
 #ifdef HAVE_OCULUS_API
-	OVR::Ptr<OVR::DeviceManager> pManager;
-	OVR::Ptr<OVR::HMDDevice> pHMD;
-	OVR::Ptr<OVR::SensorDevice> pSensor;
-	OVR::SensorFusion* pFusionResult;
-	OVR::HMDInfo Info;
-	bool InfoLoaded;
+	ovrHmd hmd;
+	ovrHmdDesc hmdDesc;
+	ovrSensorDesc sensorDesc;
+
+	// OVR::Ptr<OVR::DeviceManager> pManager;
+	// OVR::Ptr<OVR::HMDDevice> pHMD;
+	// OVR::Ptr<OVR::SensorDevice> pSensor;
+	// OVR::SensorFusion* pFusionResult;
+	// OVR::HMDInfo Info;
+	// bool InfoLoaded;
 #endif
 };
 

@@ -623,8 +623,9 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 			if (oculusTracker->isGood()) {
 				// update cvars TODO
 #ifdef HAVE_OCULUS_API
-				const OVR::HMDInfo& info = oculusTracker->getInfo();
-				vr_ipd = info.InterpupillaryDistance;
+				// const OVR::HMDInfo& info = oculusTracker->getInfo();
+				// vr_ipd = info.InterpupillaryDistance;
+				vr_ipd = oculusTracker->getRiftInterpupillaryDistance();
 #endif
 			}
 		}
