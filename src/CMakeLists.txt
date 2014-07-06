@@ -858,6 +858,7 @@ find_path(OCULUS_SDK_PATH
     NAMES
         LibOVR/Include/OVR.h
     PATHS 
+        "C:/Program Files/ovr_sdk_win_0.3.2/OculusSDK"
         "C:/Program Files/OculusSDK"
         "C:/Program Files (x86)/OculusSDK"
         "${CMAKE_SOURCE_DIR}/OculusSDK"
@@ -880,9 +881,17 @@ if(UNIX AND NOT APPLE)
     )
 endif()
 if(WIN32)
-    LIST(APPEND OCULUS_LIB_SEARCH_PATHS
-        "${OCULUS_SDK_PATH}/LibOVR/Lib/WIn32"
-)
+    set(OVR_WINDIR "${OCULUS_SDK_PATH}/LibOVR/Lib/Win32")
+    LIST(APPEND OCULUS_LIB_SEARCH_PATHS ${OVR_WINDIR})
+    if (MSVC10)
+        LIST(APPEND OCULUS_LIB_SEARCH_PATHS ${OVR_WINDIR}/VS2010)
+    endif()
+    if (MSVC11)
+        LIST(APPEND OCULUS_LIB_SEARCH_PATHS ${OVR_WINDIR}/VS2012)
+    endif()
+    if (MSVC12)
+        LIST(APPEND OCULUS_LIB_SEARCH_PATHS ${OVR_WINDIR}/VS2013)
+    endif()
 endif()
 find_library(OCULUS_LIBRARY
     NAMES libovr ovr
