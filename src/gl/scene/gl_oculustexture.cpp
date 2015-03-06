@@ -11,6 +11,32 @@ static const char* vertexProgramString = ""
 "	gl_TexCoord[0] = gl_MultiTexCoord0;\n"
 "}\n";
 
+// DK1
+#define DK2
+#ifdef DK1
+#define RIFT_WIDTH_METERS "0.14976"
+#define RIFT_HEIGHT_METERS "0.0936"
+// "(1 - 0.0635/0.14976)" // 1 - ipd(0.640)/width
+#define RIFT_LEFT_EYE_CENTER_U "0.57599"
+#define RIFT_WARP_PARAMS "1.0, 0.220, 0.240, 0.000"
+#define RIFT_AB_PARAMS "0.996, -0.004, 1.014, 0.0"
+#define RIFT_DISTORTION_SCALE "1.714"
+#else // DK2
+#define RIFT_WIDTH_METERS "0.12576"
+#define RIFT_HEIGHT_METERS "0.07074"
+// "(1 - 0.0635/0.12576)" // 1 - ipd(0.640)/width
+#define RIFT_LEFT_EYE_CENTER_U "0.49507"
+// Fumbling attempt to lift information from http://doc-ok.org/?p=1095
+// #define RIFT_WARP_PARAMS "1.0, 0.098, 0.025, 0.000" // not good...
+// Try empirically changing K1
+#define RIFT_WARP_PARAMS "1.0, 0.220, 0.240, 0.000" // needs work
+// deduce from https://github.com/eVRydayVR/ffmpeg-unwarpvr/commit/57c850d92186c5518555f63b6c53b93fe830e487
+// #define RIFT_AB_PARAMS "0.985, -0.020, 1.025, 0.02" // red too far
+// #define RIFT_AB_PARAMS "0.996, -0.004, 1.014, 0.0" // blue too far
+#define RIFT_AB_PARAMS "0.990, -0.012, 1.019, 0.01" // 
+#define RIFT_DISTORTION_SCALE "1.714"
+#endif
+
 // Hardcode oculus parameters for now...
 static const char* fragmentProgramString = ""
 "#version 120 \n"
@@ -19,14 +45,14 @@ static const char* fragmentProgramString = ""
 " \n"
 "const float aspectRatio = 1.0; \n"
 "const float distortionScale = 1.714; // TODO check this \n"
-"const vec2 screenSize = vec2(0.14976, 0.0936);"
+"const vec2 screenSize = vec2("RIFT_WIDTH_METERS", "RIFT_HEIGHT_METERS"); \n"
 "const vec2 screenCenter = 0.5 * screenSize; \n"
-"const vec2 lensCenter = vec2(0.57265, 0.5); // left eye \n"
+"const vec2 lensCenter = vec2("RIFT_LEFT_EYE_CENTER_U", 0.5); // left eye \n"
 "const vec2 inputCenter = vec2(0.5, 0.5); // I rendered center at center of unwarped image \n"
 "const vec2 scale = vec2(0.5/distortionScale, 0.5*aspectRatio/distortionScale); \n"
 "const vec2 scaleIn = vec2(2.0, 2.0/aspectRatio); \n"
-"const vec4 hmdWarpParam = vec4(1.0, 0.220, 0.240, 0.000); \n"
-"const vec4 chromAbParam = vec4(0.996, -0.004, 1.014, 0.0); \n"
+"const vec4 hmdWarpParam = vec4("RIFT_WARP_PARAMS"); \n"
+"const vec4 chromAbParam = vec4("RIFT_AB_PARAMS"); \n"
 " \n"
 "void main() { \n"
 "   vec2 tcIn = gl_TexCoord[0].st; \n"
@@ -95,7 +121,7 @@ OculusTexture::OculusTexture(int width, int height)
 	GLchar infoBuffer[1001];
 	glGetProgramInfoLog(shader, 1000, &infoLength, infoBuffer);
 	if (*infoBuffer) {
-		// error... TODO
+		fprintf(stderr, "%s", infoBuffer);
 	}
 	// clean up
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -154,6 +180,7 @@ void OculusTexture::init(int width, int height) {
 	GLchar infoBuffer[1001];
 	glGetProgramInfoLog(shader, 1000, &infoLength, infoBuffer);
 	if (*infoBuffer) {
+		fprintf(stderr, "%s", infoBuffer);
 		// error... TODO
 	}
 	// clean up

@@ -897,6 +897,17 @@ find_library(OCULUS_LIBRARY
     NAMES libovr ovr
     PATHS ${OCULUS_LIB_SEARCH_PATHS}
 )
+find_library(OCULUS_DEBUG_LIBRARY
+    NAMES libovrd ovrd
+    PATHS ${OCULUS_LIB_SEARCH_PATHS}
+)
+if(OCULUS_LIBRARY AND OCULUS_DEBUG_LIBRARY)
+   set(OCULUS_LIBRARIES optimized ${OCULUS_LIBRARY} debug ${OCULUS_DEBUG_LIBRARY})
+elseif(OCULUS_DEBUG_LIBRARY)
+   set(OCULUS_LIBRARIES ${OCULUS_DEBUG_LIBRARY})
+else()
+   set(OCULUS_LIBRARIES "${OCULUS_LIBRARY}")
+endif()
 if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
     add_definitions(-DHAVE_OCULUS_API)
     include_directories(${OCULUS_INCLUDE_DIRECTORY})
@@ -1272,8 +1283,8 @@ add_executable( zdoom WIN32
 )
 
 
-if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
-    target_link_libraries(zdoom ${OCULUS_LIBRARY})
+if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARIES)
+    target_link_libraries(zdoom ${OCULUS_LIBRARIES})
     if (APPLE)
         target_link_libraries(zdoom "-framework IOKit")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
