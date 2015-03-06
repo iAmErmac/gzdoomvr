@@ -33,7 +33,7 @@ static const char* vertexProgramString = ""
 // deduce from https://github.com/eVRydayVR/ffmpeg-unwarpvr/commit/57c850d92186c5518555f63b6c53b93fe830e487
 // #define RIFT_AB_PARAMS "0.985, -0.020, 1.025, 0.02" // red too far
 // #define RIFT_AB_PARAMS "0.996, -0.004, 1.014, 0.0" // blue too far
-#define RIFT_AB_PARAMS "0.990, -0.012, 1.019, 0.01" // 
+#define RIFT_AB_PARAMS "0.990, -0.012, 1.019, 0.01" // OK
 #define RIFT_DISTORTION_SCALE "1.714"
 #endif
 
