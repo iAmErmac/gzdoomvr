@@ -12,8 +12,9 @@ static const char* vertexProgramString = ""
 "}\n";
 
 // DK1
-#define DK2
-#ifdef DK1
+#define DK1
+#ifdef DK2
+#define RIFT_PIXEL_ASPECT "1.00"
 #define RIFT_WIDTH_METERS "0.14976"
 #define RIFT_HEIGHT_METERS "0.0936"
 // "(1 - 0.0635/0.14976)" // 1 - ipd(0.640)/width
@@ -22,6 +23,7 @@ static const char* vertexProgramString = ""
 #define RIFT_AB_PARAMS "0.996, -0.004, 1.014, 0.0"
 #define RIFT_DISTORTION_SCALE "1.714"
 #else // DK2
+#define RIFT_PIXEL_ASPECT "1.00"
 #define RIFT_WIDTH_METERS "0.12576"
 #define RIFT_HEIGHT_METERS "0.07074"
 // "(1 - 0.0635/0.12576)" // 1 - ipd(0.640)/width
@@ -29,11 +31,14 @@ static const char* vertexProgramString = ""
 // Fumbling attempt to lift information from http://doc-ok.org/?p=1095
 // #define RIFT_WARP_PARAMS "1.0, 0.098, 0.025, 0.000" // not good...
 // Try empirically changing K1
-#define RIFT_WARP_PARAMS "1.0, 0.220, 0.240, 0.000" // needs work
+// K1 Barrel 0.220 | 0.100 | 0.000 Pincushion
+// K2 Barrel 0.190 | 0.150 | 0.100 0.00 Pincushion
+#define RIFT_WARP_PARAMS "1.0, 0.100, 0.150, 0.000"
 // deduce from https://github.com/eVRydayVR/ffmpeg-unwarpvr/commit/57c850d92186c5518555f63b6c53b93fe830e487
 // #define RIFT_AB_PARAMS "0.985, -0.020, 1.025, 0.02" // red too far
 // #define RIFT_AB_PARAMS "0.996, -0.004, 1.014, 0.0" // blue too far
-#define RIFT_AB_PARAMS "0.990, -0.012, 1.019, 0.01" // OK
+// Red L .980 .985 | .987 .990 R
+#define RIFT_AB_PARAMS "0.986, -0.012, 1.019, 0.01" // OK
 #define RIFT_DISTORTION_SCALE "1.714"
 #endif
 
@@ -43,7 +48,7 @@ static const char* fragmentProgramString = ""
 " \n"
 "uniform sampler2D texture; \n"
 " \n"
-"const float aspectRatio = 1.0; \n"
+"const float aspectRatio = "RIFT_PIXEL_ASPECT"; \n"
 "const float distortionScale = 1.714; // TODO check this \n"
 "const vec2 screenSize = vec2("RIFT_WIDTH_METERS", "RIFT_HEIGHT_METERS"); \n"
 "const vec2 screenCenter = 0.5 * screenSize; \n"
