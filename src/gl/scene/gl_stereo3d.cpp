@@ -29,15 +29,15 @@ CVAR(Bool, vr_swap, false, CVAR_GLOBALCONFIG)
 // intraocular distance in meters
 CVAR(Float, vr_ipd, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Float, vr_rift_fov, 115.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // DEGREES
-CVAR(Float, vr_view_yoffset, 0.0, 0) // MAP UNITS
+CVAR(Float, vr_view_yoffset, 4.0, 0) // MAP UNITS - raises your head to be closer to soldier height
 // Especially Oculus Rift VR geometry depends on exact mapping between doom map units and real world.
 // Supposed to be 32 units per meter, according to http://doom.wikia.com/wiki/Map_unit
 // But ceilings and floors look too close at that scale.
-CVAR(Float, vr_player_height_meters, 1.7f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
-CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
+CVAR(Float, vr_player_height_meters, 1.75f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
+CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_GLOBALCONFIG) // Used for stereo 3D
 CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for oculus rift
 CVAR(Float, vr_weapondist, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
-
+CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to DK2)
 
 // Render HUD items twice, once for each eye
 // TODO - these flags don't work
@@ -110,6 +110,27 @@ private:
 	fixed_t saved_viewy;
 	FGLRenderer * renderer;
 };
+
+void Stereo3D::checkInitializeOculusTracker() {
+	if (oculusTracker == NULL) {
+		oculusTracker = new OculusTracker();
+		if (oculusTracker->isGood()) {
+			vr_device = oculusTracker->getDeviceId();
+			if (vr_device == 2) {
+				vr_rift_aspect = 0.888; // DK2
+			}
+			else {
+				vr_rift_aspect = 0.800; // DK1
+			}
+			// update cvars TODO
+#ifdef HAVE_OCULUS_API
+			// const OVR::HMDInfo& info = oculusTracker->getInfo();
+			// vr_ipd = info.InterpupillaryDistance;
+			vr_ipd = oculusTracker->getRiftInterpupillaryDistance();
+#endif
+		}
+	}
+}
 
 Stereo3D::Stereo3D() 
 	: mode(MONO)
@@ -310,7 +331,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			if ( (oculusTexture == NULL) || (! oculusTexture->checkSize(SCREENWIDTH, SCREENHEIGHT)) ) {
 				if (oculusTexture)
 					delete(oculusTexture);
-				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT);
+				// TODO - maybe initialize tracker
+				checkInitializeOculusTracker();
+				RiftShaderParams* activeRiftShaderParams = &dk2ShaderParams;
+				if (vr_device == 1)
+					activeRiftShaderParams = &dk1ShaderParams;
+				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
 			}
 			if ( (hudTexture == NULL) || (! hudTexture->checkSize(SCREENWIDTH/2, SCREENHEIGHT)) ) {
 				if (hudTexture)
@@ -618,17 +644,7 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	result.yaw = renderer.mAngles.Yaw;
 
 	if (mode == OCULUS_RIFT) {
-		if (oculusTracker == NULL) {
-			oculusTracker = new OculusTracker();
-			if (oculusTracker->isGood()) {
-				// update cvars TODO
-#ifdef HAVE_OCULUS_API
-				// const OVR::HMDInfo& info = oculusTracker->getInfo();
-				// vr_ipd = info.InterpupillaryDistance;
-				vr_ipd = oculusTracker->getRiftInterpupillaryDistance();
-#endif
-			}
-		}
+		checkInitializeOculusTracker();
 		if (oculusTracker->isGood()) {
 			oculusTracker->update(); // get new orientation from headset.
 

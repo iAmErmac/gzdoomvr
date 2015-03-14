@@ -17,6 +17,7 @@ public:
 	bool isGood() const;
 	void report() const;
 	void update();
+	int getDeviceId() const {return deviceId;}
 
 	// Head orientation state, refreshed by call to update();
 	float pitch, roll, yaw;
@@ -26,6 +27,7 @@ private:
 	ovrHmd hmd;
 	ovrHmdDesc hmdDesc;
 	ovrSensorDesc sensorDesc;
+	int deviceId;
 
 	// OVR::Ptr<OVR::DeviceManager> pManager;
 	// OVR::Ptr<OVR::HMDDevice> pHMD;

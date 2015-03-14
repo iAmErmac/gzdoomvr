@@ -66,6 +66,7 @@ private:
 	void setViewportLeft(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
 	void blitHudTextureToScreen(bool toscreen = true);
+	void checkInitializeOculusTracker();
 
 	Mode mode; // Current 3D method
 	OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.

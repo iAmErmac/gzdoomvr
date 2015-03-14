@@ -1,10 +1,12 @@
 #include "gl/scene/gl_oculustracker.h"
 // #include "doomtype.h" // Printf
+#include <string>
 
 OculusTracker::OculusTracker() 
 	: pitch(0)
 	, roll(0)
 	, yaw(0)
+	, deviceId(1)
 {
 #ifdef HAVE_OCULUS_API
 	ovr_Initialize();// OVR::System::Init();
@@ -14,6 +16,12 @@ OculusTracker::OculusTracker()
 		ovrHmd_StartSensor(hmd,
 			ovrSensorCap_Orientation | ovrSensorCap_YawCorrection, // supported
 			ovrSensorCap_Orientation); // required
+		if (std::string("Oculus Rift DK2").compare(hmdDesc.ProductName) == 0) {
+			deviceId = 2;
+		}
+		else {
+			deviceId = 1;
+		}
 	}
 
 	/*
