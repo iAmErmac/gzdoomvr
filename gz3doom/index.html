@@ -34,42 +34,18 @@
 
 <h3><a name="news">News</a></h3>
 
-<p>March 15, 2015: Release of GZ3Doom version 1.8.6_i (<a href="#download">download</a> below)</p>
+<p>March 15, 2015: Release of GZ3Doom version 1.8.6_i (<a href="https://github.com/cmbruns/gz3doom/releases">download</a> from github)</p>
 Summary of changes this release:
 <ul>
 <li>Support for Oculus Rift DK2</li>
 </ul>
-
-<p>June 19, 2014: Release of GZ3Doom version 1.8.6_h</p>
-
-<p>June 1, 2014: Release of GZ3Doom version 1.8.6_g</p>
-
-<p>May 31, 2014: Release of GZ3Doom version 1.8.6_e</p>
-
-<p>May 14, 2014: Release of GZ3Doom version 1.8.6_d</p>
-
-<p>May 11, 2014: Release of GZ3Doom version 1.8.6_c</p>
-
-<p>May 10, 2014: Release of GZ3Doom version 1.8.6_b</p>
-
-<p>November 9, 2013: The sixth release of GZ3Doom, version 1.8.2_f</p>
-
-<p>November 4, 2013: The fifth release of GZ3Doom, version 1.8.2_e</p>
-
-<p>October 30, 2013: The fourth release of GZ3Doom, version 1.8.2_d</p>
-
-<p>October 26, 2013: The third release of GZ3Doom, version 1.8.2_c</p>
-
-<p>October 19, 2013: The second release of GZ3Doom, version 1.8.2_b</p>
-
-<p>October 14, 2013: The first release of GZ3Doom, version 1.8.2</p>
 
 <h3><a name="instructions">Instructions</a></h3>
 
 <p>To use GZ3Doom in Oculus Rift mode:</p>
 <ul>
 <li>Download GZ3Doom (<a href="#download">below</a>)</li>
-<li>Set video mode to 1920x1080 (preferred) or 1280x800 (the native resolution of the Oculus Rift).</li>
+<li>Set video mode to 1920x1080 (preferred) or 1280x800 (the native resolution of the Oculus Rift DK1).</li>
 <li>Press &quot;+&quot; until no status bar remains.</li>
 <li>Activate Oculus Rift mode by typing in the zdoom console: <blockquote>&gt; vr_mode 8</blockquote></li>
 <li>See <a href="#tips">Tips</a> section below, for more detailed suggestions.</li>
@@ -109,113 +85,11 @@ Other 3D mode (vr_mode) options for vr_mode console command:
 
 <h3><a name="download">Download</a></h3>
 
-<p>Download GZ3Doom 1.8.6_i</p>
-<ul>
-<li>Windows: <a href="GZ3Doom-1.8.6_i-win32.exe">GZ3Doom 1.8.6_h Installer for Windows</a> (latest version). 
-<li>Mac OSX: <a href="GZ3Doom_v1.8.6_i.dmg">GZ3Doom 1.8.6_h Installer for Max OSX</a> (latest version). 
-</ul>
-<p>Changes in version 1.8.6_i:</p>
-<ul>
-<li>Support for Oculus Rift DK2</li>
-</ul>
+Download GZ3Doom installers for Windows and Mac from <a href="https://github.com/cmbruns/gz3doom/releases">github</a>.
 
-<p>Download GZ3Doom 1.8.6_h
-<ul>
-<li>Windows: <a href="GZ3Doom-1.8.6_h-win32.exe">GZ3Doom 1.8.6_h Installer for Windows</a> (latest version). 
-<li>Mac OSX: <a href="GZ3Doom_v1.8.6_h.dmg">GZ3Doom 1.8.6_h Installer for Max OSX</a> (latest version). 
-</ul>
-<p>Changes in version 1.8.6_h:</p>
-<ul>
-<li>First Mac OSX version of GZ3Doom released</li>
-<li>Aspect ratio now correct in both non-Rift and Rift modes (at the same time!)</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.6_g-win32_old.exe">GZ3Doom 1.8.6_g Installer for Windows</a> here. Changes in version 1.8.6_g:</p>
-<ul>
-<li>Avoid camera problem when viewing Rift mode without a Rift attached.</li>
-<li>Merge latest changes from gzdoom upstream</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.6_e-win32_old.exe">GZ3Doom 1.8.6e Installer for Windows</a> here. Changes in version 1.8.6e:</p>
-<ul>
-<li>Apply late-scheduled head tracking, to reduce latency, to make menu viewing more comfortable, and to reduce annoyance of doom mods that force head position.</li>
-<li>Elevate per-eye camera shift from OpenGL-only, up to renderer camera, to avoid missed textures in culling.</li>
-<li>Reset pitch and roll when leaving rift mode, to avoid getting stuck with odd roll value.</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.6_d-win32_old.exe">GZ3Doom 1.8.6d Installer for Windows</a> here. Changes in version 1.8.6d:</p>
-<ul>
-<li>Correct pixel aspect ratio to 1.2</li>
-<li>Add vr_weapon_height console variable, to adjust weapon sprite position</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.6_c-win32_old.exe">GZ3Doom 1.8.6c Installer for Windows</a> here. Changes in version 1.8.6c:</p>
-<ul>
-<li>Avoid calling drawUnhandledMissingTextures() until final pass.</li>
-<li>Corrects hall-of-mirrors defect in Doom2 M2</li>
-<li>Corrects missing doors in right-eye view in Doom E1M4</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.6_b-win32_old.exe">GZ3Doom 1.8.6b Installer for Windows</a> here. Changes in version 1.8.6b:</p>
-<ul>
-<li>Correct hall-of-mirrors defects. (Thanks Trisk!) This is a dramatic improvement for Brutal Doom and many third-party levels.</li>
-<li>Merge changes from recently released gzdoom version 1.8.6</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.5_a-win32_old.exe">GZ3Doom 1.8.5a Installer for Windows</a> here. Changes in version 1.8.5a:</p>
-<ul>
-<li>Merge changes from recently released gzdoom version 1.8.5</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.2_f-win32_old.exe">GZ3Doom 1.8.2f Installer for Windows</a> here. Changes in version 1.8.2f:</p>
-<ul>
-<li>Implement Nvidia 3D Vision mode (vr_mode 7, Thanks Torr Samaho!)</li>
-<li>Avoid crash with Alien Colonial Marines wad</li>
-<li>Fix compile problem when Oculus SDK not available</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.2_e-win32_old.exe">GZ3Doom 1.8.2e Installer for Windows</a> here. Changes in version 1.8.2e:</p>
-<ul>
-<li>Fix aspect ratio for Oculus Rift dev model</li>
-<li>Capturing images/movies with FRAPS works again</li>
-<li>Right eye no longer gets double effect from radiation suit, pickups, and other &quot;blend&quot; operations</li>
-</ul>
-
-<p>OLD VERSION Download <a href="GZ3Doom-1.8.2_d-win32_old.exe">GZ3Doom 1.8.2d Installer for Windows</a> here. Changes in version 1.8.2d:</p>
-<ul>
-<li>Fix terrible units bug in frustum shift breaking all non-Rift 3D modes.</li>
-<li>Add Rift view angle prediction with hard-coded latency of 20 ms.</li>
-</ul>
-
-<p>OLD VERSION: WARNING: Do not use this version; it has a serious bug in all non-Rift 3D modes. If you really want it anyway, download the <a href="GZ3Doom-1.8.2_c-win32_old.exe">GZ3Doom 1.8.2c Installer for Windows</a> here. Changes in version 1.8.2c:</p>
-<ul>
-<li>Correct crosshair placement at high pitch angles.</li>
-<li>Correct placement of site-down-weapon weapon in Brutal Doom in Rift mode.</li>
-<li>Screenshots in Rift mode work again.</li>
-<li>Weapon is a bit larger than in version 1.8.2_b.</li>
-<li>Weapon position is where it should be (for its size)</li>
-<li>Setting vr_player_height cvar to your personal actual height in meters should make your feet just reach the ground.</li>
-<li>Setting vr_view_yoffset to a value like 5 (map units) makes you taller so you're not so much shorter than the monsters.</li>
-</ul>
-
-<p>OLD VERSION: Download <a href="GZ3Doom-1.8.2_b-win32_old.exe">GZ3Doom 1.8.2b Installer for Windows</a> here. Changes in version 1.8.2b:</p>
-<ul>
-<li>Less distracting weapon position in Rift mode</li>
-<li>Menus and screens transformed for Rift mode (man that was tricky...)</li>
-<li>CVARS st3d_&lt;whatever&gt; renamed to vr_&lt;whatever&gt;</li>
-<li>Rift mode crosshair placement improved</li>
-<li>Elevate head position somewhat (though I did it the wrong way...)</li>
-<li>vr_ipd (interpupillary distance) is read from Rift SDK, if available</li>
-</ul>
-
-<p>OLD VERSION: Download <a href="GZ3Doom-1.8.2-win32_old.exe">GZ3Doom 1.8.2 Installer for Windows</a> (original version) here. [Use "st3d_mode 8" to activate Rift mode when using this version]</p>
 
 <h3><a name="known_issues">Known Issues</a></h3>
-<ul>
-<li>The console is unreadable in Rift mode. This makes it difficult to get back out of Rift mode</li>
-<li>Even the menus can be hard to read in Rift mode, especially at lower resolutions</li>
-<li>Screen wipe effects are glitchy in Rift mode on some computers</li>
-</ul>
+Browse and/or contribute known GZ3Doom problems at <a href="https://github.com/cmbruns/gz3doom/issues">github</a>.
 
 <h3><a name="source_code">Source Code</a></h3>
 <p>Get the source code of my modifications to gzdoom on <a href="https://github.com/cmbruns/gzdoom">github</a>.</p>

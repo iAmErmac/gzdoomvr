@@ -3,6 +3,9 @@ Version history:
 
 Version 1.8.6_i March 14, 2015
 * Add minimal head-tracking functionality for DK2 device
+* Positional tracking does NOT work, but rotational tracking, like on the DK1, does.
+* Uses the now-obsolete 0.3.2 Oculus SDK, instead of the even-more-obsolete 0.2 SDK.
+* Start using github features for release management
 
 Version 1.8.6_h June 19, 2014
 * First Mac version of GZ3Doom released
