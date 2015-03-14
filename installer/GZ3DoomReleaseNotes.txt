@@ -1,6 +1,9 @@
 
 Version history:
 
+Version 1.8.6_i March 14, 2015
+* Add minimal head-tracking functionality for DK2 device
+
 Version 1.8.6_h June 19, 2014
 * First Mac version of GZ3Doom released
 * Aspect ratio now correct in both non-Rift and Rift modes (at the same time!)
