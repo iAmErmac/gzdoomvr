@@ -50,9 +50,8 @@ static RiftShaderParams dk2ShaderParams = {
 	0.07074, // height_meters
 	0.49507, // left eye center u // "(1 - 0.0635/0.12576)" // 1 - ipd(0.640)/width
 	// Deduced empirically
-	// K1 Barrel 0.220 |  | 0.000 Pincushion
-	// K2 Barrel 0.190 | 0.150 | 0.100 0.00 Pincushion
-	1.0, 0.080, 0.150, 0.000, // warp parameters
+	// K1/K2 Barrel .22/.24 |  |  Pincushion
+	1.0, 0.090, 0.140, 0.000, // warp parameters
 	0.986, -0.012, 1.019, 0.01 // chromatic aberration parameters
 	// 105.0 // fov
 };

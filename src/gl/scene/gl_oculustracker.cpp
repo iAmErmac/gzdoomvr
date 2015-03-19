@@ -75,7 +75,7 @@ void OculusTracker::report() const {
 
 void OculusTracker::update() {
 #ifdef HAVE_OCULUS_API
-	const bool usePredicted = false;
+	const bool usePredicted = true;
 
 	double predictionTime = 0.00;
 	if (usePredicted)
