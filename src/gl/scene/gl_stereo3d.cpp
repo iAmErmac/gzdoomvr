@@ -336,6 +336,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				RiftShaderParams* activeRiftShaderParams = &dk2ShaderParams;
 				if (vr_device == 1)
 					activeRiftShaderParams = &dk1ShaderParams;
+				vr_rift_fov = activeRiftShaderParams->fov_degrees;
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
 			}
 			if ( (hudTexture == NULL) || (! hudTexture->checkSize(SCREENWIDTH/2, SCREENHEIGHT)) ) {

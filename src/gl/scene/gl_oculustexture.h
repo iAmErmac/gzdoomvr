@@ -41,8 +41,8 @@ static RiftShaderParams dk1ShaderParams = {
 	1.0, 0.220, 0.240, 0.000, // official parameters
 	// Barrel (0.6,0) (0.5,0) | | (0.475,0) (0.45,0) (0.4,0) Pincushion
 	// 1.0, 0.390, 0.100, 0.000, // warp parameters
-	0.996, -0.004, 1.014, 0.0 // chromatic aberration parameters
-	// 115.0 // fov
+	0.996, -0.004, 1.014, 0.0, // chromatic aberration parameters
+	115.0 // horizontal fov
 };
 
 static RiftShaderParams dk2ShaderParams = {
@@ -52,8 +52,8 @@ static RiftShaderParams dk2ShaderParams = {
 	// Deduced empirically
 	// K1/K2 Barrel .22/.24 |  |  Pincushion
 	1.0, 0.090, 0.140, 0.000, // warp parameters
-	0.986, -0.012, 1.019, 0.01 // chromatic aberration parameters
-	// 105.0 // fov
+	0.986, -0.012, 1.019, 0.01, // chromatic aberration parameters
+	100.0 // horizontal fov
 };
 
 // Framebuffer texture for intermediate rendering of Oculus Rift image
