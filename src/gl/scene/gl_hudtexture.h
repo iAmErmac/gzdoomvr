@@ -7,7 +7,7 @@ public:
 	HudTexture(int width, int height);
 	~HudTexture() {destroy();}
 	void bindToFrameBuffer();
-	bool checkSize(int width, int height); // is the size still the same?
+	bool checkScreenSize(int screenWidth, int screenHeight); // is the size still the same?
 	int getWidth() {return w;}
 	int getHeight() {return h;}
 	bool isBound() const {return m_isBound;}
@@ -18,6 +18,7 @@ private:
 	void init(int width, int height);
 	void destroy(); // release all opengl resources
 
+	float screenSizeScale;
 	unsigned int w, h;
 	unsigned int frameBuffer;
 	unsigned int renderedTexture;

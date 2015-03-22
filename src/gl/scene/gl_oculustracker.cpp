@@ -79,7 +79,7 @@ void OculusTracker::update() {
 
 	double predictionTime = 0.00;
 	if (usePredicted)
-		predictionTime = 0.020; // 20 milliseconds - TODO setting to zero does not resolve shake
+		predictionTime = 0.030; // 20 milliseconds - TODO setting to zero does not resolve shake
 	ovrSensorState sensorState = ovrHmd_GetSensorState(hmd, predictionTime);
 	if (sensorState.StatusFlags & (ovrStatus_OrientationTracked) ) {
 		// Predicted is extremely unstable; at least in my initial experiments CMB

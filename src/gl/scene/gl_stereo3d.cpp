@@ -140,6 +140,15 @@ Stereo3D::Stereo3D()
 	, adaptScreenSize(false)
 {}
 
+// scale down offscreen hud buffer, so map lines would show up correctly
+static int hudTextureWidth(int screenwidth) {
+	return (int)(0.20*screenwidth);
+}
+
+static int hudTextureHeight(int screenheight) {
+	return (int)(0.20*screenheight);
+}
+
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
 	if (doBufferHud)
@@ -339,10 +348,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				vr_rift_fov = activeRiftShaderParams->fov_degrees;
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
 			}
-			if ( (hudTexture == NULL) || (! hudTexture->checkSize(SCREENWIDTH/2, SCREENHEIGHT)) ) {
+			if ( (hudTexture == NULL) || (! hudTexture->checkScreenSize(SCREENWIDTH, SCREENHEIGHT) ) ) {
 				if (hudTexture)
 					delete(hudTexture);
-				hudTexture = new HudTexture(SCREENWIDTH/2, SCREENHEIGHT);
+				hudTexture = new HudTexture(SCREENWIDTH, SCREENHEIGHT);
 				hudTexture->bindToFrameBuffer();
 				glClearColor(0, 0, 0, 0);
 				glClear(GL_COLOR_BUFFER_BIT);
@@ -436,6 +445,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClear(GL_COLOR_BUFFER_BIT);
 				bindHudTexture(false);
 				LocalHudRenderer::bind();
+				// adaptScreenSize = true; // TODO - not working - console comes out tiny
 			}
 			break;
 		}
@@ -504,8 +514,10 @@ void Stereo3D::bindHudTexture(bool doUse)
 	HudTexture * ht = Stereo3DMode.hudTexture;
 	if (ht == NULL)
 		return;
-	if (! doUse)
+	if (! doUse) {
 		ht->unbind(); // restore drawing to real screen
+		// adaptScreenSize = false;
+	}
 	if (vr_mode != OCULUS_RIFT)
 		return;
 	if (! doBufferHud)
@@ -514,6 +526,7 @@ void Stereo3D::bindHudTexture(bool doUse)
 		ht->bindToFrameBuffer();
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
 		glScissor(0, 0, ht->getWidth(), ht->getHeight());
+		// adaptScreenSize = true;
 	}
 	else {
 		ht->unbind(); // restore drawing to real screen

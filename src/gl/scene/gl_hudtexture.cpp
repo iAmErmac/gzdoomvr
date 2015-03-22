@@ -4,8 +4,11 @@
 
 using namespace std;
 
-HudTexture::HudTexture(int width, int height)
-	: w(width), h(height)
+HudTexture::HudTexture(int screenWidth, int screenHeight)
+	// screenSizeScale to reduce texture size, so map lines could show up better
+	: screenSizeScale(0.20)
+	, w( (int)(screenSizeScale*screenWidth) )
+	, h( (int)(screenSizeScale*screenHeight) )
 	, frameBuffer(0)
 	, renderedTexture(0)
 	, m_isBound(false)
@@ -15,15 +18,15 @@ HudTexture::HudTexture(int width, int height)
 	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
 	glGenTextures(1, &renderedTexture);
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
-	init(width, height);
+	init(w, h);
 	// clean up
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 }
 
-bool HudTexture::checkSize(int width, int height) {
-	if ((w == width) && (h == height))
+bool HudTexture::checkScreenSize(int screenWidth, int screenHeight) {
+	if ((w == (int)(screenSizeScale*screenWidth)) && (h == (int)(screenSizeScale*screenHeight)))
 		return true; // no change
 	return false;
 }
