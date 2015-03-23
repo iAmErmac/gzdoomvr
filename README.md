@@ -1,3 +1,5 @@
+[![YouTube video of GZ3Doom on the Oculus Rift](http://img.youtube.com/vi/gJL_5EZiQWY/0.jpg)](http://www.youtube.com/watch?v=gJL_5EZiQWY)
+
 GZ3Doom is a 3D adaptation of the legendary first-person-shooter game Doom, which was first released in 1994.
 
 GZ3Doom is based on gzdoom, and adds stereoscopic rendering, including Oculus Rift mode. 
