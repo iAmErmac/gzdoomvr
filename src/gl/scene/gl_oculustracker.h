@@ -23,6 +23,7 @@ public:
 	float pitch, roll, yaw;
 
 private:
+	void setLowPersistence(bool setLow);
 #ifdef HAVE_OCULUS_API
 	ovrHmd hmd;
 	ovrHmdDesc hmdDesc;

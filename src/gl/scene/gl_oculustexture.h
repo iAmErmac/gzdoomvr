@@ -35,6 +35,7 @@ struct RiftShaderParams {
 	}
 };
 
+// TODO - non-A cups
 static RiftShaderParams dk1ShaderParams = {
 	0.14976, // width_meters
 	0.09360, // height_meters
@@ -54,7 +55,7 @@ static RiftShaderParams dk2ShaderParams = {
 	// K1/K2 Barrel .22/.24 |  |  Pincushion
 	1.0, 0.090, 0.140, 0.000, // warp parameters
 	0.986, -0.012, 1.019, 0.01, // chromatic aberration parameters
-	100.0 // horizontal fov
+	94.3 // horizontal fov (106.1 vertical fov)
 };
 
 // Framebuffer texture for intermediate rendering of Oculus Rift image

@@ -13,6 +13,7 @@ OculusTracker::OculusTracker()
 	hmd = ovrHmd_Create(0);
 	if (hmd) {
 		ovrHmd_GetDesc(hmd, &hmdDesc);
+		setLowPersistence(true);
 		ovrHmd_StartSensor(hmd,
 			ovrSensorCap_Orientation | ovrSensorCap_YawCorrection, // supported
 			ovrSensorCap_Orientation); // required
@@ -45,6 +46,18 @@ OculusTracker::OculusTracker()
 	pFusionResult->SetPredictionEnabled(true);
 	pFusionResult->SetPrediction(0.020, true); // Never hurts to be 20 ms in future?
 	*/
+#endif
+}
+
+void OculusTracker::setLowPersistence(bool setLow) {
+#ifdef HAVE_OCULUS_API
+	if (hmd) {
+		int hmdCaps = ovrHmd_GetEnabledCaps(hmd);
+		if (setLow)
+			ovrHmd_SetEnabledCaps(hmd, hmdCaps | ovrHmdCap_LowPersistence);
+		else
+			ovrHmd_SetEnabledCaps(hmd, hmdCaps & ~ovrHmdCap_LowPersistence);
+	}
 #endif
 }
 
