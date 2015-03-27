@@ -4,9 +4,9 @@
 
 using namespace std;
 
-HudTexture::HudTexture(int screenWidth, int screenHeight)
+HudTexture::HudTexture(int screenWidth, int screenHeight, float screenScale)
 	// screenSizeScale to reduce texture size, so map lines could show up better
-	: screenSizeScale(0.20)
+	: screenSizeScale(screenScale)
 	, w( (int)(screenSizeScale*screenWidth) )
 	, h( (int)(screenSizeScale*screenHeight) )
 	, frameBuffer(0)

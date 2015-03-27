@@ -19,8 +19,6 @@
 
 extern void P_CalcHeight (player_t *player);
 
-#define RIFT_HUDSCALE 0.40
-
 EXTERN_CVAR(Bool, gl_draw_sync)
 EXTERN_CVAR(Float, vr_screendist)
 //
@@ -38,6 +36,8 @@ CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_GLOBALCONFIG) // Used for stereo 3
 CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for oculus rift
 CVAR(Float, vr_weapondist, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to DK2)
+CVAR(Float, vr_sprite_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // weapon size
+CVAR(Float, vr_hud_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
 
 // Render HUD items twice, once for each eye
 // TODO - these flags don't work
@@ -348,15 +348,18 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				vr_rift_fov = activeRiftShaderParams->fov_degrees;
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
 			}
+			if (hudTexture)
+				hudTexture->setScreenScale(0.5 * vr_hud_scale); // BEFORE checkScreenSize
 			if ( (hudTexture == NULL) || (! hudTexture->checkScreenSize(SCREENWIDTH, SCREENHEIGHT) ) ) {
 				if (hudTexture)
 					delete(hudTexture);
-				hudTexture = new HudTexture(SCREENWIDTH, SCREENHEIGHT);
+				hudTexture = new HudTexture(SCREENWIDTH, SCREENHEIGHT, 0.5 * vr_hud_scale);
 				hudTexture->bindToFrameBuffer();
 				glClearColor(0, 0, 0, 0);
 				glClear(GL_COLOR_BUFFER_BIT);
 				hudTexture->unbind();
 			}
+
 			// Render unwarped image to offscreen frame buffer
 			if (doBufferOculus) {
 				oculusTexture->bindToFrameBuffer();
@@ -407,8 +410,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glEnable(GL_TEXTURE_2D);
 				screenblocks = 12;
 				float fullWidth = SCREENWIDTH / 2.0;
-				viewwidth = RIFT_HUDSCALE * fullWidth;
-				float left = (1.0 - RIFT_HUDSCALE) * fullWidth * 0.5; // left edge of scaled viewport
+				viewwidth = vr_sprite_scale * fullWidth;
+				float left = (1.0 - vr_sprite_scale) * fullWidth * 0.5; // left edge of scaled viewport
 				// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
 				int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
 				viewwindowx = left + fullWidth - spriteOffsetX;
@@ -584,8 +587,8 @@ void Stereo3D::blitHudTextureToScreen(bool toscreen) {
 		if (useOculusTexture)
 			oculusTexture->bindToFrameBuffer();
 		// Compute viewport coordinates
-		float h = SCREENHEIGHT * RIFT_HUDSCALE * 1.00 / 2.0; // 1.20 pixel aspect is handled in view matrix TODO is it?
-		float w = SCREENWIDTH/2 * RIFT_HUDSCALE;
+		float h = hudTexture->getHeight();
+		float w = hudTexture->getWidth();
 		float x = (SCREENWIDTH/2-w)*0.5;
 		float hudOffsetY = 0.01 * h; // nudge crosshair up
 		hudOffsetY -= 0.005 * SCREENHEIGHT; // reverse effect of oculus head raising.
