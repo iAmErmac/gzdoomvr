@@ -15,9 +15,16 @@ OculusTracker::OculusTracker()
 		ovrHmd_GetDesc(hmd, &hmdDesc);
 		setLowPersistence(true);
 		ovrHmd_StartSensor(hmd,
-			ovrSensorCap_Orientation | ovrSensorCap_YawCorrection, // supported
+			ovrSensorCap_Orientation | ovrSensorCap_YawCorrection | ovrSensorCap_Position, // supported
 			ovrSensorCap_Orientation); // required
-		if (std::string("Oculus Rift DK2").compare(hmdDesc.ProductName) == 0) {
+		/*
+		ovrHmd_GetSensorDesc(hmd, &sensorDesc);
+		//
+		ovrEyeRenderDesc renderDesc = ovrHmd_GetRenderDesc(hmd, ovrEye_Left, hmdDesc.DefaultEyeFov[0]);
+		ovrHmd_GetRenderScaleAndOffset(
+		//
+		*/
+		if ( hmdDesc.Type == ovrHmd_DK2 ) {
 			deviceId = 2;
 		}
 		else {

@@ -1,4 +1,5 @@
 #include "v_video.h"
+#include "c_dispatch.h"
 #include "gl/system/gl_system.h"
 #include "gl/system/gl_cvars.h"
 #include "gl/system/gl_framebuffer.h"
@@ -26,7 +27,7 @@ CVAR(Int, vr_mode, 0, CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_swap, false, CVAR_GLOBALCONFIG)
 // intraocular distance in meters
 CVAR(Float, vr_ipd, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
-CVAR(Float, vr_rift_fov, 115.0f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // DEGREES
+CVAR(Float, vr_rift_fov, 117.4f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // DEGREES
 CVAR(Float, vr_view_yoffset, 4.0, 0) // MAP UNITS - raises your head to be closer to soldier height
 // Especially Oculus Rift VR geometry depends on exact mapping between doom map units and real world.
 // Supposed to be 32 units per meter, according to http://doom.wikia.com/wiki/Map_unit
@@ -38,6 +39,37 @@ CVAR(Float, vr_weapondist, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to DK2)
 CVAR(Float, vr_sprite_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // weapon size
 CVAR(Float, vr_hud_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
+CVAR(Bool, vr_lowpersist, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+
+// Command to set "standard" rift settings
+EXTERN_CVAR(Int, con_scaletext)
+EXTERN_CVAR(Bool, hud_scale)
+EXTERN_CVAR(Int, hud_althudscale)
+EXTERN_CVAR(Bool, crosshairscale)
+EXTERN_CVAR(Bool, freelook)
+EXTERN_CVAR(Float, movebob)
+EXTERN_CVAR(Float, turbo)
+EXTERN_CVAR(Int, screenblocks)
+EXTERN_CVAR(Int, m_use_mouse)
+EXTERN_CVAR(Int, crosshair)
+CCMD(oculardium_optimosa)
+{
+	// scale up all HUD chrome
+	con_scaletext = 1; // console and messages
+	hud_scale = 1;
+	hud_althudscale = 1;
+	crosshairscale = 1;
+	movebob = 0; // No bobbing
+	turbo = 65; // Slower walking
+	vr_mode = 8; // Rift mode
+	// Use minimal or no HUD
+	if (screenblocks <= 10)
+		screenblocks = 11;
+	vr_lowpersist = true;
+	m_use_mouse = 0; // no mouse in menus
+	freelook = false; // no up/down look with mouse
+	crosshair = 1; // show crosshair
+}
 
 // Render HUD items twice, once for each eye
 // TODO - these flags don't work
@@ -348,6 +380,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				vr_rift_fov = activeRiftShaderParams->fov_degrees;
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
 			}
+			if (oculusTracker)
+				oculusTracker->setLowPersistence(vr_lowpersist);
 			if (hudTexture)
 				hudTexture->setScreenScale(0.5 * vr_hud_scale); // BEFORE checkScreenSize
 			if ( (hudTexture == NULL) || (! hudTexture->checkScreenSize(SCREENWIDTH, SCREENHEIGHT) ) ) {

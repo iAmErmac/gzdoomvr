@@ -22,9 +22,7 @@ static std::string createRiftFragmentShaderString(RiftShaderParams p) {
 	ss << " \n";
 	ss << "const float aspectRatio = " << p.aspectRatio() << "; \n";
 	ss << "const float distortionScale = " << p.distortionScale() << "; \n";
-	ss << "const vec2 screenSize = vec2(" << p.width_meters << ", " << p.height_meters << "); \n";
-	ss << "const vec2 screenCenter = 0.5 * screenSize; \n";
-	ss << "const vec2 lensCenter = vec2(" << p.left_eye_center_u << ", 0.5); // left eye \n";
+	ss << "const vec2 lensCenter = vec2(" << p.leftEyeCenterU() << ", 0.5); // left eye \n";
 	ss << "const vec2 inputCenter = vec2(0.5, 0.5); // I rendered center at center of unwarped image \n";
 	ss << "const vec2 scale = vec2(0.5/distortionScale, 0.5*aspectRatio/distortionScale); \n";
 	ss << "const vec2 scaleIn = vec2(2.0, 2.0/aspectRatio); \n";

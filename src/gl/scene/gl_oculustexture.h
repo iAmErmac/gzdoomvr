@@ -14,6 +14,11 @@ struct RiftShaderParams {
 	float ab_b0;
 	float ab_b1;
 	float fov_degrees;
+	// float up_tan, down_tan, left_tan, right_tan; // could be look up in SDK 0.3.2
+
+	float leftEyeCenterU() {
+		return left_eye_center_u;
+	}
 
 	float lensSeparation() {
 		return 0.0635;
@@ -44,7 +49,8 @@ static RiftShaderParams dk1ShaderParams = {
 	// Barrel (0.6,0) (0.5,0) | | (0.475,0) (0.45,0) (0.4,0) Pincushion
 	// 1.0, 0.390, 0.100, 0.000, // warp parameters
 	0.996, -0.004, 1.014, 0.0, // chromatic aberration parameters
-	115.0 // horizontal fov
+	117.4 // horizontal fov
+	// 2.1382618, 2.1382618, 2.1933062, 0.97073942
 };
 
 static RiftShaderParams dk2ShaderParams = {
@@ -56,6 +62,7 @@ static RiftShaderParams dk2ShaderParams = {
 	1.0, 0.090, 0.140, 0.000, // warp parameters
 	0.986, -0.012, 1.019, 0.01, // chromatic aberration parameters
 	94.3 // horizontal fov (106.1 vertical fov)
+	// 1.3292863, 1.3292863, 1.0586575, 1.0923680
 };
 
 // Framebuffer texture for intermediate rendering of Oculus Rift image

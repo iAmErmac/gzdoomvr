@@ -21,9 +21,9 @@ public:
 
 	// Head orientation state, refreshed by call to update();
 	float pitch, roll, yaw;
+	void setLowPersistence(bool setLow);
 
 private:
-	void setLowPersistence(bool setLow);
 #ifdef HAVE_OCULUS_API
 	ovrHmd hmd;
 	ovrHmdDesc hmdDesc;
