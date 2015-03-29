@@ -34,10 +34,19 @@
 
 <h3><a name="news">News</a></h3>
 
-<p>March 15, 2015: Release of GZ3Doom version 1.8.6_i (<a href="https://github.com/cmbruns/gz3doom/releases">download</a> from github)</p>
+<p>March 29, 2015: Release of GZ3Doom version 1.8.6_j (<a href="https://github.com/cmbruns/gz3doom/releases">download</a> from github)</p>
 Summary of changes this release:
 <ul>
-<li>Support for Oculus Rift DK2</li>
+<li>Console is now readable in Rift mode, if CON_SCALETEXT is set to "1"</li>
+<li>Map is now readable in Rift mode</li>
+<li>Image scaling and fov are improved on DK2</li>
+<li>Adjusted fov on both DK1 and DK2</li>
+<li>Fixed subtle isotropic warping error on DK1 and DK2</li>
+<li>Set Rift prediction interval to 30 milliseconds</li>
+<li>Create new CVAR vr_lowpersist, to set/unset low-persistence mode on the Oculus Rift DK2</li>
+<li>Create new CVARS vr_hud_scale, and vr_sprite_scale, to change the size of the HUD and weapon, respectively, in Rift mode</li>
+<li>Create meta-command "oculardium_optimosa" to set a bunch of preferred parameters for the Oculus Rift
+<ul><li>Creates movement aliases "turn45left" and "turn45right", which can be bound to keys for "comfort mode"</li></ul></li>
 </ul>
 
 <h3><a name="instructions">Instructions</a></h3>

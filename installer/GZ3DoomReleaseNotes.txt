@@ -1,6 +1,19 @@
 
 Version history:
 
+Version 1.8.6_j March 29, 2015
+* Console is now readable in Rift mode, if CON_SCALETEXT is set to "1".
+* Map is now readable in Rift mode
+* Image scaling and fov are improved on DK2
+* Adjusted fov on both DK1 and DK2
+* Fixed subtle isotropic warping error on DK1 and DK2
+* Set Rift prediction interval to 30 milliseconds
+* Create new CVAR vr_lowpersist, to set/unset low-persistence mode on the Oculus Rift DK2
+* Create meta-command "oculardium_optimosa" to set a bunch of preferred parameters for the Oculus Rift
+  * Creates movement aliases "turn45left" and "turn45right", which can be bound to keys for "comfort mode"
+* Create new CVARS vr_hud_scale, and vr_sprite_scale, to change the size of the HUD and weapon, respectively, in Rift mode
+
+
 Version 1.8.6_i March 14, 2015
 * Add minimal head-tracking functionality for DK2 device
 * Positional tracking does NOT work, but rotational tracking, like on the DK1, does.
