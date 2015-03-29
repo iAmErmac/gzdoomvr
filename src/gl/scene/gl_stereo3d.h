@@ -10,6 +10,7 @@ struct PitchRollYaw {
 	float pitch;
 	float roll;
 	float yaw;
+	float dx, dy, dz;
 };
 	 
 /**

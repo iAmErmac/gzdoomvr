@@ -13,6 +13,7 @@ public:
 	// const OVR::HMDInfo& getInfo() const {return Info;}
 	float getRiftInterpupillaryDistance() const {return ovrHmd_GetFloat(hmd, OVR_KEY_IPD, 0.062f);}
 	OVR::Quatf quaternion;
+	OVR::Vector3f position;
 #endif
 	bool isGood() const;
 	void report() const;

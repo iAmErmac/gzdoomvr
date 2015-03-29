@@ -105,6 +105,7 @@ void OculusTracker::update() {
 		// Predicted is extremely unstable; at least in my initial experiments CMB
 		ovrPosef pose = sensorState.Recorded.Pose; // = sensorState.Predicted.Pose;
 		quaternion = pose.Orientation;
+		position = pose.Position;
 	}
 	else {
 		return;

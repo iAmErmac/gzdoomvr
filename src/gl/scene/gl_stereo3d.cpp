@@ -69,6 +69,10 @@ CCMD(oculardium_optimosa)
 	m_use_mouse = 0; // no mouse in menus
 	freelook = false; // no up/down look with mouse
 	crosshair = 1; // show crosshair
+	// Create aliases for comfort mode controls
+	AddCommandString("alias turn45left \"alias turn45_step \\\"wait 5;-left;turnspeeds 640 1280 320 320;alias turn45_step\\\";turn45_step;wait;turnspeeds 2048 2048 2048 2048;+left\"\n");
+	AddCommandString("alias turn45right \"alias turn45_step \\\"wait 5;-right;turnspeeds 640 1280 320 320;alias turn45_step\\\";turn45_step;wait;turnspeeds 2048 2048 2048 2048;+right\"\n");
+	vr_view_yoffset = 4;
 }
 
 // Render HUD items twice, once for each eye
@@ -693,11 +697,19 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	result.pitch = renderer.mAngles.Pitch;
 	result.roll = renderer.mAngles.Roll;
 	result.yaw = renderer.mAngles.Yaw;
+	result.dx = result.dy = result.dz = 0;
 
 	if (mode == OCULUS_RIFT) {
 		checkInitializeOculusTracker();
 		if (oculusTracker->isGood()) {
 			oculusTracker->update(); // get new orientation from headset.
+			
+			/* Neck modeling only works on DK2?
+			Printf("xyz = (%.3f, %.3f, %.3f)\n", 
+				oculusTracker->position.x,
+				oculusTracker->position.y,
+				oculusTracker->position.z);
+				/* */
 
 			// Yaw
 			result.yaw = oculusTracker->yaw;
