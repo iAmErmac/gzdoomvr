@@ -17,6 +17,7 @@
 #include "sbar.h"
 #include "am_map.h"
 #include "gl/scene/gl_localhudrenderer.h"
+#include <cmath>
 
 extern void P_CalcHeight (player_t *player);
 
@@ -69,10 +70,29 @@ CCMD(oculardium_optimosa)
 	m_use_mouse = 0; // no mouse in menus
 	freelook = false; // no up/down look with mouse
 	crosshair = 1; // show crosshair
-	// Create aliases for comfort mode controls
+	// AddCommandString("vid_setmode 1920 1080 32\n"); // causes crash
+	vr_view_yoffset = 4;
+}
+
+
+// Create aliases for comfort mode controls
+// Quick turn commands for VR comfort mode
+static void set_turn_aliases() {
+	static bool b_turn_aliases_set = false;
+	if (b_turn_aliases_set) return;
 	AddCommandString("alias turn45left \"alias turn45_step \\\"wait 5;-left;turnspeeds 640 1280 320 320;alias turn45_step\\\";turn45_step;wait;turnspeeds 2048 2048 2048 2048;+left\"\n");
 	AddCommandString("alias turn45right \"alias turn45_step \\\"wait 5;-right;turnspeeds 640 1280 320 320;alias turn45_step\\\";turn45_step;wait;turnspeeds 2048 2048 2048 2048;+right\"\n");
-	vr_view_yoffset = 4;
+	b_turn_aliases_set = true;
+}
+CCMD(snap45left)
+{
+	set_turn_aliases();
+	AddCommandString("turn45left\n");
+}
+CCMD(snap45right)
+{
+	set_turn_aliases();
+	AddCommandString("turn45right");
 }
 
 // Render HUD items twice, once for each eye
@@ -700,16 +720,45 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	result.dx = result.dy = result.dz = 0;
 
 	if (mode == OCULUS_RIFT) {
+		const double aspect = 1.20;
+
 		checkInitializeOculusTracker();
 		if (oculusTracker->isGood()) {
 			oculusTracker->update(); // get new orientation from headset.
 			
-			/* Neck modeling only works on DK2?
-			Printf("xyz = (%.3f, %.3f, %.3f)\n", 
-				oculusTracker->position.x,
-				oculusTracker->position.y,
-				oculusTracker->position.z);
+			static OVR::Vector3f previousPosition = OVR::Vector3f(0, 0, 0);
+			OVR::Vector3f dPos = oculusTracker->position - previousPosition;
+
+			previousPosition = oculusTracker->position;
+
+			/* Neck modeling only works on DK2? */
+			/* Printf("xyz = (%.3f, %.3f, %.3f)\n", 
+				dPos.x,
+				dPos.y,
+				dPos.z);
 				/* */
+
+			// Only take small translations
+			double totalTranslation = 
+				std::abs(dPos.x)
+				+ std::abs(dPos.y)
+				+ std::abs(dPos.z);
+			if (totalTranslation < 0.04) // 4 cm?
+			{
+				float yaw = DEG2RAD( ANGLE_TO_FLOAT(viewangle) );
+
+				float vh = 41.0; // eh close enough
+				// if (player != NULL) vh = FIXED2FLOAT(player->mo->ViewHeight);
+				float mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
+
+				// correct dy for pixel aspect ratio
+				result.dz = mapunits_per_meter * dPos.y / aspect;
+
+				float sy = sin(yaw);
+				float cy = cos(yaw);
+				result.dx = mapunits_per_meter * (cy * dPos.x + sy * dPos.z);
+				result.dy = mapunits_per_meter * (-sy * dPos.x + cy * dPos.z);
+			}
 
 			// Yaw
 			result.yaw = oculusTracker->yaw;
@@ -725,7 +774,6 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 				// Pitch
 				double pitch0 = oculusTracker->pitch;
 				// Correct pitch for doom pixel aspect ratio
-				const double aspect = 1.20;
 				result.pitch = atan( tan(pitch0) / aspect );
 
 				// Roll can be local, because it doesn't affect gameplay.
@@ -757,6 +805,21 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 
 			// Roll can be local, because it doesn't affect gameplay.
 			renderer.mAngles.Roll = prw.roll * 180.0 / 3.14159;
+
+			/* TODO - not working
+			// Position update
+			float xf = FIXED2FLOAT(viewx);
+			float yf = FIXED2FLOAT(viewy);
+			float zf = FIXED2FLOAT(viewz);
+			xf += 100 * prw.dx;
+			yf += 100 * prw.dy;
+			zf += 100 * prw.dz;
+			viewx = FLOAT2FIXED(xf);
+			viewy = FLOAT2FIXED(yf);
+			viewz = FLOAT2FIXED(zf);
+			renderer.SetCameraPos(viewx, viewy, viewz, viewangle);
+			renderer.SetViewMatrix(false, false);
+			/* */
 		}
 	}
 }

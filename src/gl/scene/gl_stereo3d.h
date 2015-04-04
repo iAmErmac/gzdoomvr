@@ -7,10 +7,10 @@
 #include "gl/scene/gl_oculustracker.h"
 
 struct PitchRollYaw {
-	float pitch;
-	float roll;
-	float yaw;
-	float dx, dy, dz;
+	float pitch; // radians
+	float roll; // radians
+	float yaw; // radians
+	float dx, dy, dz; // map units?
 };
 	 
 /**

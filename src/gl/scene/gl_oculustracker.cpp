@@ -24,6 +24,7 @@ OculusTracker::OculusTracker()
 		ovrHmd_GetRenderScaleAndOffset(
 		//
 		*/
+
 		if ( hmdDesc.Type == ovrHmd_DK2 ) {
 			deviceId = 2;
 		}
@@ -95,33 +96,20 @@ void OculusTracker::report() const {
 
 void OculusTracker::update() {
 #ifdef HAVE_OCULUS_API
-	const bool usePredicted = true;
+	const float pixelRatio = 1.20;
 
+	const bool usePredicted = true;
 	double predictionTime = 0.00;
 	if (usePredicted)
 		predictionTime = 0.030; // 20 milliseconds - TODO setting to zero does not resolve shake
+
 	ovrSensorState sensorState = ovrHmd_GetSensorState(hmd, predictionTime);
+
+	// Rotation tracking
 	if (sensorState.StatusFlags & (ovrStatus_OrientationTracked) ) {
 		// Predicted is extremely unstable; at least in my initial experiments CMB
 		ovrPosef pose = sensorState.Recorded.Pose; // = sensorState.Predicted.Pose;
 		quaternion = pose.Orientation;
-		position = pose.Position;
-	}
-	else {
-		return;
-	}
-
-	/*
-	if (usePredicted)
-		quaternion = pFusionResult->GetPredictedOrientation();
-	else
-		quaternion = pFusionResult->GetOrientation();
-	*/
-
-	// Compress head tracking orientation in Y, to compensate for Doom pixel aspect ratio
-	/* */
-	if (true) { // one aspect of aspect ratio correction
-		const float pixelRatio = 1.20;
 		OVR::Vector3<float> axis;
 		float angle;
 		quaternion.GetAxisAngle(&axis, &angle);
@@ -132,9 +120,30 @@ void OculusTracker::update() {
 		OVR::Quatf squishedQuat(axis, angle);
 		squishedQuat.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
 	}
-	/* */
-	else {
-		quaternion.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
+
+	// Neck-model-based position tracking
+	if (sensorState.StatusFlags & (ovrStatus_PositionConnected)) 
+	{
+		// Sanity check neck model, which might be nonsense, especially on DK1
+		float neckEye[2] = {0, 0};
+		ovrHmd_GetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
+		bool bChanged = false;
+		if ((neckEye[0] < 0.05) || (neckEye[0] > 0.50)) {
+			neckEye[0] = OVR_DEFAULT_NECK_TO_EYE_HORIZONTAL;
+			bChanged = true;
+		}
+		if ((neckEye[1] < 0.05) || (neckEye[1] > 0.50)) {
+			neckEye[1] = OVR_DEFAULT_NECK_TO_EYE_VERTICAL;
+			bChanged = true;
+		}
+		if (bChanged) {
+			ovrHmd_SetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
+		}
+
+		ovrPosef pose = sensorState.Recorded.Pose; // = sensorState.Predicted.Pose;
+		position = pose.Position;
+		// TODO - should we apply pixelRatio?
 	}
+
 #endif
 }
