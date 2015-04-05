@@ -68,7 +68,7 @@ CCMD(oculardium_optimosa)
 		screenblocks = 11;
 	vr_lowpersist = true;
 	m_use_mouse = 0; // no mouse in menus
-	freelook = false; // no up/down look with mouse
+	// freelook = false; // no up/down look with mouse // too intrusive?
 	crosshair = 1; // show crosshair
 	vr_view_yoffset = 4;
 	// AddCommandString("vid_setmode 1920 1080 32\n"); // causes crash
