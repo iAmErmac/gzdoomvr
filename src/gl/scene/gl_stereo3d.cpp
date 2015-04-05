@@ -147,6 +147,8 @@ protected:
 		float yf = FIXED2FLOAT(viewy);
 		float zf = FIXED2FLOAT(viewz);
 
+		// TODO - conversion from player to doom coordinates does not take into account roll.
+
 		// view angle, for conversion from body to world
 		float yaw = DEG2RAD( ANGLE_TO_FLOAT(viewangle) );
 		float cy = cos(yaw);
@@ -181,6 +183,7 @@ enum EyeView {
 	EYE_VIEW_RIGHT
 };
 
+
 // Stack-scope class to temporarily shift the camera position for stereoscopic rendering.
 struct EyeViewShifter : public ViewPositionShifter
 {
@@ -191,9 +194,38 @@ struct EyeViewShifter : public ViewPositionShifter
 		float eyeShift = vr_ipd / 2.0;
 		if (eyeView == EYE_VIEW_LEFT)
 		eyeShift = -eyeShift;
-		incrementPositionFloat(eyeShift, 0, 0);
+		// TODO - account for roll angle
+		float roll = renderer_param.mAngles.Roll * 3.14159/180.0;
+		float cr = cos(roll);
+		float sr = sin(roll);
+		// Printf("%.3f\n", roll);
+		incrementPositionFloat(
+			cr * eyeShift, // left-right
+			0, 
+			-sr * eyeShift  // up-down; sign adjusted empirically
+			);
 	}
 };
+
+
+// Stack-scope class to temporarily shift the camera position for stereoscopic rendering.
+struct PositionTrackingShifter : public ViewPositionShifter
+{
+	// construct a new EyeViewShifter, to temporarily shift camera viewpoint
+	PositionTrackingShifter(OculusTracker * tracker, player_t * player, FGLRenderer& renderer_param)
+		: ViewPositionShifter(player, renderer_param)
+	{
+		if (tracker == NULL) return;
+		// TODO - calibrate to center...
+		// Doom uses Z-UP convention, Rift uses Y-UP convention
+		incrementPositionFloat(
+				 tracker->position.x, // LEFT_RIGHT
+				-tracker->position.z, // FORWARD_BACK
+				 tracker->position.y // UP_DOWN
+				); 
+	}
+};
+
 
 void Stereo3D::checkInitializeOculusTracker() {
 	if (oculusTracker == NULL) {
@@ -447,6 +479,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				vr_rift_fov = activeRiftShaderParams->fov_degrees;
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
 			}
+
+			// Activate positional tracking
+			PositionTrackingShifter positionTracker(oculusTracker, player, renderer);
+
 			if (oculusTracker)
 				oculusTracker->setLowPersistence(vr_lowpersist);
 			if (hudTexture)
