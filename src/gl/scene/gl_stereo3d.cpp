@@ -318,7 +318,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
 			int oldViewwidth = viewwidth;
-			viewwidth = viewwidth/2;
+
+			int one_eye_viewport_width = oldViewwidth / 2;
+
+			viewwidth = one_eye_viewport_width;
 			// left
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov0, ratio0/2, fovratio0, player); // TODO is that fovratio?
@@ -329,17 +332,22 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
-			viewwindowx += viewwidth;
+			viewwindowx += one_eye_viewport_width;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov0, ratio0/2, fovratio0, player);
 			{
 				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
+
 			//
 			// SECOND PASS weapon sprite
+			// Weapon sprite to bottom, at expense of edges
+			viewwidth = 2 * one_eye_viewport_width;
+			viewwindowx = one_eye_viewport_width/2;
+			//
 			renderer.EndDrawScene(viewsector); // right view
-			viewwindowx -= viewwidth;
+			viewwindowx -= one_eye_viewport_width;
 			renderer.EndDrawScene(viewsector); // left view
 			//
 			// restore global state
@@ -354,7 +362,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
 			int oldViewwidth = viewwidth;
-			viewwidth = viewwidth/2;
+
+			int one_eye_viewport_width = oldViewwidth / 2;
+
+			viewwidth = one_eye_viewport_width;
 			// left
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0*2, player);
@@ -365,7 +376,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
-			viewwindowx += viewwidth;
+			viewwindowx += one_eye_viewport_width;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov0, ratio0, fovratio0*2, player);
 			{
@@ -373,15 +384,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				renderer.RenderOneEye(a1, false, true);
 			}
 			//
+
 			// SECOND PASS weapon sprite
-			viewwidth = oldViewwidth/2; // TODO - narrow aspect of weapon...
+			// viewwidth = oldViewwidth/2; // TODO - narrow aspect of weapon...
+			// Ensure weapon is at bottom of screen
+			viewwidth = 2 * one_eye_viewport_width;
+			viewwindowx = one_eye_viewport_width/2;
 
 			// TODO - encapsulate weapon shift for other modes
-			int weaponShift = int( -vr_ipd * 0.25 * viewwidth / (vr_weapondist * 2.0*tan(0.5*fov0)) );
+			int weaponShift = int( -vr_ipd * 0.25 * one_eye_viewport_width / (vr_weapondist * 2.0*tan(0.5*fov0)) );
 			viewwindowx += weaponShift;
 
 			renderer.EndDrawScene(viewsector); // right view
-			viewwindowx -= oldViewwidth/2;
+			viewwindowx -= one_eye_viewport_width;
 			viewwindowx -= 2*weaponShift;
 			renderer.EndDrawScene(viewsector); // left view
 			//
