@@ -96,6 +96,16 @@ CCMD(snap45right)
 	AddCommandString("turn45right");
 }
 
+void Stereo3D::resetPosition() {
+	if (oculusTracker != NULL)
+		oculusTracker->resetPosition();
+}
+
+CCMD(vr_reset_position)
+{
+	Stereo3DMode.resetPosition();
+}
+
 // Render HUD items twice, once for each eye
 // TODO - these flags don't work
 const bool doBufferHud = true;
@@ -154,7 +164,7 @@ protected:
 		float cy = cos(yaw);
 		float sy = sin(yaw);
 
-		zf += dz * mapunits_per_meter; // TODO - doom pixel aspect correction 1.20
+		zf += dz * mapunits_per_meter / 1.20; // doom pixel aspect correction 1.20
 		xf += ( sy * dx + cy * dy) * mapunits_per_meter;
 		yf += (-cy * dx + sy * dy) * mapunits_per_meter;
 
@@ -218,10 +228,11 @@ struct PositionTrackingShifter : public ViewPositionShifter
 		if (tracker == NULL) return;
 		// TODO - calibrate to center...
 		// Doom uses Z-UP convention, Rift uses Y-UP convention
+		// Printf("%.3f\n", tracker->getPositionX());
 		incrementPositionFloat(
-				 tracker->position.x, // LEFT_RIGHT
-				-tracker->position.z, // FORWARD_BACK
-				 tracker->position.y // UP_DOWN
+				 tracker->getPositionX(), // LEFT_RIGHT
+				-tracker->getPositionZ(), // FORWARD_BACK
+				 tracker->getPositionY() // UP_DOWN
 				); 
 	}
 };
@@ -796,7 +807,6 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	result.pitch = renderer.mAngles.Pitch;
 	result.roll = renderer.mAngles.Roll;
 	result.yaw = renderer.mAngles.Yaw;
-	result.dx = result.dy = result.dz = 0;
 
 	if (mode == OCULUS_RIFT) {
 		const double aspect = 1.20;
@@ -804,40 +814,6 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 		checkInitializeOculusTracker();
 		if (oculusTracker->isGood()) {
 			oculusTracker->update(); // get new orientation from headset.
-			
-			static OVR::Vector3f previousPosition = OVR::Vector3f(0, 0, 0);
-			OVR::Vector3f dPos = oculusTracker->position - previousPosition;
-
-			previousPosition = oculusTracker->position;
-
-			/* Neck modeling only works on DK2? */
-			/* Printf("xyz = (%.3f, %.3f, %.3f)\n", 
-				dPos.x,
-				dPos.y,
-				dPos.z);
-				/* */
-
-			// Only take small translations
-			double totalTranslation = 
-				std::abs(dPos.x)
-				+ std::abs(dPos.y)
-				+ std::abs(dPos.z);
-			if (totalTranslation < 0.04) // 4 cm?
-			{
-				float yaw = DEG2RAD( ANGLE_TO_FLOAT(viewangle) );
-
-				float vh = 41.0; // eh close enough
-				// if (player != NULL) vh = FIXED2FLOAT(player->mo->ViewHeight);
-				float mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
-
-				// correct dy for pixel aspect ratio
-				result.dz = mapunits_per_meter * dPos.y / aspect;
-
-				float sy = sin(yaw);
-				float cy = cos(yaw);
-				result.dx = mapunits_per_meter * (cy * dPos.x + sy * dPos.z);
-				result.dy = mapunits_per_meter * (-sy * dPos.x + cy * dPos.z);
-			}
 
 			// Yaw
 			result.yaw = oculusTracker->yaw;

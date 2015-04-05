@@ -9,11 +9,14 @@ class OculusTracker {
 public:
 	OculusTracker();
 	~OculusTracker();
+	float getPositionX();
+	float getPositionY();
+	float getPositionZ();
+	void resetPosition();
 #ifdef HAVE_OCULUS_API
 	// const OVR::HMDInfo& getInfo() const {return Info;}
 	float getRiftInterpupillaryDistance() const {return ovrHmd_GetFloat(hmd, OVR_KEY_IPD, 0.062f);}
 	OVR::Quatf quaternion;
-	OVR::Vector3f position;
 #endif
 	bool isGood() const;
 	void report() const;
@@ -30,6 +33,8 @@ private:
 	ovrHmdDesc hmdDesc;
 	ovrSensorDesc sensorDesc;
 	int deviceId;
+	OVR::Vector3f position;
+	OVR::Vector3f originPosition;
 
 	// OVR::Ptr<OVR::DeviceManager> pManager;
 	// OVR::Ptr<OVR::HMDDevice> pHMD;

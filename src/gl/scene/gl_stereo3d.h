@@ -10,7 +10,6 @@ struct PitchRollYaw {
 	float pitch; // radians
 	float roll; // radians
 	float yaw; // radians
-	float dx, dy, dz; // map units?
 };
 	 
 /**
@@ -53,6 +52,7 @@ public:
 	int getScreenHeight();
 
 	void bindHudTexture(bool doUse);
+	void resetPosition();
 
 protected:
 	// Change stereo mode. Users should adjust this with vr_mode CVAR

@@ -9,6 +9,8 @@ OculusTracker::OculusTracker()
 	, deviceId(1)
 {
 #ifdef HAVE_OCULUS_API
+	originPosition = OVR::Vector3f(0,0,0);
+	position = OVR::Vector3f(0,0,0);
 	ovr_Initialize();// OVR::System::Init();
 	hmd = ovrHmd_Create(0);
 	if (hmd) {
@@ -17,14 +19,6 @@ OculusTracker::OculusTracker()
 		ovrHmd_StartSensor(hmd,
 			ovrSensorCap_Orientation | ovrSensorCap_YawCorrection | ovrSensorCap_Position, // supported
 			ovrSensorCap_Orientation); // required
-		/*
-		ovrHmd_GetSensorDesc(hmd, &sensorDesc);
-		//
-		ovrEyeRenderDesc renderDesc = ovrHmd_GetRenderDesc(hmd, ovrEye_Left, hmdDesc.DefaultEyeFov[0]);
-		ovrHmd_GetRenderScaleAndOffset(
-		//
-		*/
-
 		if ( hmdDesc.Type == ovrHmd_DK2 ) {
 			deviceId = 2;
 		}
@@ -33,27 +27,40 @@ OculusTracker::OculusTracker()
 		}
 	}
 
-	/*
-	pFusionResult = new OVR::SensorFusion();
-	pManager = *OVR::DeviceManager::Create();
-	pHMD = *pManager->EnumerateDevices<OVR::HMDDevice>().CreateDevice();
-	if(pHMD)
-	{
-		InfoLoaded = pHMD->GetDeviceInfo(&Info);
-		pSensor = pHMD->GetSensor();
-	}
-	else
-	{
-		pSensor = *pManager->EnumerateDevices<OVR::SensorDevice>().CreateDevice();
-	}
+#endif
+}
 
-	if (pSensor)
-	{
-		pFusionResult->AttachToSensor(pSensor);
-	}
-	pFusionResult->SetPredictionEnabled(true);
-	pFusionResult->SetPrediction(0.020, true); // Never hurts to be 20 ms in future?
-	*/
+float OculusTracker::getPositionX()
+{
+#ifdef HAVE_OCULUS_API
+	return position.x - originPosition.x;
+#else
+	return 0;
+#endif
+}
+
+float OculusTracker::getPositionY()
+{
+#ifdef HAVE_OCULUS_API
+	return position.y - originPosition.y;
+#else
+	return 0;
+#endif
+}
+
+float OculusTracker::getPositionZ()
+{
+#ifdef HAVE_OCULUS_API
+	return position.z - originPosition.z;
+#else
+	return 0;
+#endif
+}
+
+void OculusTracker::resetPosition()
+{
+#ifdef HAVE_OCULUS_API
+	originPosition = position;
 #endif
 }
 
@@ -73,11 +80,6 @@ OculusTracker::~OculusTracker() {
 #ifdef HAVE_OCULUS_API
 	ovrHmd_Destroy(hmd);
 	ovr_Shutdown();
-	// pSensor.Clear();
-	// pHMD.Clear();
-	// pManager.Clear();
-	// delete pFusionResult;
-	// OVR::System::Destroy();
 #endif
 }
 
@@ -85,7 +87,6 @@ bool OculusTracker::isGood() const {
 #ifdef HAVE_OCULUS_API
 	if (hmd == NULL) return false;
 	return true;
-	// return hmd != NULL; // pSensor.GetPtr() != NULL;
 #else
 	return false;
 #endif
