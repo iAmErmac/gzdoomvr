@@ -267,15 +267,6 @@ Stereo3D::Stereo3D()
 	, adaptScreenSize(false)
 {}
 
-// scale down offscreen hud buffer, so map lines would show up correctly
-static int hudTextureWidth(int screenwidth) {
-	return (int)(0.20*screenwidth);
-}
-
-static int hudTextureHeight(int screenheight) {
-	return (int)(0.20*screenheight);
-}
-
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
 	if (doBufferHud)
