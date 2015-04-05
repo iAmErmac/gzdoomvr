@@ -70,8 +70,8 @@ CCMD(oculardium_optimosa)
 	m_use_mouse = 0; // no mouse in menus
 	freelook = false; // no up/down look with mouse
 	crosshair = 1; // show crosshair
-	// AddCommandString("vid_setmode 1920 1080 32\n"); // causes crash
 	vr_view_yoffset = 4;
+	// AddCommandString("vid_setmode 1920 1080 32\n"); // causes crash
 }
 
 
@@ -84,6 +84,7 @@ static void set_turn_aliases() {
 	AddCommandString("alias turn45right \"alias turn45_step \\\"wait 5;-right;turnspeeds 640 1280 320 320;alias turn45_step\\\";turn45_step;wait;turnspeeds 2048 2048 2048 2048;+right\"\n");
 	b_turn_aliases_set = true;
 }
+// These commands snap45left snap45right are linked in the "controller configuration" menu
 CCMD(snap45left)
 {
 	set_turn_aliases();
@@ -117,46 +118,52 @@ void stereoScreenUpdate() {
 	Stereo3DMode.updateScreen();
 }
 
-enum EyeView {
-	EYE_VIEW_LEFT,
-	EYE_VIEW_RIGHT
-};
 
-// Stack-scope class to temporarily shift the camera position for stereoscopic rendering.
-struct ViewShifter {
-	// construct a new ViewShifter, to temporarily shift camera viewpoint
-	ViewShifter(EyeView eyeView, player_t * player, FGLRenderer& renderer_param) {
-		renderer = &renderer_param;
-		saved_viewx = viewx;
-		saved_viewy = viewy;
-
-		float xf = FIXED2FLOAT(viewx);
-		float yf = FIXED2FLOAT(viewy);
-		float yaw = DEG2RAD( ANGLE_TO_FLOAT(viewangle) );
-
-		float eyeShift = vr_ipd / 2.0;
-		if (eyeView == EYE_VIEW_LEFT)
-			eyeShift = -eyeShift;
+// Stack-scope class to temporarily adjust view position, based on positional tracking
+struct ViewPositionShifter {
+	ViewPositionShifter(player_t * player, FGLRenderer& renderer_param)
+		: mapunits_per_meter(41.0)
+		, renderer(&renderer_param)
+		, saved_viewx(viewx)
+		, saved_viewy(viewy)
+		, saved_viewz(viewz)
+	{
+		// length scale, to convert from meters to doom units
 		float vh = 41.0;
 		if (player != NULL)
 			vh = FIXED2FLOAT(player->mo->ViewHeight);
-		float mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
-		float eyeShift_mapunits = eyeShift * mapunits_per_meter;
-
-		xf += sin(yaw) * eyeShift_mapunits;
-		yf -= cos(yaw) * eyeShift_mapunits;
-		// Printf("eyeShift_mapunits (ViewShifter) = %.1f\n", eyeShift_mapunits);
-
-		viewx = FLOAT2FIXED(xf);
-		viewy = FLOAT2FIXED(yf);
-		renderer->SetCameraPos(viewx, viewy, viewz, viewangle);
-		renderer->SetViewMatrix(false, false);
+		mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
 	}
 
 	// restore camera position after object falls out of scope
-	~ViewShifter() {
-		viewx = saved_viewx;
-		viewy = saved_viewy;
+	virtual ~ViewPositionShifter() {
+		setPositionFixed(saved_viewx, saved_viewy, saved_viewz);
+	}
+
+protected:
+	// In player camera coordinates
+	void incrementPositionFloat(float dx, float dy, float dz) {
+		float xf = FIXED2FLOAT(viewx);
+		float yf = FIXED2FLOAT(viewy);
+		float zf = FIXED2FLOAT(viewz);
+
+		// view angle, for conversion from body to world
+		float yaw = DEG2RAD( ANGLE_TO_FLOAT(viewangle) );
+		float cy = cos(yaw);
+		float sy = sin(yaw);
+
+		zf += dz * mapunits_per_meter; // TODO - doom pixel aspect correction 1.20
+		xf += ( sy * dx + cy * dy) * mapunits_per_meter;
+		yf += (-cy * dx + sy * dy) * mapunits_per_meter;
+
+		setPositionFixed( FLOAT2FIXED(xf), FLOAT2FIXED(yf), FLOAT2FIXED(zf) );
+	}
+
+	// In doom world coordinates
+	void setPositionFixed(fixed_t x, fixed_t y, fixed_t z) {
+		viewx = x;
+		viewy = y;
+		viewz = z;
 		renderer->SetCameraPos(viewx, viewy, viewz, viewangle);
 		renderer->SetViewMatrix(false, false);
 	}
@@ -164,7 +171,28 @@ struct ViewShifter {
 private:
 	fixed_t saved_viewx;
 	fixed_t saved_viewy;
+	fixed_t saved_viewz;
 	FGLRenderer * renderer;
+	float mapunits_per_meter;
+};
+
+enum EyeView {
+	EYE_VIEW_LEFT,
+	EYE_VIEW_RIGHT
+};
+
+// Stack-scope class to temporarily shift the camera position for stereoscopic rendering.
+struct EyeViewShifter : public ViewPositionShifter
+{
+	// construct a new EyeViewShifter, to temporarily shift camera viewpoint
+	EyeViewShifter(EyeView eyeView, player_t * player, FGLRenderer& renderer_param)
+		: ViewPositionShifter(player, renderer_param)
+	{
+		float eyeShift = vr_ipd / 2.0;
+		if (eyeView == EYE_VIEW_LEFT)
+		eyeShift = -eyeShift;
+		incrementPositionFloat(eyeShift, 0, 0);
+	}
 };
 
 void Stereo3D::checkInitializeOculusTracker() {
@@ -275,7 +303,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			LocalScopeGLColorMask colorMask(0,1,0,1); // green
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 
@@ -283,7 +311,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			colorMask.setColorMask(1,0,1,1); // magenta
 			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
 		} // close scope to auto-revert glColorMask
@@ -297,7 +325,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			LocalScopeGLColorMask colorMask(1,0,0,1); // red
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 
@@ -305,7 +333,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			colorMask.setColorMask(0,1,1,1); // cyan
 			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
 		} // close scope to auto-revert glColorMask
@@ -326,7 +354,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov0, ratio0/2, fovratio0, player); // TODO is that fovratio?
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, false, false); // False, to not swap yet
 			}
 			// right
@@ -336,7 +364,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov0, ratio0/2, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
 
@@ -370,7 +398,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0*2, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 			// right
@@ -380,7 +408,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov0, ratio0, fovratio0*2, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, false, true);
 			}
 			//
@@ -461,7 +489,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setLeftEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 			glEnable(GL_DEPTH_TEST);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, false, false);
 			}
 			// right
@@ -471,7 +499,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportRight(renderer, &riftBounds);
 			setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, false, true);
 			}
 
@@ -530,7 +558,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 		setViewportFull(renderer, bounds);
 		setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 		{
-			ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+			EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 			renderer.RenderOneEye(a1, toscreen, true);
 		}
 		renderer.EndDrawScene(viewsector);
@@ -540,7 +568,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 		setViewportFull(renderer, bounds);
 		setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 		{
-			ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+			EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 			renderer.RenderOneEye(a1, toscreen, true);
 		}
 		renderer.EndDrawScene(viewsector);
@@ -556,14 +584,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			glDrawBuffer(GL_BACK_RIGHT);
 			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 			// Left
 			glDrawBuffer(GL_BACK_LEFT);
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
 			// Want HUD in both views
