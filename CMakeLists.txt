@@ -244,6 +244,12 @@ if (ZDOOM_DEFAULT_WAD)
     install(FILES ${ZDOOM_DEFAULT_WAD} DESTINATION ".")
 endif()
 
+# Install Windows Rift shortcuts
+if(WIN32)
+    file(GLOB WIN_SHORTCUTS "gz3doom/GZ3DoomRiftMonitor*.bat")
+    install(PROGRAMS ${WIN_SHORTCUTS} DESTINATION ".")
+endif()
+
 # PACKAGE installer
 set(INSTALL_PROGRAM_NAME GZ3Doom)
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${INSTALL_PROGRAM_NAME} game in stereoscopic 3D")
@@ -252,7 +258,7 @@ set(CPACK_PACKAGE_EXECUTABLES ${ZDOOM_EXE_NAME} ${INSTALL_PROGRAM_NAME})
 # TODO - read actual zdoom version from somewheare
 set(CPACK_PACKAGE_VERSION_MAJOR "1")
 set(CPACK_PACKAGE_VERSION_MINOR "8")
-set(CPACK_PACKAGE_VERSION_PATCH "6_j")
+set(CPACK_PACKAGE_VERSION_PATCH "6_k")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/docs/LICENSE.txt")
 set(CPACK_PACKAGE_NAME ${INSTALL_PROGRAM_NAME})
 set(COMBINED_VERSION "v${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
@@ -270,6 +276,11 @@ if (WIN32)
 		install(PROGRAMS installer/msvc10/vcredist_x86.exe DESTINATION ".")
 		set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\\\"$INSTDIR\\\\vcredist_x86.exe\\\" /passive /norestart' ")
 	endif()
+    set(CPACK_NSIS_MENU_LINKS
+        "GZ3DoomRiftMonitor1.bat" "GZ3Doom Rift on Monitor 1"
+        "GZ3DoomRiftMonitor2.bat" "GZ3Doom Rift on Monitor 2"
+        "GZ3DoomRiftMonitor3.bat" "GZ3Doom Rift on Monitor 3"
+    )
 endif()
 
 if (APPLE)

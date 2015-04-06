@@ -1,6 +1,13 @@
 
 Version history:
 
+Version 1.8.6_k April 5, 2015
+* Add neck-model based position tracking for both DK1 and DK2
+* Correct error in stereo 3D separation at high roll angles
+* Place weapon at bottom of screen, where it belongs, in side-by-side vr_modes 3 and 4 (HUD is not yet separated)
+* Add controller menu options "snap45left" and "snap45right" for VR "comfort mode" turning controls.
+* Installer creates separate aliases for launching GZ3Doom directly into Rift mode, on a particular monitor.
+
 Version 1.8.6_j March 29, 2015
 * Console is now readable in Rift mode, if CON_SCALETEXT is set to "1".
 * Map is now readable in Rift mode
@@ -12,7 +19,6 @@ Version 1.8.6_j March 29, 2015
 * Create meta-command "oculardium_optimosa" to set a bunch of preferred parameters for the Oculus Rift
   * Creates movement aliases "turn45left" and "turn45right", which can be bound to keys for "comfort mode"
 * Create new CVARS vr_hud_scale, and vr_sprite_scale, to change the size of the HUD and weapon, respectively, in Rift mode
-
 
 Version 1.8.6_i March 14, 2015
 * Add minimal head-tracking functionality for DK2 device

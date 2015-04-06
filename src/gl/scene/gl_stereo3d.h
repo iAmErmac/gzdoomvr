@@ -7,10 +7,9 @@
 #include "gl/scene/gl_oculustracker.h"
 
 struct PitchRollYaw {
-	float pitch;
-	float roll;
-	float yaw;
-	float dx, dy, dz;
+	float pitch; // radians
+	float roll; // radians
+	float yaw; // radians
 };
 	 
 /**
@@ -53,6 +52,7 @@ public:
 	int getScreenHeight();
 
 	void bindHudTexture(bool doUse);
+	void resetPosition();
 
 protected:
 	// Change stereo mode. Users should adjust this with vr_mode CVAR

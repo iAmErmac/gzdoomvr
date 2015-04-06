@@ -17,6 +17,7 @@
 #include "sbar.h"
 #include "am_map.h"
 #include "gl/scene/gl_localhudrenderer.h"
+#include <cmath>
 
 extern void P_CalcHeight (player_t *player);
 
@@ -67,12 +68,42 @@ CCMD(oculardium_optimosa)
 		screenblocks = 11;
 	vr_lowpersist = true;
 	m_use_mouse = 0; // no mouse in menus
-	freelook = false; // no up/down look with mouse
+	// freelook = false; // no up/down look with mouse // too intrusive?
 	crosshair = 1; // show crosshair
-	// Create aliases for comfort mode controls
+	vr_view_yoffset = 4;
+	// AddCommandString("vid_setmode 1920 1080 32\n"); // causes crash
+}
+
+
+// Create aliases for comfort mode controls
+// Quick turn commands for VR comfort mode
+static void set_turn_aliases() {
+	static bool b_turn_aliases_set = false;
+	if (b_turn_aliases_set) return;
 	AddCommandString("alias turn45left \"alias turn45_step \\\"wait 5;-left;turnspeeds 640 1280 320 320;alias turn45_step\\\";turn45_step;wait;turnspeeds 2048 2048 2048 2048;+left\"\n");
 	AddCommandString("alias turn45right \"alias turn45_step \\\"wait 5;-right;turnspeeds 640 1280 320 320;alias turn45_step\\\";turn45_step;wait;turnspeeds 2048 2048 2048 2048;+right\"\n");
-	vr_view_yoffset = 4;
+	b_turn_aliases_set = true;
+}
+// These commands snap45left snap45right are linked in the "controller configuration" menu
+CCMD(snap45left)
+{
+	set_turn_aliases();
+	AddCommandString("turn45left\n");
+}
+CCMD(snap45right)
+{
+	set_turn_aliases();
+	AddCommandString("turn45right");
+}
+
+void Stereo3D::resetPosition() {
+	if (oculusTracker != NULL)
+		oculusTracker->resetPosition();
+}
+
+CCMD(vr_reset_position)
+{
+	Stereo3DMode.resetPosition();
 }
 
 // Render HUD items twice, once for each eye
@@ -97,46 +128,54 @@ void stereoScreenUpdate() {
 	Stereo3DMode.updateScreen();
 }
 
-enum EyeView {
-	EYE_VIEW_LEFT,
-	EYE_VIEW_RIGHT
-};
 
-// Stack-scope class to temporarily shift the camera position for stereoscopic rendering.
-struct ViewShifter {
-	// construct a new ViewShifter, to temporarily shift camera viewpoint
-	ViewShifter(EyeView eyeView, player_t * player, FGLRenderer& renderer_param) {
-		renderer = &renderer_param;
-		saved_viewx = viewx;
-		saved_viewy = viewy;
-
-		float xf = FIXED2FLOAT(viewx);
-		float yf = FIXED2FLOAT(viewy);
-		float yaw = DEG2RAD( ANGLE_TO_FLOAT(viewangle) );
-
-		float eyeShift = vr_ipd / 2.0;
-		if (eyeView == EYE_VIEW_LEFT)
-			eyeShift = -eyeShift;
+// Stack-scope class to temporarily adjust view position, based on positional tracking
+struct ViewPositionShifter {
+	ViewPositionShifter(player_t * player, FGLRenderer& renderer_param)
+		: mapunits_per_meter(41.0)
+		, renderer(&renderer_param)
+		, saved_viewx(viewx)
+		, saved_viewy(viewy)
+		, saved_viewz(viewz)
+	{
+		// length scale, to convert from meters to doom units
 		float vh = 41.0;
 		if (player != NULL)
 			vh = FIXED2FLOAT(player->mo->ViewHeight);
-		float mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
-		float eyeShift_mapunits = eyeShift * mapunits_per_meter;
-
-		xf += sin(yaw) * eyeShift_mapunits;
-		yf -= cos(yaw) * eyeShift_mapunits;
-		// Printf("eyeShift_mapunits (ViewShifter) = %.1f\n", eyeShift_mapunits);
-
-		viewx = FLOAT2FIXED(xf);
-		viewy = FLOAT2FIXED(yf);
-		renderer->SetCameraPos(viewx, viewy, viewz, viewangle);
-		renderer->SetViewMatrix(false, false);
+		mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
 	}
 
 	// restore camera position after object falls out of scope
-	~ViewShifter() {
-		viewx = saved_viewx;
-		viewy = saved_viewy;
+	virtual ~ViewPositionShifter() {
+		setPositionFixed(saved_viewx, saved_viewy, saved_viewz);
+	}
+
+protected:
+	// In player camera coordinates
+	void incrementPositionFloat(float dx, float dy, float dz) {
+		float xf = FIXED2FLOAT(viewx);
+		float yf = FIXED2FLOAT(viewy);
+		float zf = FIXED2FLOAT(viewz);
+
+		// TODO - conversion from player to doom coordinates does not take into account roll.
+
+		// view angle, for conversion from body to world
+		float yaw = DEG2RAD( ANGLE_TO_FLOAT(viewangle) );
+		float cy = cos(yaw);
+		float sy = sin(yaw);
+
+		zf += dz * mapunits_per_meter / 1.20; // doom pixel aspect correction 1.20
+		xf += ( sy * dx + cy * dy) * mapunits_per_meter;
+		yf += (-cy * dx + sy * dy) * mapunits_per_meter;
+
+		setPositionFixed( FLOAT2FIXED(xf), FLOAT2FIXED(yf), FLOAT2FIXED(zf) );
+	}
+
+	// In doom world coordinates
+	void setPositionFixed(fixed_t x, fixed_t y, fixed_t z) {
+		viewx = x;
+		viewy = y;
+		viewz = z;
 		renderer->SetCameraPos(viewx, viewy, viewz, viewangle);
 		renderer->SetViewMatrix(false, false);
 	}
@@ -144,8 +183,60 @@ struct ViewShifter {
 private:
 	fixed_t saved_viewx;
 	fixed_t saved_viewy;
+	fixed_t saved_viewz;
 	FGLRenderer * renderer;
+	float mapunits_per_meter;
 };
+
+enum EyeView {
+	EYE_VIEW_LEFT,
+	EYE_VIEW_RIGHT
+};
+
+
+// Stack-scope class to temporarily shift the camera position for stereoscopic rendering.
+struct EyeViewShifter : public ViewPositionShifter
+{
+	// construct a new EyeViewShifter, to temporarily shift camera viewpoint
+	EyeViewShifter(EyeView eyeView, player_t * player, FGLRenderer& renderer_param)
+		: ViewPositionShifter(player, renderer_param)
+	{
+		float eyeShift = vr_ipd / 2.0;
+		if (eyeView == EYE_VIEW_LEFT)
+		eyeShift = -eyeShift;
+		// TODO - account for roll angle
+		float roll = renderer_param.mAngles.Roll * 3.14159/180.0;
+		float cr = cos(roll);
+		float sr = sin(roll);
+		// Printf("%.3f\n", roll);
+		incrementPositionFloat(
+			cr * eyeShift, // left-right
+			0, 
+			-sr * eyeShift  // up-down; sign adjusted empirically
+			);
+	}
+};
+
+
+// Stack-scope class to temporarily shift the camera position for stereoscopic rendering.
+struct PositionTrackingShifter : public ViewPositionShifter
+{
+	// construct a new EyeViewShifter, to temporarily shift camera viewpoint
+	PositionTrackingShifter(OculusTracker * tracker, player_t * player, FGLRenderer& renderer_param)
+		: ViewPositionShifter(player, renderer_param)
+	{
+		if (tracker == NULL) return;
+		// TODO - calibrate to center...
+		// Doom uses Z-UP convention, Rift uses Y-UP convention
+		// Printf("%.3f\n", tracker->getPositionX());
+		incrementPositionFloat(
+				 tracker->getPositionX(), // LEFT_RIGHT
+				-tracker->getPositionZ(), // FORWARD_BACK
+				 tracker->getPositionY() // UP_DOWN
+				); 
+	}
+};
+
 
 void Stereo3D::checkInitializeOculusTracker() {
 	if (oculusTracker == NULL) {
@@ -175,15 +266,6 @@ Stereo3D::Stereo3D()
 	, oculusTracker(NULL)
 	, adaptScreenSize(false)
 {}
-
-// scale down offscreen hud buffer, so map lines would show up correctly
-static int hudTextureWidth(int screenwidth) {
-	return (int)(0.20*screenwidth);
-}
-
-static int hudTextureHeight(int screenheight) {
-	return (int)(0.20*screenheight);
-}
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
@@ -255,7 +337,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			LocalScopeGLColorMask colorMask(0,1,0,1); // green
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 
@@ -263,7 +345,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			colorMask.setColorMask(1,0,1,1); // magenta
 			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
 		} // close scope to auto-revert glColorMask
@@ -277,7 +359,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			LocalScopeGLColorMask colorMask(1,0,0,1); // red
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 
@@ -285,7 +367,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			colorMask.setColorMask(0,1,1,1); // cyan
 			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
 		} // close scope to auto-revert glColorMask
@@ -298,28 +380,36 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
 			int oldViewwidth = viewwidth;
-			viewwidth = viewwidth/2;
+
+			int one_eye_viewport_width = oldViewwidth / 2;
+
+			viewwidth = one_eye_viewport_width;
 			// left
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov0, ratio0/2, fovratio0, player); // TODO is that fovratio?
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, false, false); // False, to not swap yet
 			}
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
-			viewwindowx += viewwidth;
+			viewwindowx += one_eye_viewport_width;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov0, ratio0/2, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
+
 			//
 			// SECOND PASS weapon sprite
+			// Weapon sprite to bottom, at expense of edges
+			viewwidth = 2 * one_eye_viewport_width;
+			viewwindowx = one_eye_viewport_width/2;
+			//
 			renderer.EndDrawScene(viewsector); // right view
-			viewwindowx -= viewwidth;
+			viewwindowx -= one_eye_viewport_width;
 			renderer.EndDrawScene(viewsector); // left view
 			//
 			// restore global state
@@ -334,34 +424,41 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
 			int oldViewwidth = viewwidth;
-			viewwidth = viewwidth/2;
+
+			int one_eye_viewport_width = oldViewwidth / 2;
+
+			viewwidth = one_eye_viewport_width;
 			// left
 			setViewportLeft(renderer, bounds);
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0*2, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 			// right
 			// right view is offset to right
 			int oldViewwindowx = viewwindowx;
-			viewwindowx += viewwidth;
+			viewwindowx += one_eye_viewport_width;
 			setViewportRight(renderer, bounds);
 			setRightEyeView(renderer, fov0, ratio0, fovratio0*2, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, false, true);
 			}
 			//
+
 			// SECOND PASS weapon sprite
-			viewwidth = oldViewwidth/2; // TODO - narrow aspect of weapon...
+			// viewwidth = oldViewwidth/2; // TODO - narrow aspect of weapon...
+			// Ensure weapon is at bottom of screen
+			viewwidth = 2 * one_eye_viewport_width;
+			viewwindowx = one_eye_viewport_width/2;
 
 			// TODO - encapsulate weapon shift for other modes
-			int weaponShift = int( -vr_ipd * 0.25 * viewwidth / (vr_weapondist * 2.0*tan(0.5*fov0)) );
+			int weaponShift = int( -vr_ipd * 0.25 * one_eye_viewport_width / (vr_weapondist * 2.0*tan(0.5*fov0)) );
 			viewwindowx += weaponShift;
 
 			renderer.EndDrawScene(viewsector); // right view
-			viewwindowx -= oldViewwidth/2;
+			viewwindowx -= one_eye_viewport_width;
 			viewwindowx -= 2*weaponShift;
 			renderer.EndDrawScene(viewsector); // left view
 			//
@@ -384,6 +481,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				vr_rift_fov = activeRiftShaderParams->fov_degrees;
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
 			}
+
+			// Activate positional tracking
+			PositionTrackingShifter positionTracker(oculusTracker, player, renderer);
+
 			if (oculusTracker)
 				oculusTracker->setLowPersistence(vr_lowpersist);
 			if (hudTexture)
@@ -426,7 +527,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setLeftEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 			glEnable(GL_DEPTH_TEST);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, false, false);
 			}
 			// right
@@ -436,7 +537,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportRight(renderer, &riftBounds);
 			setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, false, true);
 			}
 
@@ -495,7 +596,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 		setViewportFull(renderer, bounds);
 		setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 		{
-			ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+			EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 			renderer.RenderOneEye(a1, toscreen, true);
 		}
 		renderer.EndDrawScene(viewsector);
@@ -505,7 +606,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 		setViewportFull(renderer, bounds);
 		setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 		{
-			ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+			EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 			renderer.RenderOneEye(a1, toscreen, true);
 		}
 		renderer.EndDrawScene(viewsector);
@@ -521,14 +622,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			glDrawBuffer(GL_BACK_RIGHT);
 			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, false);
 			}
 			// Left
 			glDrawBuffer(GL_BACK_LEFT);
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
-				ViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
 			// Want HUD in both views
@@ -697,19 +798,13 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	result.pitch = renderer.mAngles.Pitch;
 	result.roll = renderer.mAngles.Roll;
 	result.yaw = renderer.mAngles.Yaw;
-	result.dx = result.dy = result.dz = 0;
 
 	if (mode == OCULUS_RIFT) {
+		const double aspect = 1.20;
+
 		checkInitializeOculusTracker();
 		if (oculusTracker->isGood()) {
 			oculusTracker->update(); // get new orientation from headset.
-			
-			/* Neck modeling only works on DK2?
-			Printf("xyz = (%.3f, %.3f, %.3f)\n", 
-				oculusTracker->position.x,
-				oculusTracker->position.y,
-				oculusTracker->position.z);
-				/* */
 
 			// Yaw
 			result.yaw = oculusTracker->yaw;
@@ -725,7 +820,6 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 				// Pitch
 				double pitch0 = oculusTracker->pitch;
 				// Correct pitch for doom pixel aspect ratio
-				const double aspect = 1.20;
 				result.pitch = atan( tan(pitch0) / aspect );
 
 				// Roll can be local, because it doesn't affect gameplay.
@@ -757,6 +851,21 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 
 			// Roll can be local, because it doesn't affect gameplay.
 			renderer.mAngles.Roll = prw.roll * 180.0 / 3.14159;
+
+			/* TODO - not working
+			// Position update
+			float xf = FIXED2FLOAT(viewx);
+			float yf = FIXED2FLOAT(viewy);
+			float zf = FIXED2FLOAT(viewz);
+			xf += 100 * prw.dx;
+			yf += 100 * prw.dy;
+			zf += 100 * prw.dz;
+			viewx = FLOAT2FIXED(xf);
+			viewy = FLOAT2FIXED(yf);
+			viewz = FLOAT2FIXED(zf);
+			renderer.SetCameraPos(viewx, viewy, viewz, viewangle);
+			renderer.SetViewMatrix(false, false);
+			/* */
 		}
 	}
 }
