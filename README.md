@@ -1,4 +1,10 @@
+<h1>GZ3Doom Doom Engine Games in Stereo 3D</h1>
+
 [![YouTube video of GZ3Doom on the Oculus Rift](https://raw.githubusercontent.com/cmbruns/gz3doom/master/gz3doom/gz3doom_video.png)](http://www.youtube.com/watch?v=gJL_5EZiQWY)
+
+Click to visit the <a href="http://rotatingpenguin.com">Official GZ3Doom Site</a> at rotatingpenguin.com
+
+<h2>About GZ3Doom</h2>
 
 GZ3Doom is a 3D adaptation of the legendary first-person-shooter game Doom, which was first released in 1994.
 
@@ -11,7 +17,7 @@ gzdoom is in turn based on zdoom, and adds OpenGL rendering.
 
 zdoom is based on Doom, the revolutionary computer game from the 1990s.
 
-Credits:
+<h2>Credits</h2>
 
 Torr Samaho helped to get GZ3Doom working with the Nvidia 3D vision system (on consumer-level video boards!).
 
