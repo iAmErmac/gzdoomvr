@@ -1,4 +1,4 @@
-<h1>GZ3Doom Doom Engine Games in Stereo 3D</h1>
+<h1>GZ3Doom: Doom Engine Games in Stereo 3D</h1>
 
 [![YouTube video of GZ3Doom on the Oculus Rift](https://raw.githubusercontent.com/cmbruns/gz3doom/master/gz3doom/gz3doom_video.png)](http://www.youtube.com/watch?v=gJL_5EZiQWY)
 
