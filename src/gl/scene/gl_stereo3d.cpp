@@ -231,7 +231,7 @@ struct PositionTrackingShifter : public ViewPositionShifter
 		// Printf("%.3f\n", tracker->getPositionX());
 		incrementPositionFloat(
 				 tracker->getPositionX(), // LEFT_RIGHT
-				-tracker->getPositionZ(), // FORWARD_BACK
+				 -tracker->getPositionZ(), // FORWARD_BACK
 				 tracker->getPositionY() // UP_DOWN
 				); 
 	}
@@ -485,8 +485,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Activate positional tracking
 			PositionTrackingShifter positionTracker(oculusTracker, player, renderer);
 
-			if (oculusTracker)
+			if (oculusTracker) {
 				oculusTracker->setLowPersistence(vr_lowpersist);
+				oculusTracker->beginFrame();
+			}
 			if (hudTexture)
 				hudTexture->setScreenScale(0.5 * vr_hud_scale); // BEFORE checkScreenSize
 			if ( (hudTexture == NULL) || (! hudTexture->checkScreenSize(SCREENWIDTH, SCREENHEIGHT) ) ) {
@@ -571,6 +573,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
 				// Draw HUD again, to avoid flashing? - and render to screen
 				blitHudTextureToScreen(true); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
+			}
+
+			if (oculusTracker) {
+				oculusTracker->endFrame();
 			}
 
 			//

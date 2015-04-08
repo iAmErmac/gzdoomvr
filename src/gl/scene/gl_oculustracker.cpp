@@ -1,12 +1,14 @@
 #include "gl/scene/gl_oculustracker.h"
 // #include "doomtype.h" // Printf
 #include <string>
+#include "OVR_CAPI.h"
 
 OculusTracker::OculusTracker() 
 	: pitch(0)
 	, roll(0)
 	, yaw(0)
 	, deviceId(1)
+	, frameIndex(0)
 {
 #ifdef HAVE_OCULUS_API
 	originPosition = OVR::Vector3f(0,0,0);
@@ -93,6 +95,21 @@ bool OculusTracker::isGood() const {
 }
 
 void OculusTracker::report() const {
+#ifdef HAVE_OCULUS_API
+#endif
+}
+
+void OculusTracker::beginFrame() {
+#ifdef HAVE_OCULUS_API
+	frameIndex ++;
+	ovrHmd_BeginFrameTiming(hmd, frameIndex);
+#endif
+}
+
+void OculusTracker::endFrame() {
+#ifdef HAVE_OCULUS_API
+	ovrHmd_EndFrameTiming(hmd);
+#endif
 }
 
 void OculusTracker::update() {
@@ -100,16 +117,18 @@ void OculusTracker::update() {
 	const float pixelRatio = 1.20;
 
 	const bool usePredicted = true;
-	double predictionTime = 0.00;
-	if (usePredicted)
-		predictionTime = 0.030; // 20 milliseconds - TODO setting to zero does not resolve shake
 
-	ovrSensorState sensorState = ovrHmd_GetSensorState(hmd, predictionTime);
+	ovrFrameTiming frameTiming = ovrHmd_GetFrameTiming(hmd, frameIndex);
+	ovrSensorState sensorState = ovrHmd_GetSensorState(hmd, frameTiming.ScanoutMidpointSeconds);
 
 	// Rotation tracking
 	if (sensorState.StatusFlags & (ovrStatus_OrientationTracked) ) {
 		// Predicted is extremely unstable; at least in my initial experiments CMB
-		ovrPosef pose = sensorState.Recorded.Pose; // = sensorState.Predicted.Pose;
+		ovrPosef pose;
+		if (usePredicted)
+			pose = sensorState.Predicted.Pose; 
+		else
+			pose = sensorState.Recorded.Pose;
 		quaternion = pose.Orientation;
 		OVR::Vector3<float> axis;
 		float angle;
@@ -141,7 +160,11 @@ void OculusTracker::update() {
 			ovrHmd_SetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
 		}
 
-		ovrPosef pose = sensorState.Recorded.Pose; // = sensorState.Predicted.Pose;
+		ovrPosef pose;
+		if (usePredicted)
+			pose = sensorState.Predicted.Pose;
+		else 
+			pose = sensorState.Recorded.Pose;
 		position = pose.Position;
 		// TODO - should we apply pixelRatio?
 	}

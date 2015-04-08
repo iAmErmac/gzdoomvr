@@ -870,6 +870,12 @@ find_path(OCULUS_INCLUDE_DIRECTORY
     PATHS 
         ${OCULUS_SDK_PATH}/LibOVR/Include
 )
+find_path(OCULUS_INCLUDE_DIRECTORY2
+    NAMES
+        OVR_CAPI.h
+    PATHS 
+        ${OCULUS_SDK_PATH}/LibOVR/Src
+)
 set(OCULUS_LIB_SEARCH_PATHS "")
 if(APPLE)
     LIST(APPEND OCULUS_LIB_SEARCH_PATHS
@@ -917,7 +923,7 @@ else()
 endif()
 if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
     add_definitions(-DHAVE_OCULUS_API)
-    include_directories(${OCULUS_INCLUDE_DIRECTORY})
+    include_directories(${OCULUS_INCLUDE_DIRECTORY} ${OCULUS_INCLUDE_DIRECTORY2})
 endif()
 
 add_executable( zdoom WIN32
