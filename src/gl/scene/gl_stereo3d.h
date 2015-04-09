@@ -66,14 +66,13 @@ private:
 	void setViewportFull(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportLeft(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
-	void blitHudTextureToScreen(bool toscreen = true);
+	void blitHudTextureToScreen(bool toscreen = true, float yScale = 1.0);
 	void checkInitializeOculusTracker();
 
 	Mode mode; // Current 3D method
 	OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.
 	OculusTracker* oculusTracker; // Reads head orientation from Oculus Rift
 	HudTexture* hudTexture; // Offscreen render buffer for non-3D content for one eye.
-	bool adaptScreenSize; // Whether to have SCREENWIDTH/SCREENHEIGHT return size of hudTexture
 
 };
 

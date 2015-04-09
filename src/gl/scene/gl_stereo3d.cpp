@@ -108,8 +108,8 @@ CCMD(vr_reset_position)
 
 // Render HUD items twice, once for each eye
 // TODO - these flags don't work
-const bool doBufferHud = true;
-const bool doBufferOculus = true;
+static bool doBufferHud = true;
+static bool doBufferOculus = true;
 
 
 // Global shared Stereo3DMode object
@@ -264,8 +264,31 @@ Stereo3D::Stereo3D()
 	, oculusTexture(NULL)
 	, hudTexture(NULL)
 	, oculusTracker(NULL)
-	, adaptScreenSize(false)
 {}
+
+static HudTexture* checkHudTexture(HudTexture* hudTexture, float screenScale) {
+		if (hudTexture)
+			hudTexture->setScreenScale(screenScale); // BEFORE checkScreenSize
+		if ( (hudTexture == NULL) || (! hudTexture->checkScreenSize(SCREENWIDTH, SCREENHEIGHT) ) ) {
+			if (hudTexture)
+				delete(hudTexture);
+			hudTexture = new HudTexture(SCREENWIDTH, SCREENHEIGHT, screenScale);
+			hudTexture->bindToFrameBuffer();
+			glClearColor(0, 0, 0, 0);
+			glClear(GL_COLOR_BUFFER_BIT);
+			hudTexture->unbind();
+		}
+		return hudTexture;
+}
+
+static void bindAndClearHudTexture(Stereo3D& stereo3d) {
+	if (doBufferHud) {
+		stereo3d.bindHudTexture(true);
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
+}
+
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
@@ -279,10 +302,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	}
 	setMode(vr_mode);
 
-	// Restore actual screen, instead of offscreen single-eye buffer,
-	// in case we just exited Rift mode.
-	adaptScreenSize = false;
-
 	GLboolean supportsStereo = false;
 	GLboolean supportsBuffered = false;
 	// Task: manually calibrate oculusFov by slowly yawing view. 
@@ -295,6 +314,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	const bool doAdjustPlayerViewHeight = true; // disable/enable for testing
 	if (doAdjustPlayerViewHeight) {
 		if (mode == OCULUS_RIFT) {
+			doBufferOculus = true;
 		// if (false) {
 			renderer.mCurrentFoV = vr_rift_fov; // needed for Frustum angle calculation
 			// Adjust player eye height, but only in oculus rift mode...
@@ -309,6 +329,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 			}
 		} else {
+			doBufferOculus = false;
 			// Revert player eye height when leaving Rift mode
 			if ( (savedPlayerViewHeight != 0) && (player->mo->ViewHeight != savedPlayerViewHeight) ) {
 				player->mo->ViewHeight = savedPlayerViewHeight;
@@ -324,58 +345,70 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	{
 
 	case MONO:
-		setViewportFull(renderer, bounds);
-		setMonoView(renderer, fov0, ratio0, fovratio0, player);
-		renderer.RenderOneEye(a1, toscreen, true);
-		renderer.EndDrawScene(viewsector);
-		break;
+		{
+			doBufferHud = false;
+			setViewportFull(renderer, bounds);
+			setMonoView(renderer, fov0, ratio0, fovratio0, player);
+			renderer.RenderOneEye(a1, toscreen, true);
+			renderer.EndDrawScene(viewsector);
+			break;
+		}
 
 	case GREEN_MAGENTA:
-		setViewportFull(renderer, bounds);
-		{ // Local scope for color mask
-			// Left eye green
-			LocalScopeGLColorMask colorMask(0,1,0,1); // green
-			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
-			{
-				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
-				renderer.RenderOneEye(a1, toscreen, false);
-			}
+		{
+			doBufferHud = false;
+			setViewportFull(renderer, bounds);
+			{ // Local scope for color mask
+				// Left eye green
+				LocalScopeGLColorMask colorMask(0,1,0,1); // green
+				setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
+				{
+					EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+					renderer.RenderOneEye(a1, toscreen, false);
+				}
 
-			// Right eye magenta
-			colorMask.setColorMask(1,0,1,1); // magenta
-			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
-			{
-				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
-				renderer.RenderOneEye(a1, toscreen, true);
-			}
-		} // close scope to auto-revert glColorMask
-		renderer.EndDrawScene(viewsector);
-		break;
+				// Right eye magenta
+				colorMask.setColorMask(1,0,1,1); // magenta
+				setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
+				{
+					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+					renderer.RenderOneEye(a1, toscreen, true);
+				}
+			} // close scope to auto-revert glColorMask
+			renderer.EndDrawScene(viewsector);
+			break;
+		}
 
 	case RED_CYAN:
-		setViewportFull(renderer, bounds);
-		{ // Local scope for color mask
-			// Left eye red
-			LocalScopeGLColorMask colorMask(1,0,0,1); // red
-			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
-			{
-				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
-				renderer.RenderOneEye(a1, toscreen, false);
-			}
+		{
+			doBufferHud = false;
+			setViewportFull(renderer, bounds);
+			{ // Local scope for color mask
+				// Left eye red
+				LocalScopeGLColorMask colorMask(1,0,0,1); // red
+				setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
+				{
+					EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+					renderer.RenderOneEye(a1, toscreen, false);
+				}
 
-			// Right eye cyan
-			colorMask.setColorMask(0,1,1,1); // cyan
-			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
-			{
-				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
-				renderer.RenderOneEye(a1, toscreen, true);
-			}
-		} // close scope to auto-revert glColorMask
-		renderer.EndDrawScene(viewsector);
-		break;
+				// Right eye cyan
+				colorMask.setColorMask(0,1,1,1); // cyan
+				setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
+				{
+					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+					renderer.RenderOneEye(a1, toscreen, true);
+				}
+			} // close scope to auto-revert glColorMask
+			renderer.EndDrawScene(viewsector);
+			break;
+		}
 
 	case SIDE_BY_SIDE:
 		{
+			doBufferHud = true;
+			hudTexture = checkHudTexture(hudTexture, 0.5);
+
 			// FIRST PASS - 3D
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
@@ -411,15 +444,24 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			renderer.EndDrawScene(viewsector); // right view
 			viewwindowx -= one_eye_viewport_width;
 			renderer.EndDrawScene(viewsector); // left view
+
+			blitHudTextureToScreen(true, 2.0);
+
 			//
 			// restore global state
 			viewwidth = oldViewwidth;
 			viewwindowx = oldViewwindowx;
+
+			bindAndClearHudTexture(*this);
+
 			break;
 		}
 
 	case SIDE_BY_SIDE_SQUISHED:
 		{
+			doBufferHud = true;
+			hudTexture = checkHudTexture(hudTexture, 0.5);
+
 			// FIRST PASS - 3D
 			// Temporarily modify global variables, so HUD could draw correctly
 			// each view is half width
@@ -461,15 +503,22 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			viewwindowx -= one_eye_viewport_width;
 			viewwindowx -= 2*weaponShift;
 			renderer.EndDrawScene(viewsector); // left view
+
+			blitHudTextureToScreen(true, 2.0);
+
 			//
 			// restore global state
 			viewwidth = oldViewwidth;
 			viewwindowx = oldViewwindowx;
+
+			bindAndClearHudTexture(*this);
+
 			break;
 		}
 
 	case OCULUS_RIFT:
 		{
+			doBufferHud = true;
 			if ( (oculusTexture == NULL) || (! oculusTexture->checkSize(SCREENWIDTH, SCREENHEIGHT)) ) {
 				if (oculusTexture)
 					delete(oculusTexture);
@@ -489,17 +538,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				oculusTracker->setLowPersistence(vr_lowpersist);
 				oculusTracker->beginFrame();
 			}
-			if (hudTexture)
-				hudTexture->setScreenScale(0.5 * vr_hud_scale); // BEFORE checkScreenSize
-			if ( (hudTexture == NULL) || (! hudTexture->checkScreenSize(SCREENWIDTH, SCREENHEIGHT) ) ) {
-				if (hudTexture)
-					delete(hudTexture);
-				hudTexture = new HudTexture(SCREENWIDTH, SCREENHEIGHT, 0.5 * vr_hud_scale);
-				hudTexture->bindToFrameBuffer();
-				glClearColor(0, 0, 0, 0);
-				glClear(GL_COLOR_BUFFER_BIT);
-				hudTexture->unbind();
-			}
+			hudTexture = checkHudTexture(hudTexture, 0.5 * vr_hud_scale);
 
 			// Render unwarped image to offscreen frame buffer
 			if (doBufferOculus) {
@@ -569,8 +608,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			}
 
 			// Third pass HUD
+			screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
 			if (doBufferHud) {
-				screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
 				// Draw HUD again, to avoid flashing? - and render to screen
 				blitHudTextureToScreen(true); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
 			}
@@ -587,72 +626,77 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 			setViewDirection(renderer);
 			// Set up 2D rendering to write to our hud renderbuffer
-			if (doBufferHud) {
-				bindHudTexture(true);
-				glClearColor(0, 0, 0, 0);
-				glClear(GL_COLOR_BUFFER_BIT);
-				bindHudTexture(false);
-				LocalHudRenderer::bind();
-				// adaptScreenSize = true; // TODO - not working - console comes out tiny
-			}
+			bindAndClearHudTexture(*this);
 			break;
 		}
 
 	case LEFT_EYE_VIEW:
-		setViewportFull(renderer, bounds);
-		setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 		{
-			EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
-			renderer.RenderOneEye(a1, toscreen, true);
-		}
-		renderer.EndDrawScene(viewsector);
-		break;
-
-	case RIGHT_EYE_VIEW:
-		setViewportFull(renderer, bounds);
-		setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
-		{
-			EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
-			renderer.RenderOneEye(a1, toscreen, true);
-		}
-		renderer.EndDrawScene(viewsector);
-		break;
-
-	case QUAD_BUFFERED:
-		setViewportFull(renderer, bounds);
-		glGetBooleanv(GL_STEREO, &supportsStereo);
-		glGetBooleanv(GL_DOUBLEBUFFER, &supportsBuffered);
-		if (supportsStereo && supportsBuffered && toscreen)
-		{ 
-			// Right first this time, so more generic GL_BACK_LEFT will remain for other modes
-			glDrawBuffer(GL_BACK_RIGHT);
-			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
-			{
-				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
-				renderer.RenderOneEye(a1, toscreen, false);
-			}
-			// Left
-			glDrawBuffer(GL_BACK_LEFT);
+			doBufferHud = false;
+			setViewportFull(renderer, bounds);
 			setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 			{
 				EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 				renderer.RenderOneEye(a1, toscreen, true);
 			}
-			// Want HUD in both views
-			glDrawBuffer(GL_BACK);
-		} else { // mono view, in case hardware stereo is not supported
-			setMonoView(renderer, fov0, ratio0, fovratio0, player);
-			renderer.RenderOneEye(a1, toscreen, true);			
+			renderer.EndDrawScene(viewsector);
+			break;
 		}
-		renderer.EndDrawScene(viewsector);
-		break;
+
+	case RIGHT_EYE_VIEW:
+		{
+			doBufferHud = false;
+			setViewportFull(renderer, bounds);
+			setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
+			{
+				EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+				renderer.RenderOneEye(a1, toscreen, true);
+			}
+			renderer.EndDrawScene(viewsector);
+			break;
+		}
+
+	case QUAD_BUFFERED:
+		{
+			doBufferHud = false;
+			setViewportFull(renderer, bounds);
+			glGetBooleanv(GL_STEREO, &supportsStereo);
+			glGetBooleanv(GL_DOUBLEBUFFER, &supportsBuffered);
+			if (supportsStereo && supportsBuffered && toscreen)
+			{ 
+				// Right first this time, so more generic GL_BACK_LEFT will remain for other modes
+				glDrawBuffer(GL_BACK_RIGHT);
+				setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
+				{
+					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+					renderer.RenderOneEye(a1, toscreen, false);
+				}
+				// Left
+				glDrawBuffer(GL_BACK_LEFT);
+				setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
+				{
+					EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+					renderer.RenderOneEye(a1, toscreen, true);
+				}
+				// Want HUD in both views
+				glDrawBuffer(GL_BACK);
+			} else { // mono view, in case hardware stereo is not supported
+				setMonoView(renderer, fov0, ratio0, fovratio0, player);
+				renderer.RenderOneEye(a1, toscreen, true);			
+			}
+			renderer.EndDrawScene(viewsector);
+			break;
+		}
 
 	default:
-		setViewportFull(renderer, bounds);
-		setMonoView(renderer, fov0, ratio0, fovratio0, player);
-		renderer.RenderOneEye(a1, toscreen, true);			
-		renderer.EndDrawScene(viewsector);
-		break;
+		{
+			doBufferHud = false;
+			setViewportFull(renderer, bounds);
+			setMonoView(renderer, fov0, ratio0, fovratio0, player);
+			renderer.RenderOneEye(a1, toscreen, true);			
+			renderer.EndDrawScene(viewsector);
+			break;
+		}
 
 	}
 }
@@ -664,17 +708,13 @@ void Stereo3D::bindHudTexture(bool doUse)
 		return;
 	if (! doUse) {
 		ht->unbind(); // restore drawing to real screen
-		// adaptScreenSize = false;
 	}
-	if (vr_mode != OCULUS_RIFT)
-		return;
 	if (! doBufferHud)
 		return;
 	if (doUse) {
 		ht->bindToFrameBuffer();
 		glViewport(0, 0, ht->getWidth(), ht->getHeight());
 		glScissor(0, 0, ht->getWidth(), ht->getHeight());
-		// adaptScreenSize = true;
 	}
 	else {
 		ht->unbind(); // restore drawing to real screen
@@ -711,63 +751,56 @@ void Stereo3D::updateScreen() {
 }
 
 int Stereo3D::getScreenWidth() {
-	if (adaptScreenSize && hudTexture && hudTexture->isBound())
-		return hudTexture->getWidth();
 	return screen->GetWidth();
 }
 int Stereo3D::getScreenHeight() {
-	if (adaptScreenSize && hudTexture && hudTexture->isBound())
-		return hudTexture->getHeight();
 	return screen->GetHeight();
 }
 
-void Stereo3D::blitHudTextureToScreen(bool toscreen) {
-	// if (!showHud) return;
+void Stereo3D::blitHudTextureToScreen(bool toscreen, float yScale) {
 	glEnable(GL_TEXTURE_2D);
+	if (! doBufferHud)
+		return;
+
+	// Compute viewport coordinates
+	float h = hudTexture->getHeight() * yScale;
+	float w = hudTexture->getWidth();
+	float x = (SCREENWIDTH/2-w)*0.5;
+	float hudOffsetY = 0.00 * h; // nudge crosshair up
+	int hudOffsetX = 0; // kludge to set hud distance
+
+	bool useOculusTexture = false;
 	if (mode == OCULUS_RIFT) {
-		bool useOculusTexture = doBufferOculus;
+		useOculusTexture = doBufferOculus;
 		if (! oculusTexture)
 			useOculusTexture = false;
 		// First pass blit unwarped hudTexture into oculusTexture, in two places
 		if (useOculusTexture)
 			oculusTexture->bindToFrameBuffer();
-		// Compute viewport coordinates
-		float h = hudTexture->getHeight();
-		float w = hudTexture->getWidth();
-		float x = (SCREENWIDTH/2-w)*0.5;
-		float hudOffsetY = 0.01 * h; // nudge crosshair up
 		hudOffsetY -= 0.005 * SCREENHEIGHT; // reverse effect of oculus head raising.
+		hudOffsetX = (int)(0.004*SCREENWIDTH/2); // kludge to set hud distance
 		if (screenblocks <= 10)
 			hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
-		float y = (SCREENHEIGHT-h)*0.5 + hudOffsetY; // offset to move cross hair up to correct spot
-		int hudOffsetX = (int)(0.004*SCREENWIDTH/2); // kludge to set hud distance
-		glViewport(x+hudOffsetX, y, w, h); // Not infinity, but not as close as the weapon.
-		if (useOculusTexture || toscreen)
-			hudTexture->renderToScreen();
-		x += SCREENWIDTH/2;
-		glViewport(x-hudOffsetX, y, w, h);
-		if (useOculusTexture || toscreen)
-			hudTexture->renderToScreen();
-		// Second pass blit warped oculusTexture to screen
-		if (oculusTexture && toscreen) {
-			oculusTexture->unbind();
-			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-			oculusTexture->renderToScreen();
-			if (!gl_draw_sync && toscreen) {
-			// if (gamestate != GS_LEVEL) { // TODO avoids flash by swapping at beginning of 3D render
-				All.Unclock();
-				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
-				All.Clock();
-			}
-		}
 	}
-	else { // TODO what else?
-		if (toscreen) {
-			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-			hudTexture->renderToScreen();
-			// if (gamestate != GS_LEVEL) {
-				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
-			// }
+
+	float y = (SCREENHEIGHT-h)*0.5 + hudOffsetY; // offset to move cross hair up to correct spot
+	glViewport(x+hudOffsetX, y, w, h); // Not infinity, but not as close as the weapon.
+	if (useOculusTexture || toscreen)
+		hudTexture->renderToScreen();
+	x += SCREENWIDTH/2;
+	glViewport(x-hudOffsetX, y, w, h);
+	if (useOculusTexture || toscreen)
+		hudTexture->renderToScreen();
+	// Second pass blit warped oculusTexture to screen
+	if (doBufferOculus && oculusTexture && toscreen) {
+		oculusTexture->unbind();
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		oculusTexture->renderToScreen();
+		if (!gl_draw_sync && toscreen) {
+		// if (gamestate != GS_LEVEL) { // TODO avoids flash by swapping at beginning of 3D render
+			All.Unclock();
+			static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+			All.Clock();
 		}
 	}
 }
