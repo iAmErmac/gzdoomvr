@@ -21,7 +21,6 @@ public:
 	OVR::Quatf quaternion;
 #endif
 	bool isGood() const;
-	void report() const;
 	void update();
 	int getDeviceId() const {return deviceId;}
 
@@ -32,8 +31,8 @@ public:
 private:
 #ifdef HAVE_OCULUS_API
 	ovrHmd hmd;
-	ovrHmdDesc hmdDesc;
-	ovrSensorDesc sensorDesc;
+	// ovrHmdDesc hmdDesc;
+	// ovrSensorDesc sensorDesc;
 	int deviceId;
 	OVR::Vector3f position;
 	OVR::Vector3f originPosition;

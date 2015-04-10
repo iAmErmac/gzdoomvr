@@ -858,11 +858,11 @@ find_path(OCULUS_SDK_PATH
     NAMES
         LibOVR/Include/OVR.h
     PATHS 
-        "C:/Program Files/ovr_sdk_win_0.3.2/OculusSDK"
+        "C:/Program Files/ovr_sdk_win_0.4.4/OculusSDK"
         "C:/Program Files/OculusSDK"
         "C:/Program Files (x86)/OculusSDK"
         "${CMAKE_SOURCE_DIR}/OculusSDK"
-        "$ENV{HOME}/api/OculusSDK_0.3.2"
+        "$ENV{HOME}/api/OculusSDK_0.4.4"
 )
 find_path(OCULUS_INCLUDE_DIRECTORY
     NAMES

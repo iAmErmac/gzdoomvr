@@ -13,15 +13,15 @@ OculusTracker::OculusTracker()
 #ifdef HAVE_OCULUS_API
 	originPosition = OVR::Vector3f(0,0,0);
 	position = OVR::Vector3f(0,0,0);
-	ovr_Initialize();// OVR::System::Init();
+	ovr_Initialize(); // OVR::System::Init();
 	hmd = ovrHmd_Create(0);
 	if (hmd) {
-		ovrHmd_GetDesc(hmd, &hmdDesc);
+		// ovrHmd_GetDesc(hmd, &hmdDesc);
 		setLowPersistence(true);
-		ovrHmd_StartSensor(hmd,
-			ovrSensorCap_Orientation | ovrSensorCap_YawCorrection | ovrSensorCap_Position, // supported
-			ovrSensorCap_Orientation); // required
-		if ( hmdDesc.Type == ovrHmd_DK2 ) {
+		ovrHmd_ConfigureTracking(hmd,
+			ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection | ovrTrackingCap_Position, // supported
+			ovrTrackingCap_Orientation); // required
+		if ( hmd->Type == ovrHmd_DK2 ) {
 			deviceId = 2;
 		}
 		else {
@@ -94,21 +94,18 @@ bool OculusTracker::isGood() const {
 #endif
 }
 
-void OculusTracker::report() const {
-#ifdef HAVE_OCULUS_API
-#endif
-}
-
 void OculusTracker::beginFrame() {
 #ifdef HAVE_OCULUS_API
 	frameIndex ++;
-	ovrHmd_BeginFrameTiming(hmd, frameIndex);
+	if (hmd)
+		ovrHmd_BeginFrameTiming(hmd, frameIndex);
 #endif
 }
 
 void OculusTracker::endFrame() {
 #ifdef HAVE_OCULUS_API
-	ovrHmd_EndFrameTiming(hmd);
+	if (hmd)
+		ovrHmd_EndFrameTiming(hmd);
 #endif
 }
 
@@ -116,19 +113,12 @@ void OculusTracker::update() {
 #ifdef HAVE_OCULUS_API
 	const float pixelRatio = 1.20;
 
-	const bool usePredicted = true;
-
 	ovrFrameTiming frameTiming = ovrHmd_GetFrameTiming(hmd, frameIndex);
-	ovrSensorState sensorState = ovrHmd_GetSensorState(hmd, frameTiming.ScanoutMidpointSeconds);
+	ovrTrackingState sensorState = ovrHmd_GetTrackingState(hmd, frameTiming.ScanoutMidpointSeconds);
 
 	// Rotation tracking
 	if (sensorState.StatusFlags & (ovrStatus_OrientationTracked) ) {
-		// Predicted is extremely unstable; at least in my initial experiments CMB
-		ovrPosef pose;
-		if (usePredicted)
-			pose = sensorState.Predicted.Pose; 
-		else
-			pose = sensorState.Recorded.Pose;
+		ovrPosef pose = sensorState.HeadPose.ThePose; 
 		quaternion = pose.Orientation;
 		OVR::Vector3<float> axis;
 		float angle;
@@ -160,13 +150,18 @@ void OculusTracker::update() {
 			ovrHmd_SetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
 		}
 
-		ovrPosef pose;
-		if (usePredicted)
-			pose = sensorState.Predicted.Pose;
-		else 
-			pose = sensorState.Recorded.Pose;
+		ovrPosef pose = sensorState.HeadPose.ThePose;
 		position = pose.Position;
-		// TODO - should we apply pixelRatio?
+
+		// TODO - adjust position by yaw angle
+		float cy = std::cos(yaw);
+		float sy = std::sin(yaw);
+		float new_x = position.x * cy - position.z * sy; // TODO
+		float new_z = position.z * cy + position.x * sy; // TODO
+		position.x = new_x;
+		position.z = new_z;
+
+		// Should we apply pixelRatio? No, PositionTracker takes care of that
 	}
 
 #endif
