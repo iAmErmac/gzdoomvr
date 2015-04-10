@@ -129,11 +129,15 @@ void OculusTracker::update() {
 		angle = atan2(angleFactor * sin(angle), cos(angle)); // 2) Expand angle in Y
 		OVR::Quatf squishedQuat(axis, angle);
 		squishedQuat.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
-	}
+
+		// Always use position tracking.
+		// Uses neck model, if ovrStatus_PositionConnected is false
+		// (unlike in SDK 0.3.2, where ovrStatus_PositionConnected is true for DK1 in neck-model-only)
+	// }
 
 	// Neck-model-based position tracking
-	if (sensorState.StatusFlags & (ovrStatus_PositionConnected)) 
-	{
+	// if (sensorState.StatusFlags & (ovrStatus_PositionConnected)) 
+	// {
 		// Sanity check neck model, which might be nonsense, especially on DK1
 		float neckEye[2] = {0, 0};
 		ovrHmd_GetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
@@ -150,10 +154,10 @@ void OculusTracker::update() {
 			ovrHmd_SetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
 		}
 
-		ovrPosef pose = sensorState.HeadPose.ThePose;
+		// ovrPosef pose = sensorState.HeadPose.ThePose;
 		position = pose.Position;
 
-		// TODO - adjust position by yaw angle
+		// Adjust position by yaw angle, to convert from real-life frame to headset frame
 		float cy = std::cos(yaw);
 		float sy = std::sin(yaw);
 		float new_x = position.x * cy - position.z * sy; // TODO
@@ -161,7 +165,7 @@ void OculusTracker::update() {
 		position.x = new_x;
 		position.z = new_z;
 
-		// Should we apply pixelRatio? No, PositionTracker takes care of that
+		// Q: Should we apply pixelRatio? A: No, PositionTracker takes care of that
 	}
 
 #endif
