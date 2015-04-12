@@ -60,7 +60,7 @@ CCMD(oculardium_optimosa)
 	hud_scale = 1;
 	hud_althudscale = 1;
 	crosshairscale = 1;
-	movebob = 0; // No bobbing
+	movebob = 0.05; // No bobbing
 	turbo = 65; // Slower walking
 	vr_mode = 8; // Rift mode
 	// Use minimal or no HUD

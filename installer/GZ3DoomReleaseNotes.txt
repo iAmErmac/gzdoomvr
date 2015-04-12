@@ -1,6 +1,14 @@
 
 Version history:
 
+Version 1.8.6_l April 12, 2015
+* Position tracking works in DK2
+* Split hud and menus for side-by-side vr_modes 3 and 4
+* Correct position tracking for yaw in DK1 and DK2
+* Use Oculus SDK frame timing
+* Advance to Oculus SDK 0.4.4 from 0.3.2 (no more pausing the service...)
+* Enhancements to vr_mode wiki at https://github.com/cmbruns/gz3doom/wiki/Stereoscopic-3D-Modes-%28vr_mode%29
+
 Version 1.8.6_k April 5, 2015
 * Add neck-model based position tracking for both DK1 and DK2
 * Correct error in stereo 3D separation at high roll angles

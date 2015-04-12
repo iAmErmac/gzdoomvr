@@ -34,14 +34,15 @@
 
 <h3><a name="news">News</a></h3>
 
-<p>April 5, 2015: Release of GZ3Doom version 1.8.6_k (<a href="https://github.com/cmbruns/gz3doom/releases">download</a> from github)</p>
+<p>April 12, 2015: Release of GZ3Doom version 1.8.6_l (<a href="https://github.com/cmbruns/gz3doom/releases">download</a> from github)</p>
 Summary of changes this release:
 <ul>
-<li>Add neck-model based position tracking for both DK1 and DK2</li>
-<li>Correct error in stereo 3D separation at high roll angles</li>
-<li>Place weapon at bottom of screen, where it belongs, in side-by-side vr_modes 3 and 4 (HUD is not yet separated)</li>
-<li>Add controller menu options "snap45left" and "snap45right" for VR "comfort mode" turning controls.</li>
-<li>Installer creates separate aliases for launching GZ3Doom directly into Rift mode, on a particular monitor.</li>
+<li>Position tracking works in DK2</li>
+<li>Split hud and menus for side-by-side vr_modes 3 and 4</li>
+<li>Correct position tracking for yaw in DK1 and DK2</li>
+<li>Use Oculus SDK frame timing</li>
+<li>Advance to Oculus SDK 0.4.4 from 0.3.2 (no more pausing the service...)</li>
+<li>Enhancements to <a href="https://github.com/cmbruns/gz3doom/wiki/Stereoscopic-3D-Modes-%28vr_mode%29">vr_mode wiki</a></li>
 </ul>
 
 <h3><a name="instructions">Instructions</a></h3>
@@ -49,7 +50,8 @@ Summary of changes this release:
 <p>To use GZ3Doom in Oculus Rift mode:</p>
 <ul>
 <li>Download GZ3Doom (<a href="#download">below</a>)</li>
-<li>Set video mode to 1920x1080 (preferred) or 1280x800 (the native resolution of the Oculus Rift DK1).</li>
+<li>Launch GZ3Doom, preferably using one of the Rift launch shortcuts.</li>
+<li>Set video mode to 1920x1080</li>
 <li>Press &quot;+&quot; until no status bar remains.</li>
 <li>Activate Oculus Rift mode by typing in the zdoom console: <blockquote>&gt; vr_mode 8</blockquote></li>
 <li>See <a href="#tips">Tips</a> section below, for more detailed suggestions.</li>
@@ -70,6 +72,10 @@ Other 3D mode (vr_mode) options for vr_mode console command:
 <li> 7 Quad-buffered (3D Vision)</li>
 <li> 8 Oculus Rift</li>
 </ul>
+
+See more details at the <a href="https://github.com/cmbruns/gz3doom/wiki/Stereoscopic-3D-Modes-%28vr_mode%29">vr_mode wiki</a>
+
+<p>
 
 <h4><a name="tips">Tips</a></h4>
 <ul>
