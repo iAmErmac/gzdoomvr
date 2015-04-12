@@ -15,6 +15,14 @@ public:
 	void unbind();
 	void setScreenScale(float s) {screenSizeScale = s;}
 
+	// static methods act upon single instance of offscreen render buffer
+	static void bindGlobalOffscreenBuffer();
+	static void unbindGlobalOffscreenBuffer();
+	static void displayAndClearGlobalOffscreenBuffer();
+	static void bindAndClearGlobalOffscreenBuffer();
+	// temporarily public TODO
+	static HudTexture* hudTexture;
+
 private:
 	void init(int width, int height);
 	void destroy(); // release all opengl resources

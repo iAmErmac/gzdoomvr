@@ -262,7 +262,6 @@ void Stereo3D::checkInitializeOculusTracker() {
 Stereo3D::Stereo3D() 
 	: mode(MONO)
 	, oculusTexture(NULL)
-	, hudTexture(NULL)
 	, oculusTracker(NULL)
 {}
 
@@ -407,7 +406,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	case SIDE_BY_SIDE:
 		{
 			doBufferHud = true;
-			hudTexture = checkHudTexture(hudTexture, 0.5);
+			HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5);
 
 			// FIRST PASS - 3D
 			// Temporarily modify global variables, so HUD could draw correctly
@@ -460,7 +459,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	case SIDE_BY_SIDE_SQUISHED:
 		{
 			doBufferHud = true;
-			hudTexture = checkHudTexture(hudTexture, 0.5);
+			HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5);
 
 			// FIRST PASS - 3D
 			// Temporarily modify global variables, so HUD could draw correctly
@@ -538,7 +537,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				oculusTracker->setLowPersistence(vr_lowpersist);
 				oculusTracker->beginFrame();
 			}
-			hudTexture = checkHudTexture(hudTexture, 0.5 * vr_hud_scale);
+			HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5 * vr_hud_scale);
 
 			// Render unwarped image to offscreen frame buffer
 			if (doBufferOculus) {
@@ -703,7 +702,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 void Stereo3D::bindHudTexture(bool doUse)
 {
-	HudTexture * ht = Stereo3DMode.hudTexture;
+	HudTexture * ht = HudTexture::hudTexture;
 	if (ht == NULL)
 		return;
 	if (! doUse) {
@@ -726,7 +725,7 @@ void Stereo3D::bindHudTexture(bool doUse)
 void Stereo3D::updateScreen() {
 	// Unbind texture before update, so Fraps could work
 	bool htWasBound = false;
-	HudTexture * ht = Stereo3DMode.hudTexture;
+	HudTexture * ht = HudTexture::hudTexture;
 	if (ht && ht->isBound()) {
 		htWasBound = true;
 		ht->unbind();
@@ -763,8 +762,8 @@ void Stereo3D::blitHudTextureToScreen(bool toscreen, float yScale) {
 		return;
 
 	// Compute viewport coordinates
-	float h = hudTexture->getHeight() * yScale;
-	float w = hudTexture->getWidth();
+	float h = HudTexture::hudTexture->getHeight() * yScale;
+	float w = HudTexture::hudTexture->getWidth();
 	float x = (SCREENWIDTH/2-w)*0.5;
 	float hudOffsetY = 0.00 * h; // nudge crosshair up
 	int hudOffsetX = 0; // kludge to set hud distance
@@ -786,11 +785,11 @@ void Stereo3D::blitHudTextureToScreen(bool toscreen, float yScale) {
 	float y = (SCREENHEIGHT-h)*0.5 + hudOffsetY; // offset to move cross hair up to correct spot
 	glViewport(x+hudOffsetX, y, w, h); // Not infinity, but not as close as the weapon.
 	if (useOculusTexture || toscreen)
-		hudTexture->renderToScreen();
+		HudTexture::hudTexture->renderToScreen();
 	x += SCREENWIDTH/2;
 	glViewport(x-hudOffsetX, y, w, h);
 	if (useOculusTexture || toscreen)
-		hudTexture->renderToScreen();
+		HudTexture::hudTexture->renderToScreen();
 	// Second pass blit warped oculusTexture to screen
 	if (doBufferOculus && oculusTexture && toscreen) {
 		oculusTexture->unbind();

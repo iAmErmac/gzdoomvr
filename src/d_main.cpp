@@ -107,6 +107,7 @@
 #include "resourcefiles/resourcefile.h"
 #include "r_renderer.h"
 #include "p_local.h"
+#include "gl/scene/gl_offscreenbuffermanager.h"
 
 #ifdef USE_POLYMOST
 #include "r_polymost.h"
@@ -750,6 +751,8 @@ void D_Display ()
 	else
 #endif
 	{
+		// OffscreenBufferManager::bind();
+
 		unsigned int nowtime = I_FPSTime();
 		TexMan.UpdateAnimations(nowtime);
 		R_UpdateSky(nowtime);
@@ -840,11 +843,14 @@ void D_Display ()
 			break;
 
 		case GS_DEMOSCREEN:
-			screen->SetBlendingRect(0,0,0,0);
-			hw2d = screen->Begin2D(false);
-			D_PageDrawer ();
-			CT_Drawer ();
-			break;
+			{
+				// OffscreenBufferManager::bind();
+				screen->SetBlendingRect(0,0,0,0);
+				hw2d = screen->Begin2D(false);
+				D_PageDrawer ();
+				CT_Drawer ();
+				break;
+			}
 
 		default:
 			break;

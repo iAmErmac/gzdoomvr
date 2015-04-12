@@ -2,7 +2,7 @@
 #define GZDOOM_GL_STEREO3D_H_
 
 #include "gl/renderer/gl_renderer.h"
-#include "gl/scene/gl_hudtexture.h"
+// #include "gl/scene/gl_hudtexture.h"
 #include "gl/scene/gl_oculustexture.h"
 #include "gl/scene/gl_oculustracker.h"
 
@@ -72,7 +72,7 @@ private:
 	Mode mode; // Current 3D method
 	OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.
 	OculusTracker* oculusTracker; // Reads head orientation from Oculus Rift
-	HudTexture* hudTexture; // Offscreen render buffer for non-3D content for one eye.
+	// HudTexture* hudTexture; // Offscreen render buffer for non-3D content for one eye.
 
 };
 
