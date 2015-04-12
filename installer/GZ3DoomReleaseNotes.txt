@@ -8,6 +8,7 @@ Version 1.8.6_l April 12, 2015
 * Use Oculus SDK frame timing
 * Advance to Oculus SDK 0.4.4 from 0.3.2 (no more pausing the service...)
 * Enhancements to vr_mode wiki at https://github.com/cmbruns/gz3doom/wiki/Stereoscopic-3D-Modes-%28vr_mode%29
+* Correct spelling of "oculardium_optimosa" in installed Rift shortcut scripts
 
 Version 1.8.6_k April 5, 2015
 * Add neck-model based position tracking for both DK1 and DK2
