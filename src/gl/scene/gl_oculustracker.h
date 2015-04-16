@@ -5,6 +5,8 @@
 #include "OVR.h"
 #endif
 
+class OculusTexture;
+
 class OculusTracker {
 public:
 	OculusTracker();
@@ -15,6 +17,7 @@ public:
 	void resetPosition();
 	void beginFrame();
 	void endFrame();
+	void configureTexture(OculusTexture*);
 #ifdef HAVE_OCULUS_API
 	// const OVR::HMDInfo& getInfo() const {return Info;}
 	float getRiftInterpupillaryDistance() const {return ovrHmd_GetFloat(hmd, OVR_KEY_IPD, 0.062f);}
@@ -38,6 +41,7 @@ private:
 	OVR::Vector3f originPosition;
 	ovrPosef eyePose;
 	int frameIndex;
+	int texWidth, texHeight, textureId; // for oculus offscreen texture
 
 	// OVR::Ptr<OVR::DeviceManager> pManager;
 	// OVR::Ptr<OVR::HMDDevice> pHMD;

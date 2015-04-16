@@ -1172,6 +1172,7 @@ add_executable( zdoom WIN32
 	gl/scene/gl_oculustexture.cpp
 	gl/scene/gl_oculustracker.cpp
 	gl/scene/gl_offscreenbuffermanager.cpp
+	gl/scene/gl_ovrisolator.cpp
 	gl/scene/gl_walls.cpp
 	gl/scene/gl_sprite.cpp
 	gl/scene/gl_skydome.cpp

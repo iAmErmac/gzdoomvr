@@ -74,6 +74,9 @@ public:
 	bool checkSize(int width, int height); // is the size still the same?
 	void renderToScreen();
 	void unbind();
+	int getWidth() const {return w;}
+	int getHeight() const {return h;}
+	int getHandle() const {return renderedTexture;}
 
 private:
 	void init(int width, int height, RiftShaderParams);

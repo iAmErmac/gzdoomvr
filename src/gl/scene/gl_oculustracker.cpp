@@ -1,7 +1,23 @@
+#define USE_WINDOWS_DWORD
+#include <Windows.h> // error C2371: 'DWORD' : redefinition; different basic types
 #include "gl/scene/gl_oculustracker.h"
-// #include "doomtype.h" // Printf
+#include "gl/scene/gl_oculustexture.h"
 #include <string>
+#include "gl/system/gl_cvars.h"
 #include "OVR_CAPI.h"
+#include "OVR_CAPI_GL.h"
+
+#ifdef _WIN32
+extern HWND Window;
+#endif
+
+CVAR(Bool, vr_sdkwarp, false, CVAR_GLOBALCONFIG)
+
+// TODO - static globals are uncool
+static ovrPosef eyePoses[2];
+static ovrGLTexture ovrEyeTexture[2];
+static ovrEyeRenderDesc eyeRenderDesc[2];
+
 
 OculusTracker::OculusTracker() 
 	: pitch(0)
@@ -13,7 +29,7 @@ OculusTracker::OculusTracker()
 #ifdef HAVE_OCULUS_API
 	originPosition = OVR::Vector3f(0,0,0);
 	position = OVR::Vector3f(0,0,0);
-	ovr_Initialize(); // OVR::System::Init();
+	ovr_Initialize();
 	hmd = ovrHmd_Create(0);
 	if (hmd) {
 		// ovrHmd_GetDesc(hmd, &hmdDesc);
@@ -27,9 +43,27 @@ OculusTracker::OculusTracker()
 		else {
 			deviceId = 1;
 		}
-	}
-
+		if (vr_sdkwarp) {
+			ovrGLConfig cfg;
+			cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
+			cfg.OGL.Header.Multisample = 1;
+#ifdef _WIN32
+			cfg.OGL.Window = Window;
 #endif
+			// cfg.OGL.DC = ???;
+			ovrBool result = ovrHmd_ConfigureRendering(hmd, &cfg.Config, 
+				ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp | ovrDistortionCap_Overdrive,
+				hmd->DefaultEyeFov, eyeRenderDesc);
+		}
+	}
+#endif
+}
+
+void OculusTracker::configureTexture(OculusTexture* oculusTexture) 
+{
+	texWidth = oculusTexture->getWidth();
+	texHeight = oculusTexture->getHeight();
+	textureId = oculusTexture->getHandle();
 }
 
 float OculusTracker::getPositionX()
@@ -97,15 +131,28 @@ bool OculusTracker::isGood() const {
 void OculusTracker::beginFrame() {
 #ifdef HAVE_OCULUS_API
 	frameIndex ++;
-	if (hmd)
-		ovrHmd_BeginFrameTiming(hmd, frameIndex);
+	if (hmd) {
+		if (vr_sdkwarp) {
+			ovrHmd_BeginFrame(hmd, frameIndex);
+		}
+		else {
+			ovrHmd_BeginFrameTiming(hmd, frameIndex);
+		}
+	}
 #endif
 }
 
+
 void OculusTracker::endFrame() {
 #ifdef HAVE_OCULUS_API
-	if (hmd)
-		ovrHmd_EndFrameTiming(hmd);
+	if (hmd) {
+		if (vr_sdkwarp) {
+			ovrHmd_EndFrame(hmd, eyePoses, (ovrTexture*)ovrEyeTexture);
+		}
+		else {
+			ovrHmd_EndFrameTiming(hmd);
+		}
+	}
 #endif
 }
 
@@ -113,12 +160,39 @@ void OculusTracker::update() {
 #ifdef HAVE_OCULUS_API
 	const float pixelRatio = 1.20;
 
-	ovrFrameTiming frameTiming = ovrHmd_GetFrameTiming(hmd, frameIndex);
-	ovrTrackingState sensorState = ovrHmd_GetTrackingState(hmd, frameTiming.ScanoutMidpointSeconds);
+	ovrTrackingState sensorState;
+	if (vr_sdkwarp) {
+		ovrSizei renderTargetSize = {texWidth, texHeight};
+		ovrRecti leftViewport = {0, 0, texWidth/2, texHeight};
+		ovrRecti rightViewport = {texWidth/2, 0, texWidth/2, texHeight};
+
+		ovrEyeTexture[0].OGL.Header.API = ovrRenderAPI_OpenGL;
+		ovrEyeTexture[0].OGL.Header.TextureSize = renderTargetSize;
+		ovrEyeTexture[0].OGL.Header.RenderViewport = leftViewport;
+		ovrEyeTexture[0].OGL.TexId = textureId;
+
+		ovrEyeTexture[1] = ovrEyeTexture[0];
+		ovrEyeTexture[1].OGL.Header.RenderViewport = rightViewport;
+
+		eyePoses[0] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Left);
+		eyePoses[1] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Right);
+
+		// TODO - projection matrix
+	}
+	else {
+		ovrFrameTiming frameTiming = ovrHmd_GetFrameTiming(hmd, frameIndex);
+		sensorState = ovrHmd_GetTrackingState(hmd, frameTiming.ScanoutMidpointSeconds);
+	}
 
 	// Rotation tracking
 	if (sensorState.StatusFlags & (ovrStatus_OrientationTracked) ) {
-		ovrPosef pose = sensorState.HeadPose.ThePose; 
+		ovrPosef pose;
+		if (vr_sdkwarp) {
+			pose = eyePoses[0];
+		}
+		else {
+			pose = sensorState.HeadPose.ThePose; 
+		}
 		quaternion = pose.Orientation;
 		OVR::Vector3<float> axis;
 		float angle;
@@ -154,7 +228,6 @@ void OculusTracker::update() {
 			ovrHmd_SetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
 		}
 
-		// ovrPosef pose = sensorState.HeadPose.ThePose;
 		position = pose.Position;
 
 		// Adjust position by yaw angle, to convert from real-life frame to headset frame

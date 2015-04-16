@@ -1,10 +1,13 @@
 #include "gl/scene/gl_oculustexture.h"
 #include "gl/system/gl_system.h"
+#include "gl/system/gl_cvars.h"
 #include <cstring>
 #include <string>
 #include <sstream>
 
 using namespace std;
+
+EXTERN_CVAR(Bool, vr_sdkwarp)
 
 static const char* vertexProgramString = ""
 "#version 120\n"

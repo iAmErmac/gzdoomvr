@@ -66,7 +66,7 @@ private:
 	void setViewportFull(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportLeft(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
-	void blitHudTextureToScreen(bool toscreen = true, float yScale = 1.0);
+	void blitHudTextureToScreen(float yScale = 1.0);
 	void checkInitializeOculusTracker();
 
 	Mode mode; // Current 3D method
