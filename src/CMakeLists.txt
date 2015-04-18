@@ -1171,8 +1171,6 @@ add_executable( zdoom WIN32
 	gl/scene/gl_hudtexture.cpp
 	gl/scene/gl_oculustexture.cpp
 	gl/scene/gl_oculustracker.cpp
-	gl/scene/gl_offscreenbuffermanager.cpp
-	gl/scene/gl_ovrisolator.cpp
 	gl/scene/gl_walls.cpp
 	gl/scene/gl_sprite.cpp
 	gl/scene/gl_skydome.cpp
@@ -1185,6 +1183,7 @@ add_executable( zdoom WIN32
 	gl/scene/gl_walls_draw.cpp
 	gl/scene/gl_vertex.cpp
 	gl/scene/gl_spritelight.cpp
+	gl/scene/rift_initializer.cpp
 	gl/dynlights/gl_dynlight.cpp
 	gl/dynlights/gl_glow.cpp
 	gl/dynlights/gl_dynlight1.cpp

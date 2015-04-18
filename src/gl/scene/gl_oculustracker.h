@@ -20,7 +20,10 @@ public:
 	void configureTexture(OculusTexture*);
 #ifdef HAVE_OCULUS_API
 	// const OVR::HMDInfo& getInfo() const {return Info;}
-	float getRiftInterpupillaryDistance() const {return ovrHmd_GetFloat(hmd, OVR_KEY_IPD, 0.062f);}
+	float getRiftInterpupillaryDistance() const {
+		const_cast<OculusTracker&>(*this).checkConfiguration();
+		return ovrHmd_GetFloat(hmd, OVR_KEY_IPD, 0.062f);
+	}
 	OVR::Quatf quaternion;
 #endif
 	bool isGood() const;
@@ -30,8 +33,13 @@ public:
 	// Head orientation state, refreshed by call to update();
 	float pitch, roll, yaw;
 	void setLowPersistence(bool setLow);
+	void checkInitialized();
+	void checkConfiguration();
 
 private:
+	bool trackingConfigured;
+	bool renderingConfigured;
+	bool ovrInitialized;
 #ifdef HAVE_OCULUS_API
 	ovrHmd hmd;
 	// ovrHmdDesc hmdDesc;
@@ -43,6 +51,7 @@ private:
 	int frameIndex;
 	int texWidth, texHeight, textureId; // for oculus offscreen texture
 
+
 	// OVR::Ptr<OVR::DeviceManager> pManager;
 	// OVR::Ptr<OVR::HMDDevice> pHMD;
 	// OVR::Ptr<OVR::SensorDevice> pSensor;
@@ -51,5 +60,7 @@ private:
 	// bool InfoLoaded;
 #endif
 };
+
+extern OculusTracker * sharedOculusTracker;
 
 #endif // GZDOOM_OCULUS_TRACKER_H_

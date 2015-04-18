@@ -71,7 +71,7 @@ private:
 
 	Mode mode; // Current 3D method
 	OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.
-	OculusTracker* oculusTracker; // Reads head orientation from Oculus Rift
+	// OculusTracker* oculusTracker; // Reads head orientation from Oculus Rift
 	// HudTexture* hudTexture; // Offscreen render buffer for non-3D content for one eye.
 
 };

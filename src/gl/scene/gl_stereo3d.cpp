@@ -98,8 +98,8 @@ CCMD(snap45right)
 }
 
 void Stereo3D::resetPosition() {
-	if (oculusTracker != NULL)
-		oculusTracker->resetPosition();
+	if (sharedOculusTracker != NULL)
+		sharedOculusTracker->resetPosition();
 }
 
 CCMD(vr_reset_position)
@@ -239,10 +239,10 @@ struct PositionTrackingShifter : public ViewPositionShifter
 
 
 void Stereo3D::checkInitializeOculusTracker() {
-	if (oculusTracker == NULL) {
-		oculusTracker = new OculusTracker();
-		if (oculusTracker->isGood()) {
-			vr_device = oculusTracker->getDeviceId();
+	if (sharedOculusTracker != NULL) {
+		sharedOculusTracker->checkConfiguration();
+		if (sharedOculusTracker->isGood()) {
+			vr_device = sharedOculusTracker->getDeviceId();
 			if (vr_device == 2) {
 				vr_rift_aspect = 0.888; // DK2
 			}
@@ -251,9 +251,9 @@ void Stereo3D::checkInitializeOculusTracker() {
 			}
 			// update cvars TODO
 #ifdef HAVE_OCULUS_API
-			// const OVR::HMDInfo& info = oculusTracker->getInfo();
+			// const OVR::HMDInfo& info = sharedOculusTracker->getInfo();
 			// vr_ipd = info.InterpupillaryDistance;
-			vr_ipd = oculusTracker->getRiftInterpupillaryDistance();
+			vr_ipd = sharedOculusTracker->getRiftInterpupillaryDistance();
 #endif
 		}
 	}
@@ -262,7 +262,6 @@ void Stereo3D::checkInitializeOculusTracker() {
 Stereo3D::Stereo3D() 
 	: mode(MONO)
 	, oculusTexture(NULL)
-	, oculusTracker(NULL)
 {}
 
 static HudTexture* checkHudTexture(HudTexture* hudTexture, float screenScale) {
@@ -526,17 +525,20 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					activeRiftShaderParams = &dk1ShaderParams;
 				vr_rift_fov = activeRiftShaderParams->fov_degrees;
 				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
-				if (oculusTracker)
-					oculusTracker->configureTexture(oculusTexture);
+				if (sharedOculusTracker)
+					sharedOculusTracker->configureTexture(oculusTexture);
 			}
 
 			// Activate positional tracking
-			PositionTrackingShifter positionTracker(oculusTracker, player, renderer);
+			PositionTrackingShifter positionTracker(sharedOculusTracker, player, renderer);
 
-			if (oculusTracker) {
-				oculusTracker->setLowPersistence(vr_lowpersist);
-				oculusTracker->beginFrame();
+			if (sharedOculusTracker) {
+				sharedOculusTracker->setLowPersistence(vr_lowpersist);
+				sharedOculusTracker->beginFrame();
 			}
+
+			setViewDirection(renderer);
+
 			HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5 * vr_hud_scale);
 
 			// Render unwarped image to offscreen frame buffer
@@ -628,8 +630,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			}
 
 
-			if (oculusTracker) {
-				oculusTracker->endFrame();
+			if (sharedOculusTracker) {
+				sharedOculusTracker->endFrame();
 			}
 
 			//
@@ -637,8 +639,9 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			viewwidth = oldViewwidth;
 			viewwindowx = oldViewwindowx;
 			viewwindowy = oldViewwindowy;
+
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
-			setViewDirection(renderer);
+
 			// Set up 2D rendering to write to our hud renderbuffer
 			bindAndClearHudTexture(*this);
 			break;
@@ -821,9 +824,9 @@ void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, fl
 bool Stereo3D::hasHeadTracking() const {
 	if (! (mode == OCULUS_RIFT) )
 		return false;
-	if (oculusTracker == 0)
+	if (sharedOculusTracker == 0)
 		return false;
-	if (! oculusTracker->isGood())
+	if (! sharedOculusTracker->isGood())
 		return false;
 	return true;
 }
@@ -839,28 +842,28 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 		const double aspect = 1.20;
 
 		checkInitializeOculusTracker();
-		if (oculusTracker->isGood()) {
-			oculusTracker->update(); // get new orientation from headset.
+		if (sharedOculusTracker->isGood()) {
+			sharedOculusTracker->update(); // get new orientation from headset.
 
 			// Yaw
-			result.yaw = oculusTracker->yaw;
+			result.yaw = sharedOculusTracker->yaw;
 
 			if (true) { // aspect ratio correction was handled in OculusTracker->update()
-				result.pitch = oculusTracker->pitch;
-				result.roll = -oculusTracker->roll;
+				result.pitch = sharedOculusTracker->pitch;
+				result.roll = -sharedOculusTracker->roll;
 				// Printf("yaw = %+06.1f; pitch = %+06.1f; roll = %+06.1f\n", RAD2DEG(result.yaw), RAD2DEG(result.pitch), RAD2DEG(result.roll));
-				// OVR::Quatf foo = oculusTracker->quaternion;
+				// OVR::Quatf foo = sharedOculusTracker->quaternion;
 				// Printf("x = %+05.3f; y = %+05.3f; z = %+05.3f; w = %+05.3f\n", foo.x, foo.y, foo.z, foo.w);
 			}
 			else {
 				// Pitch
-				double pitch0 = oculusTracker->pitch;
+				double pitch0 = sharedOculusTracker->pitch;
 				// Correct pitch for doom pixel aspect ratio
 				result.pitch = atan( tan(pitch0) / aspect );
 
 				// Roll can be local, because it doesn't affect gameplay.
 				double rollAspect = 1.0 + (aspect - 1.0) * cos(result.pitch); // correct for pixel aspect
-				double roll0 = -oculusTracker->roll;
+				double roll0 = -sharedOculusTracker->roll;
 				result.roll = atan2(rollAspect * sin(roll0), cos(roll0));
 			}
 		}
@@ -874,8 +877,8 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 	static float previousYaw = 0;
 	if (mode == OCULUS_RIFT) {
 		PitchRollYaw prw = getHeadOrientation(renderer);
-		if (oculusTracker->isGood()) {
-			oculusTracker->update(); // get new orientation from headset.
+		if (sharedOculusTracker->isGood()) {
+			sharedOculusTracker->update(); // get new orientation from headset.
 			double dYaw = prw.yaw - previousYaw;
 			G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
 			previousYaw = prw.yaw;

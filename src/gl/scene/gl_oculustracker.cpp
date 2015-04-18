@@ -25,15 +25,34 @@ OculusTracker::OculusTracker()
 	, yaw(0)
 	, deviceId(1)
 	, frameIndex(0)
+	, trackingConfigured(false)
+	, renderingConfigured(false)
+	, ovrInitialized(false)
 {
 #ifdef HAVE_OCULUS_API
 	originPosition = OVR::Vector3f(0,0,0);
 	position = OVR::Vector3f(0,0,0);
-	ovr_Initialize();
-	hmd = ovrHmd_Create(0);
-	if (hmd) {
-		// ovrHmd_GetDesc(hmd, &hmdDesc);
-		setLowPersistence(true);
+	// checkInitialized(); // static initialization order crash CMB
+#endif
+}
+
+void OculusTracker::checkInitialized() {
+#ifdef HAVE_OCULUS_API
+	if (! ovrInitialized) {
+		ovr_Initialize();
+		hmd = ovrHmd_Create(0);
+		if (hmd) {
+			setLowPersistence(true);
+		}
+		ovrInitialized = true;
+	}
+#endif
+}
+
+void OculusTracker::checkConfiguration() {
+#ifdef HAVE_OCULUS_API
+	checkInitialized();
+	if ( hmd && (! trackingConfigured) ) {
 		ovrHmd_ConfigureTracking(hmd,
 			ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection | ovrTrackingCap_Position, // supported
 			ovrTrackingCap_Orientation); // required
@@ -43,18 +62,23 @@ OculusTracker::OculusTracker()
 		else {
 			deviceId = 1;
 		}
-		if (vr_sdkwarp) {
-			ovrGLConfig cfg;
-			cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
-			cfg.OGL.Header.Multisample = 1;
+		trackingConfigured = true;
+	}
+	if ( hmd && (! renderingConfigured) && vr_sdkwarp ) {
+		ovrGLConfig cfg;
+		cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
+		cfg.OGL.Header.Multisample = 1;
 #ifdef _WIN32
-			cfg.OGL.Window = Window;
+		cfg.OGL.Window = Window;
 #endif
-			// cfg.OGL.DC = ???;
-			ovrBool result = ovrHmd_ConfigureRendering(hmd, &cfg.Config, 
-				ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp | ovrDistortionCap_Overdrive,
-				hmd->DefaultEyeFov, eyeRenderDesc);
-		}
+		// cfg.OGL.DC = ???;
+		ovrBool result = ovrHmd_ConfigureRendering(hmd, &cfg.Config
+			, ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp
+			// | ovrDistortionCap_Overdrive
+			, hmd->DefaultEyeFov
+			, eyeRenderDesc);
+		if (result)
+			renderingConfigured = true;
 	}
 #endif
 }
@@ -130,9 +154,11 @@ bool OculusTracker::isGood() const {
 
 void OculusTracker::beginFrame() {
 #ifdef HAVE_OCULUS_API
+	checkConfiguration();
 	frameIndex ++;
 	if (hmd) {
 		if (vr_sdkwarp) {
+			// ovrHmd_BeginFrameTiming(hmd, frameIndex);
 			ovrHmd_BeginFrame(hmd, frameIndex);
 		}
 		else {
@@ -158,6 +184,7 @@ void OculusTracker::endFrame() {
 
 void OculusTracker::update() {
 #ifdef HAVE_OCULUS_API
+	checkConfiguration();
 	const float pixelRatio = 1.20;
 
 	ovrTrackingState sensorState;
@@ -243,3 +270,5 @@ void OculusTracker::update() {
 
 #endif
 }
+
+OculusTracker * sharedOculusTracker = new OculusTracker();
