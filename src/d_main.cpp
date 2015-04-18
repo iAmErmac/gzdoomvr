@@ -108,6 +108,7 @@
 #include "r_renderer.h"
 #include "p_local.h"
 #include "gl/scene/gl_offscreenbuffermanager.h"
+#include "gl/scene/rift_initializer.h"
 
 #ifdef USE_POLYMOST
 #include "r_polymost.h"
@@ -2262,6 +2263,7 @@ void D_DoomMain (void)
 	}
 	FString basewad = wad;
 
+	initialize_oculus_rift(); // needs early initialization, before GL context is created
 
 	// reinit from here
 

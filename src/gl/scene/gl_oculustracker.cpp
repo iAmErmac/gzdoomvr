@@ -7,6 +7,10 @@
 #include "OVR_CAPI.h"
 #include "OVR_CAPI_GL.h"
 
+extern "C" {
+void ovrhmd_EnableHSWDisplaySDKRender(ovrHmd hmd, ovrBool enabled);
+}
+
 #ifdef _WIN32
 extern HWND Window;
 #endif
@@ -28,6 +32,10 @@ OculusTracker::OculusTracker()
 	, trackingConfigured(false)
 	, renderingConfigured(false)
 	, ovrInitialized(false)
+	, hmd(NULL)
+	, texWidth(1920)
+	, texHeight(1080)
+	, textureId(0)
 {
 #ifdef HAVE_OCULUS_API
 	originPosition = OVR::Vector3f(0,0,0);
@@ -36,14 +44,47 @@ OculusTracker::OculusTracker()
 #endif
 }
 
+void OculusTracker::checkHealthAndSafety() {
+#ifdef HAVE_OCULUS_API
+	static bool dismissed = false;
+	if (dismissed) return;
+	if (frameIndex > 100) {
+		ovrHmd_DismissHSWDisplay(hmd);
+		dismissed = true;
+	}
+	return;
+	// Health and Safety Warning display state.
+	ovrHSWDisplayState hswDisplayState;
+	ovrHmd_GetHSWDisplayState(hmd, &hswDisplayState);
+	if (hswDisplayState.Displayed)
+	{
+		// Dismiss the warning if the user pressed the appropriate key or if the user
+		// is tapping the side of the HMD.
+		// If the user has requested to dismiss the warning via keyboard or controller input...
+		if (frameIndex > 5)
+			ovrHmd_DismissHSWDisplay(hmd);
+		else
+		{
+			// Detect a moderate tap on the side of the HMD.
+			ovrTrackingState ts = ovrHmd_GetTrackingState(hmd, ovr_GetTimeInSeconds());
+			if (ts.StatusFlags & ovrStatus_OrientationTracked)
+			{
+				const OVR::Vector3f v(ts.RawSensorData.Accelerometer.x,
+				ts.RawSensorData.Accelerometer.y,
+				ts.RawSensorData.Accelerometer.z);
+				// Arbitrary value and representing moderate tap on the side of the DK2 Rift.
+				if (v.LengthSq() > 250.f)
+					ovrHmd_DismissHSWDisplay(hmd);
+			}
+		}
+	}
+#endif
+}
+
 void OculusTracker::checkInitialized() {
 #ifdef HAVE_OCULUS_API
 	if (! ovrInitialized) {
 		ovr_Initialize();
-		hmd = ovrHmd_Create(0);
-		if (hmd) {
-			setLowPersistence(true);
-		}
 		ovrInitialized = true;
 	}
 #endif
@@ -52,10 +93,16 @@ void OculusTracker::checkInitialized() {
 void OculusTracker::checkConfiguration() {
 #ifdef HAVE_OCULUS_API
 	checkInitialized();
+	if ( hmd == NULL ) {
+		hmd = ovrHmd_Create(0);
+		if (hmd == NULL) {
+			hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
+		}
+	}
 	if ( hmd && (! trackingConfigured) ) {
 		ovrHmd_ConfigureTracking(hmd,
 			ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection | ovrTrackingCap_Position, // supported
-			ovrTrackingCap_Orientation); // required
+			0); // required
 		if ( hmd->Type == ovrHmd_DK2 ) {
 			deviceId = 2;
 		}
@@ -66,19 +113,34 @@ void OculusTracker::checkConfiguration() {
 	}
 	if ( hmd && (! renderingConfigured) && vr_sdkwarp ) {
 		ovrGLConfig cfg;
+		memset(&cfg, 0, sizeof cfg);
 		cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
+		cfg.OGL.Header.BackBufferSize.w = texWidth;
+		cfg.OGL.Header.BackBufferSize.h = texHeight;
 		cfg.OGL.Header.Multisample = 1;
 #ifdef _WIN32
-		cfg.OGL.Window = Window;
+		cfg.OGL.Window = GetActiveWindow();
+		cfg.OGL.DC = wglGetCurrentDC();
 #endif
-		// cfg.OGL.DC = ???;
+		if (hmd->HmdCaps & ovrHmdCap_ExtendDesktop) {
+			// extended desktop
+		}
+		else {
+			// Direct to rift mode
+#ifdef WIN32
+			ovrHmd_AttachToWindow(hmd, cfg.OGL.Window, 0, 0);
+#elif defined(OVR_OS_LINUX)
+			ovrHmd_AttachToWindow(hmd, (void*)glXGetCurrentDrawable(), 0, 0);
+#endif
+		}
 		ovrBool result = ovrHmd_ConfigureRendering(hmd, &cfg.Config
 			, ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp
 			// | ovrDistortionCap_Overdrive
 			, hmd->DefaultEyeFov
-			, eyeRenderDesc);
+			, eyeRenderDesc); // output
 		if (result)
 			renderingConfigured = true;
+		ovrhmd_EnableHSWDisplaySDKRender(hmd, false);
 	}
 #endif
 }
@@ -188,7 +250,7 @@ void OculusTracker::update() {
 	const float pixelRatio = 1.20;
 
 	ovrTrackingState sensorState;
-	if (vr_sdkwarp) {
+	if ( vr_sdkwarp ) {
 		ovrSizei renderTargetSize = {texWidth, texHeight};
 		ovrRecti leftViewport = {0, 0, texWidth/2, texHeight};
 		ovrRecti rightViewport = {texWidth/2, 0, texWidth/2, texHeight};
@@ -201,8 +263,10 @@ void OculusTracker::update() {
 		ovrEyeTexture[1] = ovrEyeTexture[0];
 		ovrEyeTexture[1].OGL.Header.RenderViewport = rightViewport;
 
-		eyePoses[0] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Left);
-		eyePoses[1] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Right);
+		ovrVector3f hmdToEyeViewOffset = {0,0,0}; // TODO
+		ovrHmd_GetEyePoses(hmd, frameIndex, &hmdToEyeViewOffset, eyePoses, &sensorState);
+		// eyePoses[0] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Left);
+		// eyePoses[1] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Right);
 
 		// TODO - projection matrix
 	}

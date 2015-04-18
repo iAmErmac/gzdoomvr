@@ -35,6 +35,7 @@ public:
 	void setLowPersistence(bool setLow);
 	void checkInitialized();
 	void checkConfiguration();
+	void checkHealthAndSafety();
 
 private:
 	bool trackingConfigured;
