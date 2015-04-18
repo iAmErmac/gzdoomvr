@@ -36,6 +36,7 @@ public:
 	void checkInitialized();
 	void checkConfiguration();
 	void checkHealthAndSafety();
+	float* getProjection();
 
 private:
 	bool trackingConfigured;

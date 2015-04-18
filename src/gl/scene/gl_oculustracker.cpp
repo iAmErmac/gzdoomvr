@@ -21,7 +21,8 @@ CVAR(Bool, vr_sdkwarp, false, CVAR_GLOBALCONFIG)
 static ovrPosef eyePoses[2];
 static ovrGLTexture ovrEyeTexture[2];
 static ovrEyeRenderDesc eyeRenderDesc[2];
-
+static OVR::Matrix4f projectionMatrix;
+static ovrVector3f hmdToEyeViewOffset;
 
 OculusTracker::OculusTracker() 
 	: pitch(0)
@@ -42,6 +43,11 @@ OculusTracker::OculusTracker()
 	position = OVR::Vector3f(0,0,0);
 	// checkInitialized(); // static initialization order crash CMB
 #endif
+}
+
+float * OculusTracker::getProjection() {
+	projectionMatrix = ovrMatrix4f_Projection(hmd->DefaultEyeFov[0], 5.0, 655536, 1);
+	return projectionMatrix.M[0];
 }
 
 void OculusTracker::checkHealthAndSafety() {
@@ -263,7 +269,6 @@ void OculusTracker::update() {
 		ovrEyeTexture[1] = ovrEyeTexture[0];
 		ovrEyeTexture[1].OGL.Header.RenderViewport = rightViewport;
 
-		ovrVector3f hmdToEyeViewOffset = {0,0,0}; // TODO
 		ovrHmd_GetEyePoses(hmd, frameIndex, &hmdToEyeViewOffset, eyePoses, &sensorState);
 		// eyePoses[0] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Left);
 		// eyePoses[1] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Right);

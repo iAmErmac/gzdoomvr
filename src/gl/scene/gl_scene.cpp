@@ -266,6 +266,17 @@ static void setPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdou
 }
 */
 
+void FGLRenderer::SetProjection(float* matrix)
+{
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+	glScalef(1, 1.20, 1); // doom pixel aspect ratio correction
+	glMultTransposeMatrixf(matrix);
+
+	gl_RenderState.Set2DMode(false);
+}
+
 //-----------------------------------------------------------------------------
 //
 // SetProjection
@@ -273,7 +284,6 @@ static void setPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdou
 //
 // eyeShift is the off-center eye position for stereo 3D, in meters
 //-----------------------------------------------------------------------------
-
 void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift)
 {
 	glMatrixMode(GL_PROJECTION);
