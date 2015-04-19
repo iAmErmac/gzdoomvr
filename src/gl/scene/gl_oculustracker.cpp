@@ -260,7 +260,7 @@ void OculusTracker::update() {
 	if ( vr_sdkwarp ) {
 		ovrSizei renderTargetSize = {texWidth, texHeight};
 		ovrRecti leftViewport = {0, 0, texWidth/2, texHeight};
-		ovrRecti rightViewport = {texWidth/2, 0, texWidth/2, texHeight};
+		ovrRecti rightViewport = {(texWidth+1)/2, 0, texWidth/2, texHeight};
 
 		ovrEyeTexture[0].OGL.Header.API = ovrRenderAPI_OpenGL;
 		ovrEyeTexture[0].OGL.Header.TextureSize = renderTargetSize;

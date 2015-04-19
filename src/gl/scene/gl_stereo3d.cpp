@@ -570,6 +570,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				setViewportLeft(renderer, &riftBounds);
 				if (vr_sdkwarp && sharedOculusTracker) {
 					renderer.SetProjection(sharedOculusTracker->getProjection());
+					// setLeftEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 				} else {
 					setLeftEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 				}
@@ -585,6 +586,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				setViewportRight(renderer, &riftBounds);
 				if (vr_sdkwarp && sharedOculusTracker) {
 					renderer.SetProjection(sharedOculusTracker->getProjection());
+					// setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 				} else {
 					setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 				}
