@@ -103,6 +103,7 @@ void OculusTracker::checkConfiguration() {
 		hmd = ovrHmd_Create(0);
 		if (hmd == NULL) {
 			hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
+			ovrHmd_ResetFrameTiming(hmd, 0);
 		}
 	}
 	if ( hmd && (! trackingConfigured) ) {
@@ -140,13 +141,13 @@ void OculusTracker::checkConfiguration() {
 #endif
 		}
 		ovrBool result = ovrHmd_ConfigureRendering(hmd, &cfg.Config
-			, ovrDistortionCap_Chromatic | ovrDistortionCap_TimeWarp
-			// | ovrDistortionCap_Overdrive
+			, ovrDistortionCap_TimeWarp
+			  | ovrDistortionCap_Overdrive
 			, hmd->DefaultEyeFov
 			, eyeRenderDesc); // output
 		if (result)
 			renderingConfigured = true;
-		ovrhmd_EnableHSWDisplaySDKRender(hmd, false);
+		// ovrhmd_EnableHSWDisplaySDKRender(hmd, false); // for debugging
 	}
 #endif
 }

@@ -2,7 +2,7 @@
 #define GZDOOM_OCULUS_TRACKER_H_
 
 #ifdef HAVE_OCULUS_API
-#include "OVR.h"
+#include "Extras/OVR_Math.h"
 #endif
 
 class OculusTexture;

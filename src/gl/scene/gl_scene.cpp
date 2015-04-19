@@ -271,7 +271,7 @@ void FGLRenderer::SetProjection(float* matrix)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	glScalef(1, 1.20, 1); // doom pixel aspect ratio correction
+	glScalef(1.0, 1.20, 1.0); // doom pixel aspect ratio correction
 	glMultTransposeMatrixf(matrix);
 
 	gl_RenderState.Set2DMode(false);
@@ -390,6 +390,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	// 4) stable aspect ratio when rolling view
 	// Apply late-scheduling AFTER getting this all working, and test again.
 
+	// TODO - this exactly counteracts that scale I applied to direct-to-sdk projection matrix
 	glScalef(1.0, 1.0/pixelAspect, 1.0); // stretch - so aspect correction is world-up, not camera-up (#4, above)
 
 	glRotatef( roll,  0.0f, 0.0f, 1.0f );
@@ -403,6 +404,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	glTranslatef( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
 	// Printf("x = %.1f; z = %.1f %.1f %.1f\n", GLRenderer->mCameraPos.X, GLRenderer->mCameraPos.Z, FIXED2FLOAT(viewx), FIXED2FLOAT(viewz));
 	glScalef(-mult, planemult, 1);
+
 }
 
 

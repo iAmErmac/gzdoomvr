@@ -202,9 +202,10 @@ struct EyeViewShifter : public ViewPositionShifter
 		: ViewPositionShifter(player, renderer_param)
 	{
 		float eyeShift = vr_ipd / 2.0;
-		if (eyeView == EYE_VIEW_LEFT)
-		eyeShift = -eyeShift;
-		// TODO - account for roll angle
+		if (eyeView == EYE_VIEW_LEFT) {
+			eyeShift = -eyeShift;
+		}
+		// Account for roll angle
 		float roll = renderer_param.mAngles.Roll * 3.14159/180.0;
 		float cr = cos(roll);
 		float sr = sin(roll);
@@ -624,6 +625,24 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					blitHudTextureToScreen(); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
 				}
 
+				// Prevent bleed between eye views in direct-to-rift mode
+				// by drawing a black stripe down the middle
+				if (vr_sdkwarp) {
+					const float stripeSize = 0.025f;
+					glViewport(0, 0, oculusTexture->getWidth(), oculusTexture->getHeight());
+					glMatrixMode(GL_PROJECTION);
+					glLoadIdentity();
+					glMatrixMode(GL_MODELVIEW);
+					glLoadIdentity();
+					glBegin(GL_QUADS);
+						glColor4f(0, 0, 0, 1);
+						glVertex3f(-stripeSize, -1.0, 0.5);
+						glVertex3f(-stripeSize,  1.0, 0.5);
+						glVertex3f( stripeSize,  1.0, 0.5);
+						glVertex3f( stripeSize, -1.0, 0.5);
+					glEnd();
+				}
+
 				if (sharedOculusTracker) {
 					sharedOculusTracker->checkHealthAndSafety(); // TODO - crashes program
 				}
@@ -756,16 +775,23 @@ void Stereo3D::bindHudTexture(bool doUse)
 }
 
 void Stereo3D::updateScreen() {
-	if ( (vr_mode == OCULUS_RIFT) && (vr_sdkwarp) )
-		return; // Let OVR update screen TODO
+	if ( (vr_mode == OCULUS_RIFT) && (gamestate != GS_LEVEL) && (gamestate != GS_INTERMISSION) ) {
+		gamestate_t x = gamestate;
+	}
 	// Unbind texture before update, so Fraps could work
 	bool htWasBound = false;
 	HudTexture * ht = HudTexture::hudTexture;
 	if (ht && ht->isBound()) {
 		htWasBound = true;
 		ht->unbind();
+		blitHudTextureToScreen();
 	}
-	screen->Update();
+	// Special handling of intermission screen for Oculus SDK warping
+	if ( (vr_mode == OCULUS_RIFT) && (vr_sdkwarp) ) {
+		// TODO - what about fraps?
+	} else {
+		screen->Update();
+	}
 	if (htWasBound)
 		ht->bindToFrameBuffer();
 	if (vr_mode != OCULUS_RIFT)
@@ -774,7 +800,8 @@ void Stereo3D::updateScreen() {
 		return;
 	if (ht->isBound()) {
 		bindHudTexture(false);
-		blitHudTextureToScreen();
+		// oculusTexture->bindToFrameBuffer;
+		// blitHudTextureToScreen();
 		bindHudTexture(true);
 	}
 	else {
@@ -809,6 +836,7 @@ void Stereo3D::blitHudTextureToScreen(float yScale) {
 		hudOffsetX = (int)(0.004*SCREENWIDTH/2); // kludge to set hud distance
 		if (screenblocks <= 10)
 			hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
+		oculusTexture->bindToFrameBuffer();
 	}
 
 	// Left side
@@ -820,6 +848,9 @@ void Stereo3D::blitHudTextureToScreen(float yScale) {
 	x += SCREENWIDTH/2;
 	glViewport(x-hudOffsetX, y, w, h);
 	HudTexture::hudTexture->renderToScreen();
+
+	if (mode == OCULUS_RIFT) {
+	}
 }
 
 void Stereo3D::setMode(int m) {
