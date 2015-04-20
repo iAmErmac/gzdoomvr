@@ -568,7 +568,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				riftBounds.left = 0;
 				riftBounds.top = 0;
 				setViewportLeft(renderer, &riftBounds);
-				if (vr_sdkwarp && sharedOculusTracker) {
+				if (vr_sdkwarp && sharedOculusTracker && sharedOculusTracker->isGood()) {
 					renderer.SetProjection(sharedOculusTracker->getProjection());
 					// setLeftEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 				} else {
@@ -584,7 +584,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				int oldViewwindowx = viewwindowx;
 				viewwindowx += viewwidth;
 				setViewportRight(renderer, &riftBounds);
-				if (vr_sdkwarp && sharedOculusTracker) {
+				if (vr_sdkwarp && sharedOculusTracker && sharedOculusTracker->isGood()) {
 					renderer.SetProjection(sharedOculusTracker->getProjection());
 					// setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
 				} else {
@@ -646,14 +646,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 
 				if (sharedOculusTracker) {
-					sharedOculusTracker->checkHealthAndSafety(); // TODO - crashes program
+					sharedOculusTracker->checkHealthAndSafety();
 				}
 
 				oculusTexture->unbind();
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 
-				// TODO - delegate this to sdk warping maybe
+				// Delegate render to sdk warping maybe
 				if (! vr_sdkwarp) {
+				// if (true) {
 					oculusTexture->renderToScreen();
 					if (!gl_draw_sync) {
 						// if (gamestate != GS_LEVEL) { // TODO avoids flash by swapping at beginning of 3D render
@@ -674,7 +675,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			if (sharedOculusTracker) {
 				sharedOculusTracker->endFrame();
 			}
-
 
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 
@@ -786,7 +786,7 @@ void Stereo3D::updateScreen() {
 	if (ht && ht->isBound()) {
 		htWasBound = true;
 		ht->unbind();
-		blitHudTextureToScreen();
+		// blitHudTextureToScreen(); // causes double hud in rift
 	}
 	// Special handling of intermission screen for Oculus SDK warping
 	if ( (vr_mode == OCULUS_RIFT) && (vr_sdkwarp) ) {
@@ -838,7 +838,7 @@ void Stereo3D::blitHudTextureToScreen(float yScale) {
 		hudOffsetX = (int)(0.004*SCREENWIDTH/2); // kludge to set hud distance
 		if (screenblocks <= 10)
 			hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
-		oculusTexture->bindToFrameBuffer();
+		// oculusTexture->bindToFrameBuffer();
 	}
 
 	// Left side

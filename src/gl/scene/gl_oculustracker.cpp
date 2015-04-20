@@ -102,9 +102,11 @@ void OculusTracker::checkConfiguration() {
 	if ( hmd == NULL ) {
 		hmd = ovrHmd_Create(0);
 		if (hmd == NULL) {
-			hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
+			hmd = ovrHmd_CreateDebug(ovrHmd_DK1);
 			ovrHmd_ResetFrameTiming(hmd, 0);
 		}
+		if ( (hmd == NULL) && (vr_sdkwarp) )
+			vr_sdkwarp = false;
 	}
 	if ( hmd && (! trackingConfigured) ) {
 		ovrHmd_ConfigureTracking(hmd,
@@ -260,6 +262,7 @@ void OculusTracker::update() {
 	if ( vr_sdkwarp ) {
 		ovrSizei renderTargetSize = {texWidth, texHeight};
 		ovrRecti leftViewport = {0, 0, texWidth/2, texHeight};
+		// ovrRecti rightViewport = {0, 0, texWidth/2, texHeight};
 		ovrRecti rightViewport = {(texWidth+1)/2, 0, texWidth/2, texHeight};
 
 		ovrEyeTexture[0].OGL.Header.API = ovrRenderAPI_OpenGL;
