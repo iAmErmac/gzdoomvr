@@ -43,6 +43,7 @@ public:
 	void checkConfiguration();
 	void checkHealthAndSafety();
 	float* getProjection(int eye);
+	float getLeftEyeOffset();
 
 private:
 	bool trackingConfigured;

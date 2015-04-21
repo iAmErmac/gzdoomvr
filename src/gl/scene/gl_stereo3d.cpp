@@ -605,8 +605,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					float fullWidth = SCREENWIDTH / 2.0;
 					viewwidth = vr_sprite_scale * fullWidth;
 					float left = (1.0 - vr_sprite_scale) * fullWidth * 0.5; // left edge of scaled viewport
-					// TODO Sprite needs some offset to appear at correct distance, rather than at infinity.
+					// Sprite needs some offset to appear at correct distance, rather than at infinity.
 					int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
+					if (vr_sdkwarp)
+						spriteOffsetX += (int)(sharedOculusTracker->getLeftEyeOffset() * fullWidth);
 					viewwindowx = left + fullWidth - spriteOffsetX;
 					int spriteOffsetY = (int)(-0.01 * vr_weapon_height * viewheight); // nudge gun up/down
 					// Counteract effect of status bar on weapon position
@@ -830,14 +832,19 @@ void Stereo3D::blitHudTextureToScreen(float yScale) {
 	float w = HudTexture::hudTexture->getWidth();
 	float x = (SCREENWIDTH/2-w)*0.5;
 	float hudOffsetY = 0.00 * h; // nudge crosshair up
-	int hudOffsetX = 0; // kludge to set hud distance
+	int hudOffsetX = 0; // kludge to set apparent hud distance
 
 	if (mode == OCULUS_RIFT) {
 		// First pass blit unwarped hudTexture into oculusTexture, in two places
 		hudOffsetY -= 0.005 * SCREENHEIGHT; // reverse effect of oculus head raising.
 		hudOffsetX = (int)(0.004*SCREENWIDTH/2); // kludge to set hud distance
+		if (vr_swap)
+			hudOffsetX = -hudOffsetX;
 		if (screenblocks <= 10)
 			hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
+		if (vr_sdkwarp) {
+			hudOffsetX += (int)(sharedOculusTracker->getLeftEyeOffset() * SCREENWIDTH/2.0);
+		}
 		// oculusTexture->bindToFrameBuffer();
 	}
 
