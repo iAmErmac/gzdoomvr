@@ -105,8 +105,10 @@ void OculusTracker::checkConfiguration() {
 			hmd = ovrHmd_CreateDebug(ovrHmd_DK1);
 			ovrHmd_ResetFrameTiming(hmd, 0);
 		}
-		if ( (hmd == NULL) && (vr_sdkwarp) )
+		// Cannot use Oculus Rift SDK for warping, if we couldn't even initialize an HMD.
+		if ( (hmd == NULL) && (vr_sdkwarp) ) {
 			vr_sdkwarp = false;
+		}
 	}
 	if ( hmd && (! trackingConfigured) ) {
 		ovrHmd_ConfigureTracking(hmd,
@@ -144,12 +146,17 @@ void OculusTracker::checkConfiguration() {
 		}
 		ovrBool result = ovrHmd_ConfigureRendering(hmd, &cfg.Config
 			, ovrDistortionCap_TimeWarp
+#if OCULUS_SDK_VERSION <= 0440
+			  | ovrDistortionCap_Chromatic
+#endif
 			  | ovrDistortionCap_Overdrive
 			, hmd->DefaultEyeFov
 			, eyeRenderDesc); // output
 		if (result)
 			renderingConfigured = true;
-		// ovrhmd_EnableHSWDisplaySDKRender(hmd, false); // for debugging
+#if OCULUS_SDK_VERSION <= 0440
+		ovrhmd_EnableHSWDisplaySDKRender(hmd, false); // for debugging, or avoiding crash in SDK 0.4.4
+#endif
 	}
 #endif
 }

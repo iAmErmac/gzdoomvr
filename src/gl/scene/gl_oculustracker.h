@@ -1,8 +1,14 @@
 #ifndef GZDOOM_OCULUS_TRACKER_H_
 #define GZDOOM_OCULUS_TRACKER_H_
 
+#define OCULUS_SDK_VERSION 0440
+
 #ifdef HAVE_OCULUS_API
-#include "Extras/OVR_Math.h"
+#if OCULUS_SDK_VERSION <= 0440
+#include "OVR.h"
+#else
+#include "Extras/OVR_Math.h" // SDK 0.5.0.1
+#endif
 #endif
 
 class OculusTexture;
