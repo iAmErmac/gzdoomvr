@@ -45,8 +45,8 @@ OculusTracker::OculusTracker()
 #endif
 }
 
-float * OculusTracker::getProjection() {
-	projectionMatrix = ovrMatrix4f_Projection(hmd->DefaultEyeFov[0], 5.0, 655536, 1);
+float * OculusTracker::getProjection(int eye) {
+	projectionMatrix = ovrMatrix4f_Projection(hmd->DefaultEyeFov[eye], 5.0, 655536, 1);
 	return projectionMatrix.M[0];
 }
 

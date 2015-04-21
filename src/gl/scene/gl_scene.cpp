@@ -273,6 +273,7 @@ void FGLRenderer::SetProjection(float* matrix)
 
 	glScalef(1.0, 1.20, 1.0); // doom pixel aspect ratio correction
 	glMultTransposeMatrixf(matrix);
+	// glMultMatrixf(matrix);
 
 	gl_RenderState.Set2DMode(false);
 }

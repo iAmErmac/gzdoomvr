@@ -42,7 +42,7 @@ public:
 	void checkInitialized();
 	void checkConfiguration();
 	void checkHealthAndSafety();
-	float* getProjection();
+	float* getProjection(int eye);
 
 private:
 	bool trackingConfigured;
