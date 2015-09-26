@@ -29,7 +29,7 @@ public:
 	// const OVR::HMDInfo& getInfo() const {return Info;}
 	float getRiftInterpupillaryDistance() const {
 		const_cast<OculusTracker&>(*this).checkConfiguration();
-		return ovrHmd_GetFloat(hmd, OVR_KEY_IPD, 0.062f);
+		return ovr_GetFloat(hmd, OVR_KEY_IPD, 0.062f);
 	}
 	OVR::Quatf quaternion;
 #endif
@@ -42,7 +42,6 @@ public:
 	void setLowPersistence(bool setLow);
 	void checkInitialized();
 	void checkConfiguration();
-	void checkHealthAndSafety();
 	float* getProjection(int eye);
 	float getLeftEyeOffset();
 
@@ -52,7 +51,7 @@ private:
 	bool ovrInitialized;
 #ifdef HAVE_OCULUS_API
 	ovrHmd hmd;
-	// ovrHmdDesc hmdDesc;
+	ovrHmdDesc hmdDesc;
 	// ovrSensorDesc sensorDesc;
 	int deviceId;
 	OVR::Vector3f position;

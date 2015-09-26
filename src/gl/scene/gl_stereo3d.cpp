@@ -647,10 +647,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					glEnd();
 				}
 
-				if (sharedOculusTracker) {
-					sharedOculusTracker->checkHealthAndSafety();
-				}
-
 				oculusTexture->unbind();
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 

@@ -8,7 +8,7 @@
 #include "OVR_CAPI_GL.h"
 
 extern "C" {
-void ovrhmd_EnableHSWDisplaySDKRender(ovrHmd hmd, ovrBool enabled);
+void ovr_EnableHSWDisplaySDKRender(ovrHmd hmd, ovrBool enabled);
 }
 
 #ifdef _WIN32
@@ -47,57 +47,23 @@ OculusTracker::OculusTracker()
 
 float OculusTracker::getLeftEyeOffset() {
 	if (! hmd) return 0;
-	float a = hmd->DefaultEyeFov[0].LeftTan;
-	float b = hmd->DefaultEyeFov[0].RightTan;
+	float a = hmdDesc.DefaultEyeFov[0].LeftTan;
+	float b = hmdDesc.DefaultEyeFov[0].RightTan;
 	return 0.5*(a-b)/(b+a);
 }
 
 float * OculusTracker::getProjection(int eye) {
-	projectionMatrix = ovrMatrix4f_Projection(hmd->DefaultEyeFov[eye], 5.0, 655536, 1);
+	projectionMatrix = ovrMatrix4f_Projection(hmdDesc.DefaultEyeFov[eye], 5.0, 655536, 1);
 	return projectionMatrix.M[0];
 }
 
-void OculusTracker::checkHealthAndSafety() {
-#ifdef HAVE_OCULUS_API
-	static bool dismissed = false;
-	if (dismissed) return;
-	if (frameIndex > 100) {
-		ovrHmd_DismissHSWDisplay(hmd);
-		dismissed = true;
-	}
-	return;
-	// Health and Safety Warning display state.
-	ovrHSWDisplayState hswDisplayState;
-	ovrHmd_GetHSWDisplayState(hmd, &hswDisplayState);
-	if (hswDisplayState.Displayed)
-	{
-		// Dismiss the warning if the user pressed the appropriate key or if the user
-		// is tapping the side of the HMD.
-		// If the user has requested to dismiss the warning via keyboard or controller input...
-		if (frameIndex > 5)
-			ovrHmd_DismissHSWDisplay(hmd);
-		else
-		{
-			// Detect a moderate tap on the side of the HMD.
-			ovrTrackingState ts = ovrHmd_GetTrackingState(hmd, ovr_GetTimeInSeconds());
-			if (ts.StatusFlags & ovrStatus_OrientationTracked)
-			{
-				const OVR::Vector3f v(ts.RawSensorData.Accelerometer.x,
-				ts.RawSensorData.Accelerometer.y,
-				ts.RawSensorData.Accelerometer.z);
-				// Arbitrary value and representing moderate tap on the side of the DK2 Rift.
-				if (v.LengthSq() > 250.f)
-					ovrHmd_DismissHSWDisplay(hmd);
-			}
-		}
-	}
-#endif
-}
 
 void OculusTracker::checkInitialized() {
 #ifdef HAVE_OCULUS_API
 	if (! ovrInitialized) {
-		ovr_Initialize();
+		ovrResult result = ovr_Initialize(nullptr);
+		if (OVR_FAILURE(result))
+			return;
 		ovrInitialized = true;
 	}
 #endif
@@ -106,22 +72,23 @@ void OculusTracker::checkInitialized() {
 void OculusTracker::checkConfiguration() {
 #ifdef HAVE_OCULUS_API
 	checkInitialized();
+	ovrResult result;
 	if ( hmd == NULL ) {
-		hmd = ovrHmd_Create(0);
-		if (hmd == NULL) {
-			hmd = ovrHmd_CreateDebug(ovrHmd_DK1);
-			ovrHmd_ResetFrameTiming(hmd, 0);
-		}
-		// Cannot use Oculus Rift SDK for warping, if we couldn't even initialize an HMD.
-		if ( (hmd == NULL) && (vr_sdkwarp) ) {
+		ovrGraphicsLuid luid;
+		result = ovr_Create(&hmd, &luid);
+		if (OVR_FAILURE(result)) {
+			ovr_Shutdown();
+			// Cannot use Oculus Rift SDK for warping, if we couldn't even initialize an HMD.
 			vr_sdkwarp = false;
+			return;
 		}
+		hmdDesc = ovr_GetHmdDesc(hmd);
 	}
 	if ( hmd && (! trackingConfigured) ) {
-		ovrHmd_ConfigureTracking(hmd,
+		result = ovr_ConfigureTracking(hmd,
 			ovrTrackingCap_Orientation | ovrTrackingCap_MagYawCorrection | ovrTrackingCap_Position, // supported
 			0); // required
-		if ( hmd->Type == ovrHmd_DK2 ) {
+		if ( hmdDesc.Type == ovrHmd_DK2 ) {
 			deviceId = 2;
 		}
 		else {
@@ -140,29 +107,24 @@ void OculusTracker::checkConfiguration() {
 		cfg.OGL.Window = GetActiveWindow();
 		cfg.OGL.DC = wglGetCurrentDC();
 #endif
-		if (hmd->HmdCaps & ovrHmdCap_ExtendDesktop) {
-			// extended desktop
-		}
-		else {
-			// Direct to rift mode
+		// Direct to rift mode
 #ifdef WIN32
-			ovrHmd_AttachToWindow(hmd, cfg.OGL.Window, 0, 0);
+		ovr_AttachToWindow(hmd, cfg.OGL.Window, 0, 0);
 #elif defined(OVR_OS_LINUX)
-			ovrHmd_AttachToWindow(hmd, (void*)glXGetCurrentDrawable(), 0, 0);
+		ovr_AttachToWindow(hmd, (void*)glXGetCurrentDrawable(), 0, 0);
 #endif
-		}
-		ovrBool result = ovrHmd_ConfigureRendering(hmd, &cfg.Config
+		ovrBool result = ovr_ConfigureRendering(hmd, &cfg.Config
 			, ovrDistortionCap_TimeWarp
 #if OCULUS_SDK_VERSION <= 0440
 			  | ovrDistortionCap_Chromatic
 #endif
 			  | ovrDistortionCap_Overdrive
-			, hmd->DefaultEyeFov
+			, hmdDesc.DefaultEyeFov
 			, eyeRenderDesc); // output
 		if (result)
 			renderingConfigured = true;
 #if OCULUS_SDK_VERSION <= 0440
-		ovrhmd_EnableHSWDisplaySDKRender(hmd, false); // for debugging, or avoiding crash in SDK 0.4.4
+		ovr_EnableHSWDisplaySDKRender(hmd, false); // for debugging, or avoiding crash in SDK 0.4.4
 #endif
 	}
 #endif
@@ -212,18 +174,18 @@ void OculusTracker::resetPosition()
 void OculusTracker::setLowPersistence(bool setLow) {
 #ifdef HAVE_OCULUS_API
 	if (hmd) {
-		int hmdCaps = ovrHmd_GetEnabledCaps(hmd);
+		int hmdCaps = ovr_GetEnabledCaps(hmd);
 		if (setLow)
-			ovrHmd_SetEnabledCaps(hmd, hmdCaps | ovrHmdCap_LowPersistence);
+			ovr_SetEnabledCaps(hmd, hmdCaps | ovrHmdCap_LowPersistence);
 		else
-			ovrHmd_SetEnabledCaps(hmd, hmdCaps & ~ovrHmdCap_LowPersistence);
+			ovr_SetEnabledCaps(hmd, hmdCaps & ~ovrHmdCap_LowPersistence);
 	}
 #endif
 }
 
 OculusTracker::~OculusTracker() {
 #ifdef HAVE_OCULUS_API
-	ovrHmd_Destroy(hmd);
+	ovr_Destroy(hmd);
 	ovr_Shutdown();
 #endif
 }
@@ -243,11 +205,11 @@ void OculusTracker::beginFrame() {
 	frameIndex ++;
 	if (hmd) {
 		if (vr_sdkwarp) {
-			// ovrHmd_BeginFrameTiming(hmd, frameIndex);
-			ovrHmd_BeginFrame(hmd, frameIndex);
+			// ovr_BeginFrameTiming(hmd, frameIndex);
+			ovr_BeginFrame(hmd, frameIndex);
 		}
 		else {
-			ovrHmd_BeginFrameTiming(hmd, frameIndex);
+			ovr_BeginFrameTiming(hmd, frameIndex);
 		}
 	}
 #endif
@@ -258,10 +220,10 @@ void OculusTracker::endFrame() {
 #ifdef HAVE_OCULUS_API
 	if (hmd) {
 		if (vr_sdkwarp) {
-			ovrHmd_EndFrame(hmd, eyePoses, (ovrTexture*)ovrEyeTexture);
+			ovr_EndFrame(hmd, eyePoses, (ovrTexture*)ovrEyeTexture);
 		}
 		else {
-			ovrHmd_EndFrameTiming(hmd);
+			ovr_EndFrameTiming(hmd);
 		}
 	}
 #endif
@@ -287,15 +249,15 @@ void OculusTracker::update() {
 		ovrEyeTexture[1] = ovrEyeTexture[0];
 		ovrEyeTexture[1].OGL.Header.RenderViewport = rightViewport;
 
-		ovrHmd_GetEyePoses(hmd, frameIndex, &hmdToEyeViewOffset, eyePoses, &sensorState);
-		// eyePoses[0] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Left);
-		// eyePoses[1] = ovrHmd_GetHmdPosePerEye(hmd, ovrEye_Right);
+		ovr_GetEyePoses(hmd, frameIndex, &hmdToEyeViewOffset, eyePoses, &sensorState);
+		// eyePoses[0] = ovr_GetHmdPosePerEye(hmd, ovrEye_Left);
+		// eyePoses[1] = ovr_GetHmdPosePerEye(hmd, ovrEye_Right);
 
 		// TODO - projection matrix
 	}
 	else {
-		ovrFrameTiming frameTiming = ovrHmd_GetFrameTiming(hmd, frameIndex);
-		sensorState = ovrHmd_GetTrackingState(hmd, frameTiming.ScanoutMidpointSeconds);
+		ovrFrameTiming frameTiming = ovr_GetFrameTiming(hmd, frameIndex);
+		sensorState = ovr_GetTrackingState(hmd, frameTiming.DisplayMidpointSeconds);
 	}
 
 	// Rotation tracking
@@ -328,7 +290,7 @@ void OculusTracker::update() {
 	// {
 		// Sanity check neck model, which might be nonsense, especially on DK1
 		float neckEye[2] = {0, 0};
-		ovrHmd_GetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
+		ovr_GetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
 		bool bChanged = false;
 		if ((neckEye[0] < 0.05) || (neckEye[0] > 0.50)) {
 			neckEye[0] = OVR_DEFAULT_NECK_TO_EYE_HORIZONTAL;
@@ -339,7 +301,7 @@ void OculusTracker::update() {
 			bChanged = true;
 		}
 		if (bChanged) {
-			ovrHmd_SetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
+			ovr_SetFloatArray(hmd, OVR_KEY_NECK_TO_EYE_DISTANCE, neckEye, 2);
 		}
 
 		position = pose.Position;

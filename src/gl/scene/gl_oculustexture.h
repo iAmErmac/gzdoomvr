@@ -25,8 +25,8 @@ struct RiftShaderParams {
 	}
 
 	float distortionScale() {
-		float edgeRadius = 2.0 * (1.0 - lensSeparation() / width_meters);
-		if (edgeRadius < 1) edgeRadius = 2.0 - edgeRadius; // other edge...
+		float edgeRadius = 2.0f * (1.0f - lensSeparation() / width_meters);
+		if (edgeRadius < 1) edgeRadius = 2.0f - edgeRadius; // other edge...
 		float rSq = edgeRadius * edgeRadius;
 		float scale = warp_k0 + 
 			warp_k1 * rSq + 
@@ -36,7 +36,7 @@ struct RiftShaderParams {
 	}
 
 	float aspectRatio() {
-		return 0.5 * width_meters / height_meters;
+		return 0.5f * width_meters / height_meters;
 	}
 };
 
