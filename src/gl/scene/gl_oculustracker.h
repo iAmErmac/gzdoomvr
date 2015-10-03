@@ -1,15 +1,12 @@
 #ifndef GZDOOM_OCULUS_TRACKER_H_
 #define GZDOOM_OCULUS_TRACKER_H_
 
-// #define OCULUS_SDK_VERSION 0440
 #define OCULUS_SDK_VERSION 0700
 
 #ifdef HAVE_OCULUS_API
-#if OCULUS_SDK_VERSION <= 0440
-#include "OVR.h"
-#else
-#include "Extras/OVR_Math.h" // SDK 0.5.0.1
-#endif
+extern "C" {
+#include "OVR_CAPI.h"
+}
 #endif
 
 class OculusTexture;
@@ -22,8 +19,6 @@ public:
 	float getPositionY();
 	float getPositionZ();
 	void resetPosition();
-	void beginFrame();
-	void endFrame();
 	void configureTexture(OculusTexture*);
 #ifdef HAVE_OCULUS_API
 	// const OVR::HMDInfo& getInfo() const {return Info;}
@@ -31,7 +26,7 @@ public:
 		const_cast<OculusTracker&>(*this).checkConfiguration();
 		return ovr_GetFloat(hmd, OVR_KEY_IPD, 0.062f);
 	}
-	OVR::Quatf quaternion;
+	ovrQuatf quaternion;
 #endif
 	bool isGood() const;
 	void update();
@@ -49,24 +44,15 @@ private:
 	bool trackingConfigured;
 	bool renderingConfigured;
 	bool ovrInitialized;
+	unsigned int frameIndex;
 #ifdef HAVE_OCULUS_API
 	ovrHmd hmd;
 	ovrHmdDesc hmdDesc;
 	// ovrSensorDesc sensorDesc;
 	int deviceId;
-	OVR::Vector3f position;
-	OVR::Vector3f originPosition;
+	ovrVector3f position;
+	ovrVector3f originPosition;
 	ovrPosef eyePose;
-	int frameIndex;
-	int texWidth, texHeight, textureId; // for oculus offscreen texture
-
-
-	// OVR::Ptr<OVR::DeviceManager> pManager;
-	// OVR::Ptr<OVR::HMDDevice> pHMD;
-	// OVR::Ptr<OVR::SensorDevice> pSensor;
-	// OVR::SensorFusion* pFusionResult;
-	// OVR::HMDInfo Info;
-	// bool InfoLoaded;
 #endif
 };
 

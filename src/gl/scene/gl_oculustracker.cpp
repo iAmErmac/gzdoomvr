@@ -21,7 +21,7 @@ CVAR(Bool, vr_sdkwarp, false, CVAR_GLOBALCONFIG)
 static ovrPosef eyePoses[2];
 static ovrGLTexture ovrEyeTexture[2];
 static ovrEyeRenderDesc eyeRenderDesc[2];
-static OVR::Matrix4f projectionMatrix;
+static ovrMatrix4f projectionMatrix;
 static ovrVector3f hmdToEyeViewOffset;
 
 OculusTracker::OculusTracker() 
@@ -34,15 +34,15 @@ OculusTracker::OculusTracker()
 	, renderingConfigured(false)
 	, ovrInitialized(false)
 	, hmd(NULL)
-	, texWidth(1920)
-	, texHeight(1080)
-	, textureId(0)
 {
 #ifdef HAVE_OCULUS_API
-	originPosition = OVR::Vector3f(0,0,0);
-	position = OVR::Vector3f(0,0,0);
+	originPosition = ovrVector3f(0,0,0);
+	position = ovrVector3f(0,0,0);
 	// checkInitialized(); // static initialization order crash CMB
 #endif
+}
+
+OculusTracker::init() {
 }
 
 float OculusTracker::getLeftEyeOffset() {

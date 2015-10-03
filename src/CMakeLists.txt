@@ -858,6 +858,7 @@ find_path(OCULUS_SDK_PATH
     NAMES
         LibOVR/Include/OVR.h
     PATHS 
+        "C:/Program Files/ovr_sdk_win_0.7.0.0/OculusSDK"
         "C:/Program Files/ovr_sdk_win_0.5.0.1/OculusSDK"
         "C:/Program Files/ovr_sdk_win_0.4.4/OculusSDK"
         "C:/Program Files/OculusSDK"
@@ -873,9 +874,9 @@ find_path(OCULUS_INCLUDE_DIRECTORY
 )
 find_path(OCULUS_INCLUDE_DIRECTORY2
     NAMES
-        OVR_CAPI.h
+        Kernel/OVR_Types.h
     PATHS 
-        ${OCULUS_SDK_PATH}/LibOVR/Src
+        ${OCULUS_SDK_PATH}/LibOVRKernel/Src
         ${OCULUS_SDK_PATH}/LibOVR/Include
 )
 set(OCULUS_LIB_SEARCH_PATHS "")
