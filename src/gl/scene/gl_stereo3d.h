@@ -4,7 +4,7 @@
 #include "gl/renderer/gl_renderer.h"
 // #include "gl/scene/gl_hudtexture.h"
 #include "gl/scene/gl_oculustexture.h"
-#include "gl/scene/gl_oculustracker.h"
+// #include "gl/scene/gl_oculustracker.h"
 
 struct PitchRollYaw {
 	float pitch; // radians
@@ -67,10 +67,9 @@ private:
 	void setViewportLeft(FGLRenderer& renderer, GL_IRECT * bounds);
 	void setViewportRight(FGLRenderer& renderer, GL_IRECT * bounds);
 	void blitHudTextureToScreen(float yScale = 1.0);
-	void checkInitializeOculusTracker();
 
 	Mode mode; // Current 3D method
-	OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.
+	// OculusTexture* oculusTexture; // Offscreen render buffer for pre-warped Oculus stereo view.
 	// OculusTracker* oculusTracker; // Reads head orientation from Oculus Rift
 	// HudTexture* hudTexture; // Offscreen render buffer for non-3D content for one eye.
 

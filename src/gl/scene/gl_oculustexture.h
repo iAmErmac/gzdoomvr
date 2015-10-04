@@ -8,29 +8,35 @@ extern "C" {
 #endif
 
 // Framebuffer texture for intermediate rendering of Oculus Rift image
-class OculusTexture {
+class RiftHmd {
 public:
-	OculusTexture();
-	~OculusTexture() {destroy();}
-	void bindToFrameBuffer();
-	void renderToScreen(unsigned int& frameIndex);
-	void unbind();
+	RiftHmd();
+	~RiftHmd() {destroy();}
+	ovrResult init();
+	void bindToFrameBufferAndUpdate();
+	ovrPosef setEyeView(int eye, float zNear, float zFar);
+	void submitFrame();
+	void recenter_pose();
+	ovrPosef getCurrentEyePose();
+	void destroy(); // release all resources
 
 private:
 #ifdef HAVE_OCULUS_API
-	void init(ovrHmd hmd);
 #endif
-	void destroy(); // release all opengl resources
 
 	unsigned int frameBuffer;
+	unsigned int frameIndex;
 
 #ifdef HAVE_OCULUS_API
 	ovrSwapTextureSet * pTextureSet;
 	ovrTexture * mirrorTexture;
 	ovrHmd hmd;
 	ovrVector3f hmdToEyeViewOffset[2];
-	ovrLayerEyeFov layer;
+	ovrLayerEyeFov sceneLayer;
+	ovrPosef currentEyePose;
 #endif
 };
+
+extern RiftHmd* sharedRiftHmd;
 
 #endif // GZDOOM_GL_OCULUSTEXTURE_H_

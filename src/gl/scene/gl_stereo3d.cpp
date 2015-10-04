@@ -98,8 +98,8 @@ CCMD(snap45right)
 }
 
 void Stereo3D::resetPosition() {
-	if (sharedOculusTracker != NULL)
-		sharedOculusTracker->resetPosition();
+	if (sharedRiftHmd != NULL)
+		sharedRiftHmd->recenter_pose();
 }
 
 CCMD(vr_reset_position)
@@ -223,46 +223,25 @@ struct EyeViewShifter : public ViewPositionShifter
 struct PositionTrackingShifter : public ViewPositionShifter
 {
 	// construct a new EyeViewShifter, to temporarily shift camera viewpoint
-	PositionTrackingShifter(OculusTracker * tracker, player_t * player, FGLRenderer& renderer_param)
+	PositionTrackingShifter(RiftHmd * tracker, player_t * player, FGLRenderer& renderer_param)
 		: ViewPositionShifter(player, renderer_param)
 	{
 		if (tracker == NULL) return;
 		// TODO - calibrate to center...
 		// Doom uses Z-UP convention, Rift uses Y-UP convention
 		// Printf("%.3f\n", tracker->getPositionX());
+		ovrPosef pose = tracker->getCurrentEyePose();
 		incrementPositionFloat(
-				 tracker->getPositionX(), // LEFT_RIGHT
-				 -tracker->getPositionZ(), // FORWARD_BACK
-				 tracker->getPositionY() // UP_DOWN
-				); 
+			pose.Position.x, // LEFT_RIGHT
+			pose.Position.z, // FORWARD_BACK
+			pose.Position.y  // UP_DOWN
+		); 
 	}
 };
 
 
-void Stereo3D::checkInitializeOculusTracker() {
-	if (sharedOculusTracker != NULL) {
-		sharedOculusTracker->checkConfiguration();
-		if (sharedOculusTracker->isGood()) {
-			vr_device = sharedOculusTracker->getDeviceId();
-			if (vr_device == 2) {
-				vr_rift_aspect = 0.888; // DK2
-			}
-			else {
-				vr_rift_aspect = 0.800; // DK1
-			}
-			// update cvars TODO
-#ifdef HAVE_OCULUS_API
-			// const OVR::HMDInfo& info = sharedOculusTracker->getInfo();
-			// vr_ipd = info.InterpupillaryDistance;
-			vr_ipd = sharedOculusTracker->getRiftInterpupillaryDistance();
-#endif
-		}
-	}
-}
-
 Stereo3D::Stereo3D() 
 	: mode(MONO)
-	, oculusTexture(NULL)
 {}
 
 static HudTexture* checkHudTexture(HudTexture* hudTexture, float screenScale) {
@@ -516,80 +495,34 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	case OCULUS_RIFT:
 		{
 			doBufferHud = true;
-			if ( (oculusTexture == NULL) || (! oculusTexture->checkSize(SCREENWIDTH, SCREENHEIGHT)) ) {
-				if (oculusTexture)
-					delete(oculusTexture);
-				// maybe initialize tracker
-				checkInitializeOculusTracker();
-				RiftShaderParams* activeRiftShaderParams = &dk2ShaderParams;
-				if (vr_device == 1)
-					activeRiftShaderParams = &dk1ShaderParams;
-				vr_rift_fov = activeRiftShaderParams->fov_degrees;
-				oculusTexture = new OculusTexture(SCREENWIDTH, SCREENHEIGHT, *activeRiftShaderParams);
-				if (sharedOculusTracker)
-					sharedOculusTracker->configureTexture(oculusTexture);
-			}
-
-			if (sharedOculusTracker) {
-				sharedOculusTracker->setLowPersistence(vr_lowpersist);
-				sharedOculusTracker->beginFrame();
-			}
+			sharedRiftHmd->init();
 
 			{
 				// Activate positional tracking
-				PositionTrackingShifter positionTracker(sharedOculusTracker, player, renderer);
+				PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 
 				setViewDirection(renderer);
 
 				HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5 * vr_hud_scale);
 
-				// Render unwarped image to offscreen frame buffer
-				if (oculusTexture) {
-					oculusTexture->bindToFrameBuffer();
-				}
+				sharedRiftHmd->bindToFrameBufferAndUpdate();
+
 				// FIRST PASS - 3D
 				// Temporarily modify global variables, so HUD could draw correctly
-				// each view is half width
-				int oldViewwidth = viewwidth;
-				viewwidth = viewwidth/2;
 				int oldScreenBlocks = screenblocks;
 				screenblocks = 12; // full screen
 				//
-				// TODO correct geometry for oculus
-				//
-				float ratio = 1.20 * vr_rift_aspect;
-				float fovy = 2.0*atan(tan(0.5*vr_rift_fov*3.14159/180.0)/ratio) * 180.0/3.14159;
-				float fovratio = vr_rift_fov/fovy;
-				//
 				// left
-				GL_IRECT riftBounds; // Always use full screen with Oculus Rift
-				riftBounds.width = SCREENWIDTH;
-				riftBounds.height = SCREENHEIGHT;
-				riftBounds.left = 0;
-				riftBounds.top = 0;
-				setViewportLeft(renderer, &riftBounds);
-				if (vr_sdkwarp && sharedOculusTracker && sharedOculusTracker->isGood()) {
-					renderer.SetProjection(sharedOculusTracker->getProjection(0));
-					// setLeftEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
-				} else {
-					setLeftEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
-				}
+				sharedRiftHmd->setEyeView(ovrEye_Left, 5, 5000); // Left eye
 				glEnable(GL_DEPTH_TEST);
 				{
 					EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 					renderer.RenderOneEye(a1, false, false);
 				}
+
 				// right
 				// right view is offset to right
-				int oldViewwindowx = viewwindowx;
-				viewwindowx += viewwidth;
-				setViewportRight(renderer, &riftBounds);
-				if (vr_sdkwarp && sharedOculusTracker && sharedOculusTracker->isGood()) {
-					renderer.SetProjection(sharedOculusTracker->getProjection(1));
-					// setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
-				} else {
-					setRightEyeView(renderer, vr_rift_fov, ratio, fovratio, player, false);
-				}
+				sharedRiftHmd->setEyeView(ovrEye_Right, 5, 5000); // Left eye
 				{
 					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 					renderer.RenderOneEye(a1, false, true);
@@ -602,23 +535,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					// SECOND PASS weapon sprite
 					glEnable(GL_TEXTURE_2D);
 					screenblocks = 12;
-					float fullWidth = SCREENWIDTH / 2.0;
-					viewwidth = vr_sprite_scale * fullWidth;
-					float left = (1.0 - vr_sprite_scale) * fullWidth * 0.5; // left edge of scaled viewport
-					// Sprite needs some offset to appear at correct distance, rather than at infinity.
-					int spriteOffsetX = (int)(0.021*fullWidth); // kludge to set weapon distance
-					if (vr_sdkwarp)
-						spriteOffsetX += (int)(sharedOculusTracker->getLeftEyeOffset() * fullWidth);
-					viewwindowx = left + fullWidth - spriteOffsetX;
-					int spriteOffsetY = (int)(-0.01 * vr_weapon_height * viewheight); // nudge gun up/down
+					// TODO: Sprite needs some offset to appear at correct distance, rather than at infinity.
 					// Counteract effect of status bar on weapon position
 					if (oldScreenBlocks <= 10) { // lower weapon in status mode
-						spriteOffsetY += 0.227 * viewwidth; // empirical - lines up brutal doom down sight in 1920x1080 Rift mode
+						// spriteOffsetY += 0.227 * viewwidth; // empirical - lines up brutal doom down sight in 1920x1080 Rift mode
 					}
-					viewwindowy += spriteOffsetY;
+					sharedRiftHmd->setEyeView(ovrEye_Right, 5, 5000); // Right eye
 					renderer.EndDrawScene(viewsector); // right view
-					setViewportLeft(renderer, &riftBounds);
-					viewwindowx = left + spriteOffsetX;
+
+					sharedRiftHmd->setEyeView(ovrEye_Left, 5, 5000); // Left eye
 					renderer.EndDrawScene(viewsector); // left view
 				}
 
@@ -629,49 +554,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					blitHudTextureToScreen(); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
 				}
 
-				// Prevent bleed between eye views in direct-to-rift mode
-				// by drawing a black stripe down the middle
-				if (vr_sdkwarp) {
-					const float stripeSize = 0.025f;
-					glViewport(0, 0, oculusTexture->getWidth(), oculusTexture->getHeight());
-					glMatrixMode(GL_PROJECTION);
-					glLoadIdentity();
-					glMatrixMode(GL_MODELVIEW);
-					glLoadIdentity();
-					glBegin(GL_QUADS);
-						glColor4f(0, 0, 0, 1);
-						glVertex3f(-stripeSize, -1.0, 0.5);
-						glVertex3f(-stripeSize,  1.0, 0.5);
-						glVertex3f( stripeSize,  1.0, 0.5);
-						glVertex3f( stripeSize, -1.0, 0.5);
-					glEnd();
-				}
+				sharedRiftHmd->submitFrame();
 
-				oculusTexture->unbind();
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-
-				// Delegate render to sdk warping maybe
-				if (! vr_sdkwarp) {
-				// if (true) {
-					oculusTexture->renderToScreen();
-					if (!gl_draw_sync) {
-						// if (gamestate != GS_LEVEL) { // TODO avoids flash by swapping at beginning of 3D render
-						All.Unclock();
-						static_cast<OpenGLFrameBuffer*>(screen)->Swap();
-						All.Clock();
-					}
-				}
 
 				//
 				// restore global state
-				viewwidth = oldViewwidth;
-				viewwindowx = oldViewwindowx;
 				viewwindowy = oldViewwindowy;
-			}
-
-
-			if (sharedOculusTracker) {
-				sharedOculusTracker->endFrame();
 			}
 
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
@@ -839,7 +728,7 @@ void Stereo3D::blitHudTextureToScreen(float yScale) {
 		if (screenblocks <= 10)
 			hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
 		if (vr_sdkwarp) {
-			hudOffsetX += (int)(sharedOculusTracker->getLeftEyeOffset() * SCREENWIDTH/2.0);
+			// hudOffsetX += (int)(sharedOculusTracker->getLeftEyeOffset() * SCREENWIDTH/2.0);
 		}
 		// oculusTexture->bindToFrameBuffer();
 	}
@@ -877,10 +766,6 @@ void Stereo3D::setRightEyeView(FGLRenderer& renderer, float fov, float ratio, fl
 bool Stereo3D::hasHeadTracking() const {
 	if (! (mode == OCULUS_RIFT) )
 		return false;
-	if (sharedOculusTracker == 0)
-		return false;
-	if (! sharedOculusTracker->isGood())
-		return false;
 	return true;
 }
 
@@ -894,7 +779,8 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	if (mode == OCULUS_RIFT) {
 		const double aspect = 1.20;
 
-		checkInitializeOculusTracker();
+		ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
+
 		if (sharedOculusTracker->isGood()) {
 			sharedOculusTracker->update(); // get new orientation from headset.
 
@@ -943,21 +829,6 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 
 			// Roll can be local, because it doesn't affect gameplay.
 			renderer.mAngles.Roll = prw.roll * 180.0 / 3.14159;
-
-			/* TODO - not working
-			// Position update
-			float xf = FIXED2FLOAT(viewx);
-			float yf = FIXED2FLOAT(viewy);
-			float zf = FIXED2FLOAT(viewz);
-			xf += 100 * prw.dx;
-			yf += 100 * prw.dy;
-			zf += 100 * prw.dz;
-			viewx = FLOAT2FIXED(xf);
-			viewy = FLOAT2FIXED(yf);
-			viewz = FLOAT2FIXED(zf);
-			renderer.SetCameraPos(viewx, viewy, viewz, viewangle);
-			renderer.SetViewMatrix(false, false);
-			/* */
 		}
 	}
 }
