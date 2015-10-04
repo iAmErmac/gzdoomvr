@@ -12,10 +12,11 @@ class RiftHmd {
 public:
 	RiftHmd();
 	~RiftHmd() {destroy();}
-	ovrResult init();
-	void bindToFrameBufferAndUpdate();
-	ovrPosef setEyeView(int eye, float zNear, float zFar);
-	void submitFrame();
+	ovrResult init_tracking();
+	ovrResult init_graphics();
+	bool bindToFrameBufferAndUpdate();
+	ovrPosef& setEyeView(int eye, float zNear, float zFar);
+	ovrResult submitFrame();
 	void recenter_pose();
 	const ovrPosef& getCurrentEyePose() const {return currentEyePose;}
 	void destroy(); // release all resources
@@ -25,6 +26,7 @@ private:
 #endif
 
 	unsigned int frameBuffer;
+	unsigned int depthBuffer;
 	unsigned int frameIndex;
 
 #ifdef HAVE_OCULUS_API

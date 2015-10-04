@@ -495,7 +495,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	case OCULUS_RIFT:
 		{
 			doBufferHud = true;
-			sharedRiftHmd->init();
+			sharedRiftHmd->init_graphics();
 
 			{
 				// Activate positional tracking
@@ -506,6 +506,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5 * vr_hud_scale);
 
 				sharedRiftHmd->bindToFrameBufferAndUpdate();
+				glClearColor(0, 0, 1, 0);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 				// FIRST PASS - 3D
 				// Temporarily modify global variables, so HUD could draw correctly
@@ -527,7 +529,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 					renderer.RenderOneEye(a1, false, true);
 				}
-
+				/*
 				// Second pass sprites (especially weapon)
 				int oldViewwindowy = viewwindowy;
 				const bool showSprites = true;
@@ -551,8 +553,9 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
 				if (doBufferHud) {
 					// Draw HUD again, to avoid flashing? - and render to screen
-					blitHudTextureToScreen(); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
+					// blitHudTextureToScreen(); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
 				}
+				*/
 
 				sharedRiftHmd->submitFrame();
 
@@ -560,13 +563,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				//
 				// restore global state
-				viewwindowy = oldViewwindowy;
+				// viewwindowy = oldViewwindowy;
 			}
 
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 
 			// Set up 2D rendering to write to our hud renderbuffer
-			bindAndClearHudTexture(*this);
+			// bindAndClearHudTexture(*this);
 			break;
 		}
 

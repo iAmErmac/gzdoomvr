@@ -16,6 +16,7 @@ using namespace std;
 RiftHmd::RiftHmd()
 	: hmd(nullptr)
 	, frameBuffer(0)
+	, depthBuffer(0)
 	, pTextureSet(nullptr)
 	, mirrorTexture(nullptr)
 	, frameIndex(0)
@@ -27,6 +28,8 @@ void RiftHmd::destroy() {
 		ovr_DestroySwapTextureSet(hmd, pTextureSet);
 		pTextureSet = nullptr;
 	}
+	glDeleteRenderbuffers(1, &depthBuffer);
+	depthBuffer = 0;
 	glDeleteFramebuffers(1, &frameBuffer);
 	frameBuffer = 0;
 	if (hmd) {
@@ -36,7 +39,7 @@ void RiftHmd::destroy() {
 	ovr_Shutdown();
 }
 
-ovrResult RiftHmd::init() 
+ovrResult RiftHmd::init_tracking() 
 {
 	if (hmd) return ovrSuccess; // already initialized
 	ovrResult result = ovr_Initialize(nullptr);
@@ -49,6 +52,17 @@ ovrResult RiftHmd::init()
 			ovrTrackingCap_MagYawCorrection |
 			ovrTrackingCap_Position, 
 			0); // required capabilities
+	return result;
+}
+
+
+ovrResult RiftHmd::init_graphics() 
+{
+	ovrResult result = init_tracking();
+	if OVR_FAILURE(result)
+		return result;
+	if (pTextureSet)
+		return ovrSuccess;
     // NOTE: Initialize OpenGL first (elsewhere), before getting Rift textures here.
     // Configure Stereo settings.
     // Use a single shared texture for simplicity
@@ -95,13 +109,26 @@ ovrResult RiftHmd::init()
 	sceneLayer.Viewport[1].Size.h = bufferSize.h;
     // ld.RenderPose is updated later per frame.
 
+	// create OpenGL framebuffer for rendering to Rift
 	glGenFramebuffers(1, &frameBuffer);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBuffer);
+	// color layer will be provided by Rift API at render time...
+	// depth buffer
+	glGenRenderbuffers(1, &depthBuffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, bufferSize.w, bufferSize.h);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
+
+	// clean up
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
 	return result;
 }
 
-void RiftHmd::bindToFrameBufferAndUpdate()
+bool RiftHmd::bindToFrameBufferAndUpdate()
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, frameBuffer);
     ovrFrameTiming ftiming  = ovr_GetFrameTiming(hmd, 0);
     ovrTrackingState hmdState = ovr_GetTrackingState(hmd, ftiming.DisplayMidpointSeconds);
     // print hmdState.HeadPose.ThePose
@@ -119,13 +146,20 @@ void RiftHmd::bindToFrameBufferAndUpdate()
             GL_TEXTURE_2D,
 			texture->OGL.TexId,
             0);
-	// TODO viewport...
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
+	GLenum fbStatus = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+	GLenum desiredStatus = GL_FRAMEBUFFER_COMPLETE;
+	if (fbStatus != GL_FRAMEBUFFER_COMPLETE)
+		return false;
+	return true;
 }
 
-ovrPosef RiftHmd::setEyeView(int eye, float zNear, float zFar) {
+ovrPosef& RiftHmd::setEyeView(int eye, float zNear, float zFar) {
     // Set up eye viewport
     ovrRecti v = sceneLayer.Viewport[eye];
-    glViewport(v.Pos.x, v.Pos.y, v.Size.w, v.Size.h);             
+    glViewport(v.Pos.x, v.Pos.y, v.Size.w, v.Size.h);
+	glEnable(GL_SCISSOR_TEST);
+    glScissor(v.Pos.x, v.Pos.y, v.Size.w, v.Size.h);             
     // Get projection matrix for the Rift camera
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -140,16 +174,17 @@ ovrPosef RiftHmd::setEyeView(int eye, float zNear, float zFar) {
 	return currentEyePose;
 }
 
-void RiftHmd::submitFrame() {
+ovrResult RiftHmd::submitFrame() {
     // 2c) Call ovr_SubmitFrame, passing swap texture set(s) from the previous step within a ovrLayerEyeFov structure. Although a single layer is required to submit a frame, you can use multiple layers and layer types for advanced rendering. ovr_SubmitFrame passes layer textures to the compositor which handles distortion, timewarp, and GPU synchronization before presenting it to the headset. 
     ovrViewScaleDesc viewScale;
-    viewScale.HmdSpaceToWorldScaleInMeters = 1.0;
+    viewScale.HmdSpaceToWorldScaleInMeters = 32.0;
     viewScale.HmdToEyeViewOffset[0] = hmdToEyeViewOffset[0];
     viewScale.HmdToEyeViewOffset[1] = hmdToEyeViewOffset[1];
 	ovrLayerHeader* layers = &sceneLayer.Header;
     ovrResult result = ovr_SubmitFrame(hmd, frameIndex, &viewScale, &layers, 1);
     frameIndex += 1;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	return result;
 }
 
 void RiftHmd::recenter_pose() {
