@@ -1175,8 +1175,7 @@ add_executable( zdoom WIN32
 	gl/scene/gl_drawinfo.cpp
 	gl/scene/gl_flats.cpp
 	gl/scene/gl_hudtexture.cpp
-	gl/scene/gl_oculustexture.cpp
-	gl/scene/gl_oculustracker.cpp
+	gl/scene/gl_rift_hmd.cpp
 	gl/scene/gl_walls.cpp
 	gl/scene/gl_sprite.cpp
 	gl/scene/gl_skydome.cpp

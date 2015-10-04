@@ -24,7 +24,6 @@
 extern void P_CalcHeight (player_t *player);
 
 EXTERN_CVAR(Bool, gl_draw_sync)
-EXTERN_CVAR(Bool, vr_sdkwarp)
 EXTERN_CVAR(Float, vr_screendist)
 //
 CVAR(Int, vr_mode, 0, CVAR_GLOBALCONFIG)
@@ -513,7 +512,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	case OCULUS_RIFT:
 		{
 			doBufferHud = true;
-			sharedRiftHmd->init_graphics();
+			sharedRiftHmd->init_graphics(SCREENWIDTH, SCREENHEIGHT);
 
 			{
 				// Activate positional tracking
@@ -523,7 +522,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5 * vr_hud_scale);
 
-				sharedRiftHmd->bindToFrameBufferAndUpdate();
+				sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
 				glClearColor(0, 0, 1, 0);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -533,7 +532,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				screenblocks = 12; // full screen
 				//
 				// left
-				sharedRiftHmd->setEyeView(ovrEye_Left, 5, 5000); // Left eye
+				sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
 				glEnable(GL_DEPTH_TEST);
 				{
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
@@ -543,12 +542,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				// right
 				// right view is offset to right
-				sharedRiftHmd->setEyeView(ovrEye_Right, 5, 5000); // Left eye
+				sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 				{
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					// EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 					renderer.RenderOneEye(a1, false, true);
 				}
+
+				sharedRiftHmd->bindHudBuffer();
+				glDisable(GL_DEPTH_TEST);
+				glClearColor(0, 0, 1, 1);
+				glClear(GL_COLOR_BUFFER_BIT);
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 				/*
 				// Second pass sprites (especially weapon)
 				int oldViewwindowy = viewwindowy;
@@ -703,7 +709,7 @@ void Stereo3D::updateScreen() {
 		// blitHudTextureToScreen(); // causes double hud in rift
 	}
 	// Special handling of intermission screen for Oculus SDK warping
-	if ( (vr_mode == OCULUS_RIFT) && (vr_sdkwarp) ) {
+	if ( (vr_mode == OCULUS_RIFT) ) {
 		// TODO - what about fraps?
 	} else {
 		screen->Update();
@@ -754,10 +760,6 @@ void Stereo3D::blitHudTextureToScreen(float yScale) {
 			hudOffsetX = -hudOffsetX;
 		if (screenblocks <= 10)
 			hudOffsetY -= 0.080 * h; // lower crosshair when status bar is on
-		if (vr_sdkwarp) {
-			// hudOffsetX += (int)(sharedOculusTracker->getLeftEyeOffset() * SCREENWIDTH/2.0);
-		}
-		// oculusTexture->bindToFrameBuffer();
 	}
 
 	// Left side

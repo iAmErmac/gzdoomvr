@@ -3,7 +3,7 @@
 
 #include "gl/renderer/gl_renderer.h"
 // #include "gl/scene/gl_hudtexture.h"
-#include "gl/scene/gl_oculustexture.h"
+#include "gl/scene/gl_rift_hmd.h"
 // #include "gl/scene/gl_oculustracker.h"
 
 struct PitchRollYaw {
