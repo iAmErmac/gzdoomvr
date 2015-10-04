@@ -769,6 +769,52 @@ bool Stereo3D::hasHeadTracking() const {
 	return true;
 }
 
+static void getEulerAngles(const ovrQuatf& q, int A1, int A2, int A3, float *a, float *b, float *c) 
+{
+    // static_assert((A1 != A2) && (A2 != A3) && (A1 != A3), "(A1 != A2) && (A2 != A3) && (A1 != A3)");
+
+    float Q[3] = { q.x, q.y, q.z };  //Quaternion components x,y,z
+
+    float ww  = q.w*q.w;
+    float Q11 = Q[A1]*Q[A1];
+    float Q22 = Q[A2]*Q[A2];
+    float Q33 = Q[A3]*Q[A3];
+
+    float psign = -1;
+    // Determine whether even permutation
+    if (((A1 + 1) % 3 == A2) && ((A2 + 1) % 3 == A3))
+        psign = 1;
+        
+    float s2 = psign * 2 * psign*q.w*Q[A2] + Q[A1]*Q[A3];
+
+	const int D = 1; // CCW direction
+	const int S = 1; // right handed
+	float SingularityRadius = 1e-10;
+    if (s2 < -1 + SingularityRadius)
+    { // South pole singularity
+        *a = 0;
+        *b = -S*D*1.570796;
+        *c = S*D*atan2(2*(psign*Q[A1]*Q[A2] + q.w*Q[A3]),
+		                ww + Q22 - Q11 - Q33 );
+    }
+    else if (s2 > 1 - SingularityRadius)
+    {  // North pole singularity
+        *a = 0;
+        *b = S*D*1.570796;
+        *c = S*D*atan2(2*(psign*Q[A1]*Q[A2] + q.w*Q[A3]),
+		                ww + Q22 - Q11 - Q33);
+    }
+    else
+    {
+        *a = -S*D*atan2(-2*(q.w*Q[A1] - psign*Q[A2]*Q[A3]),
+		                ww + Q33 - Q11 - Q22);
+        *b = S*D*asin(s2);
+        *c = S*D*atan2(2*(q.w*Q[A3] - psign*Q[A1]*Q[A2]),
+		                ww + Q11 - Q22 - Q33);
+    }      
+    return;
+}
+
 PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	PitchRollYaw result;
 
@@ -780,31 +826,34 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 		const double aspect = 1.20;
 
 		ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
+		float yaw, pitch, roll;
+		const int Axis_X = 0;
+		const int Axis_Y = 1;
+		const int Axis_Z = 2;
+		getEulerAngles(pose.Orientation, Axis_Y, Axis_X, Axis_Z, &yaw, &pitch, &roll);
 
-		if (sharedOculusTracker->isGood()) {
-			sharedOculusTracker->update(); // get new orientation from headset.
+		// TODO - get pitch, roll, yaw from pose
 
-			// Yaw
-			result.yaw = sharedOculusTracker->yaw;
+		// Yaw
+		result.yaw = yaw;
 
-			if (true) { // aspect ratio correction was handled in OculusTracker->update()
-				result.pitch = sharedOculusTracker->pitch;
-				result.roll = -sharedOculusTracker->roll;
-				// Printf("yaw = %+06.1f; pitch = %+06.1f; roll = %+06.1f\n", RAD2DEG(result.yaw), RAD2DEG(result.pitch), RAD2DEG(result.roll));
-				// OVR::Quatf foo = sharedOculusTracker->quaternion;
-				// Printf("x = %+05.3f; y = %+05.3f; z = %+05.3f; w = %+05.3f\n", foo.x, foo.y, foo.z, foo.w);
-			}
-			else {
-				// Pitch
-				double pitch0 = sharedOculusTracker->pitch;
-				// Correct pitch for doom pixel aspect ratio
-				result.pitch = atan( tan(pitch0) / aspect );
+		if (true) { // aspect ratio correction was handled in OculusTracker->update()
+			result.pitch = pitch;
+			result.roll = -roll;
+			// Printf("yaw = %+06.1f; pitch = %+06.1f; roll = %+06.1f\n", RAD2DEG(result.yaw), RAD2DEG(result.pitch), RAD2DEG(result.roll));
+			// OVR::Quatf foo = sharedOculusTracker->quaternion;
+			// Printf("x = %+05.3f; y = %+05.3f; z = %+05.3f; w = %+05.3f\n", foo.x, foo.y, foo.z, foo.w);
+		}
+		else {
+			// Pitch
+			double pitch0 = pitch;
+			// Correct pitch for doom pixel aspect ratio
+			result.pitch = atan( tan(pitch0) / aspect );
 
-				// Roll can be local, because it doesn't affect gameplay.
-				double rollAspect = 1.0 + (aspect - 1.0) * cos(result.pitch); // correct for pixel aspect
-				double roll0 = -sharedOculusTracker->roll;
-				result.roll = atan2(rollAspect * sin(roll0), cos(roll0));
-			}
+			// Roll can be local, because it doesn't affect gameplay.
+			double rollAspect = 1.0 + (aspect - 1.0) * cos(result.pitch); // correct for pixel aspect
+			double roll0 = -roll;
+			result.roll = atan2(rollAspect * sin(roll0), cos(roll0));
 		}
 	}
 
@@ -816,20 +865,17 @@ void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 	static float previousYaw = 0;
 	if (mode == OCULUS_RIFT) {
 		PitchRollYaw prw = getHeadOrientation(renderer);
-		if (sharedOculusTracker->isGood()) {
-			sharedOculusTracker->update(); // get new orientation from headset.
-			double dYaw = prw.yaw - previousYaw;
-			G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
-			previousYaw = prw.yaw;
+		double dYaw = prw.yaw - previousYaw;
+		G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
+		previousYaw = prw.yaw;
 
-			// Pitch
-			int pitch = -32768/3.14159*prw.pitch;
-			int dPitch = (pitch - viewpitch/65536); // empirical
-			G_AddViewPitch(-dPitch);
+		// Pitch
+		int pitch = -32768/3.14159*prw.pitch;
+		int dPitch = (pitch - viewpitch/65536); // empirical
+		G_AddViewPitch(-dPitch);
 
-			// Roll can be local, because it doesn't affect gameplay.
-			renderer.mAngles.Roll = prw.roll * 180.0 / 3.14159;
-		}
+		// Roll can be local, because it doesn't affect gameplay.
+		renderer.mAngles.Roll = prw.roll * 180.0 / 3.14159;
 	}
 }
 

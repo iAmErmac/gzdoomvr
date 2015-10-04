@@ -2,6 +2,6 @@
 #include "gl/scene/gl_oculustracker.h"
 
 void initialize_oculus_rift() {
-    sharedOculusTracker->checkInitialized();
+    // sharedOculusTracker->checkInitialized();
 }
 

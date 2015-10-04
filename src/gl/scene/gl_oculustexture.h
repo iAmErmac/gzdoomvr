@@ -17,7 +17,7 @@ public:
 	ovrPosef setEyeView(int eye, float zNear, float zFar);
 	void submitFrame();
 	void recenter_pose();
-	ovrPosef getCurrentEyePose();
+	const ovrPosef& getCurrentEyePose() const {return currentEyePose;}
 	void destroy(); // release all resources
 
 private:
