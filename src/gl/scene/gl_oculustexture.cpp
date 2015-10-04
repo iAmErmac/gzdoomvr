@@ -159,7 +159,7 @@ ovrPosef& RiftHmd::setEyeView(int eye, float zNear, float zFar) {
     ovrRecti v = sceneLayer.Viewport[eye];
     glViewport(v.Pos.x, v.Pos.y, v.Size.w, v.Size.h);
 	glEnable(GL_SCISSOR_TEST);
-    glScissor(v.Pos.x, v.Pos.y, v.Size.w, v.Size.h);             
+    glScissor(v.Pos.x, v.Pos.y, v.Size.w, v.Size.h);
     // Get projection matrix for the Rift camera
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -174,10 +174,10 @@ ovrPosef& RiftHmd::setEyeView(int eye, float zNear, float zFar) {
 	return currentEyePose;
 }
 
-ovrResult RiftHmd::submitFrame() {
+ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
     // 2c) Call ovr_SubmitFrame, passing swap texture set(s) from the previous step within a ovrLayerEyeFov structure. Although a single layer is required to submit a frame, you can use multiple layers and layer types for advanced rendering. ovr_SubmitFrame passes layer textures to the compositor which handles distortion, timewarp, and GPU synchronization before presenting it to the headset. 
     ovrViewScaleDesc viewScale;
-    viewScale.HmdSpaceToWorldScaleInMeters = 32.0;
+    viewScale.HmdSpaceToWorldScaleInMeters = metersPerSceneUnit;
     viewScale.HmdToEyeViewOffset[0] = hmdToEyeViewOffset[0];
     viewScale.HmdToEyeViewOffset[1] = hmdToEyeViewOffset[1];
 	ovrLayerHeader* layers = &sceneLayer.Header;

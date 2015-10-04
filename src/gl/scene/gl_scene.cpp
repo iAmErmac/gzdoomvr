@@ -392,7 +392,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	// Apply late-scheduling AFTER getting this all working, and test again.
 
 	// TODO - this exactly counteracts that scale I applied to direct-to-sdk projection matrix
-	glScalef(1.0, 1.0/pixelAspect, 1.0); // stretch - so aspect correction is world-up, not camera-up (#4, above)
+	// glScalef(1.0, 1.0/pixelAspect, 1.0); // stretch - so aspect correction is world-up, not camera-up (#4, above)
 
 	glRotatef( roll,  0.0f, 0.0f, 1.0f );
 	glRotatef( pitch, 1.0f, 0.0f, 0.0f );

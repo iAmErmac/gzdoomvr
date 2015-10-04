@@ -19,6 +19,8 @@
 #include "gl/scene/gl_localhudrenderer.h"
 #include <cmath>
 
+#include "Extras/OVR_Math.h"
+
 extern void P_CalcHeight (player_t *player);
 
 EXTERN_CVAR(Bool, gl_draw_sync)
@@ -128,6 +130,13 @@ void stereoScreenUpdate() {
 	Stereo3DMode.updateScreen();
 }
 
+// length scale, to convert from meters to doom units
+static float calc_mapunits_per_meter(player_t * player) {
+	float vh = 41.0;
+	if (player != NULL)
+		vh = FIXED2FLOAT(player->mo->ViewHeight);
+	return vh/(0.95 * vr_player_height_meters);
+}
 
 // Stack-scope class to temporarily adjust view position, based on positional tracking
 struct ViewPositionShifter {
@@ -138,11 +147,7 @@ struct ViewPositionShifter {
 		, saved_viewy(viewy)
 		, saved_viewz(viewz)
 	{
-		// length scale, to convert from meters to doom units
-		float vh = 41.0;
-		if (player != NULL)
-			vh = FIXED2FLOAT(player->mo->ViewHeight);
-		mapunits_per_meter = vh/(0.95 * vr_player_height_meters);
+		mapunits_per_meter = calc_mapunits_per_meter(player);
 	}
 
 	// restore camera position after object falls out of scope
@@ -210,11 +215,13 @@ struct EyeViewShifter : public ViewPositionShifter
 		float cr = cos(roll);
 		float sr = sin(roll);
 		// Printf("%.3f\n", roll);
+		/* */
 		incrementPositionFloat(
 			cr * eyeShift, // left-right
 			0, 
 			-sr * eyeShift  // up-down; sign adjusted empirically
 			);
+		/*	*/
 	}
 };
 
@@ -231,11 +238,22 @@ struct PositionTrackingShifter : public ViewPositionShifter
 		// Doom uses Z-UP convention, Rift uses Y-UP convention
 		// Printf("%.3f\n", tracker->getPositionX());
 		ovrPosef pose = tracker->getCurrentEyePose();
+
+		// Convert from Rift camera coordinates to game coordinates
+		// float gameYaw = renderer_param.mAngles.Yaw;
+		OVR::Quatf hmdRot(pose.Orientation);
+		float hmdYaw, hmdPitch, hmdRoll;
+		hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
+		OVR::Quatf yawCorrection(OVR::Vector3f(0, 1, 0), -hmdYaw); // 
+		// OVR::Vector3f trans0(pose.Position);
+		OVR::Vector3f trans2 = yawCorrection.Rotate(pose.Position);
+		/* */
 		incrementPositionFloat(
-			pose.Position.x, // LEFT_RIGHT
-			pose.Position.z, // FORWARD_BACK
-			pose.Position.y  // UP_DOWN
+			 trans2.x, // pose.Position.x, // LEFT_RIGHT
+			-trans2.z, // pose.Position.z, // FORWARD_BACK
+			 trans2.y // pose.Position.y  // UP_DOWN
 		); 
+		/* */
 	}
 };
 
@@ -499,7 +517,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 			{
 				// Activate positional tracking
-				PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+				// PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 
 				setViewDirection(renderer);
 
@@ -518,7 +536,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				sharedRiftHmd->setEyeView(ovrEye_Left, 5, 5000); // Left eye
 				glEnable(GL_DEPTH_TEST);
 				{
-					EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					// EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 					renderer.RenderOneEye(a1, false, false);
 				}
 
@@ -526,7 +545,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				// right view is offset to right
 				sharedRiftHmd->setEyeView(ovrEye_Right, 5, 5000); // Left eye
 				{
-					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					// EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 					renderer.RenderOneEye(a1, false, true);
 				}
 				/*
@@ -557,9 +577,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 				*/
 
-				sharedRiftHmd->submitFrame();
+				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 
+				// Clear HUD? TODO:
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+				glClearColor(0,1,1,0);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 				//
 				// restore global state
@@ -772,52 +796,6 @@ bool Stereo3D::hasHeadTracking() const {
 	return true;
 }
 
-static void getEulerAngles(const ovrQuatf& q, int A1, int A2, int A3, float *a, float *b, float *c) 
-{
-    // static_assert((A1 != A2) && (A2 != A3) && (A1 != A3), "(A1 != A2) && (A2 != A3) && (A1 != A3)");
-
-    float Q[3] = { q.x, q.y, q.z };  //Quaternion components x,y,z
-
-    float ww  = q.w*q.w;
-    float Q11 = Q[A1]*Q[A1];
-    float Q22 = Q[A2]*Q[A2];
-    float Q33 = Q[A3]*Q[A3];
-
-    float psign = -1;
-    // Determine whether even permutation
-    if (((A1 + 1) % 3 == A2) && ((A2 + 1) % 3 == A3))
-        psign = 1;
-        
-    float s2 = psign * 2 * psign*q.w*Q[A2] + Q[A1]*Q[A3];
-
-	const int D = 1; // CCW direction
-	const int S = 1; // right handed
-	float SingularityRadius = 1e-10;
-    if (s2 < -1 + SingularityRadius)
-    { // South pole singularity
-        *a = 0;
-        *b = -S*D*1.570796;
-        *c = S*D*atan2(2*(psign*Q[A1]*Q[A2] + q.w*Q[A3]),
-		                ww + Q22 - Q11 - Q33 );
-    }
-    else if (s2 > 1 - SingularityRadius)
-    {  // North pole singularity
-        *a = 0;
-        *b = S*D*1.570796;
-        *c = S*D*atan2(2*(psign*Q[A1]*Q[A2] + q.w*Q[A3]),
-		                ww + Q22 - Q11 - Q33);
-    }
-    else
-    {
-        *a = -S*D*atan2(-2*(q.w*Q[A1] - psign*Q[A2]*Q[A3]),
-		                ww + Q33 - Q11 - Q22);
-        *b = S*D*asin(s2);
-        *c = S*D*atan2(2*(q.w*Q[A3] - psign*Q[A1]*Q[A2]),
-		                ww + Q11 - Q22 - Q33);
-    }      
-    return;
-}
-
 PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	PitchRollYaw result;
 
@@ -826,38 +804,30 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	result.yaw = renderer.mAngles.Yaw;
 
 	if (mode == OCULUS_RIFT) {
-		const double aspect = 1.20;
 
+		// Distort orientation for weird 1993 Doom pixel aspect ratio
+		const double pixelAspect = 1.20;
 		ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
+		ovrQuatf hmdQuat = pose.Orientation;
+		OVR::Vector3f axis;
+		float angle;
+		OVR::Quatf hmdRot(pose.Orientation);
+		hmdRot.GetAxisAngle(&axis, &angle);
+
+		axis.y *= 1.0f/pixelAspect; // 1) squish direction in Y
+		axis.Normalize();
+		float angleFactor = 1.0f + sqrt(1.0f - axis.y*axis.y) * (pixelAspect - 1.0f);
+		angle = atan2(angleFactor * sin(angle), cos(angle)); // 2) Expand angle in Y
+		OVR::Quatf doomRot(axis, angle);
 		float yaw, pitch, roll;
-		const int Axis_X = 0;
-		const int Axis_Y = 1;
-		const int Axis_Z = 2;
-		getEulerAngles(pose.Orientation, Axis_Y, Axis_X, Axis_Z, &yaw, &pitch, &roll);
+		doomRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
+		// Printf("Yaw=%f\n",yaw);
+		// const float r2d = 180.0 / 3.14159;
+		// Printf("Yaw = %.2f Pitch = %.2f Roll = %.2f\n", yaw*r2d, pitch*r2d, roll*r2d);
 
-		// TODO - get pitch, roll, yaw from pose
-
-		// Yaw
 		result.yaw = yaw;
-
-		if (true) { // aspect ratio correction was handled in OculusTracker->update()
-			result.pitch = pitch;
-			result.roll = -roll;
-			// Printf("yaw = %+06.1f; pitch = %+06.1f; roll = %+06.1f\n", RAD2DEG(result.yaw), RAD2DEG(result.pitch), RAD2DEG(result.roll));
-			// OVR::Quatf foo = sharedOculusTracker->quaternion;
-			// Printf("x = %+05.3f; y = %+05.3f; z = %+05.3f; w = %+05.3f\n", foo.x, foo.y, foo.z, foo.w);
-		}
-		else {
-			// Pitch
-			double pitch0 = pitch;
-			// Correct pitch for doom pixel aspect ratio
-			result.pitch = atan( tan(pitch0) / aspect );
-
-			// Roll can be local, because it doesn't affect gameplay.
-			double rollAspect = 1.0 + (aspect - 1.0) * cos(result.pitch); // correct for pixel aspect
-			double roll0 = -roll;
-			result.roll = atan2(rollAspect * sin(roll0), cos(roll0));
-		}
+		result.pitch = pitch;
+		result.roll = -roll;
 	}
 
 	return result;

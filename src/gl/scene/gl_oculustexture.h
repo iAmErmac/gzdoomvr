@@ -16,7 +16,7 @@ public:
 	ovrResult init_graphics();
 	bool bindToFrameBufferAndUpdate();
 	ovrPosef& setEyeView(int eye, float zNear, float zFar);
-	ovrResult submitFrame();
+	ovrResult submitFrame(float metersPerSceneUnit);
 	void recenter_pose();
 	const ovrPosef& getCurrentEyePose() const {return currentEyePose;}
 	void destroy(); // release all resources
