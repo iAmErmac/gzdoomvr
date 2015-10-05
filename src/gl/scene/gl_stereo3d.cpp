@@ -578,6 +578,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 					sharedRiftHmd->paintHudQuad();
 					sharedRiftHmd->paintCrosshairQuad();
+					sharedRiftHmd->paintWeaponQuad();
 				}
 
 				// right
@@ -591,6 +592,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 					sharedRiftHmd->paintHudQuad();
 					sharedRiftHmd->paintCrosshairQuad();
+					sharedRiftHmd->paintWeaponQuad();
 				}
 
 				/*

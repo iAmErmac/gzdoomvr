@@ -268,6 +268,43 @@ void RiftHmd::paintCrosshairQuad()
 	glEnable(GL_TEXTURE_2D);
 }
 
+void RiftHmd::paintWeaponQuad() 
+{
+	// Place crosshair relative to head
+	ovrPosef pose = getCurrentEyePose();
+	// Convert from Rift camera coordinates to game coordinates
+	OVR::Quatf hmdRot(pose.Orientation);
+	float hmdYaw, hmdPitch, hmdRoll;
+	hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
+	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(pose.Position); // Camera relative X/Y/Z
+
+	// Keep crosshair fixed relative to the head, modulo roll, and convert angles to degrees
+	float hudRoll = -hmdRoll * 180/3.14159;
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glTranslatef(-eyeTrans.x, -eyeTrans.y, 0); // Ability to parallax look all around weapon
+
+	// Correct Roll, but not pitch nor yaw
+	glRotatef(hudRoll, 0, 0, 1);
+
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glDisable(GL_TEXTURE_2D);
+	float hudDistance = 0.50; // meters, (measured 46 cm to stock of hand weapon)
+	float hudWidth = 1.0 * hudDistance; // Adjust for good average weapon size
+	float hudHeight = 3.0 / 4.0 * hudWidth;
+	glBegin(GL_TRIANGLE_STRIP);
+		glColor4f(1, 1, 1, 0.5);
+		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+	glEnd();
+	glEnable(GL_TEXTURE_2D);
+}
+
 ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
     // Set up eye viewport
     ovrRecti v = sceneLayer.Viewport[eye];

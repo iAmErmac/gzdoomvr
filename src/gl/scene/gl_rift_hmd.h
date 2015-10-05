@@ -16,8 +16,11 @@ public:
 	ovrResult init_tracking();
 	ovrResult init_graphics(int width, int height);
 	bool bindToSceneFrameBufferAndUpdate();
+
 	void paintCrosshairQuad();
 	void paintHudQuad();
+	void paintWeaponQuad();
+
 	ovrPosef& setSceneEyeView(int eye, float zNear, float zFar);
 	ovrResult submitFrame(float metersPerSceneUnit);
 	void recenter_pose();
