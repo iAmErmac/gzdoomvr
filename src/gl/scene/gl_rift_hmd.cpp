@@ -117,7 +117,7 @@ ovrResult RiftHmd::init_scene_texture()
 	// Stereo3D Layer for primary 3D scene
     // Initialize our single full screen Fov layer.
     // ovrLayerEyeFov layer;
-    sceneLayer.Header.Type      = ovrLayerType_EyeFov;
+	sceneLayer.Header.Type      = ovrLayerType_EyeFov;
     sceneLayer.Header.Flags     = ovrLayerFlag_TextureOriginAtBottomLeft; // OpenGL convention;
     sceneLayer.ColorTexture[0]  = sceneTextureSet; // single texture for both eyes;
     sceneLayer.ColorTexture[1]  = sceneTextureSet; // single texture for both eyes;
@@ -149,49 +149,6 @@ ovrResult RiftHmd::init_scene_texture()
 	return result;
 }
 
-ovrResult RiftHmd::init_hud_texture(int width, int height)
-{
-	if (hudTextureSet)
-		return ovrSuccess;
-
-    ovrResult result = ovr_CreateSwapTextureSetGL(hmd,
-            GL_SRGB8_ALPHA8, width, height, &hudTextureSet);
-
-	// Stereo3D Layer for primary 3D scene
-	// Second Monoscopic Quad layer for menus
-	// Create HUD layer, fixed to the player's torso
-	hudLayer.Header.Type      = ovrLayerType_QuadHeadLocked; // Was non-existent "ovrLayerType_Quad" in the docs...
-    hudLayer.Header.Flags     = ovrLayerFlag_TextureOriginAtBottomLeft | ovrLayerFlag_HighQuality;
-    hudLayer.ColorTexture  = hudTextureSet; // single texture for both eyes;
-	// 50cm in front and 20cm down from the player's nose,
-	// fixed relative to their torso.
-	float hudScale = 1.0f;
-	hudLayer.QuadPoseCenter.Position.x =  0.00f * hudScale;
-	hudLayer.QuadPoseCenter.Position.y = -0.20f * hudScale;
-	hudLayer.QuadPoseCenter.Position.z = -0.50f * hudScale;
-	hudLayer.QuadPoseCenter.Orientation = ovrQuatf();
-	// HUD is 50cm wide, 30cm tall.
-	hudLayer.QuadSize.x = 0.50f * hudScale;
-	hudLayer.QuadSize.y = 0.30f * hudScale;
-	// Display all of the HUD texture.
-	hudLayer.Viewport.Pos.x = 0.0f;
-	hudLayer.Viewport.Pos.y = 0.0f;
-	hudLayer.Viewport.Size.w = 1.0f;
-	hudLayer.Viewport.Size.h = 1.0f;
-
-	// create OpenGL framebuffer for rendering to Rift
-	glGenFramebuffers(1, &hudFrameBuffer);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hudFrameBuffer);
-	// color layer will be provided by Rift API at render time...
-	// depth buffer
-
-	// clean up
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-    // ld.RenderPose is updated later per frame.
-	return result;
-}
-
 bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 {
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
@@ -218,6 +175,51 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 	if (fbStatus != GL_FRAMEBUFFER_COMPLETE)
 		return false;
 	return true;
+}
+
+ovrResult RiftHmd::init_hud_texture(int width, int height)
+{
+	if (hudTextureSet)
+		return ovrSuccess;
+
+    ovrResult result = ovr_CreateSwapTextureSetGL(hmd,
+            GL_SRGB8_ALPHA8, width, height, &hudTextureSet);
+
+	// Stereo3D Layer for primary 3D scene
+	// Second Monoscopic Quad layer for menus
+	// Create HUD layer, fixed to the player's torso
+	hudLayer.Header.Type      = ovrLayerType_QuadHeadLocked; // Was non-existent "ovrLayerType_Quad" in the docs...
+	hudLayer.Header.Flags     = ovrLayerFlag_TextureOriginAtBottomLeft // OpenGL convention
+			| ovrLayerFlag_HighQuality;
+    hudLayer.ColorTexture  = hudTextureSet; // single texture for both eyes;
+	// 50cm in front and 20cm down from the player's nose,
+	// fixed relative to their torso.
+	float hudScale = 25.0f;
+	hudLayer.QuadPoseCenter.Position.x =   0.00f * hudScale;
+	hudLayer.QuadPoseCenter.Position.y =  -1.00f * hudScale;
+	hudLayer.QuadPoseCenter.Position.z =  -1.00f * hudScale;
+	hudLayer.QuadPoseCenter.Orientation = ovrQuatf();
+	// HUD is 50cm wide, 30cm tall.
+	hudLayer.QuadSize.x = 1.00f * hudScale;
+	hudLayer.QuadSize.y = 1.00f * hudScale;
+	// Display all of the HUD texture.
+	hudLayer.Viewport.Pos.x = 0;
+	hudLayer.Viewport.Pos.y = 0;
+	hudLayer.Viewport.Size.w = hudTextureSet->Textures->Header.TextureSize.w;
+	hudLayer.Viewport.Size.h = hudTextureSet->Textures->Header.TextureSize.h;
+	// hudLayer.Viewport.Size.h = ;
+
+	// create OpenGL framebuffer for rendering to Rift
+	glGenFramebuffers(1, &hudFrameBuffer);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hudFrameBuffer);
+	// color layer will be provided by Rift API at render time...
+	// depth buffer
+
+	// clean up
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+    // ld.RenderPose is updated later per frame.
+	return result;
 }
 
 bool RiftHmd::bindHudBuffer()
@@ -278,7 +280,7 @@ ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
 	ovrLayerHeader* layerList[2];
 	layerList[0] = &sceneLayer.Header;
 	layerList[1] = &hudLayer.Header;
-    ovrResult result = ovr_SubmitFrame(hmd, frameIndex, &viewScale, layerList, 1);
+    ovrResult result = ovr_SubmitFrame(hmd, frameIndex, &viewScale, layerList, 2);
     frameIndex += 1;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	return result;
