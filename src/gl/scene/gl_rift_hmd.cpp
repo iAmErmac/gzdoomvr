@@ -112,7 +112,9 @@ ovrResult RiftHmd::init_scene_texture()
     // Initialize our single full screen Fov layer.
     // ovrLayerEyeFov layer;
 	sceneLayer.Header.Type      = ovrLayerType_EyeFov;
-    sceneLayer.Header.Flags     = ovrLayerFlag_TextureOriginAtBottomLeft; // OpenGL convention;
+    sceneLayer.Header.Flags     = 
+			// ovrLayerFlag_HighQuality |
+			ovrLayerFlag_TextureOriginAtBottomLeft; // OpenGL convention;
     sceneLayer.ColorTexture[0]  = sceneTextureSet; // single texture for both eyes;
     sceneLayer.ColorTexture[1]  = sceneTextureSet; // single texture for both eyes;
     sceneLayer.Fov[0]           = eyeRenderDesc[0].Fov;
@@ -171,7 +173,7 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 	return true;
 }
 
-void RiftHmd::paintHudQuad() 
+void RiftHmd::paintHudQuad(float hudScale) 
 {
 	// Place hud relative to torso
 	ovrPosef pose = getCurrentEyePose();
@@ -211,15 +213,16 @@ void RiftHmd::paintHudQuad()
 	glRotatef(hudPitch, 1, 0, 0);
 	glRotatef(dYaw, 0, 1, 0);
 
-	glRotatef(-25, 1, 0, 0); // place hud below horizon
+	glRotatef(-20, 1, 0, 0); // place hud below horizon
 
 	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
 
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
+	glDisable(GL_ALPHA_TEST); // Looks MUCH better than without, especially console; also shows crosshair
+	// glDisable(GL_TEXTURE_2D);
 	float hudDistance = 1.5; // meters
-	float hudWidth = 1.1 * hudDistance;
+	float hudWidth = hudScale * 1.0 / 0.4 * hudDistance;
 	float hudHeight = hudWidth * 3.0f / 4.0f;
 	glBegin(GL_TRIANGLE_STRIP);
 		glColor4f(1, 1, 1, 0.5);
@@ -228,7 +231,7 @@ void RiftHmd::paintHudQuad()
 		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
 		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 	glEnd();
-	glEnable(GL_TEXTURE_2D);
+	// glEnable(GL_TEXTURE_2D);
 }
 
 void RiftHmd::paintCrosshairQuad() 

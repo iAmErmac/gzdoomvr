@@ -41,7 +41,7 @@ CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for o
 CVAR(Float, vr_weapondist, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to DK2)
 CVAR(Float, vr_sprite_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // weapon size
-CVAR(Float, vr_hud_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
+CVAR(Float, vr_hud_scale, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
 CVAR(Bool, vr_lowpersist, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 // Command to set "standard" rift settings
@@ -557,7 +557,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				setViewDirection(renderer);
 
-				HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 0.5 * vr_hud_scale);
+				HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 1.0);
 
 				sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
 				glClearColor(0, 0, 1, 0);
@@ -568,32 +568,41 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				int oldScreenBlocks = screenblocks;
 				screenblocks = 12; // full screen
 				//
-				// left eye view
+				// left eye view - 3D scene pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					// EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 					glEnable(GL_DEPTH_TEST);
 					renderer.RenderOneEye(a1, false, false);
-
-					sharedRiftHmd->paintHudQuad();
-					sharedRiftHmd->paintCrosshairQuad();
-					sharedRiftHmd->paintWeaponQuad();
 				}
 
-				// right
-				// right view is offset to right
+				// right eye view - 3D scene pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					// EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
-					glEnable(GL_DEPTH_TEST);
 					renderer.RenderOneEye(a1, false, true);
-
-					sharedRiftHmd->paintHudQuad();
-					sharedRiftHmd->paintCrosshairQuad();
-					sharedRiftHmd->paintWeaponQuad();
 				}
+
+				// left eye view - hud pass
+				{
+					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					glEnable(GL_TEXTURE_2D);
+					HudTexture::hudTexture->bindRenderTexture();
+					sharedRiftHmd->paintHudQuad(vr_hud_scale);
+					// sharedRiftHmd->paintCrosshairQuad();
+					// sharedRiftHmd->paintWeaponQuad();
+				}
+
+				// right eye view - hud pass
+				{
+					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale);
+					// sharedRiftHmd->paintCrosshairQuad();
+					// sharedRiftHmd->paintWeaponQuad();
+				}
+				glBindTexture(GL_TEXTURE_2D, 0);
 
 				/*
 				// Second pass sprites (especially weapon)
@@ -622,8 +631,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					// blitHudTextureToScreen(); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
 				}
 				*/
+				blitHudTextureToScreen();
 
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
+
 
 				// Clear HUD? TODO:
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
@@ -639,7 +650,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			// Update orientation for NEXT frame, after expensive render has occurred this frame
 
 			// Set up 2D rendering to write to our hud renderbuffer
-			// bindAndClearHudTexture(*this);
+			bindAndClearHudTexture(*this);
 			break;
 		}
 

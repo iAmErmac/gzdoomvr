@@ -18,7 +18,7 @@ public:
 	bool bindToSceneFrameBufferAndUpdate();
 
 	void paintCrosshairQuad();
-	void paintHudQuad();
+	void paintHudQuad(float hudScale);
 	void paintWeaponQuad();
 
 	ovrPosef& setSceneEyeView(int eye, float zNear, float zFar);

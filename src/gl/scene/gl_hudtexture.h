@@ -7,6 +7,7 @@ public:
 	HudTexture(int width, int height, float screenScale);
 	~HudTexture() {destroy();}
 	void bindToFrameBuffer();
+	void bindRenderTexture();
 	bool checkScreenSize(int screenWidth, int screenHeight); // is the size still the same?
 	int getWidth() {return w;}
 	int getHeight() {return h;}

@@ -65,6 +65,10 @@ void HudTexture::bindToFrameBuffer()
 	m_isBound = true;
 }
 
+void HudTexture::bindRenderTexture() {
+	glBindTexture(GL_TEXTURE_2D, renderedTexture);
+}
+
 void HudTexture::renderToScreen() {
 	// Load that texture we just rendered
 	glEnable(GL_TEXTURE_2D);
