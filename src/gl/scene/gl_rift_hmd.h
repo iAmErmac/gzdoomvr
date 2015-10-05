@@ -12,33 +12,29 @@ class RiftHmd {
 public:
 	RiftHmd();
 	~RiftHmd() {destroy();}
+	void destroy(); // release all resources
 	ovrResult init_tracking();
 	ovrResult init_graphics(int width, int height);
 	bool bindToSceneFrameBufferAndUpdate();
-	bool bindHudBuffer();
+	void paintHudQuad();
 	ovrPosef& setSceneEyeView(int eye, float zNear, float zFar);
 	ovrResult submitFrame(float metersPerSceneUnit);
 	void recenter_pose();
 	const ovrPosef& getCurrentEyePose() const {return currentEyePose;}
-	void destroy(); // release all resources
 
 private:
 	ovrResult init_scene_texture();
-	ovrResult init_hud_texture(int width, int height);
 
-	unsigned int hudFrameBuffer;
 	unsigned int sceneFrameBuffer;
 	unsigned int depthBuffer;
 	unsigned int frameIndex;
 
 #ifdef HAVE_OCULUS_API
 	ovrSwapTextureSet * sceneTextureSet;
-	ovrSwapTextureSet * hudTextureSet;
 	ovrTexture * mirrorTexture;
 	ovrHmd hmd;
 	ovrVector3f hmdToEyeViewOffset[2];
 	ovrLayerEyeFov sceneLayer;
-	ovrLayerQuad hudLayer;
 	ovrPosef currentEyePose;
 #endif
 };

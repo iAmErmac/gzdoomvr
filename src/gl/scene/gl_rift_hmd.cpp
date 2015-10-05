@@ -11,12 +11,13 @@ extern "C" {
 #include "OVR_CAPI_GL.h"
 }
 
+#include "Extras/OVR_Math.h"
+
 using namespace std;
 
 RiftHmd::RiftHmd()
 	: hmd(nullptr)
 	, sceneFrameBuffer(0)
-	, hudFrameBuffer(0)
 	, depthBuffer(0)
 	, sceneTextureSet(nullptr)
 	, mirrorTexture(nullptr)
@@ -33,8 +34,6 @@ void RiftHmd::destroy() {
 	depthBuffer = 0;
 	glDeleteFramebuffers(1, &sceneFrameBuffer);
 	sceneFrameBuffer = 0;
-	glDeleteFramebuffers(1, &hudFrameBuffer);
-	hudFrameBuffer = 0;
 	if (hmd) {
 		ovr_Destroy(hmd);
 		hmd = nullptr;
@@ -70,11 +69,6 @@ ovrResult RiftHmd::init_graphics(int width, int height)
 
 	// 3D scene
 	result = init_scene_texture();
-	if OVR_FAILURE(result)
-		return result;
-
-	// HUD
-	result = init_hud_texture(width, height);
 	if OVR_FAILURE(result)
 		return result;
 
@@ -177,79 +171,66 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 	return true;
 }
 
-ovrResult RiftHmd::init_hud_texture(int width, int height)
+void RiftHmd::paintHudQuad() 
 {
-	if (hudTextureSet)
-		return ovrSuccess;
+	// Place hud relative to torso
+	ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
+	// Convert from Rift camera coordinates to game coordinates
+	// float gameYaw = renderer_param.mAngles.Yaw;
+	OVR::Quatf hmdRot(pose.Orientation);
+	float hmdYaw, hmdPitch, hmdRoll;
+	hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
+	OVR::Quatf yawCorrection(OVR::Vector3f(0, 1, 0), -hmdYaw); // 
+	// OVR::Vector3f trans0(pose.Position);
+	OVR::Vector3f eyeTrans = yawCorrection.Rotate(pose.Position);
 
-    ovrResult result = ovr_CreateSwapTextureSetGL(hmd,
-            GL_SRGB8_ALPHA8, width, height, &hudTextureSet);
+	// Keep HUD fixed relative to the torso, and convert angles to degrees
+	float hudPitch = -hmdPitch * 180/3.14159;
+	float hudRoll = -hmdRoll * 180/3.14159;
+	hmdYaw *= -180/3.14159;
 
-	// Stereo3D Layer for primary 3D scene
-	// Second Monoscopic Quad layer for menus
-	// Create HUD layer, fixed to the player's torso
-	hudLayer.Header.Type      = ovrLayerType_QuadHeadLocked; // Was non-existent "ovrLayerType_Quad" in the docs...
-	hudLayer.Header.Flags     = ovrLayerFlag_TextureOriginAtBottomLeft // OpenGL convention
-			| ovrLayerFlag_HighQuality;
-    hudLayer.ColorTexture  = hudTextureSet; // single texture for both eyes;
-	// 50cm in front and 20cm down from the player's nose,
-	// fixed relative to their torso.
-	float hudScale = 25.0f;
-	hudLayer.QuadPoseCenter.Position.x =   0.00f * hudScale;
-	hudLayer.QuadPoseCenter.Position.y =  -1.00f * hudScale;
-	hudLayer.QuadPoseCenter.Position.z =  -1.00f * hudScale;
-	hudLayer.QuadPoseCenter.Orientation = ovrQuatf();
-	// HUD is 50cm wide, 30cm tall.
-	hudLayer.QuadSize.x = 1.00f * hudScale;
-	hudLayer.QuadSize.y = 1.00f * hudScale;
-	// Display all of the HUD texture.
-	hudLayer.Viewport.Pos.x = 0;
-	hudLayer.Viewport.Pos.y = 0;
-	hudLayer.Viewport.Size.w = hudTextureSet->Textures->Header.TextureSize.w;
-	hudLayer.Viewport.Size.h = hudTextureSet->Textures->Header.TextureSize.h;
-	// hudLayer.Viewport.Size.h = ;
+	// But allow hud yaw to vary within a range about torso yaw
+	static float hudYaw = 0;
+	// shift deviation from camera yaw to range +- 180 degrees
+	float dYaw = hmdYaw - hudYaw;
+	while (dYaw > 180) dYaw -= 360;
+	while (dYaw < -180) dYaw += 360;
+	float yawRange = 20;
+	if (dYaw < -yawRange) dYaw = -yawRange;
+	if (dYaw > yawRange) dYaw = yawRange;
+	// Slowly center hud yaw
+	float recenterIncrement = 0.010; // degrees
+	if (dYaw >= recenterIncrement) dYaw -= recenterIncrement;
+	if (dYaw <= -recenterIncrement) dYaw += recenterIncrement;
+	hudYaw = hmdYaw - dYaw;
 
-	// create OpenGL framebuffer for rendering to Rift
-	glGenFramebuffers(1, &hudFrameBuffer);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hudFrameBuffer);
-	// color layer will be provided by Rift API at render time...
-	// depth buffer
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
 
-	// clean up
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glRotatef(hudRoll, 0, 0, 1);
+	glRotatef(hudPitch, 1, 0, 0);
+	glRotatef(dYaw, 0, 1, 0);
 
-    // ld.RenderPose is updated later per frame.
-	return result;
+	glRotatef(-25, 1, 0, 0); // place hud below horizon
+
+	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
+
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glDisable(GL_TEXTURE_2D);
+	float hudDistance = 1.0; // meters
+	float hudWidth = 1.1 * hudDistance;
+	float hudHeight = hudWidth * 3.0f / 4.0f;
+	glBegin(GL_TRIANGLE_STRIP);
+		glColor4f(1, 1, 1, 0.5);
+		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+	glEnd();
+	glEnable(GL_TEXTURE_2D);
 }
 
-bool RiftHmd::bindHudBuffer()
-{
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, hudFrameBuffer);
-    // Increment to use next texture, just before writing
-    // 2d) Advance CurrentIndex within each used texture set to target the next consecutive texture buffer for the following frame.
-	int ix = hudTextureSet->CurrentIndex + 1;
-	ix = ix % hudTextureSet->TextureCount;
-    hudTextureSet->CurrentIndex = ix;
-    ovrGLTexture * texture = (ovrGLTexture*) &hudTextureSet->Textures[ix];
-    glFramebufferTexture2D(GL_FRAMEBUFFER, 
-            GL_COLOR_ATTACHMENT0, 
-            GL_TEXTURE_2D,
-			texture->OGL.TexId,
-            0);
-	GLenum fbStatus = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
-	GLenum desiredStatus = GL_FRAMEBUFFER_COMPLETE;
-	if (fbStatus != GL_FRAMEBUFFER_COMPLETE)
-		return false;
-
-    // Set up eye viewport
-	ovrSizei sz = texture->Texture.Header.TextureSize;
-    glViewport(0, 0, sz.w, sz.h);
-	glEnable(GL_SCISSOR_TEST);
-    glScissor(0, 0, sz.w, sz.h);
-    // glMatrixMode(GL_PROJECTION);
-    // glLoadIdentity();
-	return true;
-}
 
 ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
     // Set up eye viewport
@@ -277,10 +258,9 @@ ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
     viewScale.HmdSpaceToWorldScaleInMeters = metersPerSceneUnit;
     viewScale.HmdToEyeViewOffset[0] = hmdToEyeViewOffset[0];
     viewScale.HmdToEyeViewOffset[1] = hmdToEyeViewOffset[1];
-	ovrLayerHeader* layerList[2];
+	ovrLayerHeader* layerList[1];
 	layerList[0] = &sceneLayer.Header;
-	layerList[1] = &hudLayer.Header;
-    ovrResult result = ovr_SubmitFrame(hmd, frameIndex, &viewScale, layerList, 2);
+    ovrResult result = ovr_SubmitFrame(hmd, frameIndex, &viewScale, layerList, 1);
     frameIndex += 1;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	return result;

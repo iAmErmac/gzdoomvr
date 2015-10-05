@@ -322,67 +322,6 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	return result;
 }
 
-static void paintHudQuad() 
-{
-	// Place hud relative to torso
-	ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
-	// Convert from Rift camera coordinates to game coordinates
-	// float gameYaw = renderer_param.mAngles.Yaw;
-	OVR::Quatf hmdRot(pose.Orientation);
-	float hmdYaw, hmdPitch, hmdRoll;
-	hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
-	OVR::Quatf yawCorrection(OVR::Vector3f(0, 1, 0), -hmdYaw); // 
-	// OVR::Vector3f trans0(pose.Position);
-	OVR::Vector3f eyeTrans = yawCorrection.Rotate(pose.Position);
-
-	// Keep HUD fixed relative to the torso, and convert angles to degrees
-	float hudPitch = -hmdPitch * 180/3.14159;
-	float hudRoll = -hmdRoll * 180/3.14159;
-	hmdYaw *= -180/3.14159;
-
-	// But allow hud yaw to vary within a range about torso yaw
-	static float hudYaw = 0;
-	// shift deviation from camera yaw to range +- 180 degrees
-	float dYaw = hmdYaw - hudYaw;
-	while (dYaw > 180) dYaw -= 360;
-	while (dYaw < -180) dYaw += 360;
-	float yawRange = 20;
-	if (dYaw < -yawRange) dYaw = -yawRange;
-	if (dYaw > yawRange) dYaw = yawRange;
-	// Slowly center hud yaw
-	float recenterIncrement = 0.010; // degrees
-	if (dYaw >= recenterIncrement) dYaw -= recenterIncrement;
-	if (dYaw <= -recenterIncrement) dYaw += recenterIncrement;
-	hudYaw = hmdYaw - dYaw;
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glRotatef(hudRoll, 0, 0, 1);
-	glRotatef(hudPitch, 1, 0, 0);
-	glRotatef(dYaw, 0, 1, 0);
-
-	glRotatef(-25, 1, 0, 0); // place hud below horizon
-
-	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
-
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
-	float hudDistance = 1.0; // meters
-	float hudWidth = 1.0 * hudDistance;
-	float hudHeight = hudWidth * 3.0f / 4.0f;
-	glBegin(GL_TRIANGLE_STRIP);
-		glColor4f(1, 1, 1, 0.5);
-		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-	glEnd();
-	glEnable(GL_TEXTURE_2D);
-}
-
-
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
 	if (doBufferHud)
@@ -637,7 +576,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					glEnable(GL_DEPTH_TEST);
 					renderer.RenderOneEye(a1, false, false);
 
-					paintHudQuad();
+					sharedRiftHmd->paintHudQuad();
 				}
 
 				// right
@@ -649,16 +588,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					glEnable(GL_DEPTH_TEST);
 					renderer.RenderOneEye(a1, false, true);
 
-					paintHudQuad();
+					sharedRiftHmd->paintHudQuad();
 				}
-
-				sharedRiftHmd->bindHudBuffer();
-				// glEnable(GL_TEXTURE_2D);
-				// glEnable(GL_BLEND);
-				// glDisable(GL_DEPTH_TEST);
-				glClearColor(1, 1, 1, 1);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 				/*
 				// Second pass sprites (especially weapon)
