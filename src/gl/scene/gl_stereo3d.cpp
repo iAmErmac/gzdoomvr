@@ -577,6 +577,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					renderer.RenderOneEye(a1, false, false);
 
 					sharedRiftHmd->paintHudQuad();
+					sharedRiftHmd->paintCrosshairQuad();
 				}
 
 				// right
@@ -589,6 +590,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					renderer.RenderOneEye(a1, false, true);
 
 					sharedRiftHmd->paintHudQuad();
+					sharedRiftHmd->paintCrosshairQuad();
 				}
 
 				/*

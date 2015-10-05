@@ -174,7 +174,7 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 void RiftHmd::paintHudQuad() 
 {
 	// Place hud relative to torso
-	ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
+	ovrPosef pose = getCurrentEyePose();
 	// Convert from Rift camera coordinates to game coordinates
 	// float gameYaw = renderer_param.mAngles.Yaw;
 	OVR::Quatf hmdRot(pose.Orientation);
@@ -218,7 +218,7 @@ void RiftHmd::paintHudQuad()
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);
-	float hudDistance = 1.0; // meters
+	float hudDistance = 1.5; // meters
 	float hudWidth = 1.1 * hudDistance;
 	float hudHeight = hudWidth * 3.0f / 4.0f;
 	glBegin(GL_TRIANGLE_STRIP);
@@ -231,6 +231,42 @@ void RiftHmd::paintHudQuad()
 	glEnable(GL_TEXTURE_2D);
 }
 
+void RiftHmd::paintCrosshairQuad() 
+{
+	// Place crosshair relative to head
+	ovrPosef pose = getCurrentEyePose();
+	// Convert from Rift camera coordinates to game coordinates
+	OVR::Quatf hmdRot(pose.Orientation);
+	float hmdYaw, hmdPitch, hmdRoll;
+	hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
+	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(pose.Position);
+
+	// Keep crosshair fixed relative to the head, modulo roll, and convert angles to degrees
+	float hudRoll = -hmdRoll * 180/3.14159;
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	glTranslatef(-eyeTrans.x, 0, 0);
+
+	// Correct Roll, but not pitch nor yaw
+	glRotatef(hudRoll, 0, 0, 1);
+
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glDisable(GL_TEXTURE_2D);
+	float hudDistance = 7.0; // meters
+	float hudWidth = 1.0/30.0 * hudDistance;
+	float hudHeight = hudWidth;
+	glBegin(GL_TRIANGLE_STRIP);
+		glColor4f(1, 1, 1, 0.5);
+		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+	glEnd();
+	glEnable(GL_TEXTURE_2D);
+}
 
 ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
     // Set up eye viewport
