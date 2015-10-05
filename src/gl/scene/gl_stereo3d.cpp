@@ -583,6 +583,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					renderer.RenderOneEye(a1, false, true);
 				}
 
+				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
@@ -601,6 +602,23 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					sharedRiftHmd->paintHudQuad(vr_hud_scale);
 					// sharedRiftHmd->paintCrosshairQuad();
 					// sharedRiftHmd->paintWeaponQuad();
+				}
+				glBindTexture(GL_TEXTURE_2D, 0);
+
+				// left eye view - crosshair pass
+				{
+					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					glDisable(GL_TEXTURE_2D);
+					HudTexture::hudTexture->bindRenderTexture();
+					sharedRiftHmd->paintCrosshairQuad();
+				}
+
+				// right eye view - crosshair pass
+				{
+					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					sharedRiftHmd->paintCrosshairQuad();
 				}
 				glBindTexture(GL_TEXTURE_2D, 0);
 
