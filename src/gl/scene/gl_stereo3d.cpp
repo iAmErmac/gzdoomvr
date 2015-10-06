@@ -293,27 +293,10 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	result.yaw = renderer.mAngles.Yaw;
 
 	if (mode == OCULUS_RIFT) {
-
-		// Distort orientation for weird 1993 Doom pixel aspect ratio
-		const double pixelAspect = 1.20;
 		ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
-		ovrQuatf hmdQuat = pose.Orientation;
-		OVR::Vector3f axis;
-		float angle;
 		OVR::Quatf hmdRot(pose.Orientation);
-		hmdRot.GetAxisAngle(&axis, &angle);
-
-		axis.y *= 1.0f/pixelAspect; // 1) squish direction in Y
-		axis.Normalize();
-		float angleFactor = 1.0f + sqrt(1.0f - axis.y*axis.y) * (pixelAspect - 1.0f);
-		angle = atan2(angleFactor * sin(angle), cos(angle)); // 2) Expand angle in Y
-		OVR::Quatf doomRot(axis, angle);
 		float yaw, pitch, roll;
-		doomRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
-		// Printf("Yaw=%f\n",yaw);
-		// const float r2d = 180.0 / 3.14159;
-		// Printf("Yaw = %.2f Pitch = %.2f Roll = %.2f\n", yaw*r2d, pitch*r2d, roll*r2d);
-
+		hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
 		result.yaw = yaw;
 		result.pitch = pitch;
 		result.roll = -roll;

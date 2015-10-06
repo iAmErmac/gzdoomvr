@@ -200,8 +200,11 @@ void RiftHmd::paintHudQuad(float hudScale)
 	float yawRange = 20;
 	if (dYaw < -yawRange) dYaw = -yawRange;
 	if (dYaw > yawRange) dYaw = yawRange;
-	// Slowly center hud yaw
-	float recenterIncrement = 0.010; // degrees
+	// Slowly center hud yaw toward view direction
+	// 1) Proportional term:
+	dYaw *= 0.999;
+	// 2) Constant term
+	float recenterIncrement = 0.003; // degrees
 	if (dYaw >= recenterIncrement) dYaw -= recenterIncrement;
 	if (dYaw <= -recenterIncrement) dYaw += recenterIncrement;
 	hudYaw = hmdYaw - dYaw;

@@ -271,7 +271,7 @@ void FGLRenderer::SetProjection(float* matrix)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	glScalef(1.0, 1.20, 1.0); // doom pixel aspect ratio correction
+	// glScalef(1.0, 1.20, 1.0); // doom pixel aspect ratio correction
 	glMultTransposeMatrixf(matrix);
 	// glMultMatrixf(matrix);
 
@@ -381,7 +381,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 	const float pixelAspect = 1.20;
 	// Modify openGL pitch angle at the last moment,
 	// so bullet holes line up with crosshair, after pixel aspect correction (#1, below)
-	pitch = atan2( pixelAspect * sin(pitch), cos(pitch) );
+	// pitch = atan2( pixelAspect * sin(pitch), cos(pitch) );
 	pitch = RAD2DEG(pitch);
 
 	// Criteria for successful aspect ratio correction:
@@ -400,7 +400,7 @@ void FGLRenderer::SetViewMatrix(bool mirror, bool planemirror)
 			
 	// Printf("yaw = %.1f; pitch = %.1f %.1f roll = %.1f\n", yaw, pitch, roll);
 
-	glScalef(1.0, pixelAspect, 1.0); // unstretch
+	glScalef(1.0/pixelAspect, 1.0, 1.0/pixelAspect); // unstretch
 
 	glTranslatef( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
 	// Printf("x = %.1f; z = %.1f %.1f %.1f\n", GLRenderer->mCameraPos.X, GLRenderer->mCameraPos.Z, FIXED2FLOAT(viewx), FIXED2FLOAT(viewz));
