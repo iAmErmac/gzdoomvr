@@ -145,6 +145,10 @@ ovrResult RiftHmd::init_scene_texture()
 	return result;
 }
 
+void RiftHmd::bindToSceneFrameBuffer() {
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
+}
+
 bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 {
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
@@ -260,7 +264,6 @@ void RiftHmd::paintCrosshairQuad()
 
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
 	float hudDistance = 7.0; // meters
 	float hudWidth = 1.0/30.0 * hudDistance;
 	float hudHeight = hudWidth;
@@ -271,7 +274,6 @@ void RiftHmd::paintCrosshairQuad()
 		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
 		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 	glEnd();
-	glEnable(GL_TEXTURE_2D);
 }
 
 void RiftHmd::paintWeaponQuad() 
@@ -290,14 +292,20 @@ void RiftHmd::paintWeaponQuad()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	glTranslatef(-eyeTrans.x, -eyeTrans.y, 0); // Ability to parallax look all around weapon
+	glTranslatef(-eyeTrans.x, 0, 0); // Stereo only...
 
 	// Correct Roll, but not pitch nor yaw
 	glRotatef(hudRoll, 0, 0, 1);
 
 	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-	glDisable(GL_TEXTURE_2D);
+	bool softWeapon = true;
+	if (softWeapon) {
+		glEnable(GL_BLEND);
+	} else {
+		glDisable(GL_BLEND);
+		glEnable(GL_ALPHA_TEST); // Want sharp weapon sprite, right? Maybe not...
+		glAlphaFunc(GL_GREATER, 0.5);
+	}
 	float hudDistance = 0.50; // meters, (measured 46 cm to stock of hand weapon)
 	float hudWidth = 1.0 * hudDistance; // Adjust for good average weapon size
 	float hudHeight = 3.0 / 4.0 * hudWidth;
@@ -308,7 +316,6 @@ void RiftHmd::paintWeaponQuad()
 		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
 		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 	glEnd();
-	glEnable(GL_TEXTURE_2D);
 }
 
 ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {

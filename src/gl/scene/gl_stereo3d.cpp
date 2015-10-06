@@ -566,44 +566,61 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					renderer.RenderOneEye(a1, false, true);
 				}
 
+				//// HUD Pass ////
+				glEnable(GL_TEXTURE_2D);
+				HudTexture::hudTexture->bindRenderTexture();
 				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					glEnable(GL_TEXTURE_2D);
-					HudTexture::hudTexture->bindRenderTexture();
 					sharedRiftHmd->paintHudQuad(vr_hud_scale);
-					// sharedRiftHmd->paintCrosshairQuad();
-					// sharedRiftHmd->paintWeaponQuad();
 				}
-
 				// right eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintHudQuad(vr_hud_scale);
-					// sharedRiftHmd->paintCrosshairQuad();
-					// sharedRiftHmd->paintWeaponQuad();
 				}
-				glBindTexture(GL_TEXTURE_2D, 0);
 
+				//// Crosshair Pass ////
+				glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
 				// left eye view - crosshair pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					glDisable(GL_TEXTURE_2D);
-					HudTexture::hudTexture->bindRenderTexture();
 					sharedRiftHmd->paintCrosshairQuad();
 				}
-
 				// right eye view - crosshair pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintCrosshairQuad();
 				}
+
+				/* */
+				//// Weapon Pass ////
+				bindAndClearHudTexture(*this);
+				renderer.EndDrawScene(viewsector); // TODO paint weapon
+				HudTexture::hudTexture->unbind();
+				sharedRiftHmd->bindToSceneFrameBuffer();
+				/* */
+				glEnable(GL_TEXTURE_2D);
+				HudTexture::hudTexture->bindRenderTexture();
+				// left eye view - weapon pass
+				{
+					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					sharedRiftHmd->paintWeaponQuad();
+				}
+				// right eye view - weapon pass
+				{
+					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					sharedRiftHmd->paintWeaponQuad();
+				}
 				glBindTexture(GL_TEXTURE_2D, 0);
+				/* */
 
 				/*
 				// Second pass sprites (especially weapon)
@@ -632,7 +649,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					// blitHudTextureToScreen(); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
 				}
 				*/
-				blitHudTextureToScreen();
+
+				// blitHudTextureToScreen();
 
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 

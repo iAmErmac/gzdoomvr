@@ -16,6 +16,7 @@ public:
 	ovrResult init_tracking();
 	ovrResult init_graphics(int width, int height);
 	bool bindToSceneFrameBufferAndUpdate();
+	void bindToSceneFrameBuffer();
 
 	void paintCrosshairQuad();
 	void paintHudQuad(float hudScale);
