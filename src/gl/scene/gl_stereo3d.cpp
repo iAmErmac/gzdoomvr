@@ -576,12 +576,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintHudQuad(vr_hud_scale);
 				}
+				ovrPosef leftEyePose = sharedRiftHmd->getCurrentEyePose();
 				// right eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintHudQuad(vr_hud_scale);
 				}
+				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
 
 				//// Crosshair Pass ////
 				glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
@@ -611,13 +613,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintWeaponQuad();
+					sharedRiftHmd->paintWeaponQuad(leftEyePose, rightEyePose, vr_weapondist);
 				}
 				// right eye view - weapon pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintWeaponQuad();
+					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist);
 				}
 				glBindTexture(GL_TEXTURE_2D, 0);
 				/* */

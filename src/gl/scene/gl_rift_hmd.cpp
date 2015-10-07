@@ -276,15 +276,30 @@ void RiftHmd::paintCrosshairQuad()
 	glEnd();
 }
 
-void RiftHmd::paintWeaponQuad() 
+void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist) 
 {
-	// Place crosshair relative to head
-	ovrPosef pose = getCurrentEyePose();
+	// Place weapon relative to head
+	const ovrPosef& pose = eyePose;
+
+	// Position of center between two eyes
+	OVR::Vector3f eyeCenter = (OVR::Vector3f(eyePose.Position) + OVR::Vector3f(otherEyePose.Position)) * 0.5;
+
+	// Just the interpupillary shift, without other components of position tracking
+	OVR::Vector3f eyeShift = OVR::Vector3f(eyePose.Position) - eyeCenter;
+
+	// Cause gun to lag behind head position
+	// otherShift = emainder of positional offset, aside from interpupillary offset
+	OVR::Vector3f otherShift = OVR::Vector3f(eyePose.Position) - eyeShift;
+	// With a time delay, recenter weapon in current positional view
+	static OVR::Vector3f movingOrigin = OVR::Vector3f(0, 0, 0);
+	OVR::Vector3f dw = otherShift - movingOrigin;
+	movingOrigin += dw * 0.03; // Set rate of update here
+
 	// Convert from Rift camera coordinates to game coordinates
 	OVR::Quatf hmdRot(pose.Orientation);
 	float hmdYaw, hmdPitch, hmdRoll;
 	hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
-	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(pose.Position); // Camera relative X/Y/Z
+	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(eyeShift + dw); // Camera relative X/Y/Z
 
 	// Keep crosshair fixed relative to the head, modulo roll, and convert angles to degrees
 	float hudRoll = -hmdRoll * 180/3.14159;
@@ -292,7 +307,7 @@ void RiftHmd::paintWeaponQuad()
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 
-	glTranslatef(-eyeTrans.x, 0, 0); // Stereo only...
+	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z); // Stereo only...
 
 	// Correct Roll, but not pitch nor yaw
 	glRotatef(hudRoll, 0, 0, 1);
@@ -306,8 +321,8 @@ void RiftHmd::paintWeaponQuad()
 		glEnable(GL_ALPHA_TEST); // Want sharp weapon sprite, right? Maybe not...
 		glAlphaFunc(GL_GREATER, 0.5);
 	}
-	float hudDistance = 0.50; // meters, (measured 46 cm to stock of hand weapon)
-	float hudWidth = 1.0 * hudDistance; // Adjust for good average weapon size
+	float hudDistance = weaponDist; // meters, (measured 46 cm to stock of hand weapon)
+	float hudWidth = 0.6; // meters, Adjust for good average weapon size
 	float hudHeight = 3.0 / 4.0 * hudWidth;
 	glBegin(GL_TRIANGLE_STRIP);
 		glColor4f(1, 1, 1, 0.5);
