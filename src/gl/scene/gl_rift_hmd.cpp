@@ -220,13 +220,12 @@ void RiftHmd::paintHudQuad(float hudScale)
 	glRotatef(hudPitch, 1, 0, 0);
 	glRotatef(dYaw, 0, 1, 0);
 
-	glRotatef(-20, 1, 0, 0); // place hud below horizon
+	glRotatef(-25, 1, 0, 0); // place hud below horizon
 
 	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
 
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST); // Looks MUCH better than without, especially console; also shows crosshair
+	// glEnable(GL_BLEND);
+	// glDisable(GL_ALPHA_TEST); // Looks MUCH better than without, especially console; also shows crosshair
 	// glDisable(GL_TEXTURE_2D);
 	float hudDistance = 1.5; // meters
 	float hudWidth = hudScale * 1.0 / 0.4 * hudDistance;

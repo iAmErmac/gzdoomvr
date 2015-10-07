@@ -569,9 +569,16 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
 
 				//// HUD Pass ////
-				glEnable(GL_TEXTURE_2D);
-				glEnable(GL_BLEND);
 				HudTexture::hudTexture->bindRenderTexture();
+
+				glEnable(GL_TEXTURE_2D);
+				glDisable(GL_DEPTH_TEST);
+
+				// glEnable(GL_BLEND);
+
+				glDisable(GL_BLEND);
+				glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
+
 				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
 				{
