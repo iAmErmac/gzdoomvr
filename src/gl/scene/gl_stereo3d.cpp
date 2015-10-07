@@ -558,6 +558,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					glEnable(GL_DEPTH_TEST);
 					renderer.RenderOneEye(a1, false, false);
 				}
+				ovrPosef leftEyePose = sharedRiftHmd->getCurrentEyePose();
 
 				// right eye view - 3D scene pass
 				{
@@ -565,9 +566,11 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					renderer.RenderOneEye(a1, false, true);
 				}
+				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
 
 				//// HUD Pass ////
 				glEnable(GL_TEXTURE_2D);
+				glEnable(GL_BLEND);
 				HudTexture::hudTexture->bindRenderTexture();
 				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
@@ -576,14 +579,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintHudQuad(vr_hud_scale);
 				}
-				ovrPosef leftEyePose = sharedRiftHmd->getCurrentEyePose();
 				// right eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintHudQuad(vr_hud_scale);
 				}
-				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
 
 				//// Crosshair Pass ////
 				glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
@@ -609,6 +610,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				/* */
 				glEnable(GL_TEXTURE_2D);
 				HudTexture::hudTexture->bindRenderTexture();
+				glDisable(GL_DEPTH_TEST);
+				glDisable(GL_BLEND); // for distinct transparency threshold
 				// left eye view - weapon pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
@@ -621,6 +624,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist);
 				}
+				glEnable(GL_BLEND);
 				glBindTexture(GL_TEXTURE_2D, 0);
 				/* */
 

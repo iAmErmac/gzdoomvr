@@ -312,15 +312,6 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 	// Correct Roll, but not pitch nor yaw
 	glRotatef(hudRoll, 0, 0, 1);
 
-	glDisable(GL_DEPTH_TEST);
-	bool softWeapon = true;
-	if (softWeapon) {
-		glEnable(GL_BLEND);
-	} else {
-		glDisable(GL_BLEND);
-		glEnable(GL_ALPHA_TEST); // Want sharp weapon sprite, right? Maybe not...
-		glAlphaFunc(GL_GREATER, 0.5);
-	}
 	float hudDistance = weaponDist; // meters, (measured 46 cm to stock of hand weapon)
 	float hudWidth = 0.6; // meters, Adjust for good average weapon size
 	float hudHeight = 3.0 / 4.0 * hudWidth;
