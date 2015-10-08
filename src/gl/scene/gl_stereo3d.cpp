@@ -23,6 +23,9 @@
 
 extern void P_CalcHeight (player_t *player);
 
+extern DBaseStatusBar *StatusBar; // To access crosshair drawing
+
+
 EXTERN_CVAR(Bool, gl_draw_sync)
 EXTERN_CVAR(Float, vr_screendist)
 //
@@ -281,6 +284,7 @@ static void bindAndClearHudTexture(Stereo3D& stereo3d) {
 		stereo3d.bindHudTexture(true);
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT);
+		// glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 	}
 }
 
@@ -570,15 +574,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				//// HUD Pass ////
 				HudTexture::hudTexture->bindRenderTexture();
-
 				glEnable(GL_TEXTURE_2D);
 				glDisable(GL_DEPTH_TEST);
-
-				// glEnable(GL_BLEND);
-
 				glDisable(GL_BLEND);
 				glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
-
 				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
 				{
@@ -594,6 +593,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 
 				//// Crosshair Pass ////
+
+				// TODO
+				// A) Paint crosshair only in to HUD texture
+				// StatusBar->DrawCrosshair(); // directly into recently cleared HUD texture
+
+				// B) blit crosshair to crosshair quad
 				// glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
 				glEnable(GL_BLEND);
 				// left eye view - crosshair pass

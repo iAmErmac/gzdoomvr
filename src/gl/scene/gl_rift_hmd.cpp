@@ -276,7 +276,6 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	const float txw = 0.03; // half width of quad in texture coordinates; big enough to hold largest crosshair
 	const float txh = txw * 4.0/3.0;
 	glBegin(GL_TRIANGLE_STRIP);
-		glColor4f(1, 1, 1, 0.5);
 		glTexCoord2f(0.5 - txw, 0.5 + txh); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
 		glTexCoord2f(0.5 - txw, 0.5 - txh); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 		glTexCoord2f(0.5 + txw, 0.5 + txh); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
