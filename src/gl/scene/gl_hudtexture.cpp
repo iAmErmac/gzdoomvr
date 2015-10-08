@@ -102,7 +102,8 @@ void HudTexture::unbind() {
 /// Static methods used for global singleton access
 
 /* static */
-HudTexture* HudTexture::hudTexture = NULL;
+HudTexture* HudTexture::hudTexture = nullptr;
+HudTexture* HudTexture::crosshairTexture = nullptr;
 
 EXTERN_CVAR(Float, vr_hud_scale);
 EXTERN_CVAR(Int, vr_mode);

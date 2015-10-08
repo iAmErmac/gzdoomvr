@@ -21,8 +21,10 @@ public:
 	static void unbindGlobalOffscreenBuffer();
 	static void displayAndClearGlobalOffscreenBuffer();
 	static void bindAndClearGlobalOffscreenBuffer();
+
 	// temporarily public TODO
 	static HudTexture* hudTexture;
+	static HudTexture* crosshairTexture;
 
 private:
 	void init(int width, int height);

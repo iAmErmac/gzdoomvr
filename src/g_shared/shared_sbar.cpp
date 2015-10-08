@@ -55,6 +55,10 @@
 #include "a_hexenglobal.h"
 #include "gstrings.h"
 
+// Includes for specialized crosshair hack CMB
+#include "gl/scene/gl_stereo3d.h"
+#include "gl/scene/gl_hudtexture.h"
+
 #include "../version.h"
 
 #define XHAIRSHRINKSIZE		(FRACUNIT/18)
@@ -1301,7 +1305,20 @@ void DBaseStatusBar::Draw (EHudState state)
 	{
 		if (CPlayer && CPlayer->camera && CPlayer->camera->player)
 		{
+			bool doAltBufferCrosshair = false;
+			// TODO - intercept crosshair drawing to another framebuffer in Oculus Rift mode.
+			if ( (Stereo3DMode.getMode() == Stereo3DMode.OCULUS_RIFT)
+				 && (HudTexture::crosshairTexture != nullptr) ) 
+			{
+				doAltBufferCrosshair = true;
+				HudTexture::crosshairTexture->bindToFrameBuffer();
+			}
+
 			DrawCrosshair ();
+			 
+			if (doAltBufferCrosshair) {
+				HudTexture::hudTexture->bindToFrameBuffer();
+			}
 		}
 	}
 	else if (automapactive)

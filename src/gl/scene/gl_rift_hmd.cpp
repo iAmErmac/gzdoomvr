@@ -257,7 +257,7 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	OVR::Quatf hmdRot(pose.Orientation);
 	float hmdYaw, hmdPitch, hmdRoll;
 	hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
-	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(pose.Position);
+	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(eyeShift);
 
 	// Keep crosshair fixed relative to the head, modulo roll, and convert angles to degrees
 	float hudRoll = -hmdRoll * 180/3.14159;
@@ -270,10 +270,13 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	// Correct Roll, but not pitch nor yaw
 	glRotatef(hudRoll, 0, 0, 1);
 
-	float hudDistance = 7.0; // meters
-	float hudWidth = 0.075 * hudDistance; // About right size for largest crosshair
+	// TODO: set crosshair distance by reading 3D depth map texture
+	float hudDistance = 25.0; // meters? looks closer than that...
+	float extra_padding_factor = 2.0; // Room around edges for larger crosshairs
+	float hudWidth = extra_padding_factor * 0.075 * hudDistance; // About right size for largest crosshair
 	float hudHeight = hudWidth;
-	const float txw = 0.03; // half width of quad in texture coordinates; big enough to hold largest crosshair
+	// Bigger number makes a smaller crosshair
+	const float txw = extra_padding_factor * 0.040; // half width of quad in texture coordinates; big enough to hold largest crosshair
 	const float txh = txw * 4.0/3.0;
 	glBegin(GL_TRIANGLE_STRIP);
 		glTexCoord2f(0.5 - txw, 0.5 + txh); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);

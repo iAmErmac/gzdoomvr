@@ -271,6 +271,7 @@ static HudTexture* checkHudTexture(HudTexture* hudTexture, float screenScale) {
 			if (hudTexture)
 				delete(hudTexture);
 			hudTexture = new HudTexture(SCREENWIDTH, SCREENHEIGHT, screenScale);
+			HudTexture::crosshairTexture = new HudTexture(SCREENWIDTH, SCREENHEIGHT, screenScale);
 			hudTexture->bindToFrameBuffer();
 			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT);
@@ -600,6 +601,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				// B) blit crosshair to crosshair quad
 				// glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
+				HudTexture::crosshairTexture->bindRenderTexture();
 				glEnable(GL_BLEND);
 				// left eye view - crosshair pass
 				{
@@ -673,12 +675,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 
+				// Clear crosshair
+				HudTexture::crosshairTexture->bindToFrameBuffer();
+				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+				glClearColor(0, 0, 0, 0);
+				glClear(GL_COLOR_BUFFER_BIT);
 
-				// Clear HUD? TODO:
+				// Clear HUD
+				HudTexture::hudTexture->bindToFrameBuffer();
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
 				glClearColor(0,1,1,0);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				glClear(GL_COLOR_BUFFER_BIT);
 
 				//
 				// restore global state
