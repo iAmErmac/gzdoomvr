@@ -240,10 +240,19 @@ void RiftHmd::paintHudQuad(float hudScale)
 	// glEnable(GL_TEXTURE_2D);
 }
 
-void RiftHmd::paintCrosshairQuad() 
+void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose) 
 {
+	// Place weapon relative to head
+	const ovrPosef& pose = eyePose;
+
+	// Position of center between two eyes
+	OVR::Vector3f eyeCenter = (OVR::Vector3f(eyePose.Position) + OVR::Vector3f(otherEyePose.Position)) * 0.5;
+
+	// Just the interpupillary shift, without other components of position tracking
+	OVR::Vector3f eyeShift = OVR::Vector3f(eyePose.Position) - eyeCenter;
+
 	// Place crosshair relative to head
-	ovrPosef pose = getCurrentEyePose();
+	// ovrPosef pose = getCurrentEyePose();
 	// Convert from Rift camera coordinates to game coordinates
 	OVR::Quatf hmdRot(pose.Orientation);
 	float hmdYaw, hmdPitch, hmdRoll;
@@ -261,17 +270,17 @@ void RiftHmd::paintCrosshairQuad()
 	// Correct Roll, but not pitch nor yaw
 	glRotatef(hudRoll, 0, 0, 1);
 
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_BLEND);
 	float hudDistance = 7.0; // meters
-	float hudWidth = 1.0/30.0 * hudDistance;
+	float hudWidth = 0.075 * hudDistance; // About right size for largest crosshair
 	float hudHeight = hudWidth;
+	const float txw = 0.03; // half width of quad in texture coordinates; big enough to hold largest crosshair
+	const float txh = txw * 4.0/3.0;
 	glBegin(GL_TRIANGLE_STRIP);
 		glColor4f(1, 1, 1, 0.5);
-		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 - txw, 0.5 + txh); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 - txw, 0.5 - txh); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 + txw, 0.5 + txh); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 + txw, 0.5 - txh); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 	glEnd();
 }
 

@@ -18,8 +18,8 @@ public:
 	bool bindToSceneFrameBufferAndUpdate();
 	void bindToSceneFrameBuffer();
 
-	void paintCrosshairQuad();
 	void paintHudQuad(float hudScale);
+	void paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose);
 	void paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist);
 
 	ovrPosef& setSceneEyeView(int eye, float zNear, float zFar);

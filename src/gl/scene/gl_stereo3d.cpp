@@ -594,18 +594,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 
 				//// Crosshair Pass ////
-				glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
+				// glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
+				glEnable(GL_BLEND);
 				// left eye view - crosshair pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintCrosshairQuad();
+					sharedRiftHmd->paintCrosshairQuad(leftEyePose, rightEyePose);
 				}
 				// right eye view - crosshair pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintCrosshairQuad();
+					sharedRiftHmd->paintCrosshairQuad(rightEyePose, leftEyePose);
 				}
 
 				/* */
