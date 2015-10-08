@@ -69,8 +69,8 @@ CCMD(oculardium_optimosa)
 	turbo = 65; // Slower walking
 	vr_mode = 8; // Rift mode
 	// Use minimal or no HUD
-	if (screenblocks <= 10)
-		screenblocks = 11;
+	// if (screenblocks <= 10)
+	// 	screenblocks = 11;
 	vr_lowpersist = true;
 	m_use_mouse = 0; // no mouse in menus
 	// freelook = false; // no up/down look with mouse // too intrusive?
@@ -537,7 +537,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	case OCULUS_RIFT:
 		{
 			doBufferHud = true;
-			sharedRiftHmd->init_graphics(SCREENWIDTH, SCREENHEIGHT);
+			sharedRiftHmd->init_graphics();
 
 			{
 				// Activate positional tracking
@@ -574,6 +574,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
 
 				//// HUD Pass ////
+				// screenblocks = oldScreenBlocks;
 				HudTexture::hudTexture->bindRenderTexture();
 				glEnable(GL_TEXTURE_2D);
 				glDisable(GL_DEPTH_TEST);
@@ -584,23 +585,17 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, -25);
 				}
 				// right eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, -25);
 				}
 
 				//// Crosshair Pass ////
-
-				// TODO
-				// A) Paint crosshair only in to HUD texture
-				// StatusBar->DrawCrosshair(); // directly into recently cleared HUD texture
-
-				// B) blit crosshair to crosshair quad
-				// glBindTexture(GL_TEXTURE_2D, 0); // Use colored quad during debugging...
+				// screenblocks = 12; // full screen
 				HudTexture::crosshairTexture->bindRenderTexture();
 				glEnable(GL_BLEND);
 				// left eye view - crosshair pass
@@ -618,6 +613,16 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				/* */
 				//// Weapon Pass ////
+				// Temporarily adjust view window parameters, to fool weapon into drawing full size,
+				// even when "screenblocks" is a smaller number
+				int oldViewWindowX = viewwindowx;
+				int oldViewWindowY = viewwindowy;
+				int oldViewWidth = viewwidth;
+				int oldViewHeight = viewheight;
+				viewwindowx = 0;
+				viewwindowy = 0;
+				viewwidth = SCREENWIDTH;
+				viewheight = SCREENHEIGHT;
 				bindAndClearHudTexture(*this);
 				renderer.EndDrawScene(viewsector); // TODO paint weapon
 				HudTexture::hudTexture->unbind();
@@ -641,6 +646,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 				glEnable(GL_BLEND);
 				glBindTexture(GL_TEXTURE_2D, 0);
+				// Restore previous values
+				viewwindowx = oldViewWindowX;
+				viewwindowy = oldViewWindowY;
+				viewwidth = oldViewWidth;
+				viewheight = oldViewHeight;
+
 				/* */
 
 				/*
@@ -688,6 +699,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
 				glClearColor(0,1,1,0);
 				glClear(GL_COLOR_BUFFER_BIT);
+
+				screenblocks = oldScreenBlocks;
 
 				//
 				// restore global state
@@ -807,28 +820,51 @@ void Stereo3D::updateScreen() {
 		// blitHudTextureToScreen(); // causes double hud in rift
 	}
 	// Special handling of intermission screen for Oculus SDK warping
-	if ( (vr_mode == OCULUS_RIFT) ) {
+	if ( (vr_mode == OCULUS_RIFT) ) 
+	{
 		// TODO - what about fraps?
+		// update Rift during "other" modes, such as title screen
+		if (gamestate != GS_LEVEL) 
+		{
+			sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
+			glClearColor(0.15, 0.03, 0.03, 0);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			//// HUD Pass ////
+			HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 1.0);
+			HudTexture::hudTexture->bindRenderTexture();
+			glEnable(GL_TEXTURE_2D);
+			glDisable(GL_DEPTH_TEST);
+			glEnable(GL_BLEND);
+			// glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
+			// TODO suppress crosshair during hud pass?
+			// left eye view - hud pass
+			{
+				sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+				// PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
+			}
+			// right eye view - hud pass
+			{
+				sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+				// PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
+			}
+
+			sharedRiftHmd->submitFrame(1.0/41.0);
+			// Clear HUD
+			HudTexture::hudTexture->bindToFrameBuffer();
+			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+			glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+			glClearColor(0,1,1,0);
+			glClear(GL_COLOR_BUFFER_BIT);
+		}
+
+
 	} else {
 		screen->Update();
 	}
 	if (htWasBound)
 		ht->bindToFrameBuffer();
-	if (vr_mode != OCULUS_RIFT)
-		return;
-	if (ht == NULL)
-		return;
-	if (ht->isBound()) {
-		bindHudTexture(false);
-		// oculusTexture->bindToFrameBuffer;
-		// blitHudTextureToScreen();
-		bindHudTexture(true);
-	}
-	else {
-		if (doBufferHud)
-			blitHudTextureToScreen();
-		glViewport(0, 0, screen->GetWidth(), screen->GetHeight());
-	}
 }
 
 int Stereo3D::getScreenWidth() {

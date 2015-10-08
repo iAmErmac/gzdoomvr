@@ -58,7 +58,7 @@ ovrResult RiftHmd::init_tracking()
 }
 
 
-ovrResult RiftHmd::init_graphics(int width, int height) 
+ovrResult RiftHmd::init_graphics() 
 {
     // NOTE: Initialize OpenGL first (elsewhere), before getting Rift textures here.
 
@@ -151,6 +151,7 @@ void RiftHmd::bindToSceneFrameBuffer() {
 
 bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 {
+	if (sceneFrameBuffer == 0) init_graphics();
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
     ovrFrameTiming ftiming  = ovr_GetFrameTiming(hmd, 0);
     ovrTrackingState hmdState = ovr_GetTrackingState(hmd, ftiming.DisplayMidpointSeconds);
@@ -177,7 +178,7 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 	return true;
 }
 
-void RiftHmd::paintHudQuad(float hudScale) 
+void RiftHmd::paintHudQuad(float hudScale, float pitchAngle) 
 {
 	// Place hud relative to torso
 	ovrPosef pose = getCurrentEyePose();
@@ -220,7 +221,7 @@ void RiftHmd::paintHudQuad(float hudScale)
 	glRotatef(hudPitch, 1, 0, 0);
 	glRotatef(dYaw, 0, 1, 0);
 
-	glRotatef(-25, 1, 0, 0); // place hud below horizon
+	glRotatef(pitchAngle, 1, 0, 0); // place hud below horizon
 
 	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
 

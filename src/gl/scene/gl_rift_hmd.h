@@ -14,11 +14,11 @@ public:
 	~RiftHmd() {destroy();}
 	void destroy(); // release all resources
 	ovrResult init_tracking();
-	ovrResult init_graphics(int width, int height);
+	ovrResult init_graphics();
 	bool bindToSceneFrameBufferAndUpdate();
 	void bindToSceneFrameBuffer();
 
-	void paintHudQuad(float hudScale);
+	void paintHudQuad(float hudScale, float pitchAngle);
 	void paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose);
 	void paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist);
 
