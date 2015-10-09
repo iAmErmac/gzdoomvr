@@ -654,36 +654,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				/* */
 
-				/*
-				// Second pass sprites (especially weapon)
-				int oldViewwindowy = viewwindowy;
-				const bool showSprites = true;
-				if (showSprites) {
-					// SECOND PASS weapon sprite
-					glEnable(GL_TEXTURE_2D);
-					screenblocks = 12;
-					// TODO: Sprite needs some offset to appear at correct distance, rather than at infinity.
-					// Counteract effect of status bar on weapon position
-					if (oldScreenBlocks <= 10) { // lower weapon in status mode
-						// spriteOffsetY += 0.227 * viewwidth; // empirical - lines up brutal doom down sight in 1920x1080 Rift mode
-					}
-					sharedRiftHmd->setEyeView(ovrEye_Right, 5, 5000); // Right eye
-					renderer.EndDrawScene(viewsector); // right view
-
-					sharedRiftHmd->setEyeView(ovrEye_Left, 5, 5000); // Left eye
-					renderer.EndDrawScene(viewsector); // left view
-				}
-
-				// Third pass HUD
-				screenblocks = max(oldScreenBlocks, 10); // Don't vignette main 3D view
-				if (doBufferHud) {
-					// Draw HUD again, to avoid flashing? - and render to screen
-					// blitHudTextureToScreen(); // HUD pass now occurs in main doom loop! Since I delegated screen->Update to stereo3d.updateScreen().
-				}
-				*/
-
-				// blitHudTextureToScreen();
-
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 
 				// Clear crosshair
@@ -807,10 +777,9 @@ void Stereo3D::bindHudTexture(bool doUse)
 	}
 }
 
+// Here is where to update Rift in non-level situations
 void Stereo3D::updateScreen() {
-	if ( (vr_mode == OCULUS_RIFT) && (gamestate != GS_LEVEL) && (gamestate != GS_INTERMISSION) ) {
-		gamestate_t x = gamestate;
-	}
+	gamestate_t x = gamestate;
 	// Unbind texture before update, so Fraps could work
 	bool htWasBound = false;
 	HudTexture * ht = HudTexture::hudTexture;
@@ -827,6 +796,7 @@ void Stereo3D::updateScreen() {
 		if (gamestate != GS_LEVEL) 
 		{
 			sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
+			// Nice dark red universe
 			glClearColor(0.15, 0.03, 0.03, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			//// HUD Pass ////
@@ -834,8 +804,9 @@ void Stereo3D::updateScreen() {
 			HudTexture::hudTexture->bindRenderTexture();
 			glEnable(GL_TEXTURE_2D);
 			glDisable(GL_DEPTH_TEST);
-			glEnable(GL_BLEND);
-			// glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
+			glDisable(GL_BLEND);
+			// glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			// glAlphaFunc(GL_GREATER, 0.4); // 0.2 -> 0.3 causes console background to show
 			// TODO suppress crosshair during hud pass?
 			// left eye view - hud pass
 			{
@@ -855,8 +826,9 @@ void Stereo3D::updateScreen() {
 			HudTexture::hudTexture->bindToFrameBuffer();
 			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 			glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
-			glClearColor(0,1,1,0);
+			glClearColor(0.1 , 0.1, 0.1, 0.0); // Gray default
 			glClear(GL_COLOR_BUFFER_BIT);
+			glEnable(GL_BLEND);
 		}
 
 
