@@ -654,7 +654,29 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				/* */
 
+				if (true) {
+					// To get the buffer image, we must BLIT BEFORE submitFrame()...
+					// Mirror Rift view to desktop screen
+					// Must be before submitFrame()...
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+					glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+					glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, sharedRiftHmd->getFBHandle());
+					ovrSizei v = sharedRiftHmd->getViewSize();
+					glBlitFramebuffer(0, 0, v.w, v.h, 
+						0, 0, SCREENWIDTH, SCREENHEIGHT,
+						GL_COLOR_BUFFER_BIT, GL_NEAREST);
+					// static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+				}
+
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
+
+				if (true) {
+					// ... but to keep frame rate, we must Swap() AFTER submitFrame
+					static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+				}
 
 				// Clear crosshair
 				HudTexture::crosshairTexture->bindToFrameBuffer();
@@ -821,17 +843,19 @@ void Stereo3D::updateScreen() {
 				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
 			}
 
-			// Mirror Rift view to desktop screen
-			// Must be before submitFrame()...
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-			glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
-			glBindFramebuffer(GL_READ_FRAMEBUFFER, sharedRiftHmd->getFBHandle());
-			ovrSizei v = sharedRiftHmd->getViewSize();
-			glBlitFramebuffer(0, 0, v.w, v.h, 
-				0, 0, SCREENWIDTH, SCREENHEIGHT,
-				GL_COLOR_BUFFER_BIT, GL_NEAREST);
-			static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+			if (true) {
+				// Mirror Rift view to desktop screen
+				// Must be before submitFrame()...
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, sharedRiftHmd->getFBHandle());
+				ovrSizei v = sharedRiftHmd->getViewSize();
+				glBlitFramebuffer(0, 0, v.w, v.h, 
+					0, 0, SCREENWIDTH, SCREENHEIGHT,
+					GL_COLOR_BUFFER_BIT, GL_NEAREST);
+				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+			}
 
 			sharedRiftHmd->submitFrame(1.0/41.0);
 
