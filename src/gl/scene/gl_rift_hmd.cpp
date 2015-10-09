@@ -145,6 +145,10 @@ ovrResult RiftHmd::init_scene_texture()
 	return result;
 }
 
+ovrSizei RiftHmd::getViewSize() {
+	return sceneLayer.Viewport[0].Size;
+}
+
 void RiftHmd::bindToSceneFrameBuffer() {
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
 }

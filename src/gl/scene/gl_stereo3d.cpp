@@ -821,7 +821,20 @@ void Stereo3D::updateScreen() {
 				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
 			}
 
+			// Mirror Rift view to desktop screen
+			// Must be before submitFrame()...
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+			glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+			glBindFramebuffer(GL_READ_FRAMEBUFFER, sharedRiftHmd->getFBHandle());
+			ovrSizei v = sharedRiftHmd->getViewSize();
+			glBlitFramebuffer(0, 0, v.w, v.h, 
+				0, 0, SCREENWIDTH, SCREENHEIGHT,
+				GL_COLOR_BUFFER_BIT, GL_NEAREST);
+			static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+
 			sharedRiftHmd->submitFrame(1.0/41.0);
+
 			// Clear HUD
 			HudTexture::hudTexture->bindToFrameBuffer();
 			glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);

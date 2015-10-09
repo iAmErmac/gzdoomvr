@@ -17,6 +17,7 @@ public:
 	ovrResult init_graphics();
 	bool bindToSceneFrameBufferAndUpdate();
 	void bindToSceneFrameBuffer();
+	int getFBHandle() const {return sceneFrameBuffer;}
 
 	void paintHudQuad(float hudScale, float pitchAngle);
 	void paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose);
@@ -26,6 +27,7 @@ public:
 	ovrResult submitFrame(float metersPerSceneUnit);
 	void recenter_pose();
 	const ovrPosef& getCurrentEyePose() const {return currentEyePose;}
+	ovrSizei RiftHmd::getViewSize();
 
 private:
 	ovrResult init_scene_texture();
