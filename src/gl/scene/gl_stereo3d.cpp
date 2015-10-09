@@ -844,6 +844,7 @@ void Stereo3D::updateScreen() {
 			}
 
 			if (true) {
+				// To get the buffer image, we must BLIT BEFORE submitFrame()...
 				// Mirror Rift view to desktop screen
 				// Must be before submitFrame()...
 				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -854,10 +855,17 @@ void Stereo3D::updateScreen() {
 				glBlitFramebuffer(0, 0, v.w, v.h, 
 					0, 0, SCREENWIDTH, SCREENHEIGHT,
 					GL_COLOR_BUFFER_BIT, GL_NEAREST);
-				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+				// static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 			}
 
 			sharedRiftHmd->submitFrame(1.0/41.0);
+
+			if (true) {
+				// ... but to keep frame rate, we must Swap() AFTER submitFrame
+				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+			}
 
 			// Clear HUD
 			HudTexture::hudTexture->bindToFrameBuffer();
