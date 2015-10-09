@@ -673,9 +673,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 
-				if (true) {
+				if (true) 
+				{
 					// ... but to keep frame rate, we must Swap() AFTER submitFrame
+					All.Unclock();
 					static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+					All.Clock();				
 				}
 
 				// Clear crosshair
@@ -864,7 +867,9 @@ void Stereo3D::updateScreen() {
 
 			if (true) {
 				// ... but to keep frame rate, we must Swap() AFTER submitFrame
+				All.Unclock();
 				static_cast<OpenGLFrameBuffer*>(screen)->Swap();
+				All.Clock();				
 			}
 
 			// Clear HUD
