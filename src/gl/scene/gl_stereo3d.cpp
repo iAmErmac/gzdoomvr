@@ -39,13 +39,13 @@ CVAR(Float, vr_view_yoffset, 4.0, 0) // MAP UNITS - raises your head to be close
 // Supposed to be 32 units per meter, according to http://doom.wikia.com/wiki/Map_unit
 // But ceilings and floors look too close at that scale.
 CVAR(Float, vr_player_height_meters, 1.75f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
-CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_GLOBALCONFIG) // Used for stereo 3D
+// CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_GLOBALCONFIG) // Used for stereo 3D
 CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for oculus rift
 CVAR(Float, vr_weapondist, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to DK2)
 CVAR(Float, vr_sprite_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // weapon size
 CVAR(Float, vr_hud_scale, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
-CVAR(Bool, vr_lowpersist, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+// CVAR(Bool, vr_lowpersist, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 // Command to set "standard" rift settings
 EXTERN_CVAR(Int, con_scaletext)
@@ -66,12 +66,12 @@ CCMD(oculardium_optimosa)
 	hud_althudscale = 1;
 	crosshairscale = 1;
 	movebob = 0.05; // No bobbing
-	turbo = 65; // Slower walking
+	turbo = 50; // Slower walking
 	vr_mode = 8; // Rift mode
 	// Use minimal or no HUD
 	// if (screenblocks <= 10)
 	// 	screenblocks = 11;
-	vr_lowpersist = true;
+	// vr_lowpersist = true;
 	m_use_mouse = 0; // no mouse in menus
 	// freelook = false; // no up/down look with mouse // too intrusive?
 	crosshair = 1; // show crosshair

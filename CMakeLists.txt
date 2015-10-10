@@ -277,9 +277,7 @@ if (WIN32)
 		set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\\\"$INSTDIR\\\\vcredist_x86.exe\\\" /passive /norestart' ")
 	endif()
     set(CPACK_NSIS_MENU_LINKS
-        "GZ3DoomRiftMonitor1.bat" "GZ3Doom Rift on Monitor 1"
-        "GZ3DoomRiftMonitor2.bat" "GZ3Doom Rift on Monitor 2"
-        "GZ3DoomRiftMonitor3.bat" "GZ3Doom Rift on Monitor 3"
+        "GZ3DoomRiftMonitor1.bat" "GZ3Doom on Oculus Rift"
     )
 endif()
 
