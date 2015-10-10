@@ -310,6 +310,37 @@ PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	return result;
 }
 
+static void blitRiftBufferToScreen() {
+	// To get the buffer image, we must BLIT BEFORE submitFrame()...
+	// Mirror Rift view to desktop screen
+	// Must be before submitFrame()...
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+	glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, sharedRiftHmd->getFBHandle());
+	ovrSizei v = sharedRiftHmd->getViewSize();
+	// TODO - use same aspect ratio, remove stuff from desktop view if necessary
+	int x = 0;
+	int y = 0;
+	int w = v.w;
+	int h = v.h;
+	float riftAspect = float(v.w) / float(v.h);
+	float desktopAspect = float(SCREENWIDTH) / float(SCREENHEIGHT);
+	if (desktopAspect > riftAspect) {
+		h = int(h*riftAspect/desktopAspect);
+		y = (v.h - h) / 2;
+	}
+	else {
+		w = int(w*desktopAspect/riftAspect);
+		x = (v.w - w) / 2;
+	}
+	glBlitFramebuffer(x, y, w+x, h+y,
+		0, 0, SCREENWIDTH, SCREENHEIGHT,
+		GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+}
+
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
 	if (doBufferHud)
@@ -652,24 +683,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				viewwidth = oldViewWidth;
 				viewheight = oldViewHeight;
 
-				/* */
-
-				if (true) {
-					// To get the buffer image, we must BLIT BEFORE submitFrame()...
-					// Mirror Rift view to desktop screen
-					// Must be before submitFrame()...
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-					glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-					glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, sharedRiftHmd->getFBHandle());
-					ovrSizei v = sharedRiftHmd->getViewSize();
-					glBlitFramebuffer(0, 0, v.w, v.h, 
-						0, 0, SCREENWIDTH, SCREENHEIGHT,
-						GL_COLOR_BUFFER_BIT, GL_NEAREST);
-					// static_cast<OpenGLFrameBuffer*>(screen)->Swap();
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-				}
+				blitRiftBufferToScreen();
 
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 
@@ -846,22 +860,7 @@ void Stereo3D::updateScreen() {
 				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
 			}
 
-			if (true) {
-				// To get the buffer image, we must BLIT BEFORE submitFrame()...
-				// Mirror Rift view to desktop screen
-				// Must be before submitFrame()...
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
-				glBindFramebuffer(GL_READ_FRAMEBUFFER, sharedRiftHmd->getFBHandle());
-				ovrSizei v = sharedRiftHmd->getViewSize();
-				glBlitFramebuffer(0, 0, v.w, v.h, 
-					0, 0, SCREENWIDTH, SCREENHEIGHT,
-					GL_COLOR_BUFFER_BIT, GL_NEAREST);
-				// static_cast<OpenGLFrameBuffer*>(screen)->Swap();
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-				glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-			}
+			blitRiftBufferToScreen();
 
 			sharedRiftHmd->submitFrame(1.0/41.0);
 
