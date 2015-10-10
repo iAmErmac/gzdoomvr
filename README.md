@@ -4,6 +4,15 @@
 
 Click to visit the <a href="http://rotatingpenguin.com">Official GZ3Doom Site</a> at rotatingpenguin.com
 
+<h2>Installation</h2>
+
+1. Run the installer at https://github.com/cmbruns/gz3doom/releases
+2. Obtain a WAD file for the game you want to play, and place it in the GZ3Doom folder.https://github.com/cmbruns/gz3doom/wiki/Games-files-%28.wad%29-for-Doom,-Doom-2,-etc.
+3. If you want to play using the Oculus Rift:
+  1. Install the Oculus Runtime https://developer.oculus.com/downloads/pc/0.7.0.0-beta/Oculus_Runtime_for_Windows/
+  2. Configure your Rift
+  1. Enter "vr_mode 8" in the console, or use the Oculus Rift launch shortcut in the GZ3Doom start menu.
+
 <h2>About GZ3Doom</h2>
 
 GZ3Doom is a 3D adaptation of the legendary first-person-shooter game Doom, which was first released in 1994.
