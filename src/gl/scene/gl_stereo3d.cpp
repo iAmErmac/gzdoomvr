@@ -209,9 +209,10 @@ struct EyeViewShifter : public ViewPositionShifter
 		: ViewPositionShifter(player, renderer_param)
 	{
 		float eyeShift = vr_ipd / 2.0;
-		if (eyeView == EYE_VIEW_LEFT) {
+		if (eyeView == EYE_VIEW_LEFT)
 			eyeShift = -eyeShift;
-		}
+		if (vr_swap)
+			eyeShift = -eyeShift;
 		// Account for roll angle
 		float roll = renderer_param.mAngles.Roll * 3.14159/180.0;
 		float cr = cos(roll);
@@ -347,9 +348,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 		LocalHudRenderer::unbind();
 
 	// Reset pitch and roll when leaving Rift mode
-	if ( (mode == OCULUS_RIFT) && ((int)mode != vr_mode) ) {
+	if ( (mode == OCULUS_RIFT) && ((int)mode != vr_mode) ) 
+	{
 		renderer.mAngles.Roll = 0;
 		renderer.mAngles.Pitch = 0;
+
+		// Blank Rift display before leaving
+		sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
+
+		// Start rendering to screen, at least to start
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	}
 	setMode(vr_mode);
 
