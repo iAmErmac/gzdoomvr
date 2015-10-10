@@ -202,6 +202,11 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle)
 
 	// But allow hud yaw to vary within a range about torso yaw
 	static float hudYaw = 0;
+	static bool haveHudYaw = false;
+	if (! haveHudYaw) {
+		haveHudYaw = true;
+		hudYaw = hmdYaw;
+	}
 	// shift deviation from camera yaw to range +- 180 degrees
 	float dYaw = hmdYaw - hudYaw;
 	while (dYaw > 180) dYaw -= 360;

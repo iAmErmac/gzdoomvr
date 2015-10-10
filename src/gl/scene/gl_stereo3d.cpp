@@ -582,6 +582,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClearColor(0, 0, 1, 0);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+				static bool hmdEverRecentered = false;
+				if (! hmdEverRecentered) {
+					hmdEverRecentered = true;
+					sharedRiftHmd->recenter_pose();
+				}
+
 				// FIRST PASS - 3D
 				// Temporarily modify global variables, so HUD could draw correctly
 				int oldScreenBlocks = screenblocks;
@@ -956,8 +962,13 @@ bool Stereo3D::hasHeadTracking() const {
 void Stereo3D::setViewDirection(FGLRenderer& renderer) {
 	// Set HMD angle parameters for NEXT frame
 	static float previousYaw = 0;
+	static bool havePreviousYaw = false;
 	if (mode == OCULUS_RIFT) {
 		PitchRollYaw prw = getHeadOrientation(renderer);
+		if (! havePreviousYaw) {
+			previousYaw = prw.yaw;
+			havePreviousYaw = true;
+		}
 		double dYaw = prw.yaw - previousYaw;
 		G_AddViewAngle(-32768.0*dYaw/3.14159); // determined empirically
 		previousYaw = prw.yaw;
