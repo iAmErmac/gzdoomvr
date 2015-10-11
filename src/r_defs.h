@@ -438,6 +438,8 @@ struct extsector_t
 		TArray<lightlist_t>				lightlist;		// 3D light list
 		TArray<sector_t*>				attached;		// 3D floors attached to this sector
 	} XFloor;
+
+	TArray<vertex_t *> vertices;
 	
 	void Serialize(FArchive &arc);
 };
@@ -635,14 +637,28 @@ struct sector_t
 		return planes[pos].TexZ;
 	}
 
-	void SetPlaneTexZ(int pos, fixed_t val)
+	void SetVerticesDirty()
+	{
+		for (unsigned i = 0; i < e->vertices.Size(); i++) e->vertices[i]->dirty = true;
+	}
+
+	void SetAllVerticesDirty()
+	{
+		SetVerticesDirty();
+		for (unsigned i = 0; i < e->FakeFloor.Sectors.Size(); i++) e->FakeFloor.Sectors[i]->SetVerticesDirty();
+		for (unsigned i = 0; i < e->XFloor.attached.Size(); i++) e->XFloor.attached[i]->SetVerticesDirty();
+	}
+
+	void SetPlaneTexZ(int pos, fixed_t val, bool dirtify = false)	// This mainly gets used by init code. The only place where it must set the vertex to dirty is the interpolation code.
 	{
 		planes[pos].TexZ = val;
+		if (dirtify) SetAllVerticesDirty();
 	}
 
 	void ChangePlaneTexZ(int pos, fixed_t val)
 	{
 		planes[pos].TexZ += val;
+		SetAllVerticesDirty();
 	}
 
 	static inline short ClampLight(int level)
@@ -765,8 +781,6 @@ struct sector_t
 	// GL only stuff starts here
 	float						reflect[2];
 
-	int							dirtyframe[3];		// last frame this sector was marked dirty
-	bool						dirty;				// marked for recalculation
 	bool						transdoor;			// For transparent door hacks
 	fixed_t						transdoorheight;	// for transparent door hacks
 	int							subsectorcount;		// list of subsectors
@@ -957,18 +971,6 @@ struct side_t
 
 FArchive &operator<< (FArchive &arc, side_t::part &p);
 
-//
-// Move clipping aid for LineDefs.
-//
-enum slopetype_t
-{
-	ST_HORIZONTAL,
-	ST_VERTICAL,
-	ST_POSITIVE,
-	ST_NEGATIVE
-};
-
-
 struct line_t
 {
 	vertex_t	*v1, *v2;	// vertices, from v1 to v2
@@ -983,7 +985,6 @@ struct line_t
 	side_t		*sidedef[2];
 	//DWORD		sidenum[2];	// sidenum[1] will be NO_SIDE if one sided
 	fixed_t		bbox[4];	// bounding box, for the extent of the LineDef.
-	slopetype_t	slopetype;	// To aid move clipping.
 	sector_t	*frontsector, *backsector;
 	int 		validcount;	// if == validcount, already checked
 	int			locknumber;	// [Dusk] lock number for special

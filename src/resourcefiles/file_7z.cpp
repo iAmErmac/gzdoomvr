@@ -32,6 +32,12 @@
 **
 **
 */
+#ifdef _WIN32
+#define USE_WINDOWS_DWORD
+#endif
+
+#include "7z.h"
+#include "7zCrc.h"
 
 #include "resourcefile.h"
 #include "cmdlib.h"
@@ -41,8 +47,6 @@
 #include "i_system.h"
 #include "w_wad.h"
 
-#include "7z.h"
-#include "7zCrc.h"
 
 
 //-----------------------------------------------------------------------
@@ -285,8 +289,8 @@ bool F7ZFile::Open(bool quiet)
 			continue;
 		}
 
-		nameUTF16.Resize(nameLength);
-		nameASCII.Resize(nameLength);
+		nameUTF16.Resize((unsigned)nameLength);
+		nameASCII.Resize((unsigned)nameLength);
 		SzArEx_GetFileNameUtf16(&Archive->DB, i, &nameUTF16[0]);
 		for (size_t c = 0; c < nameLength; ++c)
 		{

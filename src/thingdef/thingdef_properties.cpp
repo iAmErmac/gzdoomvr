@@ -167,7 +167,7 @@ INTBOOL CheckActorFlag(const AActor *owner, FFlagDef *fd)
 	{
 		return fd->flagbit & *(DWORD *)(((char*)owner) + fd->structoffset);
 	}
-#ifdef __BID_ENDIAN__
+#ifdef __BIG_ENDIAN__
 	else if (fd->fieldsize == 2)
 	{
 		return fd->flagbit & *(WORD *)(((char*)owner) + fd->structoffset);
@@ -1295,6 +1295,17 @@ DEFINE_PROPERTY(gravity, F, Actor)
 
 	if (i < 0) I_Error ("Gravity must not be negative.");
 	defaults->gravity = i;
+}
+
+//==========================================================================
+//
+//==========================================================================
+DEFINE_PROPERTY(friction, F, Actor)
+{
+	PROP_FIXED_PARM(i, 0);
+
+	if (i < 0) I_Error ("Friction must not be negative.");
+	defaults->Friction = i;
 }
 
 //==========================================================================

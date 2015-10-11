@@ -44,14 +44,14 @@ const char *GetVersionString();
 #define VERSIONSTR "1.9pre"
 
 // The version as seen in the Windows resource
-#define RC_FILEVERSION 1,8,9999,0
-#define RC_PRODUCTVERSION 1,8,9999,0
-#define RC_PRODUCTVERSION2 "1.9pre"
+#define RC_FILEVERSION 1,8,07,0
+#define RC_PRODUCTVERSION 1,8,07,0
+#define RC_PRODUCTVERSION2 "1.8.07"
 
 // Version identifier for network games.
 // Bump it every time you do a release unless you're certain you
 // didn't change anything that will affect sync.
-#define NETGAMEVERSION 229
+#define NETGAMEVERSION 230
 
 // Version stored in the ini's [LastRun] section.
 // Bump it if you made some configuration change that you want to
@@ -61,11 +61,11 @@ const char *GetVersionString();
 // Protocol version used in demos.
 // Bump it if you change existing DEM_ commands or add new ones.
 // Otherwise, it should be safe to leave it alone.
-#define DEMOGAMEVERSION 0x21A
+#define DEMOGAMEVERSION 0x21B
 
 // Minimum demo version we can play.
 // Bump it whenever you change or remove existing DEM_ commands.
-#define MINDEMOVERSION 0x215
+#define MINDEMOVERSION 0x21B
 
 // SAVEVER is the version of the information stored in level snapshots.
 // Note that SAVEVER is not directly comparable to VERSION.
@@ -76,7 +76,7 @@ const char *GetVersionString();
 
 // Use 4500 as the base git save version, since it's higher than the
 // SVN revision ever got.
-#define SAVEVER 4508
+#define SAVEVER 4512
 
 #define SAVEVERSTRINGIFY2(x) #x
 #define SAVEVERSTRINGIFY(x) SAVEVERSTRINGIFY2(x)

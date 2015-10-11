@@ -14,6 +14,8 @@ const int SF_RANDOMLIGHTHIT = 4;
 const int SF_RANDOMLIGHTBOTH = 6;
 const int SF_NOUSEAMMOMISS = 8;
 const int SF_NOUSEAMMO = 16;
+const int SF_NOPULLIN = 32;
+const int SF_NOTURN = 64;
 
 // Flags for A_CustomMissile
 const int CMF_AIMOFFSET = 1;
@@ -163,6 +165,10 @@ const int CPF_USEAMMO = 1;
 const int CPF_DAGGER = 2;
 const int CPF_PULLIN = 4;
 const int CPF_NORANDOMPUFFZ = 8;
+
+// Flags for A_CustomMissile
+const int FPF_AIMATANGLE = 1;
+const int FPF_TRANSFERTRANSLATION = 2;
 
 // Flags for A_Teleport
 const int TF_TELEFRAG = 1;const int TF_RANDOMDECIDE = 2;
