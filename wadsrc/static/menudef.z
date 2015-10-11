@@ -239,6 +239,7 @@ OptionMenu "VideoOptions"
 	StaticText " "
 	Option "Stereo 3D VR",              "vr_mode", "VRMode"
 	Option "Swap 3D eyes",              "vr_swap", "YesNo"
+	Slider "Head bobbing",				"movebob",				0.0, 1.0, 0.05
 
 	StaticText " "
 	Option "Screen wipe style",			"wipetype", "Wipes"
