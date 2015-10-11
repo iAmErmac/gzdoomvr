@@ -250,6 +250,7 @@ struct PositionTrackingShifter : public ViewPositionShifter
 		OVR::Quatf yawCorrection(OVR::Vector3f(0, 1, 0), -hmdYaw); // 
 		// OVR::Vector3f trans0(pose.Position);
 		OVR::Vector3f trans2 = yawCorrection.Rotate(pose.Position);
+		// trans2 *= 2.0; // TODO debugging
 		/* */
 		incrementPositionFloat(
 			 trans2.x, // pose.Position.x, // LEFT_RIGHT
@@ -342,6 +343,9 @@ static void blitRiftBufferToScreen() {
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 }
 
+static const float zNear = 2.0;
+static const float zFar = 10000.0;
+
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
 {
 	if (doBufferHud)
@@ -400,6 +404,17 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	}
 
 	angle_t a1 = renderer.FrustumAngle();
+
+	// Avoid crash when Rift is turned off (or not present?).
+	// Fall back to a simpler mode if, say, rift not available
+	if (mode == OCULUS_RIFT) {
+		ovrResult result = sharedRiftHmd->init_graphics();
+		if (! OVR_SUCCESS(result)) {
+			setMode(MONO); // Revert to mono if Oculus Rift is off
+			vr_mode = MONO;
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+	}
 
 	switch(mode) 
 	{
@@ -579,7 +594,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 	case OCULUS_RIFT:
 		{
 			doBufferHud = true;
-			sharedRiftHmd->init_graphics();
+			ovrResult result = sharedRiftHmd->init_graphics();
 
 			{
 				// Activate positional tracking
@@ -606,7 +621,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				//
 				// left eye view - 3D scene pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					glEnable(GL_DEPTH_TEST);
 					renderer.RenderOneEye(a1, false, false);
@@ -615,7 +630,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				// right eye view - 3D scene pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					renderer.RenderOneEye(a1, false, true);
 				}
@@ -631,13 +646,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintHudQuad(vr_hud_scale, -25);
 				}
 				// right eye view - hud pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintHudQuad(vr_hud_scale, -25);
 				}
@@ -648,13 +663,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glEnable(GL_BLEND);
 				// left eye view - crosshair pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintCrosshairQuad(leftEyePose, rightEyePose);
 				}
 				// right eye view - crosshair pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintCrosshairQuad(rightEyePose, leftEyePose);
 				}
@@ -682,13 +697,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glDisable(GL_BLEND); // for distinct transparency threshold
 				// left eye view - weapon pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintWeaponQuad(leftEyePose, rightEyePose, vr_weapondist);
 				}
 				// right eye view - weapon pass
 				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist);
 				}
@@ -844,6 +859,15 @@ void Stereo3D::updateScreen() {
 		ht->unbind();
 		// blitHudTextureToScreen(); // causes double hud in rift
 	}
+	// Avoid crash when Rift is turned off
+	if ( (vr_mode == OCULUS_RIFT) ) {
+		ovrResult result = sharedRiftHmd->init_graphics();
+		if (! OVR_SUCCESS(result)) {
+			// setMode(MONO); // Revert to mono if Oculus Rift is off
+			vr_mode = MONO;
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		}
+	}
 	// Special handling of intermission screen for Oculus SDK warping
 	if ( (vr_mode == OCULUS_RIFT) ) 
 	{
@@ -866,13 +890,13 @@ void Stereo3D::updateScreen() {
 			// TODO suppress crosshair during hud pass?
 			// left eye view - hud pass
 			{
-				sharedRiftHmd->setSceneEyeView(ovrEye_Left, 10, 10000); // Left eye
+				sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 				// PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
 			}
 			// right eye view - hud pass
 			{
-				sharedRiftHmd->setSceneEyeView(ovrEye_Right, 10, 10000); // Right eye
+				sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 				// PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
 			}
