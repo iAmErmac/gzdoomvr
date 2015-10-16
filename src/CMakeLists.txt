@@ -892,8 +892,6 @@ set( NOT_COMPILED_SOURCE_FILES
 	asm_x86_64/tmap3.s
 )
 
-add_executable( zdoom WIN32 MACOSX_BUNDLE
-
 # OCULUS
 # Maybe compile in support for Oculus Rift CMB Oct 2013
 find_path(OCULUS_SDK_PATH
@@ -974,7 +972,7 @@ if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARY)
     include_directories(${OCULUS_INCLUDE_DIRECTORY} ${OCULUS_INCLUDE_DIRECTORY2})
 endif()
 
-add_executable( zdoom WIN32
+add_executable( zdoom WIN32 MACOSX_BUNDLE
 	${HEADER_FILES}
 	${NOT_COMPILED_SOURCE_FILES}
 	__autostart.cpp
@@ -1531,4 +1529,3 @@ if(APPLE)
             COMMENT "changing reference to glew library")
     endif()
 endif()
-
