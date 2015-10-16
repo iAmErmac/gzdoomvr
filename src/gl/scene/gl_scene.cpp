@@ -1204,6 +1204,10 @@ void FGLInterface::StateChanged(AActor *actor)
 void FGLInterface::StartSerialize(FArchive &arc)
 {
 	gl_DeleteAllAttachedLights();
+}
+
+void gl_SerializeGlobals(FArchive &arc)
+{
 	arc << fogdensity << outsidefogdensity << skyfog;
 }
 
