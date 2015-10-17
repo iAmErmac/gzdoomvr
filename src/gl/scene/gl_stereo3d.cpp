@@ -41,7 +41,7 @@ CVAR(Float, vr_view_yoffset, 4.0, 0) // MAP UNITS - raises your head to be close
 CVAR(Float, vr_player_height_meters, 1.75f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for stereo 3D
 // CVAR(Float, vr_rift_aspect, 640.0/800.0, CVAR_GLOBALCONFIG) // Used for stereo 3D
 CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for oculus rift
-CVAR(Float, vr_weapondist, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
+CVAR(Float, vr_weapondist, 0.45, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to DK2)
 CVAR(Float, vr_sprite_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // weapon size
 CVAR(Float, vr_hud_scale, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
@@ -703,13 +703,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintWeaponQuad(leftEyePose, rightEyePose, vr_weapondist);
+					sharedRiftHmd->paintWeaponQuad(leftEyePose, rightEyePose, vr_weapondist, vr_weapon_height);
 				}
 				// right eye view - weapon pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist);
+					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
 				}
 				glEnable(GL_BLEND);
 				glBindTexture(GL_TEXTURE_2D, 0);

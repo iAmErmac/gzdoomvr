@@ -305,7 +305,7 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	glEnd();
 }
 
-void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist) 
+void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist, float weaponHeight) 
 {
 	// Place weapon relative to head
 	const ovrPosef& pose = eyePose;
@@ -340,6 +340,7 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 
 	// Correct Roll, but not pitch nor yaw
 	glRotatef(hudRoll, 0, 0, 1);
+	glRotatef(weaponHeight, 1, 0, 0);
 
 	float hudDistance = weaponDist; // meters, (measured 46 cm to stock of hand weapon)
 	float hudWidth = 0.6; // meters, Adjust for good average weapon size
