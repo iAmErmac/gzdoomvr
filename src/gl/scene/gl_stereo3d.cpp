@@ -863,14 +863,30 @@ void Stereo3D::updateScreen() {
 		ht->unbind();
 		// blitHudTextureToScreen(); // causes double hud in rift
 	}
-	// Avoid crash when Rift is turned off
+	// Avoid crash when Rift has not been powered on yet
+	static bool wasRiftMode = false;
 	if ( (vr_mode == OCULUS_RIFT) ) {
 		ovrResult result = sharedRiftHmd->init_graphics();
-		if (! OVR_SUCCESS(result)) {
+		if (OVR_SUCCESS(result)) {
+			wasRiftMode = true;
+		}
+		else {
 			// setMode(MONO); // Revert to mono if Oculus Rift is off
 			vr_mode = MONO;
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
+	}
+	// Make sure display is usable after leaving Rift mode
+	else if (wasRiftMode) {
+		// Blank Rift display before leaving
+		sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		sharedRiftHmd->submitFrame(1.0/41.0);
+		// Start rendering to screen, at least for the moment
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		wasRiftMode = false;
+		htWasBound = false;
 	}
 	// Special handling of intermission screen for Oculus SDK warping
 	if ( (vr_mode == OCULUS_RIFT) ) 
