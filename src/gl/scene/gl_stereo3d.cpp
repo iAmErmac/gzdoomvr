@@ -102,8 +102,8 @@ CCMD(snap45right)
 }
 
 void Stereo3D::resetPosition() {
-	if (sharedRiftHmd != NULL)
-		sharedRiftHmd->recenter_pose();
+	if (sharedRiftHmd == NULL) return; 
+	sharedRiftHmd->recenter_pose();
 }
 
 CCMD(vr_reset_position)

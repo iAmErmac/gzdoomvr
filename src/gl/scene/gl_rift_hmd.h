@@ -36,14 +36,15 @@ private:
 	unsigned int depthBuffer;
 	unsigned int frameIndex;
 
-#ifdef HAVE_OCULUS_API
+// #ifdef HAVE_OCULUS_API
 	ovrSwapTextureSet * sceneTextureSet;
 	ovrTexture * mirrorTexture;
 	ovrHmd hmd;
 	ovrVector3f hmdToEyeViewOffset[2];
 	ovrLayerEyeFov sceneLayer;
 	ovrPosef currentEyePose;
-#endif
+	ovrVector3f poseOrigin;
+// #endif
 };
 
 extern RiftHmd* sharedRiftHmd;

@@ -22,6 +22,7 @@ RiftHmd::RiftHmd()
 	, sceneTextureSet(nullptr)
 	, mirrorTexture(nullptr)
 	, frameIndex(0)
+	, poseOrigin(OVR::Vector3f(0,0,0))
 {
 }
 
@@ -163,6 +164,14 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
     ovr_CalcEyePoses(hmdState.HeadPose.ThePose, 
             hmdToEyeViewOffset,
             sceneLayer.RenderPose);
+
+	// Apply our custom position-but-not-yaw recentering offset
+	for (int eye = 0; eye < 2; ++eye) {
+		OVR::Vector3f pos = sceneLayer.RenderPose[eye].Position;
+		pos -= poseOrigin;
+		sceneLayer.RenderPose[eye].Position = pos;
+	}
+
     // Increment to use next texture, just before writing
     // 2d) Advance CurrentIndex within each used texture set to target the next consecutive texture buffer for the following frame.
 	int ix = sceneTextureSet->CurrentIndex + 1;
@@ -379,7 +388,9 @@ ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
 }
 
 void RiftHmd::recenter_pose() {
-	ovr_RecenterPose(hmd);
+    ovrTrackingState hmdState = ovr_GetTrackingState(hmd, 0);
+	poseOrigin = hmdState.HeadPose.ThePose.Position;
+	// ovr_RecenterPose(hmd);
 }
 
 static RiftHmd _sharedRiftHmd;
