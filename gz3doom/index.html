@@ -35,26 +35,32 @@
 
 <h3><a name="news">News</a></h3>
 
-<p>October 10, 2015: Release of GZ3Doom version 1.8.6_m (<a href="https://github.com/cmbruns/gz3doom/releases">download</a> from github)</p>
+<p>October 17, 2015: Release of GZ3Doom version 1.8.10_a (<a href="https://github.com/cmbruns/gz3doom/releases">download</a> from github)</p>
 Summary of changes this release:
 <ul>
-<li>Convert to Oculus SDK 0.7 (direct mode only)</li>
-<li>Title screen is now usable in the Rift</li>
-<li>HUD, weapon, and crosshair layers are a bit less nailed-to-your-head in the Rift.</li>
-<li>There is just one Rift shortcut menu launcher now.</li>
-<li>Rift view is mirrored to screen.</li>
+<li>Sync with gzdoom 1.8.10, the final release in the gzdoom 1.X series</li>
+<li>Add Options menu items for vr mode, head bobbing, and a control configuration for position recentering</li>
+<li>Avoid various crashing and unusable state conditions</li>
+<li>Reset head position without resetting yaw view direction</li>
+<li>Remove trailing weapon motion after position changes</li>
+<li>oculardium_optimosa command turns off mouse smoothing</li>
+<li>vr_weapon_height CVAR works again in Rift mode</li>
 </ul>
 
 <h3><a name="instructions">Instructions</a></h3>
 
-<p>To use GZ3Doom in Oculus Rift mode:</p>
+<p>To play GZ3Doom in Oculus Rift mode:</p>
 <ul>
 <li>Install <a href="https://developer.oculus.com/downloads/pc/0.7.0.0-beta/Oculus_Runtime_for_Windows/">Oculus Runtime 0.7</a></li>
+<li>Install recent display driver version as documented on that runtime download page (above)</li>
 <li>Download GZ3Doom (<a href="#download">below</a>)</li>
-<li>Launch GZ3Doom, preferably using the Rift launch shortcut.</li>
+<li>Obtain a <a href="http://zdoom.org/wiki/IWAD">.WAD file</a> for the game you want to play, and place the .WAD file in the same folder you installed GZ3Doom to</li>
+<li>Turn on your Oculus Rift</li>
+<li>Test the Oculus Rift demo scene in the Oculus Configuration Utility to make sure your Rift functions</li>
+<li>Launch GZ3Doom, preferably using the Rift launch shortcut Start Menu-&gt;Programs-&gt;GZ3Doom-&gt;&quot;GZ3Doom on Oculus Rift&quot;</li>
 <li>Set video mode to 640x480</li>
 <li>Activate Oculus Rift mode by typing in the zdoom console: <blockquote>&gt; vr_mode 8</blockquote></li>
-<li>See <a href="#tips">Tips</a> section below, for more detailed suggestions.</li>
+<li>See <a href="#tips">Tips</a> section below, for more suggestions.</li>
 </ul>
 
 <p>To activate the zdoom console, press &quot;~&quot; (tilde).</p>
@@ -91,6 +97,7 @@ See more details at the <a href="https://github.com/cmbruns/gz3doom/wiki/Stereos
 <li>If you dislike the high speed your character moves at, try typing &quot;TURBO 65&quot; in the console.</li>
 <li>If the player bobbing motion makes you queasy, try typing &quot;MOVEBOB 0&quot; in the console.</li>
 <li>To play other doom games, drag a wad file (along with pk3 files, if needed) onto the installed gz3doom.exe program</li>
+<li>Configure a wireless controller using Menu-&gt;Options-&gt;Configure Controls, and play standing up. Consider configuring turning controls using the "snap 45 left" and "snap 45 right" controls, for increased comfort.</li>
 </ul>
 
 <h3><a name="download">Download</a></h3>
