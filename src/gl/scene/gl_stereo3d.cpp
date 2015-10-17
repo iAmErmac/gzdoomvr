@@ -58,6 +58,7 @@ EXTERN_CVAR(Float, turbo)
 EXTERN_CVAR(Int, screenblocks)
 EXTERN_CVAR(Int, m_use_mouse)
 EXTERN_CVAR(Int, crosshair)
+EXTERN_CVAR(Bool, smooth_mouse)
 CCMD(oculardium_optimosa)
 {
 	// scale up all HUD chrome
@@ -77,6 +78,7 @@ CCMD(oculardium_optimosa)
 	crosshair = 1; // show crosshair
 	vr_view_yoffset = 4;
 	// AddCommandString("vid_setmode 1920 1080 32\n"); // causes crash
+	smooth_mouse = 0;
 }
 
 
