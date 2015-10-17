@@ -237,7 +237,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle)
 	// glEnable(GL_BLEND);
 	// glDisable(GL_ALPHA_TEST); // Looks MUCH better than without, especially console; also shows crosshair
 	// glDisable(GL_TEXTURE_2D);
-	float hudDistance = 1.5; // meters
+	float hudDistance = 1.56; // meters
 	float hudWidth = hudScale * 1.0 / 0.4 * hudDistance;
 	float hudHeight = hudWidth * 3.0f / 4.0f;
 	glBegin(GL_TRIANGLE_STRIP);
@@ -319,7 +319,7 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 	OVR::Quatf hmdRot(pose.Orientation);
 	float hmdYaw, hmdPitch, hmdRoll;
 	hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
-	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(eyeShift + dw); // Camera relative X/Y/Z
+	OVR::Vector3f eyeTrans = hmdRot.InverseRotate(eyeShift /* + dw */ ); // Camera relative X/Y/Z
 
 	// Keep crosshair fixed relative to the head, modulo roll, and convert angles to degrees
 	float hudRoll = -hmdRoll * 180/3.14159;

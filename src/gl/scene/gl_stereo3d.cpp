@@ -244,13 +244,14 @@ struct PositionTrackingShifter : public ViewPositionShifter
 
 		// Convert from Rift camera coordinates to game coordinates
 		// float gameYaw = renderer_param.mAngles.Yaw;
+		// Printf("%6.3f, %6.3f\n", pose.Position.x, pose.Position.z);
 		OVR::Quatf hmdRot(pose.Orientation);
 		float hmdYaw, hmdPitch, hmdRoll;
 		hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&hmdYaw, &hmdPitch, &hmdRoll);
 		OVR::Quatf yawCorrection(OVR::Vector3f(0, 1, 0), -hmdYaw); // 
 		// OVR::Vector3f trans0(pose.Position);
 		OVR::Vector3f trans2 = yawCorrection.Rotate(pose.Position);
-		// trans2 *= 2.0; // TODO debugging
+		// trans2 *= 0.5; // TODO debugging
 		/* */
 		incrementPositionFloat(
 			 trans2.x, // pose.Position.x, // LEFT_RIGHT
@@ -343,7 +344,7 @@ static void blitRiftBufferToScreen() {
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
 }
 
-static const float zNear = 2.0;
+static const float zNear = 1.0;
 static const float zFar = 10000.0;
 
 void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, float ratio0, float fovratio0, bool toscreen, sector_t * viewsector, player_t * player) 
@@ -643,18 +644,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glDisable(GL_DEPTH_TEST);
 				glDisable(GL_BLEND);
 				glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
+				float hudPitchDegrees = -25;
 				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, -25);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees);
 				}
 				// right eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, -25);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees);
 				}
 
 				//// Crosshair Pass ////
