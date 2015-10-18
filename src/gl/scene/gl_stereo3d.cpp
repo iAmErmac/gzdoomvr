@@ -608,7 +608,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 1.0);
 
 				sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
-				glClearColor(0, 0, 1, 0);
+				glClearColor(0, 0, 0, 0);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 				static bool hmdEverRecentered = false;
@@ -742,7 +742,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				HudTexture::hudTexture->bindToFrameBuffer();
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
-				glClearColor(0,1,1,0);
+				glClearColor(0,0,0,0);
 				glClear(GL_COLOR_BUFFER_BIT);
 
 				screenblocks = oldScreenBlocks;
