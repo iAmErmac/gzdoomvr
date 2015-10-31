@@ -635,6 +635,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+					glEnable(GL_TEXTURE_2D);
 					renderer.RenderOneEye(a1, false, true);
 				}
 				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
