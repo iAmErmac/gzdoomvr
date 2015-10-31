@@ -50,11 +50,6 @@ ovrResult RiftHmd::init_tracking()
 		return result;
 	ovrGraphicsLuid luid;
 	ovr_Create(&hmd, &luid);
-	ovr_ConfigureTracking(hmd,
-			ovrTrackingCap_Orientation | // supported capabilities
-			ovrTrackingCap_MagYawCorrection |
-			ovrTrackingCap_Position, 
-			0); // required capabilities
 	return result;
 }
 
@@ -158,12 +153,14 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 {
 	if (sceneFrameBuffer == 0) init_graphics();
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
-    ovrFrameTiming ftiming  = ovr_GetFrameTiming(hmd, 0);
-    ovrTrackingState hmdState = ovr_GetTrackingState(hmd, ftiming.DisplayMidpointSeconds);
+    double displayMidpointSeconds = ovr_GetPredictedDisplayTime(hmd, 0);
+	double sampleTime = ovr_GetTimeInSeconds(); // for tracking latency
+    ovrTrackingState hmdState = ovr_GetTrackingState(hmd, displayMidpointSeconds, true);
     // print hmdState.HeadPose.ThePose
     ovr_CalcEyePoses(hmdState.HeadPose.ThePose, 
             hmdToEyeViewOffset,
             sceneLayer.RenderPose);
+	sceneLayer.SensorSampleTime = sampleTime;
 
 	// Apply our custom position-but-not-yaw recentering offset
 	for (int eye = 0; eye < 2; ++eye) {
@@ -390,7 +387,7 @@ ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
 }
 
 void RiftHmd::recenter_pose() {
-    ovrTrackingState hmdState = ovr_GetTrackingState(hmd, 0);
+    ovrTrackingState hmdState = ovr_GetTrackingState(hmd, frameIndex, false);
 	poseOrigin = hmdState.HeadPose.ThePose.Position;
 	// ovr_RecenterPose(hmd);
 }
