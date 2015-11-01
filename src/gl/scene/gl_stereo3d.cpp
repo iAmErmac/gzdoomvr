@@ -702,12 +702,18 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				viewwindowy = 0;
 				viewwidth = SCREENWIDTH;
 				viewheight = SCREENHEIGHT;
+
 				bindAndClearHudTexture(*this);
-				renderer.EndDrawScene(viewsector); // TODO paint weapon
+				renderer.EndDrawScene(viewsector); // paint weapon
 				HudTexture::hudTexture->unbind();
+
 				sharedRiftHmd->bindToSceneFrameBuffer();
 				HudTexture::hudTexture->bindRenderTexture();
-				gl_RenderState.BlendFunc(GL_ONE, GL_ZERO);
+
+				gl_RenderState.EnableAlphaTest(false); // necessary for blending weapon with suit effect
+				gl_RenderState.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // necessary for blending weapon with suit effect
+				gl_RenderState.Apply(); // good - suit no longer obscures weapon; implicitly enables GL_TEXTURE_2D
+
 				// left eye view - weapon pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
