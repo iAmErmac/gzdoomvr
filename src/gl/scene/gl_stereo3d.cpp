@@ -644,8 +644,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				//// HUD Pass ////
 				// screenblocks = oldScreenBlocks;
-				HudTexture::hudTexture->bindRenderTexture();
 				glEnable(GL_TEXTURE_2D);
+				HudTexture::hudTexture->bindRenderTexture();
 				glDisable(GL_DEPTH_TEST);
 				glDisable(GL_BLEND);
 				glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show

@@ -246,6 +246,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle)
 	float hudDistance = 1.56; // meters
 	float hudWidth = hudScale * 1.0 / 0.4 * hudDistance;
 	float hudHeight = hudWidth * 3.0f / 4.0f;
+	glEnable(GL_TEXTURE_2D);
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glBegin(GL_TRIANGLE_STRIP);
 		glColor4f(1, 1, 1, 0.5);
