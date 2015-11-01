@@ -240,16 +240,11 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle)
 
 	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
 
-	// glEnable(GL_BLEND);
-	// glDisable(GL_ALPHA_TEST); // Looks MUCH better than without, especially console; also shows crosshair
-	// glDisable(GL_TEXTURE_2D);
 	float hudDistance = 1.56; // meters
 	float hudWidth = hudScale * 1.0 / 0.4 * hudDistance;
 	float hudHeight = hudWidth * 3.0f / 4.0f;
-	glEnable(GL_TEXTURE_2D);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	glBegin(GL_TRIANGLE_STRIP);
-		glColor4f(1, 1, 1, 0.5);
+		glColor4f(1, 1, 1, 1);
 		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
 		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
@@ -300,6 +295,7 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	if (reducedHud)
 		yCenter = 0.58;
 	glBegin(GL_TRIANGLE_STRIP);
+		glColor4f(1, 1, 1, 0.5);
 		glTexCoord2f(0.5 - txw, yCenter + txh); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
 		glTexCoord2f(0.5 - txw, yCenter - txh); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 		glTexCoord2f(0.5 + txw, yCenter + txh); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
@@ -348,7 +344,7 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 	float hudWidth = 0.6; // meters, Adjust for good average weapon size
 	float hudHeight = 3.0 / 4.0 * hudWidth;
 	glBegin(GL_TRIANGLE_STRIP);
-		glColor4f(1, 1, 1, 0.5);
+		glColor4f(1, 1, 1, 1);
 		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
 		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);

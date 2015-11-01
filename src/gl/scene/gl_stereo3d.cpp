@@ -645,20 +645,15 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				//// HUD Pass ////
 				gl_RenderState.Set2DMode(true);
-				// gl_RenderState.SetTextureMode(TM_MODULATE);
 				gl_RenderState.EnableAlphaTest(false);
 				gl_RenderState.EnableTexture(true);
 				gl_RenderState.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				gl_RenderState.BlendEquation(GL_FUNC_ADD);
-				// gl_RenderState.SetTextureMode(1);
-				// glEnable(GL_TEXTURE_2D);
+
 				HudTexture::hudTexture->bindRenderTexture();
 				glDisable(GL_DEPTH_TEST);
-				// glEnable(GL_BLEND);
-				// glDisable(GL_ALPHA_TEST);
-				// glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
 				float hudPitchDegrees = -25;
-				// TODO suppress crosshair during hud pass?
+				// note: crosshair is suppressed during hud pass?
 				// left eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
@@ -755,6 +750,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				// Clear HUD
 				HudTexture::hudTexture->bindToFrameBuffer();
+
 				glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
 				glScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
 				glClearColor(0,0,0,0);
