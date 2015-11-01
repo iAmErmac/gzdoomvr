@@ -5,6 +5,7 @@
 #include "gl/system/gl_framebuffer.h"
 #include "gl/scene/gl_stereo3d.h"
 #include "gl/renderer/gl_renderer.h"
+#include "gl/renderer/gl_renderstate.h"
 #include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_hudtexture.h"
 #include "gl/utility/gl_clock.h"
@@ -622,11 +623,12 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				int oldScreenBlocks = screenblocks;
 				screenblocks = 12; // full screen
 				//
+				glEnable(GL_DEPTH_TEST); // required for correct depth sorting
+				gl_RenderState.Set2DMode(false); // required for correct sector darkening in map mode
 				// left eye view - 3D scene pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					glEnable(GL_DEPTH_TEST);
 					renderer.RenderOneEye(a1, false, false);
 				}
 				ovrPosef leftEyePose = sharedRiftHmd->getCurrentEyePose();
@@ -635,7 +637,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					glEnable(GL_TEXTURE_2D);
 					renderer.RenderOneEye(a1, false, true);
 				}
 				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
