@@ -174,9 +174,9 @@ protected:
 		float cy = cos(yaw);
 		float sy = sin(yaw);
 
-		zf += dz * mapunits_per_meter; // doom pixel aspect correction 1.20
-		xf += ( sy * dx + cy * dy) * mapunits_per_meter * 1.20;
-		yf += (-cy * dx + sy * dy) * mapunits_per_meter * 1.20;
+		zf += dz * mapunits_per_meter / 1.20; // doom pixel aspect correction 1.20
+		xf += ( sy * dx + cy * dy) * mapunits_per_meter;
+		yf += (-cy * dx + sy * dy) * mapunits_per_meter;
 
 		setPositionFixed( FLOAT2FIXED(xf), FLOAT2FIXED(yf), FLOAT2FIXED(zf) );
 	}
@@ -298,19 +298,20 @@ static void bindAndClearHudTexture(Stereo3D& stereo3d) {
 
 PitchRollYaw Stereo3D::getHeadOrientation(FGLRenderer& renderer) {
 	PitchRollYaw result;
-
-	result.pitch = renderer.mAngles.Pitch;
-	result.roll = renderer.mAngles.Roll;
-	result.yaw = renderer.mAngles.Yaw;
+	result.pitch = 0;
+	result.roll = 0;
+	result.yaw = 0;
 
 	if (mode == OCULUS_RIFT) {
 		ovrPosef pose = sharedRiftHmd->getCurrentEyePose();
 		OVR::Quatf hmdRot(pose.Orientation);
-		float yaw, pitch, roll;
-		hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
-		result.yaw = yaw;
-		result.pitch = pitch;
-		result.roll = -roll;
+		if (hmdRot.IsNormalized()) {
+			float yaw, pitch, roll;
+			hmdRot.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
+			result.yaw = yaw;
+			result.pitch = pitch;
+			result.roll = -roll;
+		}
 	}
 
 	return result;
