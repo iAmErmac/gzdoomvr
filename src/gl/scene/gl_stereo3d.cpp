@@ -1,5 +1,6 @@
 #include "v_video.h"
 #include "c_dispatch.h"
+#include "gl/system/gl_interface.h"
 #include "gl/system/gl_system.h"
 #include "gl/system/gl_cvars.h"
 #include "gl/system/gl_framebuffer.h"
@@ -643,12 +644,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
 
 				//// HUD Pass ////
-				// screenblocks = oldScreenBlocks;
-				glEnable(GL_TEXTURE_2D);
+				gl_RenderState.Set2DMode(true);
+				// gl_RenderState.SetTextureMode(TM_MODULATE);
+				gl_RenderState.EnableAlphaTest(false);
+				gl_RenderState.EnableTexture(true);
+				gl_RenderState.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+				gl_RenderState.BlendEquation(GL_FUNC_ADD);
+				// gl_RenderState.SetTextureMode(1);
+				// glEnable(GL_TEXTURE_2D);
 				HudTexture::hudTexture->bindRenderTexture();
 				glDisable(GL_DEPTH_TEST);
-				glDisable(GL_BLEND);
-				glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
+				// glEnable(GL_BLEND);
+				// glDisable(GL_ALPHA_TEST);
+				// glAlphaFunc(GL_GREATER, 0.2); // 0.2 -> 0.3 causes console background to show
 				float hudPitchDegrees = -25;
 				// TODO suppress crosshair during hud pass?
 				// left eye view - hud pass
@@ -665,20 +673,21 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 
 				//// Crosshair Pass ////
-				// screenblocks = 12; // full screen
 				HudTexture::crosshairTexture->bindRenderTexture();
-				glEnable(GL_BLEND);
+				gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				gl_RenderState.BlendEquation(GL_FUNC_ADD);
+				// glEnable(GL_BLEND);
 				// left eye view - crosshair pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintCrosshairQuad(leftEyePose, rightEyePose);
+					sharedRiftHmd->paintCrosshairQuad(leftEyePose, rightEyePose, oldScreenBlocks <= 10);
 				}
 				// right eye view - crosshair pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintCrosshairQuad(rightEyePose, leftEyePose);
+					sharedRiftHmd->paintCrosshairQuad(rightEyePose, leftEyePose, oldScreenBlocks <= 10);
 				}
 
 				/* */
@@ -697,11 +706,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				renderer.EndDrawScene(viewsector); // TODO paint weapon
 				HudTexture::hudTexture->unbind();
 				sharedRiftHmd->bindToSceneFrameBuffer();
-				/* */
-				glEnable(GL_TEXTURE_2D);
 				HudTexture::hudTexture->bindRenderTexture();
-				glDisable(GL_DEPTH_TEST);
-				glDisable(GL_BLEND); // for distinct transparency threshold
+				gl_RenderState.BlendFunc(GL_ONE, GL_ZERO);
 				// left eye view - weapon pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
@@ -714,7 +720,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
 				}
-				glEnable(GL_BLEND);
+				// glEnable(GL_BLEND);
 				glBindTexture(GL_TEXTURE_2D, 0);
 				// Restore previous values
 				viewwindowx = oldViewWindowX;
@@ -749,16 +755,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClear(GL_COLOR_BUFFER_BIT);
 
 				screenblocks = oldScreenBlocks;
-
-				//
-				// restore global state
-				// viewwindowy = oldViewwindowy;
 			}
 
-			// Update orientation for NEXT frame, after expensive render has occurred this frame
-
-			// Set up 2D rendering to write to our hud renderbuffer
-			bindAndClearHudTexture(*this);
 			break;
 		}
 

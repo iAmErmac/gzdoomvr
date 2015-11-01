@@ -258,7 +258,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle)
 	// glEnable(GL_TEXTURE_2D);
 }
 
-void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose) 
+void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, bool reducedHud) 
 {
 	// Place weapon relative to head
 	const ovrPosef& pose = eyePose;
@@ -296,11 +296,14 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	// Bigger number makes a smaller crosshair
 	const float txw = extra_padding_factor * 0.040; // half width of quad in texture coordinates; big enough to hold largest crosshair
 	const float txh = txw * 4.0/3.0;
+	float yCenter = 0.5;
+	if (reducedHud)
+		yCenter = 0.58;
 	glBegin(GL_TRIANGLE_STRIP);
-		glTexCoord2f(0.5 - txw, 0.5 + txh); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0.5 - txw, 0.5 - txh); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0.5 + txw, 0.5 + txh); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0.5 + txw, 0.5 - txh); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 - txw, yCenter + txh); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 - txw, yCenter - txh); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 + txw, yCenter + txh); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
+		glTexCoord2f(0.5 + txw, yCenter - txh); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
 	glEnd();
 }
 

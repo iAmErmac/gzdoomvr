@@ -20,7 +20,7 @@ public:
 	int getFBHandle() const {return sceneFrameBuffer;}
 
 	void paintHudQuad(float hudScale, float pitchAngle);
-	void paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose);
+	void paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, bool reducedHud);
 	void paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist, float weaponHeight);
 
 	ovrPosef& setSceneEyeView(int eye, float zNear, float zFar);
