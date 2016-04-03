@@ -381,6 +381,11 @@ ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
 	return currentEyePose;
 }
 
+ovrResult RiftHmd::commitFrame() {
+	ovrResult result = ovr_CommitTextureSwapChain(hmd, sceneTextureSet);
+	return result;
+}
+
 ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
     // 2c) Call ovr_SubmitFrame, passing swap texture set(s) from the previous step within a ovrLayerEyeFov structure. Although a single layer is required to submit a frame, you can use multiple layers and layer types for advanced rendering. ovr_SubmitFrame passes layer textures to the compositor which handles distortion, timewarp, and GPU synchronization before presenting it to the headset. 
     ovrViewScaleDesc viewScale;
@@ -389,7 +394,6 @@ ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
     viewScale.HmdToEyeOffset[1] = hmdToEyeOffset[1];
 	ovrLayerHeader* layerList[1];
 	layerList[0] = &sceneLayer.Header;
-	ovr_CommitTextureSwapChain(hmd, sceneTextureSet);
     ovrResult result = ovr_SubmitFrame(hmd, frameIndex, &viewScale, layerList, 1);
     frameIndex += 1;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

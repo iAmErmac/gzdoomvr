@@ -24,6 +24,7 @@ public:
 	void paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist, float weaponHeight);
 
 	ovrPosef& setSceneEyeView(int eye, float zNear, float zFar);
+	ovrResult commitFrame();
 	ovrResult submitFrame(float metersPerSceneUnit);
 	void recenter_pose();
 	const ovrPosef& getCurrentEyePose() const {return currentEyePose;}

@@ -28,7 +28,7 @@ extern void P_CalcHeight (player_t *player);
 extern DBaseStatusBar *StatusBar; // To access crosshair drawing
 
 
-EXTERN_CVAR(Bool, gl_draw_sync)
+EXTERN_CVAR(Bool, vid_vsync)
 EXTERN_CVAR(Float, vr_screendist)
 //
 CVAR(Int, vr_mode, 0, CVAR_GLOBALCONFIG)
@@ -81,6 +81,8 @@ CCMD(oculardium_optimosa)
 	vr_view_yoffset = 4;
 	// AddCommandString("vid_setmode 1920 1080 32\n"); // causes crash
 	smooth_mouse = 0;
+	// prevent mirror-based judder
+	vid_vsync = false;
 }
 
 
@@ -721,6 +723,9 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
 				}
+
+				sharedRiftHmd->commitFrame();
+
 				// glEnable(GL_BLEND);
 				glBindTexture(GL_TEXTURE_2D, 0);
 				// Restore previous values
@@ -729,11 +734,14 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				viewwidth = oldViewWidth;
 				viewheight = oldViewHeight;
 
-				blitRiftBufferToScreen();
+				static bool swapThisFrame = true;
+				// swapThisFrame = ! swapThisFrame; // Only mirror every other frame
+				if (swapThisFrame)
+					blitRiftBufferToScreen();
 
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 
-				if (true) 
+				if (swapThisFrame) // causes yaw judder with OVR SDK 1.3
 				{
 					// ... but to keep frame rate, we must Swap() AFTER submitFrame
 					All.Unclock();
