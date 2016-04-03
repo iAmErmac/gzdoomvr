@@ -37,10 +37,10 @@ private:
 	unsigned int frameIndex;
 
 // #ifdef HAVE_OCULUS_API
-	ovrSwapTextureSet * sceneTextureSet;
-	ovrTexture * mirrorTexture;
-	ovrHmd hmd;
-	ovrVector3f hmdToEyeViewOffset[2];
+	ovrTextureSwapChain sceneTextureSet;
+	// ovrTexture * mirrorTexture;
+	ovrSession hmd;
+	ovrVector3f hmdToEyeOffset[2];
 	ovrLayerEyeFov sceneLayer;
 	ovrPosef currentEyePose;
 	ovrVector3f poseOrigin;

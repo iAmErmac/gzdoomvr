@@ -7,7 +7,6 @@
 #include <sstream>
 
 extern "C" {
-// #include "OVR.h"
 #include "OVR_CAPI_GL.h"
 }
 
@@ -20,7 +19,7 @@ RiftHmd::RiftHmd()
 	, sceneFrameBuffer(0)
 	, depthBuffer(0)
 	, sceneTextureSet(nullptr)
-	, mirrorTexture(nullptr)
+	// , mirrorTexture(nullptr)
 	, frameIndex(0)
 	, poseOrigin(OVR::Vector3f(0,0,0))
 {
@@ -28,7 +27,7 @@ RiftHmd::RiftHmd()
 
 void RiftHmd::destroy() {
 	if (sceneTextureSet) {
-		ovr_DestroySwapTextureSet(hmd, sceneTextureSet);
+		ovr_DestroyTextureSwapChain(hmd, sceneTextureSet);
 		sceneTextureSet = nullptr;
 	}
 	glDeleteRenderbuffers(1, &depthBuffer);
@@ -90,19 +89,31 @@ ovrResult RiftHmd::init_scene_texture()
     // print "Recommended buffer size = ", bufferSize, bufferSize.w, bufferSize.h
     // NOTE: We need to have set up OpenGL context before this point...
     // 1c) Allocate SwapTextureSets
-    ovrResult result = ovr_CreateSwapTextureSetGL(hmd,
-            GL_SRGB8_ALPHA8, bufferSize.w, bufferSize.h, &sceneTextureSet);
+	ovrTextureSwapChainDesc tscd;
+	tscd.Type = ovrTexture_2D;
+	tscd.ArraySize = 1;
+	tscd.Format = OVR_FORMAT_R8G8B8A8_UNORM_SRGB;
+	tscd.Width = bufferSize.w;
+	tscd.Height = bufferSize.h;
+	tscd.MipLevels = 1;
+	tscd.SampleCount = 1;
+	tscd.StaticImage = ovrFalse;
+	tscd.MiscFlags = 0;
+	tscd.BindFlags = 0;
+    ovrResult result = ovr_CreateTextureSwapChainGL(hmd,
+			&tscd,
+			&sceneTextureSet);
 	if OVR_FAILURE(result)
 		return result;
 
     // Initialize VR structures, filling out description.
     // 1ba) Compute FOV
     ovrEyeRenderDesc eyeRenderDesc[2];
-    // ovrVector3f hmdToEyeViewOffset[2];
+    // ovrVector3f hmdToEyeOffset[2];
     eyeRenderDesc[0] = ovr_GetRenderDesc(hmd, ovrEye_Left, hmdDesc.DefaultEyeFov[0]);
     eyeRenderDesc[1] = ovr_GetRenderDesc(hmd, ovrEye_Right, hmdDesc.DefaultEyeFov[1]);
-    hmdToEyeViewOffset[0] = eyeRenderDesc[0].HmdToEyeViewOffset;
-    hmdToEyeViewOffset[1] = eyeRenderDesc[1].HmdToEyeViewOffset;
+    hmdToEyeOffset[0] = eyeRenderDesc[0].HmdToEyeOffset;
+    hmdToEyeOffset[1] = eyeRenderDesc[1].HmdToEyeOffset;
 
 	// Stereo3D Layer for primary 3D scene
     // Initialize our single full screen Fov layer.
@@ -158,7 +169,7 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
     ovrTrackingState hmdState = ovr_GetTrackingState(hmd, displayMidpointSeconds, true);
     // print hmdState.HeadPose.ThePose
     ovr_CalcEyePoses(hmdState.HeadPose.ThePose, 
-            hmdToEyeViewOffset,
+            hmdToEyeOffset,
             sceneLayer.RenderPose);
 	sceneLayer.SensorSampleTime = sampleTime;
 
@@ -171,14 +182,12 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 
     // Increment to use next texture, just before writing
     // 2d) Advance CurrentIndex within each used texture set to target the next consecutive texture buffer for the following frame.
-	int ix = sceneTextureSet->CurrentIndex + 1;
-	ix = ix % sceneTextureSet->TextureCount;
-    sceneTextureSet->CurrentIndex = ix;
-    ovrGLTexture * texture = (ovrGLTexture*) &sceneTextureSet->Textures[ix];
+	unsigned int textureId;
+	ovr_GetTextureSwapChainBufferGL(hmd, sceneTextureSet, -1, &textureId);
     glFramebufferTexture2D(GL_FRAMEBUFFER, 
             GL_COLOR_ATTACHMENT0, 
             GL_TEXTURE_2D,
-			texture->OGL.TexId,
+			textureId,
             0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
 	GLenum fbStatus = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
@@ -362,7 +371,7 @@ ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     ovrMatrix4f proj = ovrMatrix4f_Projection(sceneLayer.Fov[eye], zNear, zFar,
-                    ovrProjection_RightHanded | ovrProjection_ClipRangeOpenGL);
+                    ovrProjection_ClipRangeOpenGL);
     glMultTransposeMatrixf(&proj.M[0][0]);
 
     // Get view matrix for the Rift camera
@@ -376,10 +385,11 @@ ovrResult RiftHmd::submitFrame(float metersPerSceneUnit) {
     // 2c) Call ovr_SubmitFrame, passing swap texture set(s) from the previous step within a ovrLayerEyeFov structure. Although a single layer is required to submit a frame, you can use multiple layers and layer types for advanced rendering. ovr_SubmitFrame passes layer textures to the compositor which handles distortion, timewarp, and GPU synchronization before presenting it to the headset. 
     ovrViewScaleDesc viewScale;
     viewScale.HmdSpaceToWorldScaleInMeters = metersPerSceneUnit;
-    viewScale.HmdToEyeViewOffset[0] = hmdToEyeViewOffset[0];
-    viewScale.HmdToEyeViewOffset[1] = hmdToEyeViewOffset[1];
+    viewScale.HmdToEyeOffset[0] = hmdToEyeOffset[0];
+    viewScale.HmdToEyeOffset[1] = hmdToEyeOffset[1];
 	ovrLayerHeader* layerList[1];
 	layerList[0] = &sceneLayer.Header;
+	ovr_CommitTextureSwapChain(hmd, sceneTextureSet);
     ovrResult result = ovr_SubmitFrame(hmd, frameIndex, &viewScale, layerList, 1);
     frameIndex += 1;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

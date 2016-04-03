@@ -882,8 +882,9 @@ set( NOT_COMPILED_SOURCE_FILES
 # Maybe compile in support for Oculus Rift CMB Oct 2013
 find_path(OCULUS_SDK_PATH
     NAMES
-        LibOVR/Include/OVR.h
+        LibOVR/Include/OVR_CAPI.h
     PATHS 
+        "C:/Program Files/ovr_sdk_win_1.3.0_public/OculusSDK"
         "C:/Program Files/ovr_sdk_win_0.7.0.0/OculusSDK"
         "C:/Program Files/ovr_sdk_win_0.5.0.1/OculusSDK"
         "C:/Program Files/ovr_sdk_win_0.4.4/OculusSDK"
@@ -894,7 +895,7 @@ find_path(OCULUS_SDK_PATH
 )
 find_path(OCULUS_INCLUDE_DIRECTORY
     NAMES
-        OVR.h
+        OVR_CAPI.h
     PATHS 
         ${OCULUS_SDK_PATH}/LibOVR/Include
 )
