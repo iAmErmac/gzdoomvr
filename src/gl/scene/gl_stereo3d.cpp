@@ -369,6 +369,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 		sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		sharedRiftHmd->commitFrame();
 		sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
 
 		// Start rendering to screen, at least to start
@@ -895,6 +896,7 @@ void Stereo3D::updateScreen() {
 		sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
 		glClearColor(0, 0, 0, 0);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		sharedRiftHmd->commitFrame();
 		sharedRiftHmd->submitFrame(1.0/41.0);
 		// Start rendering to screen, at least for the moment
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -934,8 +936,8 @@ void Stereo3D::updateScreen() {
 				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
 			}
 
+			sharedRiftHmd->commitFrame();
 			blitRiftBufferToScreen();
-
 			sharedRiftHmd->submitFrame(1.0/41.0);
 
 			if (true) {
