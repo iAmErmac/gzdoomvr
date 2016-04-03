@@ -373,6 +373,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 		// Start rendering to screen, at least to start
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+		sharedRiftHmd->destroy();
 	}
 	setMode(vr_mode);
 

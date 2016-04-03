@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 #include <sstream>
+#include <memory>
 
 extern "C" {
 #include "OVR_CAPI_GL.h"
@@ -27,7 +28,7 @@ RiftHmd::RiftHmd()
 
 void RiftHmd::destroy() {
 	if (sceneTextureSet) {
-		ovr_DestroyTextureSwapChain(hmd, sceneTextureSet);
+		// ovr_DestroyTextureSwapChain(hmd, sceneTextureSet); // causes hang/crash
 		sceneTextureSet = nullptr;
 	}
 	glDeleteRenderbuffers(1, &depthBuffer);
@@ -35,7 +36,7 @@ void RiftHmd::destroy() {
 	glDeleteFramebuffers(1, &sceneFrameBuffer);
 	sceneFrameBuffer = 0;
 	if (hmd) {
-		ovr_Destroy(hmd);
+		// ovr_Destroy(hmd); // causes hang/crash
 		hmd = nullptr;
 	}
 	ovr_Shutdown();
@@ -408,3 +409,4 @@ void RiftHmd::recenter_pose() {
 
 static RiftHmd _sharedRiftHmd;
 RiftHmd* sharedRiftHmd = &_sharedRiftHmd;
+
