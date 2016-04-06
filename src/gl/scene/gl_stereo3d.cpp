@@ -7,6 +7,7 @@
 #include "gl/scene/gl_stereo3d.h"
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderstate.h"
+#include "gl/renderer/gl_colormap.h"
 #include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_hudtexture.h"
 #include "gl/utility/gl_clock.h"
@@ -648,12 +649,18 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
 
+				// Our mode of painting screen quads for HUD, crosshair, and weapon
+				// depends on whether invulnerability is on
+
+				int hud_weap_blend1 = GL_ONE; // first ingredient of blend mode for nice background effects
+				if (gl_fixedcolormap) { // invulnerability or night goggles
+					// so the HUD and weapon panes won't be opaque
+					hud_weap_blend1 = GL_SRC_ALPHA;
+				}
+
 				//// HUD Pass ////
-				gl_RenderState.Set2DMode(true);
 				gl_RenderState.EnableAlphaTest(false);
-				gl_RenderState.EnableTexture(true);
-				gl_RenderState.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-				gl_RenderState.BlendEquation(GL_FUNC_ADD);
+				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
 				gl_RenderState.Apply();
 
 				HudTexture::hudTexture->bindRenderTexture();
@@ -674,10 +681,11 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 
 				//// Crosshair Pass ////
-				HudTexture::crosshairTexture->bindRenderTexture();
 				gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				gl_RenderState.BlendEquation(GL_FUNC_ADD);
-				// glEnable(GL_BLEND);
+				gl_RenderState.Apply();
+
+				HudTexture::crosshairTexture->bindRenderTexture();
+
 				// left eye view - crosshair pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
@@ -712,7 +720,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				HudTexture::hudTexture->bindRenderTexture();
 
 				gl_RenderState.EnableAlphaTest(false); // necessary for blending weapon with suit effect
-				gl_RenderState.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA); // necessary for blending weapon with suit effect
+				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA); // necessary for blending weapon with suit effect
 				gl_RenderState.Apply(); // good - suit no longer obscures weapon; implicitly enables GL_TEXTURE_2D
 
 				// left eye view - weapon pass
