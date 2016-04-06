@@ -654,6 +654,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				gl_RenderState.EnableTexture(true);
 				gl_RenderState.BlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				gl_RenderState.BlendEquation(GL_FUNC_ADD);
+				gl_RenderState.Apply();
 
 				HudTexture::hudTexture->bindRenderTexture();
 				glDisable(GL_DEPTH_TEST);
