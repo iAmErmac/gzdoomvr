@@ -295,6 +295,10 @@ if (WIN32)
 		install(PROGRAMS installer/msvc10/vcredist_x86.exe DESTINATION ".")
 		set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\\\"$INSTDIR\\\\vcredist_x86.exe\\\" /passive /norestart' ")
 	endif()
+	if (MSVC14)
+		install(PROGRAMS installer/msvc14/vcredist_x86.exe DESTINATION ".")
+		set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "ExecWait '\\\"$INSTDIR\\\\vcredist_x86.exe\\\" /passive /norestart' ")
+	endif()
     set(CPACK_NSIS_MENU_LINKS
         "GZ3DoomRiftMonitor1.bat" "GZ3Doom on Oculus Rift"
     )
