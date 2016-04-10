@@ -44,8 +44,8 @@ const char *GetVersionString();
 #define VERSIONSTR "1.8.10"
 
 // The version as seen in the Windows resource
-#define RC_FILEVERSION 1,8,10,0
-#define RC_PRODUCTVERSION 1,8,10,0
+#define RC_FILEVERSION 1,8,10,5
+#define RC_PRODUCTVERSION 1,8,10,5
 #define RC_PRODUCTVERSION2 "1.8.10"
 
 // Version identifier for network games.
@@ -85,13 +85,13 @@ const char *GetVersionString();
 #define DYNLIGHT
 
 // This is so that derivates can use the same savegame versions without worrying about engine compatibility
-#define GAMESIG "GZDOOM"
+#define GAMESIG "GZ3DOOM"
 #define BASEWAD "gzdoom.pk3"
 
 // More stuff that needs to be different for derivatives.
-#define GAMENAME "GZDoom"
-#define FORUM_URL "http://forum.drdteam.org"
-#define BUGS_FORUM_URL	"http://forum.drdteam.org/viewforum.php?f=24"
+#define GAMENAME "GZ3Doom"
+#define FORUM_URL "http://forum.zdoom.org/viewtopic.php?f=19&t=37659"
+#define BUGS_FORUM_URL	"https://github.com/cmbruns/gz3doom/issues"
 
 #if defined(__APPLE__) || defined(_WIN32)
 #define GAME_DIR GAMENAME
