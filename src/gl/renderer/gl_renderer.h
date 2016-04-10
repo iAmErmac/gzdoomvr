@@ -115,6 +115,8 @@ public:
 	void SetFixedColormap (player_t *player);
 	void WriteSavePic (player_t *player, FILE *file, int width, int height);
 	void EndDrawScene(sector_t * viewsector);
+	void EndDrawSceneSprites(sector_t * viewsector);
+	void EndDrawSceneBlend(sector_t * viewsector);
 	void Flush() {}
 
 	void SetProjection(float* matrix);

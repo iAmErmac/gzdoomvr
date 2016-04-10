@@ -363,6 +363,33 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 	glEnd();
 }
 
+void RiftHmd::paintBlendQuad()
+{
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+
+	const float rectSize = 1.0; // how much of the screen should this blend effect take up?
+
+	glBegin(GL_TRIANGLE_STRIP);
+	glColor4f(1, 1, 1, 1.0);
+	glTexCoord2f(0, 1); glVertex3f(-rectSize, rectSize, -1);
+	glTexCoord2f(0, 0); glVertex3f(-rectSize, -rectSize, -1);
+	glTexCoord2f(1, 1); glVertex3f(rectSize, rectSize, -1);
+	glTexCoord2f(1, 0); glVertex3f(rectSize, -rectSize, -1);
+	glEnd();
+
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+}
+
 ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
     // Set up eye viewport
     ovrRecti v = sceneLayer.Viewport[eye];

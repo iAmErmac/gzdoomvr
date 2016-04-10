@@ -713,7 +713,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				viewheight = SCREENHEIGHT;
 
 				bindAndClearHudTexture(*this);
-				renderer.EndDrawScene(viewsector); // paint weapon
+				renderer.EndDrawSceneSprites(viewsector); // paint weapon
 				HudTexture::hudTexture->unbind();
 
 				sharedRiftHmd->bindToSceneFrameBuffer();
@@ -735,6 +735,29 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
 				}
+
+				//// Blend Effects Pass
+				{ //  separate pass for full screen effects like radiation suit
+					bindAndClearHudTexture(*this);
+					renderer.EndDrawSceneBlend(viewsector); // paint suit effects etc.
+					HudTexture::hudTexture->unbind();
+
+					sharedRiftHmd->bindToSceneFrameBuffer();
+					HudTexture::hudTexture->bindRenderTexture();
+
+					gl_RenderState.EnableAlphaTest(false);
+					gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
+					gl_RenderState.Apply();
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
+						sharedRiftHmd->paintBlendQuad();
+					}
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
+						sharedRiftHmd->paintBlendQuad();
+					}
+				}
+
 
 				sharedRiftHmd->commitFrame();
 

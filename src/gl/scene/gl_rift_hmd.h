@@ -22,6 +22,7 @@ public:
 	void paintHudQuad(float hudScale, float pitchAngle);
 	void paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, bool reducedHud);
 	void paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist, float weaponHeight);
+	void paintBlendQuad();
 
 	ovrPosef& setSceneEyeView(int eye, float zNear, float zFar);
 	ovrResult commitFrame();

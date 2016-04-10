@@ -864,17 +864,23 @@ void FGLRenderer::DrawBlend(sector_t * viewsector)
 
 void FGLRenderer::EndDrawScene(sector_t * viewsector)
 {
+	EndDrawSceneSprites(viewsector);
+	EndDrawSceneBlend(viewsector);
+}
+
+void FGLRenderer::EndDrawSceneSprites(sector_t * viewsector)
+{
 	gl_RenderState.EnableFog(false);
 
 	// [BB] HUD models need to be rendered here. Make sure that
 	// DrawPlayerSprites is only called once. Either to draw
 	// HUD models or to draw the weapon sprites.
-	const bool renderHUDModel = gl_IsHUDModelForPlayerAvailable( players[consoleplayer].camera->player );
-	if ( renderHUDModel )
+	const bool renderHUDModel = gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player);
+	if (renderHUDModel)
 	{
 		// [BB] The HUD model should be drawn over everything else already drawn.
 		glClear(GL_DEPTH_BUFFER_BIT);
-		DrawPlayerSprites (viewsector, true);
+		DrawPlayerSprites(viewsector, true);
 	}
 
 	glDisable(GL_STENCIL_TEST);
@@ -884,16 +890,33 @@ void FGLRenderer::EndDrawScene(sector_t * viewsector)
 
 	ResetViewport();
 	// [BB] Only draw the sprites if we didn't render a HUD model before.
-	if ( renderHUDModel == false )
+	if (renderHUDModel == false)
 	{
-		DrawPlayerSprites (viewsector, false);
+		DrawPlayerSprites(viewsector, false);
 	}
 	DrawTargeterSprites();
+
+	// Restore standard rendering state
+	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	gl_RenderState.EnableTexture(true);
+	gl_RenderState.EnableAlphaTest(true);
+	glDisable(GL_SCISSOR_TEST);
+}
+
+void FGLRenderer::EndDrawSceneBlend(sector_t * viewsector)
+{
+	gl_RenderState.EnableFog(false);
+	glDisable(GL_STENCIL_TEST);
+	glDisable(GL_POLYGON_SMOOTH);
+	framebuffer->Begin2D(false);
+	ResetViewport();
+
 	DrawBlend(viewsector);
 
 	// Restore standard rendering state
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glColor3f(1.0f,1.0f,1.0f);
+	glColor3f(1.0f, 1.0f, 1.0f);
 	gl_RenderState.EnableTexture(true);
 	gl_RenderState.EnableAlphaTest(true);
 	glDisable(GL_SCISSOR_TEST);
