@@ -265,7 +265,7 @@ endif()
 
 # Install Windows Rift shortcuts
 if(WIN32)
-    file(GLOB WIN_SHORTCUTS "gz3doom/GZ3DoomRiftMonitor*.bat")
+    file(GLOB WIN_SHORTCUTS "gz3doom/GZ3DoomRiftMonitor1.bat")
     install(PROGRAMS ${WIN_SHORTCUTS} DESTINATION ".")
 endif()
 
