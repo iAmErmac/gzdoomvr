@@ -485,7 +485,7 @@ fail:
 			sample_t *tmp;
 			for (i = sp->data_length, tmp = sp->data; i; --i)
 			{
-				a = abs(*tmp++);
+				a = (sample_t)fabs((*tmp++));
 				if (a > maxamp)
 					maxamp = a;
 			}

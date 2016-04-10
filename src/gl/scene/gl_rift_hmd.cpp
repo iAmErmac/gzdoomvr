@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <memory>
+#include <algorithm>
 
 extern "C" {
 #include "OVR_CAPI_GL.h"
