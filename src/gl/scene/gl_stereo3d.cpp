@@ -62,6 +62,7 @@ EXTERN_CVAR(Int, screenblocks)
 EXTERN_CVAR(Int, m_use_mouse)
 EXTERN_CVAR(Int, crosshair)
 EXTERN_CVAR(Bool, smooth_mouse)
+EXTERN_CVAR(Int, wipetype)
 CCMD(oculardium_optimosa)
 {
 	// scale up all HUD chrome
@@ -70,7 +71,7 @@ CCMD(oculardium_optimosa)
 	hud_althudscale = 1;
 	crosshairscale = 1;
 	movebob = 0.05; // No bobbing
-	turbo = 50; // Slower walking
+	turbo = 80; // Slower walking
 	vr_mode = 8; // Rift mode
 	// Use minimal or no HUD
 	// if (screenblocks <= 10)
@@ -84,6 +85,7 @@ CCMD(oculardium_optimosa)
 	smooth_mouse = 0;
 	// prevent mirror-based judder
 	vid_vsync = false;
+	wipetype = 0; // until I can fix the wipe glitches...
 }
 
 
