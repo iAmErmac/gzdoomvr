@@ -673,13 +673,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 25);
 				}
 				// right eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 25);
 				}
 
 				//// Crosshair Pass ////
@@ -961,13 +961,13 @@ void Stereo3D::updateScreen() {
 			{
 				sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 				// PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
+				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0, 50);
 			}
 			// right eye view - hud pass
 			{
 				sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 				// PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0);
+				sharedRiftHmd->paintHudQuad(vr_hud_scale, 0, 50);
 			}
 
 			sharedRiftHmd->commitFrame();

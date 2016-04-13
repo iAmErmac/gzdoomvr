@@ -199,7 +199,7 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 	return true;
 }
 
-void RiftHmd::paintHudQuad(float hudScale, float pitchAngle) 
+void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange) 
 {
 	// Place hud relative to torso
 	ovrPosef pose = getCurrentEyePose();
@@ -228,7 +228,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle)
 	float dYaw = hmdYaw - hudYaw;
 	while (dYaw > 180) dYaw -= 360;
 	while (dYaw < -180) dYaw += 360;
-	float yawRange = 20;
+	// float yawRange = 20;
 	if (dYaw < -yawRange) dYaw = -yawRange;
 	if (dYaw > yawRange) dYaw = yawRange;
 	// Slowly center hud yaw toward view direction
