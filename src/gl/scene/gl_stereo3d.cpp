@@ -49,6 +49,10 @@ CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to D
 CVAR(Float, vr_sprite_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // weapon size
 CVAR(Float, vr_hud_scale, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
 // CVAR(Bool, vr_lowpersist, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+// For broadest GL compatibility, require user to explicitly enable quad-buffered stereo mode.
+// Setting vr_enable_quadbuffered_stereo does not automatically invoke quad-buffered stereo,
+// but makes it possible for subsequent "vr_mode 7" to invoke quad-buffered stereo
+CVAR(Bool, vr_enable_quadbuffered, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
 // Command to set "standard" rift settings
 EXTERN_CVAR(Int, con_scaletext)

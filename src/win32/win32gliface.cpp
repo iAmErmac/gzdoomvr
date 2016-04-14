@@ -29,6 +29,7 @@ CUSTOM_CVAR(Int, gl_vid_multisample, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_
 
 CVAR(Bool, gl_debug, false, 0)
 
+EXTERN_CVAR(Bool, vr_enable_quadbuffered)
 EXTERN_CVAR(Int, vid_refreshrate)
 
 //==========================================================================
@@ -601,6 +602,7 @@ bool Win32GLVideo::SetPixelFormat()
 
 bool Win32GLVideo::SetupPixelFormat(bool allowsoftware, int multisample)
 {
+	int i;
 	int colorDepth;
 	HDC deskDC;
 	int attributes[28];
@@ -633,38 +635,40 @@ bool Win32GLVideo::SetupPixelFormat(bool allowsoftware, int multisample)
 		attributes[15]	=	true;
 		attributes[16]	=	WGL_DOUBLE_BUFFER_ARB;
 		attributes[17]	=	true;
-		// [BB] Starting with driver version 314.07, NVIDIA GeForce cards support OpenGL quad buffered
-		// stereo rendering with 3D Vision hardware. Select the corresponding attribute here.
-		attributes[18]	=	WGL_STEREO_ARB;
-		attributes[19]	=	true;
-	
-		attributes[20]	=	WGL_ACCELERATION_ARB;	//required to be FULL_ACCELERATION_ARB
-		if (allowsoftware)
-		{
-			attributes[21]	=	WGL_NO_ACCELERATION_ARB;
-		}
-		else
-		{
-			attributes[21]	=	WGL_FULL_ACCELERATION_ARB;
-		}
-	
+
 		if (multisample > 0)
 		{
-			attributes[22]	=	WGL_SAMPLE_BUFFERS_ARB;
-			attributes[23]	=	true;
-			attributes[24]	=	WGL_SAMPLES_ARB;
-			attributes[25]	=	multisample;
+			attributes[18]	=	WGL_SAMPLE_BUFFERS_ARB;
+			attributes[19]	=	true;
+			attributes[20]	=	WGL_SAMPLES_ARB;
+			attributes[21]	=	multisample;
+			i = 22;
 		}
 		else
 		{
-			attributes[22]	=	0;
-			attributes[23]	=	0;
-			attributes[24]	=	0;
-			attributes[25]	=	0;
+			i = 18;
 		}
 	
-		attributes[26]	=	0;
-		attributes[27]	=	0;
+		attributes[i++] = WGL_ACCELERATION_ARB;	//required to be FULL_ACCELERATION_ARB
+		if (allowsoftware)
+		{
+			attributes[i++] = WGL_NO_ACCELERATION_ARB;
+		}
+		else
+		{
+			attributes[i++] = WGL_FULL_ACCELERATION_ARB;
+		}
+
+		if (vr_enable_quadbuffered)
+		{
+			// [BB] Starting with driver version 314.07, NVIDIA GeForce cards support OpenGL quad buffered
+			// stereo rendering with 3D Vision hardware. Select the corresponding attribute here.
+			attributes[i++] = WGL_STEREO_ARB;
+			attributes[i++] = true;
+		}
+
+		attributes[i++]	=	0;
+		attributes[i++]	=	0;
 	
 		if (!wglChoosePixelFormatARB(m_hDC, attributes, attribsFloat, 1, &pixelFormat, &numFormats))
 		{
