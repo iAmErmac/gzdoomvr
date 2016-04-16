@@ -47,7 +47,7 @@ CVAR(Float, vr_weapon_height, 0.0, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // Used for o
 CVAR(Float, vr_weapondist, 0.45, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Int, vr_device, 1, CVAR_GLOBALCONFIG) // 1 for DK1, 2 for DK2 (Default to DK2)
 CVAR(Float, vr_sprite_scale, 0.40, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // weapon size
-CVAR(Float, vr_hud_scale, 0.6, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
+CVAR(Float, vr_hud_scale, 0.4, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // menu/message size
 // CVAR(Bool, vr_lowpersist, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 // For broadest GL compatibility, require user to explicitly enable quad-buffered stereo mode.
 // Setting vr_enable_quadbuffered_stereo does not automatically invoke quad-buffered stereo,
@@ -672,19 +672,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				HudTexture::hudTexture->bindRenderTexture();
 				glDisable(GL_DEPTH_TEST);
-				float hudPitchDegrees = -25;
+				float hudPitchDegrees = -5 - 20 * vr_hud_scale / 0.6; // -25 is good for vr_hud_scale 0.6
 				// note: crosshair is suppressed during hud pass?
 				// left eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 25);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
 				}
 				// right eye view - hud pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 25);
+					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
 				}
 
 				//// Crosshair Pass ////
