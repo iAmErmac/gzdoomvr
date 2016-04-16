@@ -700,9 +700,6 @@ void FDrawInfo::DrawUnhandledMissingTextures()
 
 		if (!glset.notexturefill) FloodLowerGap(seg);
 	}
-
-	validcount++; // Extra validcount++ seems to avoid texture problems in second render of stereoscopic views.
-
 	MissingUpperTextures.Clear();
 	MissingLowerTextures.Clear();
 	MissingUpperSegs.Clear();
