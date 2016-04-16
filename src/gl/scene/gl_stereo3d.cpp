@@ -638,6 +638,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				screenblocks = 12; // full screen
 				//
 				glEnable(GL_DEPTH_TEST); // required for correct depth sorting
+				glEnable(GL_STENCIL_TEST); // required for correct clipping of unhandled texture hack flats
 				gl_RenderState.Set2DMode(false); // required for correct sector darkening in map mode
 				// left eye view - 3D scene pass
 				{
