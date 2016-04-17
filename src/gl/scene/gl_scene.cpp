@@ -431,8 +431,6 @@ void FGLRenderer::SetupView(fixed_t viewx, fixed_t viewy, fixed_t viewz, angle_t
 
 void FGLRenderer::CreateScene()
 {
-	::validcount++; // [CMB] reset marking of map linedefs, so subsequent stereo 3d eye render pass can start fresh.
-	
 	// reset the portal manager
 	GLPortal::StartFrame();
 	PO_LinkToSubsectors();
@@ -443,6 +441,7 @@ void FGLRenderer::CreateScene()
 	for(unsigned i=0;i<portals.Size(); i++) portals[i]->glportal = NULL;
 	gl_spriteindex=0;
 	Bsp.Clock();
+	validcount++;	// used for processing sidedefs only once by the renderer.
 	gl_RenderBSPNode (nodes + numnodes - 1);
 	Bsp.Unclock();
 
