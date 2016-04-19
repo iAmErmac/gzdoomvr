@@ -44,8 +44,8 @@ const char *GetVersionString();
 #define VERSIONSTR "1.8.10"
 
 // The version as seen in the Windows resource
-#define RC_FILEVERSION 1,8,10,5
-#define RC_PRODUCTVERSION 1,8,10,5
+#define RC_FILEVERSION 1,8,10,6
+#define RC_PRODUCTVERSION 1,8,10,6
 #define RC_PRODUCTVERSION2 "1.8.10"
 
 // Version identifier for network games.
