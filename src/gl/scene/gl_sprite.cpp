@@ -754,7 +754,7 @@ void GLSprite::Process(AActor* thing,sector_t * sector)
 	// allow disabling of the fullbright flag by a brightmap definition
 	// (e.g. to do the gun flashes of Doom's zombies correctly.
 	fullbright = (thing->flags5 & MF5_BRIGHT) ||
-		((thing->renderflags & RF_FULLBRIGHT) && (!gl_BrightmapsActive() || !gltexture || !gltexture->tex->gl_info.bBrightmapDisablesFullbright));
+		((thing->renderflags & RF_FULLBRIGHT) && (!gl_BrightmapsActive() || !gltexture || !gltexture->tex->gl_info.bDisableFullbright));
 
 	lightlevel=fullbright? 255 : 
 		gl_ClampLight(rendersector->GetTexture(sector_t::ceiling) == skyflatnum ? 
@@ -887,7 +887,9 @@ void GLSprite::Process(AActor* thing,sector_t * sector)
 		{
 			// enhanced vision makes them more visible!
 			trans=0.5f;
+			FRenderStyle rs = RenderStyle;
 			RenderStyle = STYLE_Translucent;
+			RenderStyle.Flags = rs.Flags;	// Flags must be preserved, at this point it can only be STYLEF_InvertSource
 		}
 		else if (thing->flags & MF_STEALTH)	
 		{

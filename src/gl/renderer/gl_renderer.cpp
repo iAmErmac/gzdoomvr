@@ -91,7 +91,6 @@ FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb)
 	mLightCount = 0;
 	mAngles = FRotator(0,0,0);
 	mViewVector = FVector2(0,0);
-	mCameraPos = FVector3(0,0,0);
 	mVBO = NULL;
 	gl_spriteindex = 0;
 	mShaderManager = NULL;
@@ -107,6 +106,7 @@ void FGLRenderer::Initialize()
 
 	mVBO = new FFlatVertexBuffer;
 	mFBID = 0;
+	mOldFBID = 0;
 	SetupLevel();
 	mShaderManager = new FShaderManager;
 	//mThreadManager = new FGLThreadManager;
@@ -124,7 +124,7 @@ FGLRenderer::~FGLRenderer()
 	if (glpart) delete glpart;
 	if (mirrortexture) delete mirrortexture;
 	if (gllight) delete gllight;
-	if (mFBID != 0) glDeleteFramebuffers(1, &mFBID);
+	if (mFBID != 0) glDeleteFramebuffersEXT(1, &mFBID);
 }
 
 //===========================================================================
@@ -214,8 +214,9 @@ bool FGLRenderer::StartOffscreen()
 {
 	if (gl.flags & RFL_FRAMEBUFFER)
 	{
-		if (mFBID == 0) glGenFramebuffers(1, &mFBID);
-		glBindFramebuffer(GL_FRAMEBUFFER, mFBID);
+		if (mFBID == 0) glGenFramebuffersEXT(1, &mFBID);
+		glGetIntegerv(GL_FRAMEBUFFER_BINDING_EXT, &mOldFBID);
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, mFBID);
 		return true;
 	}
 	return false;
@@ -231,7 +232,7 @@ void FGLRenderer::EndOffscreen()
 {
 	if (gl.flags & RFL_FRAMEBUFFER)
 	{
-		glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+		glBindFramebufferEXT(GL_FRAMEBUFFER, mOldFBID);
 	}
 }
 

@@ -56,6 +56,7 @@ public:
 	FGLThreadManager *mThreadManager;
 	int gl_spriteindex;
 	unsigned int mFBID;
+	int mOldFBID;
 
 	FTexture *glpart2;
 	FTexture *glpart;
@@ -66,7 +67,6 @@ public:
 
 	FRotator mAngles;
 	FVector2 mViewVector;
-	FVector3 mCameraPos;
 
 	FFlatVertexBuffer *mVBO;
 
@@ -80,7 +80,7 @@ public:
 	void RenderOneEye(angle_t frustumAngle, bool toscreen);
 	sector_t *RenderViewpoint (AActor * camera, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);
 	void RenderView(player_t *player);
-	void SetCameraPos(fixed_t viewx, fixed_t viewy, fixed_t viewz, angle_t viewangle);
+	void SetViewAngle(angle_t viewangle);
 	void SetupView(fixed_t viewx, fixed_t viewy, fixed_t viewz, angle_t viewangle, bool mirror, bool planemirror);
 
 	void Initialize();
@@ -121,7 +121,7 @@ public:
 
 	void SetProjection(float* matrix);
 	void SetProjection(float fov, float ratio, float fovratio, float eyeShift=0, bool frustumShift=true);
-	void SetViewMatrix(bool mirror, bool planemirror);
+	void SetViewMatrix(fixed_t viewx, fixed_t viewy, fixed_t viewz, bool mirror, bool planemirror);
 	void ProcessScene(bool toscreen = false);
 
 	bool StartOffscreen();

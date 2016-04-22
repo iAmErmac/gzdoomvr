@@ -172,7 +172,7 @@ void gl_LoadExtensions()
 		gl.flags|=RFL_MAP_BUFFER_RANGE;
 	}
 
-	if (gl.flags & RFL_GL_30)
+	if (gl.flags & RFL_GL_30 || CheckExtension("GL_EXT_framebuffer_object"))
 	{
 		gl.flags|=RFL_FRAMEBUFFER;
 	}
@@ -192,7 +192,7 @@ void gl_PrintStartupLog()
 	Printf ("GL_VERSION: %s\n", glGetString(GL_VERSION));
 	Printf ("GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
 	Printf ("GL_EXTENSIONS: %s\n", glGetString(GL_EXTENSIONS));
-	int v;
+	int v = 0;
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &v);
 	Printf("Max. texture size: %d\n", v);

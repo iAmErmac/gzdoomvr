@@ -64,6 +64,9 @@
 #include "gl/utility/gl_convert.h"
 #include "gl/utility/gl_templates.h"
 
+#ifdef _DEBUG
+CVAR(Int, gl_breaksec, -1, 0)
+#endif
 //==========================================================================
 //
 // Sets the texture matrix according to the plane's texture positioning
@@ -335,7 +338,7 @@ void GLFlat::Draw(int pass)
 	int rel = getExtraLight();
 
 #ifdef _DEBUG
-	if (sector->sectornum == 2)
+	if (sector->sectornum == gl_breaksec)
 	{
 		int a = 0;
 	}
@@ -573,7 +576,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 	lightlist_t * light;
 
 #ifdef _DEBUG
-	if (frontsector->sectornum==0)
+	if (frontsector->sectornum==gl_breaksec)
 	{
 		int a = 0;
 	}
@@ -625,7 +628,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 		if (x.ffloors.Size())
 		{
 			light = P_GetPlaneLight(sector, &frontsector->floorplane, false);
-			if ((!(sector->GetFlags(sector_t::floor)&PLANEF_ABSLIGHTING) || light!=&x.lightlist[0])	
+			if ((!(sector->GetFlags(sector_t::floor)&PLANEF_ABSLIGHTING) || !light->fromsector)	
 				&& (light->p_lightlevel != &frontsector->lightlevel))
 			{
 				lightlevel = *light->p_lightlevel;
@@ -721,7 +724,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 			if ((rover->flags&(FF_EXISTS|FF_RENDERPLANES|FF_THISINSIDE))==(FF_EXISTS|FF_RENDERPLANES))
 			{
 				if (rover->flags&FF_FOG && gl_fixedcolormap) continue;
-				if (rover->flags&(FF_INVERTPLANES|FF_BOTHPLANES))
+				if (!rover->top.copied && rover->flags&(FF_INVERTPLANES|FF_BOTHPLANES))
 				{
 					fixed_t ff_top=rover->top.plane->ZatPoint(CenterSpot(sector));
 					if (ff_top<lastceilingheight)
@@ -735,7 +738,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 						lastceilingheight=ff_top;
 					}
 				}
-				if (!(rover->flags&FF_INVERTPLANES))
+				if (!rover->bottom.copied && !(rover->flags&FF_INVERTPLANES))
 				{
 					fixed_t ff_bottom=rover->bottom.plane->ZatPoint(CenterSpot(sector));
 					if (ff_bottom<lastceilingheight)
@@ -761,7 +764,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 			if ((rover->flags&(FF_EXISTS|FF_RENDERPLANES|FF_THISINSIDE))==(FF_EXISTS|FF_RENDERPLANES))
 			{
 				if (rover->flags&FF_FOG && gl_fixedcolormap) continue;
-				if (rover->flags&(FF_INVERTPLANES|FF_BOTHPLANES))
+				if (!rover->bottom.copied && rover->flags&(FF_INVERTPLANES|FF_BOTHPLANES))
 				{
 					fixed_t ff_bottom=rover->bottom.plane->ZatPoint(CenterSpot(sector));
 					if (ff_bottom>lastfloorheight || (rover->flags&FF_FIX))
@@ -782,7 +785,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 						lastfloorheight=ff_bottom;
 					}
 				}
-				if (!(rover->flags&FF_INVERTPLANES))
+				if (!rover->top.copied && !(rover->flags&FF_INVERTPLANES))
 				{
 					fixed_t ff_top=rover->top.plane->ZatPoint(CenterSpot(sector));
 					if (ff_top>lastfloorheight)

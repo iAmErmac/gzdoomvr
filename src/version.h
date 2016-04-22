@@ -76,7 +76,7 @@ const char *GetVersionString();
 
 // Use 4500 as the base git save version, since it's higher than the
 // SVN revision ever got.
-#define SAVEVER 4524
+#define SAVEVER 4527
 
 #define SAVEVERSTRINGIFY2(x) #x
 #define SAVEVERSTRINGIFY(x) SAVEVERSTRINGIFY2(x)
@@ -97,7 +97,7 @@ const char *GetVersionString();
 #if defined(__APPLE__) || defined(_WIN32)
 #define GAME_DIR GAMENAME
 #else
-#define GAME_DIR ".config/gzdoom"
+#define GAME_DIR ".config/" GAMENAMELOWERCASE
 #endif
 
 

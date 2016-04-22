@@ -62,6 +62,7 @@ EXTERN_CVAR (Bool, r_drawplayersprites)
 EXTERN_CVAR(Float, transsouls)
 EXTERN_CVAR (Bool, st_scale)
 EXTERN_CVAR(Int, gl_fuzztype)
+EXTERN_CVAR (Bool, r_deathcamera)
 
 
 //==========================================================================
@@ -194,7 +195,8 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 	if (!player ||
 		!r_drawplayersprites ||
 		!camera->player ||
-		(players[consoleplayer].cheats & CF_CHASECAM))
+		(player->cheats & CF_CHASECAM) || 
+		(r_deathcamera && camera->health <= 0))
 		return;
 
 	/*
@@ -216,7 +218,7 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 				{
 					FMaterial * tex=FMaterial::ValidateTexture(lump, false);
 					if (tex)
-						disablefullbright = tex->tex->gl_info.bBrightmapDisablesFullbright;
+						disablefullbright = tex->tex->gl_info.bDisableFullbright;
 				}
 				statebright[i] = !!psp->state->GetFullbright() && !disablefullbright;
 			}
@@ -284,11 +286,10 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 	}
 
 	
-	// Korshun: fullbright fog in opengl, render weapon sprites fullbright.
+	// Korshun: fullbright fog in opengl, render weapon sprites fullbright (but don't cancel out the light color!)
 	if (glset.brightfog && ((level.flags&LEVEL_HASFADETABLE) || cm.FadeColor != 0))
 	{
 		lightlevel = 255;
-		statebright[0] = statebright[1] = true;
 	}
 
 	PalEntry ThingColor = playermo->fillcolor;

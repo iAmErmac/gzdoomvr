@@ -566,6 +566,10 @@ void APlayerPawn::Serialize (FArchive &arc)
 	{
 		arc << AirCapacity;
 	}
+	if (SaveVersion >= 4526)
+	{
+		arc << ViewHeight;
+	}
 }
 
 //===========================================================================
@@ -1562,11 +1566,14 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_SkullPop)
 	if (player != NULL)
 	{
 		player->mo = mo;
-		if (player->camera == self)
-		{
-			player->camera = mo;
-		}
 		player->damagecount = 32;
+	}
+	for (int i = 0; i < MAXPLAYERS; ++i)
+	{
+		if (playeringame[i] && players[i].camera == self)
+		{
+			players[i].camera = mo;
+		}
 	}
 }
 
@@ -3035,6 +3042,12 @@ void player_t::Serialize (FArchive &arc)
 		// Move weapon state flags from cheats and into WeaponState.
 		WeaponState = ((cheats >> 14) & 1) | ((cheats & (0x37 << 24)) >> (24 - 1));
 		cheats &= ~((1 << 14) | (0x37 << 24));
+	}
+	if (SaveVersion < 4527)
+	{
+		BYTE oldWeaponState;
+		arc << oldWeaponState;
+		WeaponState = oldWeaponState;
 	}
 	else
 	{

@@ -435,8 +435,12 @@ OptionMenu "CustomizeControls"
 	StaticText 	"Controls", 1
 	Control 	"Fire",					"+attack"
 	Control 	"Secondary Fire",		"+altattack"
-	Control 	"Weapon Reload",			"+reload"
-	Control 	"Weapon Zoom",				"+zoom"
+	Control 	"Weapon Reload",		"+reload"
+	Control 	"Weapon Zoom",			"+zoom"
+	Control		"Weapon State 1",		"+user1"
+	Control		"Weapon State 2",		"+user2"
+	Control		"Weapon State 3",		"+user3"
+	Control		"Weapon State 4",		"+user4"
 	Control 	"Use / Open",			"+use"
 	Control 	"Move forward",			"+forward"
 	Control 	"Move backward",		"+back"
@@ -459,6 +463,7 @@ OptionMenu "CustomizeControls"
 	Control 	"Look down",			"+lookdown"
 	Control 	"Center view",			"centerview"
 	Control 	"Run",					"+speed"
+	Control 	"Toggle Run",			"toggle cl_run"
 	Control 	"Strafe",				"+strafe"
 	Control 	"Show Scoreboard",		"+showscores"
 	Control 	"Toggle Scoreboard",	"togglescoreboard"
@@ -659,17 +664,30 @@ OptionValue Fuzziness
 	2.0, "Shadow"
 }
 
+OptionMenu "OpenGLOptions"
+{
+	Title "OPENGL OPTIONS"
+	Submenu "Dynamic Light Options",	"GLLightOptions"
+	Submenu "Texture Options", 			"GLTextureGLOptions"
+	Submenu "Shader Options",			"GLShaderOptions"
+	Submenu "Preferences", 				"GLPrefOptions"
+}
+
 OptionMenu "VideoOptions"
 {
 	Title "DISPLAY OPTIONS"
 	
+	Submenu "OpenGL Options", 			"OpenGLOptions"
 	Submenu "Scoreboard Options", 		"ScoreboardOptions"
 	StaticText " "
 	Slider "Screen size",				"screenblocks", 3.0, 12.0, 1.0, 0
-	Slider "Brightness",				"Gamma", 0.75, 3.0, 0.05, 2
+
+	Slider "Gamma correction",			"Gamma",						0.75, 3.0, 0.05, 2
+	Slider "Brightness",				"vid_brightness",				-0.8,0.8, 0.05
+	Slider "Contrast",					"vid_contrast",	   				0.1, 3.0, 0.1
+
 	Option "Vertical Sync",				"vid_vsync", "OnOff"
 	Option "Rendering Interpolation",	"cl_capfps", "OffOn"
-	Option "Column render mode",		"r_columnmethod", "ColumnMethods"
 
 	StaticText " "
 	Option "Screen wipe style",			"wipetype", "Wipes"
@@ -1306,6 +1324,7 @@ OptionMenu "CompatibilityOptions"
 	Option "Find shortest textures like Doom",			"compat_SHORTTEX", "YesNo"
 	Option "Use buggier stair building",				"compat_stairs", "YesNo"
 	Option "Use Doom's floor motion behavior",			"compat_floormove", "YesNo"
+	Option "Use Doom's point-on-line algorithm",		"compat_pointonline", "YesNo"
 	
 	StaticText " "
 	StaticText "Physics Behavior",1
@@ -1591,10 +1610,27 @@ OptionMenu AdvSoundOptions
 	Option "OPL Emulator Core", "opl_core", "OplCores"
 	StaticText " "
 	StaticText "GUS Emulation",	1
+	TextField "GUS config file", "midi_config"
 	Slider "MIDI voices",	"midi_voices", 16, 256, 4, 0
-	Option "Emulate TiMidity", "midi_timiditylike", "OnOff"
 	Option "Read DMXGUS lumps", "midi_dmxgus", "OnOff"
 	Option "GUS memory size", "gus_memsize", "GusMemory"
+	StaticText " "
+	StaticText "FluidSynth",	1
+	TextField "Patch set", "fluid_patchset"
+	Slider "Gain",	"fluid_gain", 0, 10, 0.5, 1
+	Option "Reverb", "fluid_reverb", "OnOff"
+	Slider "MIDI voices", "fluid_voices", 16, 4096, 16, 1
+	// Leaving out the more advanced stuff for now.
+	StaticText " "
+	StaticText "Timidity++",	1
+	TextField "Path for executable", "timidity_exe"
+	Option "Reverb", "timidity_reverb", "OnOff"
+	Option "Chorus", "timidity_chorus", "OnOff"
+	Slider "Relative volume",	"timidity_mastervolume", 0, 4, 0.2, 1
+	StaticText " "
+	StaticText "WildMidi",	1
+	TextField "WildMidi config file", "wildmidi_config"
+	Option "Reverb", "wildmidi_reverb", "OnOff"
 }
 
 /*=======================================
