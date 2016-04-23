@@ -54,7 +54,6 @@
 #include "gl/dynlights/gl_glow.h"
 #include "gl/data/gl_data.h"
 #include "gl/scene/gl_clipper.h"
-#include "gl/scene/gl_colormask.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/scene/gl_portal.h"
 #include "gl/shaders/gl_shader.h"

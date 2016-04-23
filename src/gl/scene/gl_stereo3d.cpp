@@ -8,7 +8,7 @@
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/renderer/gl_colormap.h"
-#include "gl/scene/gl_colormask.h"
+#include "gl/stereo3d/scoped_color_mask.h"
 #include "gl/scene/gl_hudtexture.h"
 #include "gl/utility/gl_clock.h"
 #include "gl/utility/gl_convert.h"
@@ -453,17 +453,17 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportFull(renderer, bounds);
 			{ // Local scope for color mask
 				// Left eye green
-				LocalScopeGLColorMask colorMask(0,1,0,1); // green
 				setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 				{
+					ScopedColorMask colorMask(0, 1, 0, 1); // green
 					EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 					renderer.RenderOneEye(a1, toscreen);
 				}
 
 				// Right eye magenta
-				colorMask.setColorMask(1,0,1,1); // magenta
 				setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 				{
+					ScopedColorMask colorMask(1, 0, 1, 1); // magenta
 					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 					renderer.RenderOneEye(a1, toscreen);
 				}
@@ -478,17 +478,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 			setViewportFull(renderer, bounds);
 			{ // Local scope for color mask
 				// Left eye red
-				LocalScopeGLColorMask colorMask(1,0,0,1); // red
+				// LocalScopeGLColorMask colorMask(1,0,0,1); // red
 				setLeftEyeView(renderer, fov0, ratio0, fovratio0, player);
 				{
+					ScopedColorMask colorMask(1, 0, 0, 1); // red
 					EyeViewShifter vs(EYE_VIEW_LEFT, player, renderer);
 					renderer.RenderOneEye(a1, toscreen);
 				}
 
 				// Right eye cyan
-				colorMask.setColorMask(0,1,1,1); // cyan
+				// colorMask.setColorMask(0,1,1,1); // cyan
 				setRightEyeView(renderer, fov0, ratio0, fovratio0, player);
 				{
+					ScopedColorMask colorMask(0, 1, 1, 1); // cyan
 					EyeViewShifter vs(EYE_VIEW_RIGHT, player, renderer);
 					renderer.RenderOneEye(a1, toscreen);
 				}
