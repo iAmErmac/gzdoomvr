@@ -1040,9 +1040,6 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 
 	retval = viewsector;
 
-	SetCameraPos(viewx, viewy, viewz, viewangle);
-
-	SetViewMatrix(false, false);
 	SetViewAngle(viewangle);
 	SetViewMatrix(viewx, viewy, viewz, false, false);
 	mCurrentFoV = fov;

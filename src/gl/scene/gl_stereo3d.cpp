@@ -196,8 +196,8 @@ protected:
 		viewx = x;
 		viewy = y;
 		viewz = z;
-		renderer->SetCameraPos(viewx, viewy, viewz, viewangle);
-		renderer->SetViewMatrix(false, false);
+		renderer->SetViewAngle(viewangle);
+		renderer->SetViewMatrix(viewx, viewy, viewz, false, false);
 	}
 
 private:
