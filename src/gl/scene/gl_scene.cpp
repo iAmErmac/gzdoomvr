@@ -408,7 +408,7 @@ void FGLRenderer::SetViewMatrix(fixed_t viewx, fixed_t viewy, fixed_t viewz, boo
 			
 	// Printf("yaw = %.1f; pitch = %.1f %.1f roll = %.1f\n", yaw, pitch, roll);
 
-	glScalef(1.0/pixelAspect, 1.0, 1.0/pixelAspect); // unstretch
+	// glScalef(1.0/pixelAspect, 1.0, 1.0/pixelAspect); // unstretch
 
 	glTranslatef(FIXED2FLOAT(viewx) * mult, -FIXED2FLOAT(viewz) * planemult , -FIXED2FLOAT(viewy));
 	// Printf("x = %.1f; z = %.1f %.1f %.1f\n", GLRenderer->mCameraPos.X, GLRenderer->mCameraPos.Z, FIXED2FLOAT(viewx), FIXED2FLOAT(viewz));
@@ -1057,11 +1057,17 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	// Hybrid use of old and new dispatch to stereoscopic 3D modes
 	switch (vr_mode) 
 	{
+	// Everything in this bracketed area is a work-in-progress.
+		// This is the way things work in gzdoom.
+		// The code is here, and indented oddly, to help merge with upstream changes.
+		// Eventually, I want all of the 3d modes to use this pattern.
+		// Using "case 73:" to indicate that this section does not work correctly yet.
 	case 73: // Does not work well yet, switching between hud-buffered modes, and these new modes
 	{
 		if (previous_vr_mode != vr_mode) {
 			// Default unbind hud buffer, in case previous mode had it set
 			// TODO: Hud-using modes should invoke a clean-up step on mode change
+			// TODO: This cleanup is not enough. Switching from buffered-hud modes is glitchy
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			::Stereo3DMode.bindHudTexture(false);
 			::Stereo3D::setBufferHud(false);
