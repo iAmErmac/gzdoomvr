@@ -71,6 +71,8 @@
 #include "gl/scene/gl_portal.h"
 #include "gl/scene/gl_stereo3d.h"
 #include "gl/shaders/gl_shader.h"
+#include "gl/stereo3d/gl_stereo3d.h"
+#include "gl/stereo3d/scoped_view_shifter.h"
 #include "gl/textures/gl_material.h"
 #include "gl/utility/gl_clock.h"
 #include "gl/utility/gl_convert.h"
@@ -316,6 +318,14 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 
 	// setPerspective(fovy, ratio, 5.f, 65536.f); // Do not use Graf Zahl's recent perspective refactoring May 2014 cmb
 	gl_RenderState.Set2DMode(false);
+}
+
+// raw matrix input from stereo 3d modes
+void FGLRenderer::SetProjection(float matrix[4][4])
+{
+	glMatrixMode(GL_PROJECTION);
+	gl_RenderState.Set2DMode(false);
+	glLoadMatrixf(&matrix[0][0]);
 }
 
 //-----------------------------------------------------------------------------
@@ -1044,6 +1054,9 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	SetViewMatrix(viewx, viewy, viewz, false, false);
 	mCurrentFoV = fov;
 
+		clipper.Clear();
+		angle_t a1 = FrustumAngle();
+		clipper.SafeAddClipRangeRealAngles(viewangle+a1, viewangle-a1);
 	// Use the Stereo3D object to set up the viewport and projection matrix
 	Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector, camera->player);
 
