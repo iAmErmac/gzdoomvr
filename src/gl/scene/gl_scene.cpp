@@ -1053,58 +1053,69 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	SetViewMatrix(viewx, viewy, viewz, false, false);
 	mCurrentFoV = fov;
 
+	static int previous_vr_mode = 0;
 	// Hybrid use of old and new dispatch to stereoscopic 3D modes
 	switch (vr_mode) 
 	{
-	case 9:
+	case 73: // Does not work well yet, switching between hud-buffered modes, and these new modes
 	{
-		// New way, found in upstream gzdoom
-		// Render (potentially) multiple views for stereo 3d
-		float projectionMatrix[4][4];
-		float viewShift[3];
-		const s3d::Stereo3DMode& stereo3dMode = s3d::Stereo3DMode::getCurrentMode();
-		stereo3dMode.SetUp();
-		for (int eye_ix = 0; eye_ix < stereo3dMode.eye_count(); ++eye_ix)
-		{
-			const s3d::EyePose * eye = stereo3dMode.getEyePose(eye_ix);
-			eye->SetUp();
-			// TODO: stereo specific viewport - needed when implementing side-by-side modes etc.
-			SetViewport(bounds);
-			mCurrentFoV = fov;
-			// Stereo mode specific perspective projection
-			eye->GetProjection(fov, ratio, fovratio, projectionMatrix);
-			SetProjection(projectionMatrix);
-			// SetProjection(fov, ratio, fovratio);	// switch to perspective mode and set up clipper
-			SetViewAngle(viewangle);
-			// Stereo mode specific viewpoint adjustment - temporarily shifts global viewx, viewy, viewz
-			eye->GetViewShift(GLRenderer->mAngles.Yaw.Degrees, viewShift);
-			s3d::ScopedViewShifter viewShifter(viewShift);
-			SetViewMatrix(viewx, viewy, viewz, false, false);
-
-			clipper.Clear();
-			angle_t a1 = FrustumAngle();
-			clipper.SafeAddClipRangeRealAngles(viewangle + a1, viewangle - a1);
-
-			ProcessScene(toscreen);
-			if (mainview) EndDrawScene(retval);	// do not call this for camera textures.
-			eye->TearDown();
+		if (previous_vr_mode != vr_mode) {
+			// Default unbind hud buffer, in case previous mode had it set
+			// TODO: Hud-using modes should invoke a clean-up step on mode change
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			::Stereo3DMode.bindHudTexture(false);
+			::Stereo3D::setBufferHud(false);
+			mAngles.Roll = 0;
+			mAngles.Pitch = 0;
 		}
-		stereo3dMode.TearDown();
+
+	// New way, found in upstream gzdoom
+	// Render (potentially) multiple views for stereo 3d
+	float projectionMatrix[4][4];
+	float viewShift[3];
+	const s3d::Stereo3DMode& stereo3dMode = s3d::Stereo3DMode::getCurrentMode();
+	stereo3dMode.SetUp();
+	for (int eye_ix = 0; eye_ix < stereo3dMode.eye_count(); ++eye_ix)
+	{
+		const s3d::EyePose * eye = stereo3dMode.getEyePose(eye_ix);
+		eye->SetUp();
+		// TODO: stereo specific viewport - needed when implementing side-by-side modes etc.
+		SetViewport(bounds);
+		glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // TODO: not for all 3d modes
+		mCurrentFoV = fov;
+		// Stereo mode specific perspective projection
+		eye->GetProjection(fov, ratio, fovratio, projectionMatrix);
+		SetProjection(projectionMatrix);
+		// SetProjection(fov, ratio, fovratio);	// switch to perspective mode and set up clipper
+		SetViewAngle(viewangle);
+		// Stereo mode specific viewpoint adjustment - temporarily shifts global viewx, viewy, viewz
+		eye->GetViewShift(GLRenderer->mAngles.Yaw.Degrees, viewShift);
+		s3d::ScopedViewShifter viewShifter(viewShift);
+		SetViewMatrix(viewx, viewy, viewz, false, false);
+
+		clipper.Clear();
+		angle_t a1 = FrustumAngle();
+		clipper.SafeAddClipRangeRealAngles(viewangle + a1, viewangle - a1);
+
+		ProcessScene(toscreen);
+		if (mainview) EndDrawScene(retval);	// do not call this for camera textures.
+		eye->TearDown();
+	}
+	stereo3dMode.TearDown();
+
 	}
 		break;
 
 	default:
 	{
 		// Old way, original gz3doom implementation
-		clipper.Clear();
-		angle_t a1 = FrustumAngle();
-		clipper.SafeAddClipRangeRealAngles(viewangle + a1, viewangle - a1);
 		// Use the Stereo3D object to set up the viewport and projection matrix
 		::Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector, camera->player);
 	}
 		break;
 
 	}
+	previous_vr_mode = vr_mode;
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();

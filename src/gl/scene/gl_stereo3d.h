@@ -29,9 +29,12 @@ public:
 		RIGHT_EYE_VIEW,
 		QUAD_BUFFERED,
 		OCULUS_RIFT,
+		YELLOW_BLUE, // TODO
 		ROW_INTERLEAVED, // TODO
 		CHECKERBOARD // TODO
 	};
+
+	static void setBufferHud(bool doBuffer);
 
 	Stereo3D();
 

@@ -128,6 +128,11 @@ CCMD(vr_reset_position)
 // TODO - these flags don't work
 static bool doBufferHud = true;
 
+/* static */
+void Stereo3D::setBufferHud(bool doBuffer) {
+	doBufferHud = doBuffer;
+}
+
 
 // Global shared Stereo3DMode object
 Stereo3D Stereo3DMode;
