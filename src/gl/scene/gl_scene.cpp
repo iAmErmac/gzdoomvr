@@ -89,6 +89,7 @@ CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
 
+EXTERN_CVAR(Int, vr_mode)
 EXTERN_CVAR(Float, vr_screendist)
 EXTERN_CVAR(Float, vr_player_height_meters) // Used for stereo 3D
 EXTERN_CVAR (Int, screenblocks)
@@ -103,8 +104,6 @@ area_t			in_area;
 TArray<BYTE> currentmapsection;
 
 void gl_ParseDefs();
-
-// static Stereo3D stereo3d;
 
 //-----------------------------------------------------------------------------
 //
@@ -1054,11 +1053,58 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	SetViewMatrix(viewx, viewy, viewz, false, false);
 	mCurrentFoV = fov;
 
+	// Hybrid use of old and new dispatch to stereoscopic 3D modes
+	switch (vr_mode) 
+	{
+	case 9:
+	{
+		// New way, found in upstream gzdoom
+		// Render (potentially) multiple views for stereo 3d
+		float projectionMatrix[4][4];
+		float viewShift[3];
+		const s3d::Stereo3DMode& stereo3dMode = s3d::Stereo3DMode::getCurrentMode();
+		stereo3dMode.SetUp();
+		for (int eye_ix = 0; eye_ix < stereo3dMode.eye_count(); ++eye_ix)
+		{
+			const s3d::EyePose * eye = stereo3dMode.getEyePose(eye_ix);
+			eye->SetUp();
+			// TODO: stereo specific viewport - needed when implementing side-by-side modes etc.
+			SetViewport(bounds);
+			mCurrentFoV = fov;
+			// Stereo mode specific perspective projection
+			eye->GetProjection(fov, ratio, fovratio, projectionMatrix);
+			SetProjection(projectionMatrix);
+			// SetProjection(fov, ratio, fovratio);	// switch to perspective mode and set up clipper
+			SetViewAngle(viewangle);
+			// Stereo mode specific viewpoint adjustment - temporarily shifts global viewx, viewy, viewz
+			eye->GetViewShift(GLRenderer->mAngles.Yaw.Degrees, viewShift);
+			s3d::ScopedViewShifter viewShifter(viewShift);
+			SetViewMatrix(viewx, viewy, viewz, false, false);
+
+			clipper.Clear();
+			angle_t a1 = FrustumAngle();
+			clipper.SafeAddClipRangeRealAngles(viewangle + a1, viewangle - a1);
+
+			ProcessScene(toscreen);
+			if (mainview) EndDrawScene(retval);	// do not call this for camera textures.
+			eye->TearDown();
+		}
+		stereo3dMode.TearDown();
+	}
+		break;
+
+	default:
+	{
+		// Old way, original gz3doom implementation
 		clipper.Clear();
 		angle_t a1 = FrustumAngle();
-		clipper.SafeAddClipRangeRealAngles(viewangle+a1, viewangle-a1);
-	// Use the Stereo3D object to set up the viewport and projection matrix
-	Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector, camera->player);
+		clipper.SafeAddClipRangeRealAngles(viewangle + a1, viewangle - a1);
+		// Use the Stereo3D object to set up the viewport and projection matrix
+		::Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector, camera->player);
+	}
+		break;
+
+	}
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();
