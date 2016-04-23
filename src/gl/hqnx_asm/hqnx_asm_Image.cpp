@@ -20,10 +20,6 @@
 #include <string.h>
 #include "hqnx_asm_Image.h"
 
-#ifndef _MSC_VER
-#define _stricmp strcasecmp
-#endif
-
 namespace HQnX_asm
 {
 

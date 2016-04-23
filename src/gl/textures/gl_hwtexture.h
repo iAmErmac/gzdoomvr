@@ -2,6 +2,10 @@
 #ifndef __GLTEXTURE_H
 #define __GLTEXTURE_H
 
+#ifdef LoadImage
+#undef LoadImage
+#endif
+
 #define SHADED_TEXTURE -1
 #define DIRECT_PALETTE -2
 
@@ -9,6 +13,17 @@
 
 class FCanvasTexture;
 class AActor;
+
+// For error catching while changing parameters.
+enum EInvalid
+{
+	Invalid = 0
+};
+
+enum ETranslation
+{
+	TRANS_Alpha = INT_MAX
+};
 
 enum
 {
@@ -27,7 +42,7 @@ class FHardwareTexture
 	{
 		unsigned int glTexID;
 		int translation;
-		int cm;
+		//int cm;
 	};
 
 public:
@@ -48,12 +63,12 @@ private:
 	bool forcenofiltering;
 	bool forcenocompression;
 
-	unsigned int * glTexID;
+	unsigned glDefTexID;
 	TArray<TranslatedTexture> glTexID_Translated;
 	unsigned int glDepthID;	// only used by camera textures
 
 	void LoadImage(unsigned char * buffer,int w, int h, unsigned int & glTexID,int wrapparam, bool alphatexture, int texunit);
-	unsigned * GetTexID(int cm, int translation);
+	unsigned * GetTexID(int translation);
 
 	int GetDepthBuffer();
 	void DeleteTexture(unsigned int texid);
@@ -68,8 +83,8 @@ public:
 
 	void BindToFrameBuffer();
 
-	unsigned int Bind(int texunit, int cm, int translation=0);
-	unsigned int CreateTexture(unsigned char * buffer, int w, int h,bool wrap, int texunit, int cm, int translation=0);
+	unsigned int Bind(int texunit, int translation=0, bool alphatexture = false);
+	unsigned int CreateTexture(unsigned char * buffer, int w, int h,bool wrap, int texunit, int translation=0, bool alphatexture = false);
 	void Resize(int _width, int _height) ;
 
 	void Clean(bool all);

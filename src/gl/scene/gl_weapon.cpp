@@ -51,6 +51,7 @@
 #include "gl/renderer/gl_lightdata.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/data/gl_data.h"
+#include "gl/data/gl_vertexbuffer.h"
 #include "gl/dynlights/gl_glow.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/models/gl_models.h"
@@ -71,7 +72,7 @@ EXTERN_CVAR (Bool, r_deathcamera)
 //
 //==========================================================================
 
-void FGLRenderer::DrawPSprite (player_t * player,pspdef_t *psp,fixed_t sx, fixed_t sy, int cm_index, bool hudModelStep, int OverrideShader)
+void FGLRenderer::DrawPSprite (player_t * player,pspdef_t *psp,fixed_t sx, fixed_t sy, bool hudModelStep, int OverrideShader, bool alphatexture)
 {
 	float			fU1,fV1;
 	float			fU2,fV2;
@@ -85,7 +86,7 @@ void FGLRenderer::DrawPSprite (player_t * player,pspdef_t *psp,fixed_t sx, fixed
 	// [BB] In the HUD model step we just render the model and break out. 
 	if ( hudModelStep )
 	{
-		gl_RenderHUDModel( psp, sx, sy, cm_index );
+		gl_RenderHUDModel( psp, sx, sy);
 		return;
 	}
 
@@ -97,7 +98,7 @@ void FGLRenderer::DrawPSprite (player_t * player,pspdef_t *psp,fixed_t sx, fixed
 	FMaterial * tex = FMaterial::ValidateTexture(lump, false);
 	if (!tex) return;
 
-	tex->BindPatch(cm_index, 0, OverrideShader);
+	tex->BindPatch(0, OverrideShader, alphatexture);
 
 	int vw = viewwidth;
 	int vh = viewheight;
@@ -156,19 +157,20 @@ void FGLRenderer::DrawPSprite (player_t * player,pspdef_t *psp,fixed_t sx, fixed
 
 	if (tex->GetTransparent() || OverrideShader != 0)
 	{
-		gl_RenderState.EnableAlphaTest(false);
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 	}
 	gl_RenderState.Apply();
-	glBegin(GL_TRIANGLE_STRIP);
-	glTexCoord2f(fU1, fV1); glVertex2f(x1,y1);
-	glTexCoord2f(fU1, fV2); glVertex2f(x1,y2);
-	glTexCoord2f(fU2, fV1); glVertex2f(x2,y1);
-	glTexCoord2f(fU2, fV2); glVertex2f(x2,y2);
-	glEnd();
-	if (tex->GetTransparent() || OverrideShader != 0)
-	{
-		gl_RenderState.EnableAlphaTest(true);
-	}
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(x1, y1, 0, fU1, fV1);
+	ptr++;
+	ptr->Set(x1, y2, 0, fU1, fV2);
+	ptr++;
+	ptr->Set(x2, y1, 0, fU2, fV1);
+	ptr++;
+	ptr->Set(x2, y2, 0, fU2, fV2);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
+	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.5f);
 }
 
 //==========================================================================
@@ -199,22 +201,18 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 		(r_deathcamera && camera->health <= 0))
 		return;
 
-	/*
-	if(!player || playermo->renderflags&RF_INVISIBLE || !r_drawplayersprites ||
-		mViewActor!=playermo || playermo->RenderStyle.BlendOp == STYLEOP_None) return;
-	*/
-
 	P_BobWeapon (player, &player->psprites[ps_weapon], &ofsx, &ofsy);
 
 	// check for fullbright
 	if (player->fixedcolormap==NOFIXEDCOLORMAP)
 	{
-		for (i=0, psp=player->psprites; i<=ps_flash; i++,psp++)
+		for (i = 0, psp = player->psprites; i <= ps_flash; i++, psp++)
+		{
 			if (psp->state != NULL)
 			{
 				bool disablefullbright = false;
 				FTextureID lump = gl_GetSpriteFrame(psp->sprite, psp->frame, 0, 0, NULL);
-				if (lump.isValid() && gl_BrightmapsActive())
+				if (lump.isValid())
 				{
 					FMaterial * tex=FMaterial::ValidateTexture(lump, false);
 					if (tex)
@@ -222,13 +220,13 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 				}
 				statebright[i] = !!psp->state->GetFullbright() && !disablefullbright;
 			}
-				
+		}
 	}
 
 	if (gl_fixedcolormap) 
 	{
 		lightlevel=255;
-		cm.GetFixedColormap();
+		cm.Clear();
 		statebright[0] = statebright[1] = true;
 		fakesec = viewsector;
 	}
@@ -292,7 +290,9 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 		lightlevel = 255;
 	}
 
-	PalEntry ThingColor = playermo->fillcolor;
+	PalEntry ThingColor = (playermo->RenderStyle.Flags & STYLEF_ColorIsFixed) ? playermo->fillcolor : 0xffffff;
+	ThingColor.a = 255;
+
 	visstyle_t vis;
 
 	vis.RenderStyle=playermo->RenderStyle;
@@ -303,10 +303,10 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 		playermo->Inventory->AlterWeaponSprite(&vis);
 		if (vis.colormap >= SpecialColormaps[0].Colormap && 
 			vis.colormap < SpecialColormaps[SpecialColormaps.Size()].Colormap && 
-			cm.colormap == CM_DEFAULT)
+			gl_fixedcolormap == CM_DEFAULT)
 		{
-			ptrdiff_t specialmap = (vis.colormap - SpecialColormaps[0].Colormap) / sizeof(FSpecialColormap);
-			cm.colormap = int(CM_FIRSTSPECIALCOLORMAP + specialmap);
+			// this only happens for Strife's inverted weapon sprite
+			vis.RenderStyle.Flags |= STYLEF_InvertSource;
 		}
 	}
 
@@ -319,7 +319,7 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 		vis.RenderStyle.CheckFuzz();
 		if (vis.RenderStyle.BlendOp == STYLEOP_Fuzz)
 		{
-			if (gl.shadermodel >= 4 && gl_fuzztype != 0)
+			if (gl_fuzztype != 0)
 			{
 				// Todo: implement shader selection here
 				vis.RenderStyle = LegacyRenderStyles[STYLE_Translucent];
@@ -351,6 +351,7 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 
 	// now draw the different layers of the weapon
 	gl_RenderState.EnableBrightmap(true);
+	gl_RenderState.SetObjectColor(ThingColor);
 	if (statebright[0] || statebright[1])
 	{
 		// brighten the weapon to reduce the difference between
@@ -371,7 +372,6 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 			if (statebright[i]) 
 			{
 				if (fakesec == viewsector || in_area != area_below)	
-					// under water areas keep most of their color for fullbright objects
 				{
 					cmc.LightColor.r=
 					cmc.LightColor.g=
@@ -379,17 +379,27 @@ void FGLRenderer::DrawPlayerSprites(sector_t * viewsector, bool hudModelStep)
 				}
 				else
 				{
-					cmc.LightColor.r = (3*cmc.LightColor.r + 0xff)/4;
+					// under water areas keep most of their color for fullbright objects
+					cmc.LightColor.r = (3 * cmc.LightColor.r + 0xff) / 4;
 					cmc.LightColor.g = (3*cmc.LightColor.g + 0xff)/4;
 					cmc.LightColor.b = (3*cmc.LightColor.b + 0xff)/4;
 				}
 			}
-			// set the lighting parameters (only calls glColor and glAlphaFunc)
-			gl_SetSpriteLighting(vis.RenderStyle, playermo, statebright[i]? 255 : lightlevel, 
-				0, &cmc, 0xffffff, trans, statebright[i], true);
-			DrawPSprite (player,psp,psp->sx+ofsx, psp->sy+ofsy, cm.colormap, hudModelStep, OverrideShader);
+			// set the lighting parameters
+			if (vis.RenderStyle.BlendOp == STYLEOP_Shadow)
+			{
+				gl_RenderState.SetColor(0.2f, 0.2f, 0.2f, 0.33f, cmc.desaturation);
+			}
+			else
+			{
+				gl_SetDynSpriteLight(playermo, NULL);
+				gl_SetColor(statebright[i] ? 255 : lightlevel, 0, cmc, trans, true);
+			}
+			DrawPSprite(player, psp, psp->sx + ofsx, psp->sy + ofsy, hudModelStep, OverrideShader, !!(vis.RenderStyle.Flags & STYLEF_RedIsAlpha));
 		}
 	}
+	gl_RenderState.SetObjectColor(0xffffffff);
+	gl_RenderState.SetDynLight(0, 0, 0);
 	gl_RenderState.EnableBrightmap(false);
 	glset.lightmode = oldlightmode;
 }
@@ -414,10 +424,10 @@ void FGLRenderer::DrawTargeterSprites()
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	gl_RenderState.AlphaFunc(GL_GEQUAL,gl_mask_sprite_threshold);
 	gl_RenderState.BlendEquation(GL_FUNC_ADD);
-	glColor3f(1.0f,1.0f,1.0f);
+	gl_RenderState.ResetColor();
 	gl_RenderState.SetTextureMode(TM_MODULATE);
 
 	// The Targeter's sprites are always drawn normally.
 	for (i=ps_targetcenter, psp = &player->psprites[ps_targetcenter]; i<NUMPSPRITES; i++,psp++)
-		if (psp->state) DrawPSprite (player,psp,psp->sx, psp->sy, CM_DEFAULT, false, 0);
+		if (psp->state) DrawPSprite (player,psp,psp->sx, psp->sy, false, 0, false);
 }

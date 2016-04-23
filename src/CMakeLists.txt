@@ -231,43 +231,6 @@ set( ZDOOM_LIBS ${ZDOOM_LIBS} ${OPENGL_LIBRARIES} )
 include_directories( ${OPENGL_INCLUDE_DIR} )
 
 
-# check for GLEW
-find_path( GLEW_INCLUDE_DIR GL/glew.h
-	PATHS "/usr/include"
-	"/usr/local/include" )
-
-if( GLEW_INCLUDE_DIR )
-	message( STATUS "GLEW include files found at ${GLEW_INCLUDE_DIR}" )
-else( GLEW_INCLUDE_DIR )
-	message( SEND_ERROR "Could not find GLEW include files" )
-endif( GLEW_INCLUDE_DIR )
-
-# GLEW include directory
-include_directories( BEFORE "${GLEW_INCLUDE_DIR}" )
-# Hack for Mac weirdness if glew in /usr/include...
-if (APPLE)
-    set(CMAKE_CXX_FLAGS "-I${GLEW_INCLUDE_DIR} ${CMAKE_CXX_FLAGS}")
-endif()
-
-find_library( GLEW_LIBRARY NAMES glew32 GLEW )
-
-if( NOT GLEW_LIBRARY )
-	message( SEND_ERROR "Could not find GLEW library files" )
-endif( NOT GLEW_LIBRARY )
-	
-# install glew dll
-if (GLEW_LIBRARY AND WIN32)
-    find_file(GLEW_DLL glew32.dll)
-    if( NOT GLEW_DLL )
-        message( SEND_ERROR "Could not find glew32.dll" )
-    endif( NOT GLEW_DLL )
-    install(PROGRAMS ${GLEW_DLL} DESTINATION ".")
-endif()
-if (GLEW_LIBRARY AND APPLE)
-	install(PROGRAMS ${GLEW_LIBRARY} DESTINATION ".")
-endif()
-
-set( ZDOOM_LIBS ${GLEW_LIBRARY} ${ZDOOM_LIBS} )
 
 
 # Decide on the name of the FMOD library we want to use.
@@ -652,6 +615,10 @@ endif( NOT DYN_FLUIDSYNTH )
 
 # Start defining source files for ZDoom
 set( PLAT_WIN32_SOURCES
+	gl/hqnx_asm/hq2x_asm.cpp
+	gl/hqnx_asm/hq3x_asm.cpp
+	gl/hqnx_asm/hq4x_asm.cpp
+	gl/hqnx_asm/hqnx_asm_Image.cpp
 	win32/eaxedit.cpp
 	win32/fb_d3d9.cpp
 	win32/fb_d3d9_wipe.cpp
@@ -1267,6 +1234,7 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	gl/data/gl_data.cpp
 	gl/data/gl_portaldata.cpp
 	gl/data/gl_setup.cpp
+	gl/data/gl_matrix.cpp
 	gl/data/gl_vertexbuffer.cpp
 	gl/dynlights/a_dynlight.cpp
 	gl/utility/gl_clock.cpp
@@ -1323,6 +1291,7 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	gl/system/gl_framebuffer.cpp
 	gl/system/gl_menu.cpp
 	gl/system/gl_wipe.cpp
+	gl/system/gl_load.c
 	gl/models/gl_models_md3.cpp
 	gl/models/gl_models_md2.cpp
 	gl/models/gl_models.cpp

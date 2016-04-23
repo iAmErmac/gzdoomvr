@@ -47,9 +47,9 @@
 
 #include "gl/system/gl_cvars.h"
 #include "gl/data/gl_data.h"
+#include "gl/data/gl_vertexbuffer.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/scene/gl_portal.h"
-#include "gl/dynlights/gl_lightbuffer.h"
 #include "gl/renderer/gl_lightdata.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/textures/gl_material.h"
@@ -693,7 +693,7 @@ SortNode * GLDrawList::DoSort(SortNode * head)
 //
 //
 //==========================================================================
-void GLDrawList::DoDraw(int pass, int i)
+void GLDrawList::DoDraw(int pass, int i, bool trans)
 {
 	switch(drawitems[i].rendertype)
 	{
@@ -701,7 +701,7 @@ void GLDrawList::DoDraw(int pass, int i)
 		{
 			GLFlat * f=&flats[drawitems[i].index];
 			RenderFlat.Clock();
-			f->Draw(pass);
+			f->Draw(pass, trans);
 			RenderFlat.Unclock();
 		}
 		break;
@@ -740,13 +740,13 @@ void GLDrawList::DoDrawSorted(SortNode * head)
 		{
 			DoDrawSorted(head->left);
 		}
-		DoDraw(GLPASS_TRANSLUCENT, head->itemindex);
+		DoDraw(GLPASS_TRANSLUCENT, head->itemindex, true);
 		if (head->equal)
 		{
 			SortNode * ehead=head->equal;
 			while (ehead)
 			{
-				DoDraw(GLPASS_TRANSLUCENT, ehead->itemindex);
+				DoDraw(GLPASS_TRANSLUCENT, ehead->itemindex, true);
 				ehead=ehead->equal;
 			}
 		}
@@ -780,7 +780,7 @@ void GLDrawList::Draw(int pass)
 {
 	for(unsigned i=0;i<drawitems.Size();i++)
 	{
-		DoDraw(pass, i);
+		DoDraw(pass, i, false);
 	}
 }
 
@@ -985,17 +985,21 @@ void FDrawInfo::SetupFloodStencil(wallseg * ws)
 		// Use revertible color mask, to avoid stomping on anaglyph 3D state
 		ScopedColorMask colorMask(0, 0, 0, 0); // glColorMask(0,0,0,0);						// don't write to the graphics buffer
 		gl_RenderState.EnableTexture(false);
-		glColor3f(1, 1, 1);
+		gl_RenderState.ResetColor();
 		glEnable(GL_DEPTH_TEST);
 		glDepthMask(true);
 
-		gl_RenderState.Apply();
-		glBegin(GL_TRIANGLE_FAN);
-		glVertex3f(ws->x1, ws->z1, ws->y1);
-		glVertex3f(ws->x1, ws->z2, ws->y1);
-		glVertex3f(ws->x2, ws->z2, ws->y2);
-		glVertex3f(ws->x2, ws->z1, ws->y2);
-		glEnd();
+	gl_RenderState.Apply();
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(ws->x1, ws->z1, ws->y1, 0, 0);
+	ptr++;
+	ptr->Set(ws->x1, ws->z2, ws->y1, 0, 0);
+	ptr++;
+	ptr->Set(ws->x2, ws->z2, ws->y2, 0, 0);
+	ptr++;
+	ptr->Set(ws->x2, ws->z1, ws->y2, 0, 0);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_FAN);
 
 		glStencilFunc(GL_EQUAL, recursion + 1, ~0);		// draw sky into stencil
 		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);		// this stage doesn't modify the stencil
@@ -1015,15 +1019,19 @@ void FDrawInfo::ClearFloodStencil(wallseg * ws)
 	{
 		// Use revertible color mask, to avoid stomping on anaglyph 3D state
 		ScopedColorMask colorMask(0, 0, 0, 0); // glColorMask(0,0,0,0);						// don't write to the graphics buffer
-		glColor3f(1, 1, 1);
+		gl_RenderState.ResetColor();
 
-		gl_RenderState.Apply();
-		glBegin(GL_TRIANGLE_FAN);
-		glVertex3f(ws->x1, ws->z1, ws->y1);
-		glVertex3f(ws->x1, ws->z2, ws->y1);
-		glVertex3f(ws->x2, ws->z2, ws->y2);
-		glVertex3f(ws->x2, ws->z1, ws->y2);
-		glEnd();
+	gl_RenderState.Apply();
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(ws->x1, ws->z1, ws->y1, 0, 0);
+	ptr++;
+	ptr->Set(ws->x1, ws->z2, ws->y1, 0, 0);
+	ptr++;
+	ptr->Set(ws->x2, ws->z2, ws->y2, 0, 0);
+	ptr++;
+	ptr->Set(ws->x2, ws->z1, ws->y2, 0, 0);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_FAN);
 
 		// restore old stencil op.
 		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
@@ -1053,7 +1061,7 @@ void FDrawInfo::DrawFloodedPlane(wallseg * ws, float planez, sector_t * sec, boo
 
 	if (gl_fixedcolormap) 
 	{
-		Colormap.GetFixedColormap();
+		Colormap.Clear();
 		lightlevel=255;
 	}
 	else
@@ -1068,19 +1076,17 @@ void FDrawInfo::DrawFloodedPlane(wallseg * ws, float planez, sector_t * sec, boo
 	}
 
 	int rel = getExtraLight();
-	gl_SetColor(lightlevel, rel, &Colormap, 1.0f);
+	gl_SetColor(lightlevel, rel, Colormap, 1.0f);
 	gl_SetFog(lightlevel, rel, &Colormap, false);
-	gltexture->Bind(Colormap.colormap);
+	gltexture->Bind();
 
 	float fviewx = FIXED2FLOAT(viewx);
 	float fviewy = FIXED2FLOAT(viewy);
 	float fviewz = FIXED2FLOAT(viewz);
 
+	gl_SetPlaneTextureRotation(&plane, gltexture);
 	gl_RenderState.Apply();
 
-	bool pushed = gl_SetPlaneTextureRotation(&plane, gltexture);
-
-	glBegin(GL_TRIANGLE_FAN);
 	float prj_fac1 = (planez-fviewz)/(ws->z1-fviewz);
 	float prj_fac2 = (planez-fviewz)/(ws->z2-fviewz);
 
@@ -1096,25 +1102,18 @@ void FDrawInfo::DrawFloodedPlane(wallseg * ws, float planez, sector_t * sec, boo
 	float px4 = fviewx + prj_fac1 * (ws->x2-fviewx);
 	float py4 = fviewy + prj_fac1 * (ws->y2-fviewy);
 
-	glTexCoord2f(px1 / 64, -py1 / 64);
-	glVertex3f(px1, planez, py1);
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(px1, planez, py1, px1 / 64, -py1 / 64);
+	ptr++;
+	ptr->Set(px2, planez, py2, px2 / 64, -py2 / 64);
+	ptr++;
+	ptr->Set(px3, planez, py3, px3 / 64, -py3 / 64);
+	ptr++;
+	ptr->Set(px4, planez, py4, px4 / 64, -py4 / 64);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_FAN);
 
-	glTexCoord2f(px2 / 64, -py2 / 64);
-	glVertex3f(px2, planez, py2);
-
-	glTexCoord2f(px3 / 64, -py3 / 64);
-	glVertex3f(px3, planez, py3);
-
-	glTexCoord2f(px4 / 64, -py4 / 64);
-	glVertex3f(px4, planez, py4);
-
-	glEnd();
-
-	if (pushed)
-	{
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
-	}
+	gl_RenderState.EnableTextureMatrix(false);
 }
 
 //==========================================================================

@@ -85,7 +85,6 @@ FGLTexture::FGLTexture(FTexture * tx, bool expandpatches)
 	for(int i=0;i<5;i++) gltexture[i]=NULL;
 	HiresLump=-1;
 	hirestexture = NULL;
-	currentwarp = 0;
 	bHasColorkey = false;
 	bIsTransparent = -1;
 	bExpand = expandpatches;
@@ -109,7 +108,7 @@ FGLTexture::~FGLTexture()
 // Checks for the presence of a hires texture replacement and loads it
 //
 //==========================================================================
-unsigned char *FGLTexture::LoadHiresTexture(FTexture *tex, int *width, int *height, int cm)
+unsigned char *FGLTexture::LoadHiresTexture(FTexture *tex, int *width, int *height, bool alphatexture)
 {
 	if (HiresLump==-1) 
 	{
@@ -131,7 +130,7 @@ unsigned char *FGLTexture::LoadHiresTexture(FTexture *tex, int *width, int *heig
 		memset(buffer, 0, w * (h+1) * 4);
 
 		FGLBitmap bmp(buffer, w*4, w, h);
-		bmp.SetTranslationInfo(cm);
+		if (alphatexture) bmp.SetAlphaTex();
 
 		
 		int trans = hirestexture->CopyTrueColorPixels(&bmp, 0, 0);
@@ -186,84 +185,6 @@ void FGLTexture::Clean(bool all)
 	}
 }
 
-//===========================================================================
-//
-// FGLTex::WarpBuffer
-//
-//===========================================================================
-
-BYTE *FGLTexture::WarpBuffer(BYTE *buffer, int Width, int Height, int warp)
-{
-	if (Width > 256 || Height > 256) return buffer;
-
-	DWORD *in = (DWORD*)buffer;
-	DWORD *out = (DWORD*)new BYTE[4*Width*Height];
-	float Speed = static_cast<FWarpTexture*>(tex)->GetSpeed();
-
-	static_cast<FWarpTexture*>(tex)->GenTime = r_FrameTime;
-
-	static DWORD linebuffer[256];	// anything larger will bring down performance so it is excluded above.
-	DWORD timebase = DWORD(r_FrameTime*Speed*23/28);
-	int xsize = Width;
-	int ysize = Height;
-	int xmask = xsize - 1;
-	int ymask = ysize - 1;
-	int ds_xbits;
-	int i,x;
-
-	if (warp == 1)
-	{
-		for(ds_xbits=-1,i=Width; i; i>>=1, ds_xbits++);
-
-		for (x = xsize-1; x >= 0; x--)
-		{
-			int yt, yf = (finesine[(timebase+(x+17)*128)&FINEMASK]>>13) & ymask;
-			const DWORD *source = in + x;
-			DWORD *dest = out + x;
-			for (yt = ysize; yt; yt--, yf = (yf+1)&ymask, dest += xsize)
-			{
-				*dest = *(source+(yf<<ds_xbits));
-			}
-		}
-		timebase = DWORD(r_FrameTime*Speed*32/28);
-		int y;
-		for (y = ysize-1; y >= 0; y--)
-		{
-			int xt, xf = (finesine[(timebase+y*128)&FINEMASK]>>13) & xmask;
-			DWORD *source = out + (y<<ds_xbits);
-			DWORD *dest = linebuffer;
-			for (xt = xsize; xt; xt--, xf = (xf+1)&xmask)
-			{
-				*dest++ = *(source+xf);
-			}
-			memcpy (out+y*xsize, linebuffer, xsize*sizeof(DWORD));
-		}
-	}
-	else
-	{
-		int ybits;
-		for(ybits=-1,i=ysize; i; i>>=1, ybits++);
-
-		DWORD timebase = (r_FrameTime * Speed * 40 / 28);
-		for (x = xsize-1; x >= 0; x--)
-		{
-			for (int y = ysize-1; y >= 0; y--)
-			{
-				int xt = (x + 128
-					+ ((finesine[(y*128 + timebase*5 + 900) & 8191]*2)>>FRACBITS)
-					+ ((finesine[(x*256 + timebase*4 + 300) & 8191]*2)>>FRACBITS)) & xmask;
-				int yt = (y + 128
-					+ ((finesine[(y*128 + timebase*3 + 700) & 8191]*2)>>FRACBITS)
-					+ ((finesine[(x*256 + timebase*4 + 1200) & 8191]*2)>>FRACBITS)) & ymask;
-				const DWORD *source = in + (xt << ybits) + yt;
-				DWORD *dest = out + (x << ybits) + y;
-				*dest = *source;
-			}
-		}
-	}
-	delete [] buffer;
-	return (BYTE*)out;
-}
 
 //===========================================================================
 // 
@@ -271,7 +192,7 @@ BYTE *FGLTexture::WarpBuffer(BYTE *buffer, int Width, int Height, int warp)
 //
 //===========================================================================
 
-unsigned char * FGLTexture::CreateTexBuffer(int cm, int translation, int & w, int & h, bool expand, FTexture *hirescheck, int warp)
+unsigned char * FGLTexture::CreateTexBuffer(int translation, int & w, int & h, bool expand, FTexture *hirescheck, bool alphatexture)
 {
 	unsigned char * buffer;
 	int W, H;
@@ -281,7 +202,7 @@ unsigned char * FGLTexture::CreateTexBuffer(int cm, int translation, int & w, in
 	// by hires textures
 	if (gl_texture_usehires && hirescheck != NULL)
 	{
-		buffer = LoadHiresTexture (hirescheck, &w, &h, cm);
+		buffer = LoadHiresTexture (hirescheck, &w, &h, alphatexture);
 		if (buffer)
 		{
 			return buffer;
@@ -296,7 +217,8 @@ unsigned char * FGLTexture::CreateTexBuffer(int cm, int translation, int & w, in
 	memset(buffer, 0, W * (H+1) * 4);
 
 	FGLBitmap bmp(buffer, W*4, W, H);
-	bmp.SetTranslationInfo(cm, translation);
+	bmp.SetTranslationInfo(translation);
+	if (alphatexture) bmp.SetAlphaTex();
 
 	if (tex->bComplex)
 	{
@@ -328,21 +250,9 @@ unsigned char * FGLTexture::CreateTexBuffer(int cm, int translation, int & w, in
 		bIsTransparent = 0;
 	}
 
-	if (warp != 0)
-	{
-		buffer = WarpBuffer(buffer, W, H, warp);
-	}
 	// [BB] The hqnx upsampling (not the scaleN one) destroys partial transparency, don't upsamle textures using it.
-	// Also don't upsample warped textures.
-	else //if (bIsTransparent != 1)
-	{
-		// [BB] Potentially upsample the buffer.
-		buffer = gl_CreateUpsampledTextureBuffer ( tex, buffer, W, H, w, h, bIsTransparent || cm == CM_SHADE );
-	}
-	currentwarp = warp;
-	currentwarptime = gl_frameMS;
-
-	return buffer;
+	// [BB] Potentially upsample the buffer.
+	return gl_CreateUpsampledTextureBuffer ( tex, buffer, W, H, w, h, bIsTransparent || alphatexture);
 }
 
 
@@ -386,7 +296,7 @@ bool FGLTexture::CreatePatch()
 //
 //===========================================================================
 
-const FHardwareTexture *FGLTexture::Bind(int texunit, int cm, int clampmode, int translation, FTexture *hirescheck, int warp)
+const FHardwareTexture *FGLTexture::Bind(int texunit, int clampmode, int translation, FTexture *hirescheck)
 {
 	int usebright = false;
 
@@ -400,7 +310,7 @@ const FHardwareTexture *FGLTexture::Bind(int texunit, int cm, int clampmode, int
 		hwtex = gltexture[clampmode] = gltexture[4];
 		gltexture[4] = NULL;
 
-		if (hwtex->Bind(texunit, cm, translation))
+		if (hwtex->Bind(texunit, translation))
 		{
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, (clampmode & GLT_CLAMPX)? GL_CLAMP_TO_EDGE : GL_REPEAT);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, (clampmode & GLT_CLAMPY)? GL_CLAMP_TO_EDGE : GL_REPEAT);
@@ -413,22 +323,15 @@ const FHardwareTexture *FGLTexture::Bind(int texunit, int cm, int clampmode, int
 
 	if (hwtex)
 	{
-		if ((warp != 0 || currentwarp != warp) && currentwarptime != gl_frameMS)
-		{
-			// must recreate the texture
-			Clean(true);
-			hwtex = CreateTexture(clampmode);
-		}
-
-		// Texture has become invalid - this is only for special textures, not the regular warping, which is handled above
-		else if ((warp == 0 && !tex->bHasCanvas && !tex->bWarped) && tex->CheckModified())
+		// Texture has become invalid
+		if ((!tex->bHasCanvas && !tex->bWarped) && tex->CheckModified())
 		{
 			Clean(true);
 			hwtex = CreateTexture(clampmode);
 		}
 
 		// Bind it to the system.
-		if (!hwtex->Bind(texunit, cm, translation))
+		if (!hwtex->Bind(texunit, translation))
 		{
 			
 			int w=0, h=0;
@@ -438,10 +341,10 @@ const FHardwareTexture *FGLTexture::Bind(int texunit, int cm, int clampmode, int
 			
 			if (!tex->bHasCanvas)
 			{
-				buffer = CreateTexBuffer(cm, translation, w, h, false, hirescheck, warp);
+				buffer = CreateTexBuffer(translation, w, h, false, hirescheck);
 				tex->ProcessData(buffer, w, h, false);
 			}
-			if (!hwtex->CreateTexture(buffer, w, h, true, texunit, cm, translation)) 
+			if (!hwtex->CreateTexture(buffer, w, h, true, texunit, translation)) 
 			{
 				// could not create texture
 				delete[] buffer;
@@ -463,7 +366,7 @@ const FHardwareTexture *FGLTexture::Bind(int texunit, int cm, int clampmode, int
 //	Binds a sprite to the renderer
 //
 //===========================================================================
-const FHardwareTexture * FGLTexture::BindPatch(int texunit, int cm, int translation, int warp)
+const FHardwareTexture * FGLTexture::BindPatch(int texunit, int translation, bool alphatexture)
 {
 	bool usebright = false;
 	int transparm = translation;
@@ -473,15 +376,8 @@ const FHardwareTexture * FGLTexture::BindPatch(int texunit, int cm, int translat
 
 	if (CreatePatch())
 	{
-		if (warp != 0 || currentwarp != warp)
-		{
-			// must recreate the texture
-			Clean(true);
-			CreatePatch();
-		}
-
 		// Texture has become invalid - this is only for special textures, not the regular warping, which is handled above
-		else if ((warp == 0 && !tex->bHasCanvas && !tex->bWarped) && tex->CheckModified())
+		if ((!tex->bHasCanvas && !tex->bWarped) && tex->CheckModified())
 		{
 			Clean(true);
 			CreatePatch();
@@ -489,14 +385,14 @@ const FHardwareTexture * FGLTexture::BindPatch(int texunit, int cm, int translat
 
 
 		// Bind it to the system. 
-		if (!glpatch->Bind(texunit, cm, translation))
+		if (!glpatch->Bind(texunit, translation, alphatexture))
 		{
 			int w, h;
 
 			// Create this texture
-			unsigned char * buffer = CreateTexBuffer(cm, translation, w, h, bExpand, NULL, warp);
+			unsigned char * buffer = CreateTexBuffer(translation, w, h, bExpand, NULL, alphatexture);
 			tex->ProcessData(buffer, w, h, true);
-			if (!glpatch->CreateTexture(buffer, w, h, false, texunit, cm, translation)) 
+			if (!glpatch->CreateTexture(buffer, w, h, false, texunit, translation, alphatexture)) 
 			{
 				// could not create texture
 				delete[] buffer;
@@ -624,7 +520,7 @@ FMaterial::FMaterial(FTexture * tx, bool forceexpand)
 	{
 		expanded = false;
 	}
-	else if (gl.shadermodel > 2) 
+	else
 	{
 		if (tx->gl_info.shaderindex >= FIRST_USER_SHADER)
 		{
@@ -670,7 +566,7 @@ FMaterial::FMaterial(FTexture * tx, bool forceexpand)
 	tex = tx;
 
 	tx->gl_info.mExpanded = expanded;
-	FTexture *basetex = tx->GetRedirect(gl.shadermodel < 4);
+	FTexture *basetex = tx->GetRedirect(false);
 	if (!expanded && !basetex->gl_info.mExpanded && basetex->UseType != FTexture::TEX_Sprite)
 	{
 		// check if the texture is just a simple redirect to a patch
@@ -755,7 +651,7 @@ bool FMaterial::TrimBorders(int *rect)
 	int w;
 	int h;
 
-	unsigned char *buffer = CreateTexBuffer(CM_DEFAULT, 0, w, h);
+	unsigned char *buffer = CreateTexBuffer(0, w, h);
 
 	if (buffer == NULL) 
 	{
@@ -834,20 +730,20 @@ outl:
 //
 //===========================================================================
 
-void FMaterial::Bind(int cm, int clampmode, int translation, int overrideshader)
+void FMaterial::Bind(int clampmode, int translation, int overrideshader)
 {
 	int usebright = false;
 	int shaderindex = overrideshader > 0? overrideshader : mShaderIndex;
 	int maxbound = 0;
 	bool allowhires = tex->xScale == FRACUNIT && tex->yScale == FRACUNIT;
 
-	int softwarewarp = gl_RenderState.SetupShader(tex->bHasCanvas, shaderindex, cm, tex->gl_info.shaderspeed);
+	gl_RenderState.SetShader(shaderindex, tex->gl_info.shaderspeed);
 
 	if (tex->bHasCanvas || tex->bWarped) clampmode = 0;
 	else if (clampmode != -1) clampmode &= 3;
 	else clampmode = 4;
 
-	const FHardwareTexture *gltexture = mBaseLayer->Bind(0, cm, clampmode, translation, allowhires? tex:NULL, softwarewarp);
+	const FHardwareTexture *gltexture = mBaseLayer->Bind(0, clampmode, translation, allowhires? tex:NULL);
 	if (gltexture != NULL && shaderindex > 0 && overrideshader == 0)
 	{
 		for(unsigned i=0;i<mTextureLayers.Size();i++)
@@ -863,7 +759,7 @@ void FMaterial::Bind(int cm, int clampmode, int translation, int overrideshader)
 			{
 				layer = mTextureLayers[i].texture;
 			}
-			layer->gl_info.SystemTexture->Bind(i+1, CM_DEFAULT, clampmode, 0, NULL, false);
+			layer->gl_info.SystemTexture->Bind(i+1, clampmode, 0, NULL);
 			maxbound = i+1;
 		}
 	}
@@ -882,19 +778,19 @@ void FMaterial::Bind(int cm, int clampmode, int translation, int overrideshader)
 //
 //===========================================================================
 
-void FMaterial::BindPatch(int cm, int translation, int overrideshader)
+void FMaterial::BindPatch(int translation, int overrideshader, bool alphatexture)
 {
 	int usebright = false;
 	int shaderindex = overrideshader > 0? overrideshader : mShaderIndex;
 	int maxbound = 0;
 
-	int softwarewarp = gl_RenderState.SetupShader(tex->bHasCanvas, shaderindex, cm, tex->gl_info.shaderspeed);
+	gl_RenderState.SetShader(shaderindex, tex->gl_info.shaderspeed);
 
-	const FHardwareTexture *glpatch = mBaseLayer->BindPatch(0, cm, translation, softwarewarp);
+	const FHardwareTexture *glpatch = mBaseLayer->BindPatch(0, translation, alphatexture);
 	// The only multitexture effect usable on sprites is the brightmap.
 	if (glpatch != NULL && shaderindex == 3)
 	{
-		mTextureLayers[0].texture->gl_info.SystemTexture->BindPatch(1, CM_DEFAULT, 0, 0);
+		mTextureLayers[0].texture->gl_info.SystemTexture->BindPatch(1, 0, false);
 		maxbound = 1;
 	}
 	// unbind everything from the last texture that's still active
@@ -915,7 +811,7 @@ void FMaterial::Precache()
 {
 	if (tex->UseType==FTexture::TEX_Sprite) 
 	{
-		BindPatch(CM_DEFAULT, 0);
+		BindPatch(0);
 	}
 	else 
 	{
@@ -924,10 +820,10 @@ void FMaterial::Precache()
 		{
 			if (mBaseLayer->gltexture[i] != 0)
 			{
-				Bind (CM_DEFAULT, i, 0);
+				Bind (i, 0);
 				cached++;
 			}
-			if (cached == 0) Bind(CM_DEFAULT, -1, 0);
+			if (cached == 0) Bind(-1, 0);
 		}
 	}
 }
@@ -1012,7 +908,7 @@ void FMaterial::BindToFrameBuffer()
 	if (mBaseLayer->gltexture[0] == NULL)
 	{
 		// must create the hardware texture first
-		mBaseLayer->Bind(0, CM_DEFAULT, 0, 0, NULL, 0);
+		mBaseLayer->Bind(0, 0, 0, NULL);
 		FHardwareTexture::Unbind(0);
 	}
 	mBaseLayer->gltexture[0]->BindToFrameBuffer();

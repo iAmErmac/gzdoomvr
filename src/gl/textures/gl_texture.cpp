@@ -94,7 +94,6 @@ CUSTOM_CVAR(Bool, gl_texture_usehires, true, CVAR_ARCHIVE|CVAR_NOINITCALL)
 }
 
 CVAR(Bool, gl_precache, false, CVAR_ARCHIVE)
-CVAR(Bool, gl_clamp_per_texture, false,  CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 CVAR(Bool, gl_trimsprites, true, CVAR_ARCHIVE);
 
@@ -210,7 +209,7 @@ PalEntry averageColor(const DWORD *data, int size, fixed_t maxout_factor)
 		g = Scale(g, maxout_factor, maxv);
 		b = Scale(b, maxout_factor, maxv);
 	}
-	return PalEntry(r,g,b);
+	return PalEntry(255,r,g,b);
 }
 
 
