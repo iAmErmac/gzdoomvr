@@ -75,6 +75,7 @@
 #include "actorptrselect.h"
 #include "farchive.h"
 #include "decallib.h"
+#include "p_terrain.h"
 #include "version.h"
 
 #include "g_shared/a_pickups.h"
@@ -4458,6 +4459,8 @@ enum EACSFunctions
 	ACSF_QuakeEx,
 	ACSF_Warp,					// 92
 	ACSF_GetMaxInventory,
+	ACSF_SetSectorDamage,
+	ACSF_SetSectorTerrain,
 	
 	/* Zandronum's - these must be skipped when we reach 99!
 	-100:ResetMap(0),
@@ -5397,6 +5400,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, SDWORD *args, const 
 				FName damagetype	= argCount > 5 && args[5]? FName(FBehavior::StaticLookupString(args[5])) : NAME_None;
 				fixed_t	range		= argCount > 6 && args[6]? args[6] : MISSILERANGE;
 				int flags			= argCount > 7 && args[7]? args[7] : 0;
+				int pufftid			= argCount > 8 && args[8]? args[8] : 0;
 
 				int fhflags = 0;
 				if (flags & FHF_NORANDOMPUFFZ) fhflags |= LAF_NORANDOMPUFFZ;
@@ -5404,7 +5408,12 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, SDWORD *args, const 
 
 				if (args[0] == 0)
 				{
-					P_LineAttack(activator, angle, range, pitch, damage, damagetype, pufftype, fhflags);
+					AActor *puff = P_LineAttack(activator, angle, range, pitch, damage, damagetype, pufftype, fhflags);
+					if (puff != NULL && pufftid != 0)
+					{
+						puff->tid = pufftid;
+						puff->AddToHash();
+					}
 				}
 				else
 				{
@@ -5413,7 +5422,12 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, SDWORD *args, const 
 
 					while ((source = it.Next()) != NULL)
 					{
-						P_LineAttack(source, angle, range, pitch, damage, damagetype, pufftype, fhflags);
+						AActor *puff = P_LineAttack(source, angle, range, pitch, damage, damagetype, pufftype, fhflags);
+						if (puff != NULL && pufftid != 0)
+						{
+							puff->tid = pufftid;
+							puff->AddToHash();
+						}
 					}
 				}
 			}
@@ -5939,6 +5953,39 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			}
 			break;
 
+		case ACSF_SetSectorDamage:
+			if (argCount >= 2)
+			{
+				FSectorTagIterator it(args[0]);
+				int s;
+				while ((s = it.Next()) >= 0)
+				{
+					sector_t *sec = &sectors[s];
+
+					sec->damageamount = args[1];
+					sec->damagetype = argCount >= 3 ? FName(FBehavior::StaticLookupString(args[2])) : FName(NAME_None);
+					sec->damageinterval = argCount >= 4 ? clamp(args[3], 1, INT_MAX) : 32;
+					sec->leakydamage = argCount >= 5 ? args[4] : 0;
+				}
+			}
+			break;
+
+		case ACSF_SetSectorTerrain:
+			if (argCount >= 3)
+			{
+				if (args[1] == sector_t::floor || args[1] == sector_t::ceiling)
+				{
+					int terrain = P_FindTerrain(FBehavior::StaticLookupString(args[2]));
+					FSectorTagIterator it(args[0]);
+					int s;
+					while ((s = it.Next()) >= 0)
+					{
+						sectors[s].terrainnum[args[1]] = terrain;
+					}
+				}
+			}
+			break;
+			
 		default:
 			break;
 	}

@@ -1047,6 +1047,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		mViewActor=camera;
 	}
 
+	// 'viewsector' will not survive the rendering so it cannot be used anymore below.
 	retval = viewsector;
 
 	SetViewAngle(viewangle);

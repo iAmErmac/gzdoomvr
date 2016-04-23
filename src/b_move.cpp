@@ -35,7 +35,7 @@ void DBot::Roam (ticcmd_t *cmd)
 
 	if (Reachable(dest))
 	{ // Straight towards it.
-		angle = R_PointToAngle2(player->mo->x, player->mo->y, dest->x, dest->y);
+		angle = player->mo->AngleTo(dest);
 	}
 	else if (player->mo->movedir < 8) // turn towards movement direction if not there yet
 	{
@@ -347,27 +347,12 @@ void DBot::Pitch (AActor *target)
 	double diff;
 
 	diff = target->z - player->mo->z;
-	aim = atan (diff / (double)P_AproxDistance (player->mo->x - target->x, player->mo->y - target->y));
+	aim = atan(diff / (double)player->mo->AproxDistance(target));
 	player->mo->pitch = -(int)(aim * ANGLE_180/M_PI);
 }
 
 //Checks if a sector is dangerous.
 bool FCajunMaster::IsDangerous (sector_t *sec)
 {
-	int special;
-
-	return
-		   sec->damage
-		|| sec->special & DAMAGE_MASK
-		|| (special = sec->special & 0xff, special == dLight_Strobe_Hurt)
-		|| special == dDamage_Hellslime
-		|| special == dDamage_Nukage
-		|| special == dDamage_End
-		|| special == dDamage_SuperHellslime
-		|| special == dDamage_LavaWimpy
-		|| special == dDamage_LavaHefty
-		|| special == dScroll_EastLavaDamage
-		|| special == sLight_Strobe_Hurt
-		|| special == Damage_InstantDeath
-		|| special == sDamage_SuperHellslime;
+	return sec->damageamount > 0;
 }

@@ -283,7 +283,7 @@ struct FDoomEdEntry
 {
 	const PClass *Type;
 	short Special;
-	bool ArgsDefined;
+	signed char ArgsDefined;
 	int Args[5];
 };
 
@@ -313,6 +313,7 @@ enum ESpecialMapthings
 	SMT_CopyCeilingPlane,
 	SMT_VertexFloorZ,
 	SMT_VertexCeilingZ,
+	SMT_EDFThing,
 
 };
 
