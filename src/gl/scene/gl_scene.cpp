@@ -88,8 +88,8 @@ CVAR(Bool, gl_no_skyclear, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Bool, gl_forcemultipass, false, 0)
-CVAR(Float, vr_screendist, 0.6f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 
+EXTERN_CVAR(Float, vr_screendist)
 EXTERN_CVAR(Float, vr_player_height_meters) // Used for stereo 3D
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, cl_capfps)

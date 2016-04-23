@@ -30,12 +30,12 @@ extern DBaseStatusBar *StatusBar; // To access crosshair drawing
 
 
 EXTERN_CVAR(Bool, vid_vsync)
-EXTERN_CVAR(Float, vr_screendist)
-//
-CVAR(Int, vr_mode, 0, CVAR_GLOBALCONFIG)
+EXTERN_CVAR(Float, vr_screendist) // METERS
+EXTERN_CVAR(Int, vr_mode)
+EXTERN_CVAR(Float, vr_ipd) // METERS
+
 CVAR(Bool, vr_swap, false, CVAR_GLOBALCONFIG)
 // intraocular distance in meters
-CVAR(Float, vr_ipd, 0.062f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // METERS
 CVAR(Float, vr_rift_fov, 117.4f, CVAR_ARCHIVE|CVAR_GLOBALCONFIG) // DEGREES
 CVAR(Float, vr_view_yoffset, 4.0, 0) // MAP UNITS - raises your head to be closer to soldier height
 // Especially Oculus Rift VR geometry depends on exact mapping between doom map units and real world.
