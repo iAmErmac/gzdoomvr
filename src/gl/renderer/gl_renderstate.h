@@ -51,8 +51,6 @@ class FRenderState
 	bool mColorMask[4];
 	bool currentColorMask[4];
 	int mLightIndex;
-	bool mColorMask[4];
-	bool currentColorMask[4];
 	int mSpecialEffect;
 	int mTextureMode;
 	int mDesaturation;
@@ -120,7 +118,6 @@ public:
 		mShaderTimer = mat->tex->gl_info.shaderspeed;
 		mat->Bind(clampmode, translation);
 	}
-	void ApplyColorMask();
 
 	void Apply();
 	void ApplyColorMask();

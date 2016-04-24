@@ -118,10 +118,15 @@ public:
 	void SetFixedColormap (player_t *player);
 	void WriteSavePic (player_t *player, FILE *file, int width, int height);
 	void EndDrawScene(sector_t * viewsector);
+	void EndDrawSceneSprites(sector_t * viewsector);
+	void EndDrawSceneBlend(sector_t * viewsector);
+	void RenderOneEye(angle_t frustumAngle, bool toscreen);
+
 	void Flush() {}
 
 	void SetProjection(float fov, float ratio, float fovratio);
 	void SetProjection(VSMatrix matrix); // raw matrix input from stereo 3d modes
+	void SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift); // used by old 3d modes
 	void SetViewMatrix(fixed_t viewx, fixed_t viewy, fixed_t viewz, bool mirror, bool planemirror);
 	void ProcessScene(bool toscreen = false);
 
