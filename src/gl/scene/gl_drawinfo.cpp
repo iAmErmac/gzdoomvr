@@ -1021,17 +1021,17 @@ void FDrawInfo::ClearFloodStencil(wallseg * ws)
 		ScopedColorMask colorMask(0, 0, 0, 0); // glColorMask(0,0,0,0);						// don't write to the graphics buffer
 		gl_RenderState.ResetColor();
 
-	gl_RenderState.Apply();
-	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-	ptr->Set(ws->x1, ws->z1, ws->y1, 0, 0);
-	ptr++;
-	ptr->Set(ws->x1, ws->z2, ws->y1, 0, 0);
-	ptr++;
-	ptr->Set(ws->x2, ws->z2, ws->y2, 0, 0);
-	ptr++;
-	ptr->Set(ws->x2, ws->z1, ws->y2, 0, 0);
-	ptr++;
-	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_FAN);
+		gl_RenderState.Apply();
+		FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+		ptr->Set(ws->x1, ws->z1, ws->y1, 0, 0);
+		ptr++;
+		ptr->Set(ws->x1, ws->z2, ws->y1, 0, 0);
+		ptr++;
+		ptr->Set(ws->x2, ws->z2, ws->y2, 0, 0);
+		ptr++;
+		ptr->Set(ws->x2, ws->z1, ws->y2, 0, 0);
+		ptr++;
+		GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_FAN);
 
 		// restore old stencil op.
 		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);

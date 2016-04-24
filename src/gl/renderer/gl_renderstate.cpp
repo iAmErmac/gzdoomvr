@@ -69,14 +69,12 @@ TArray<VSMatrix> gl_MatrixStack;
 void FRenderState::Reset()
 {
 	mTextureEnabled = true;
-	mBrightmapEnabled = mFogEnabled = mGlowEnabled = mLightEnabled = false;
+	mBrightmapEnabled = mFogEnabled = mGlowEnabled = false;
 	mColorMask[0] = mColorMask[1] = mColorMask[2] = mColorMask[3] = true;
 	currentColorMask[0] = currentColorMask[1] = currentColorMask[2] = currentColorMask[3] = true;
-	ffTextureEnabled = ffFogEnabled = false;
-	mSpecialEffect = ffSpecialEffect = EFF_NONE;
-	mFogColor.d = ffFogColor.d = -1;
-	mFogDensity = ffFogDensity = 0;
-	mTextureMode = ffTextureMode = -1;
+	mSpecialEffect = EFF_NONE;
+	mFogColor.d = -1;
+	mTextureMode = -1;
 	mLightIndex = -1;
 	mDesaturation = 0;
 	mSrcBlend = GL_SRC_ALPHA;

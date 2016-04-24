@@ -265,18 +265,23 @@ static void setPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdou
 }
 */
 
-void FGLRenderer::SetProjection(float* matrix)
+void FGLRenderer::SetProjection(float fov, float ratio, float fovratio)
 {
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
 
-	// glScalef(1.0, 1.20, 1.0); // doom pixel aspect ratio correction
-	glMultTransposeMatrixf(matrix);
-	// glMultMatrixf(matrix);
-
+	float fovy = 2 * RAD2DEG(atan(tan(DEG2RAD(fov) / 2) / fovratio));
+	gl_RenderState.mProjectionMatrix.perspective(fovy, ratio, 5.f, 65536.f);
 	gl_RenderState.Set2DMode(false);
 }
 
+// raw matrix input from stereo 3d modes
+void FGLRenderer::SetProjection(VSMatrix matrix)
+{
+	gl_RenderState.mProjectionMatrix.loadIdentity();
+	gl_RenderState.mProjectionMatrix.multMatrix(matrix);
+	gl_RenderState.Set2DMode(false);
+}
+
+/*
 //-----------------------------------------------------------------------------
 //
 // SetProjection
@@ -316,14 +321,8 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	// setPerspective(fovy, ratio, 5.f, 65536.f); // Do not use Graf Zahl's recent perspective refactoring May 2014 cmb
 	gl_RenderState.Set2DMode(false);
 }
+ */
 
-// raw matrix input from stereo 3d modes
-void FGLRenderer::SetProjection(float matrix[4][4])
-{
-	glMatrixMode(GL_PROJECTION);
-	gl_RenderState.Set2DMode(false);
-	glLoadMatrixf(&matrix[0][0]);
-}
 
 //-----------------------------------------------------------------------------
 //
@@ -405,7 +404,8 @@ void FGLRenderer::SetViewMatrix(fixed_t viewx, fixed_t viewy, fixed_t viewz, boo
 	gl_RenderState.mViewMatrix.rotate(roll,  0.0f, 0.0f, 1.0f);
 	gl_RenderState.mViewMatrix.rotate(pitch, 1.0f, 0.0f, 0.0f);
 	gl_RenderState.mViewMatrix.rotate(yaw,   0.0f, mult, 0.0f);
-	gl_RenderState.mViewMatrix.translate( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
+	// gl_RenderState.mViewMatrix.translate( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
+	gl_RenderState.mViewMatrix.translate(FIXED2FLOAT(viewx) * mult, -FIXED2FLOAT(viewz)*planemult, -FIXED2FLOAT(viewy));
 	gl_RenderState.mViewMatrix.scale(-mult, planemult, 1);
 
 }
@@ -826,9 +826,8 @@ void FGLRenderer::EndDrawSceneSprites(sector_t * viewsector)
 
 	// Restore standard rendering state
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glColor3f(1.0f, 1.0f, 1.0f);
+	gl_RenderState.ResetColor();
 	gl_RenderState.EnableTexture(true);
-	gl_RenderState.EnableAlphaTest(true);
 	glDisable(GL_SCISSOR_TEST);
 }
 
@@ -1001,7 +1000,6 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 
 	// New way, found in upstream gzdoom
 	// Render (potentially) multiple views for stereo 3d
-	float projectionMatrix[4][4];
 	float viewShift[3];
 	const s3d::Stereo3DMode& stereo3dMode = s3d::Stereo3DMode::getCurrentMode();
 	stereo3dMode.SetUp();
@@ -1014,8 +1012,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // TODO: not for all 3d modes
 		mCurrentFoV = fov;
 		// Stereo mode specific perspective projection
-		eye->GetProjection(fov, ratio, fovratio, projectionMatrix);
-		SetProjection(projectionMatrix);
+		SetProjection(eye->GetProjection(fov, ratio, fovratio));
 		// SetProjection(fov, ratio, fovratio);	// switch to perspective mode and set up clipper
 		SetViewAngle(viewangle);
 		// Stereo mode specific viewpoint adjustment - temporarily shifts global viewx, viewy, viewz

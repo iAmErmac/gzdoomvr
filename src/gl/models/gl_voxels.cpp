@@ -426,7 +426,7 @@ float FVoxelModel::getAspectFactor()
 //
 //===========================================================================
 
-void FVoxelModel::RenderFrame(FTexture * skin, int frame, int cm, int translation)
+void FVoxelModel::RenderFrame(FTexture * skin, int frame, int frame2, double inter, int translation)
 {
 	FMaterial * tex = FMaterial::ValidateTexture(skin);
 	tex->Bind(0, translation);

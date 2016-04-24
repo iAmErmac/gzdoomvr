@@ -276,22 +276,19 @@ void RenderDome(FMaterial * tex, float x_offset, float y_offset, bool mirror, in
 		gl_RenderState.mModelMatrix.loadIdentity();
 		gl_RenderState.mModelMatrix.rotate(-180.0f+x_offset, 0.f, 1.f, 0.f);
 
+		float xscale = texw < 1024.f ? floor(1024.f / float(texw)) : 1.f;
+		float yscale = 1.f;
 		if (texh < 128)
 		{
 			// smaller sky textures must be tiled. We restrict it to 128 sky pixels, though
-			glTranslatef(0.f, -1250.f, 0.f);
-			glScalef(1.f, 128/230.f, 1.f);
-			glMatrixMode(GL_TEXTURE);
-			glPushMatrix();
-			glLoadIdentity();
-			glScalef(1.f, 128 / texh, 1.f); // intentionally left as integer.
-			glMatrixMode(GL_MODELVIEW);
-			texscale = true;
+			gl_RenderState.mModelMatrix.translate(0.f, -1250.f, 0.f);
+			gl_RenderState.mModelMatrix.scale(1.f, 128 / 230.f, 1.f);
+			yscale = 128 / texh;	// intentionally left as integer.
 		}
 		else if (texh < 200)
 		{
-			glTranslatef(0.f, -1250.f, 0.f);
-			glScalef(1.f, texh/230.f, 1.f);
+			gl_RenderState.mModelMatrix.translate(0.f, -1250.f, 0.f);
+			gl_RenderState.mModelMatrix.scale(1.f, texh / 230.f, 1.f);
 		}
 		else if (texh <= 240)
 		{

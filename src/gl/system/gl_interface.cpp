@@ -139,35 +139,6 @@ void gl_LoadExtensions()
 	
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE,&gl.max_texturesize);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	
-	if (gl.flags & RFL_GL_20)
-	{
-		// Rules:
-		// SM4 will always use shaders. No option to switch them off is needed here.
-		// SM3 has shaders optional but they are off by default (they will have a performance impact
-		// SM2 only uses shaders for colormaps on camera textures and has no option to use them in general.
-		//     On SM2 cards the shaders will be too slow and show visual bugs (at least on GF 6800.)
-		if (strcmp((const char*)glGetString(GL_SHADING_LANGUAGE_VERSION), "1.3") >= 0) gl.shadermodel = 4;
-		else if (CheckExtension("GL_NV_GPU_shader4")) gl.shadermodel = 4;	// for pre-3.0 drivers that support GF8xxx.
-		else if (CheckExtension("GL_EXT_GPU_shader4")) gl.shadermodel = 4;	// for pre-3.0 drivers that support GF8xxx.
-		else if (CheckExtension("GL_NV_vertex_program3")) gl.shadermodel = 3;
-		else if (!strstr(gl.vendorstring, "NVIDIA")) gl.shadermodel = 3;
-		else gl.shadermodel = 2;	// Only for older NVidia cards which had notoriously bad shader support.
-
-		// Command line overrides for testing and problem cases.
-		if (Args->CheckParm("-sm2") && gl.shadermodel > 2) gl.shadermodel = 2;
-		else if (Args->CheckParm("-sm3") && gl.shadermodel > 3) gl.shadermodel = 3;
-	}
-
-	if (CheckExtension("GL_ARB_map_buffer_range")) 
-	{
-		gl.flags|=RFL_MAP_BUFFER_RANGE;
-	}
-
-	if (gl.flags & RFL_GL_30 || CheckExtension("GL_EXT_framebuffer_object"))
-	{
-		gl.flags|=RFL_FRAMEBUFFER;
-	}
 
 }
 

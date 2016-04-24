@@ -371,7 +371,6 @@ void InitGLRMapinfoData()
 		glset.skyrotatevector = opt->skyrotatevector;
 		glset.skyrotatevector2 = opt->skyrotatevector2;
 		glset.pixelstretch = opt->pixelstretch;
-		if (gl.shadermodel == 2 && glset.map_lightmode ==2) glset.map_lightmode = 3;
 	}
 	else
 	{

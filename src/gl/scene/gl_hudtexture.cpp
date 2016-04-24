@@ -2,6 +2,7 @@
 #include "gl/system/gl_system.h"
 #include "gl/system/gl_cvars.h"
 #include "gl/scene/gl_stereo3d.h"
+#include "gl/renderer/gl_renderstate.h"
 #include <cstring>
 
 using namespace std;
@@ -74,26 +75,39 @@ void HudTexture::bindRenderTexture() {
 
 void HudTexture::renderToScreen() {
 	// Load that texture we just rendered
-	glEnable(GL_TEXTURE_2D);
+	gl_RenderState.EnableTexture(true);
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
 	// Very simple draw routine maps texture onto entire screen; no glOrtho or whatever!
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gl_MatrixStack.Push(gl_RenderState.mProjectionMatrix);
+	gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
+	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
+	gl_RenderState.mProjectionMatrix.loadIdentity();
+	gl_RenderState.mModelMatrix.loadIdentity();
+	gl_RenderState.mViewMatrix.loadIdentity();
+	gl_RenderState.ApplyMatrices();
+
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(0, 0, 0, 0, 0);
+	ptr++;
+	ptr->Set(0, (float)SCREENHEIGHT, 0, 0, 0);
+	ptr++;
+	ptr->Set((float)SCREENWIDTH, 0, 0, 0, 0);
+	ptr++;
+	ptr->Set((float)SCREENWIDTH, (float)SCREENHEIGHT, 0, 0, 0);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
+
 	glBegin(GL_TRIANGLE_STRIP);
 		glTexCoord2d(0, 1); glVertex3f(-1,  1, 0.5);
 		glTexCoord2d(1, 1); glVertex3f( 1,  1, 0.5);
 		glTexCoord2d(0, 0); glVertex3f(-1, -1, 0.5);
 		glTexCoord2d(1, 0); glVertex3f( 1, -1, 0.5);
 	glEnd();
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+
 	glBindTexture(GL_TEXTURE_2D, 0);
+	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
+	gl_MatrixStack.Pop(gl_RenderState.mModelMatrix);
+	gl_MatrixStack.Pop(gl_RenderState.mProjectionMatrix);
 }
 
 void HudTexture::unbind() {

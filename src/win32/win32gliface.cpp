@@ -663,14 +663,7 @@ bool Win32GLVideo::SetupPixelFormat(int multisample)
 		}
 	
 		attributes[i++] = WGL_ACCELERATION_ARB;	//required to be FULL_ACCELERATION_ARB
-		if (allowsoftware)
-		{
-			attributes[i++] = WGL_NO_ACCELERATION_ARB;
-		}
-		else
-		{
-			attributes[i++] = WGL_FULL_ACCELERATION_ARB;
-		}
+		attributes[i++] = WGL_FULL_ACCELERATION_ARB;
 
 		if (vr_enable_quadbuffered)
 		{

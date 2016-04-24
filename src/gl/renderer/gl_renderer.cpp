@@ -126,7 +126,7 @@ FGLRenderer::~FGLRenderer()
 	if (glpart2) delete glpart2;
 	if (glpart) delete glpart;
 	if (mirrortexture) delete mirrortexture;
-	if (mFBID != 0) glDeleteFramebuffersEXT(1, &mFBID);
+	if (mFBID != 0) glDeleteFramebuffers(1, &mFBID);
 }
 
 //===========================================================================
