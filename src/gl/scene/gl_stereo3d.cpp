@@ -673,7 +673,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				}
 
 				//// HUD Pass ////
-				gl_RenderState.EnableAlphaTest(false);
+				// gl_RenderState.EnableAlphaTest(false);
 				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
 				gl_RenderState.Apply();
 
@@ -726,7 +726,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				viewwidth = SCREENWIDTH;
 				viewheight = SCREENHEIGHT;
 
-				gl_RenderState.EnableAlphaTest(true);
+				// gl_RenderState.EnableAlphaTest(true);
 				glDisable(GL_BLEND); // Required to get partial weapon visibility during invisible mode
 				gl_RenderState.Apply();
 				bindAndClearHudTexture(*this);
@@ -737,7 +737,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				sharedRiftHmd->bindToSceneFrameBuffer();
 				HudTexture::hudTexture->bindRenderTexture();
 
-				gl_RenderState.EnableAlphaTest(false);
+				// gl_RenderState.EnableAlphaTest(false);
 				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
 				gl_RenderState.Apply(); // good - suit no longer obscures weapon; implicitly enables GL_TEXTURE_2D
 
@@ -763,7 +763,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					sharedRiftHmd->bindToSceneFrameBuffer();
 					HudTexture::hudTexture->bindRenderTexture();
 
-					gl_RenderState.EnableAlphaTest(false);
+					// gl_RenderState.EnableAlphaTest(false);
 					gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
 					gl_RenderState.Apply();
 					{
@@ -1062,7 +1062,7 @@ void Stereo3D::setMode(int m) {
 };
 
 void Stereo3D::setMonoView(FGLRenderer& renderer, float fov, float ratio, float fovratio, player_t * player) {
-	renderer.SetProjection(fov, ratio, fovratio, 0);
+	renderer.SetProjection(fov, ratio, fovratio, 0, false);
 }
 
 void Stereo3D::setLeftEyeView(FGLRenderer& renderer, float fov, float ratio, float fovratio, player_t * player, bool frustumShift) {

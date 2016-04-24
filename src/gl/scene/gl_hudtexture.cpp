@@ -3,6 +3,7 @@
 #include "gl/system/gl_cvars.h"
 #include "gl/scene/gl_stereo3d.h"
 #include "gl/renderer/gl_renderstate.h"
+#include "gl/data/gl_vertexbuffer.h"
 #include <cstring>
 
 using namespace std;
@@ -84,25 +85,19 @@ void HudTexture::renderToScreen() {
 	gl_RenderState.mProjectionMatrix.loadIdentity();
 	gl_RenderState.mModelMatrix.loadIdentity();
 	gl_RenderState.mViewMatrix.loadIdentity();
-	gl_RenderState.ApplyMatrices();
 
+	gl_RenderState.ApplyMatrices();
+	gl_RenderState.Apply();
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-	ptr->Set(0, 0, 0, 0, 0);
+	ptr->Set(-1,  1, 0.5,  0, 1);
 	ptr++;
-	ptr->Set(0, (float)SCREENHEIGHT, 0, 0, 0);
+	ptr->Set( 1,  1, 0.5,  1, 1);
 	ptr++;
-	ptr->Set((float)SCREENWIDTH, 0, 0, 0, 0);
+	ptr->Set(-1, -1, 0.5,  0, 0);
 	ptr++;
-	ptr->Set((float)SCREENWIDTH, (float)SCREENHEIGHT, 0, 0, 0);
+	ptr->Set( 1, -1, 0.5,  1, 0);
 	ptr++;
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
-
-	glBegin(GL_TRIANGLE_STRIP);
-		glTexCoord2d(0, 1); glVertex3f(-1,  1, 0.5);
-		glTexCoord2d(1, 1); glVertex3f( 1,  1, 0.5);
-		glTexCoord2d(0, 0); glVertex3f(-1, -1, 0.5);
-		glTexCoord2d(1, 0); glVertex3f( 1, -1, 0.5);
-	glEnd();
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);

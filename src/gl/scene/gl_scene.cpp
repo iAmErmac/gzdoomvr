@@ -281,7 +281,7 @@ void FGLRenderer::SetProjection(VSMatrix matrix)
 	gl_RenderState.Set2DMode(false);
 }
 
-/*
+/* */
 //-----------------------------------------------------------------------------
 //
 // SetProjection
@@ -291,7 +291,7 @@ void FGLRenderer::SetProjection(VSMatrix matrix)
 //-----------------------------------------------------------------------------
 void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift)
 {
-	glLoadIdentity();
+	gl_RenderState.mProjectionMatrix.loadIdentity();
 
 	float fovy = 2 * RAD2DEG(atan(tan(DEG2RAD(fov) / 2) / fovratio));
 	const float zNear = 5.0f;
@@ -311,7 +311,8 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	// asymmetric frustum shift for stereo 3D
 	// http://www.orthostereo.com/geometryopengl.html
 	// gluPerspective(fovy, ratio, zNear, zFar);
-	glFrustum( -fW - frustumShift, fW - frustumShift, 
+	gl_RenderState.mProjectionMatrix.frustum(
+		-fW - frustumShift, fW - frustumShift, 
 		-fH, fH, 
 		zNear, zFar);
 
@@ -321,7 +322,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	// setPerspective(fovy, ratio, 5.f, 65536.f); // Do not use Graf Zahl's recent perspective refactoring May 2014 cmb
 	gl_RenderState.Set2DMode(false);
 }
- */
+/* */
 
 
 //-----------------------------------------------------------------------------
@@ -524,7 +525,6 @@ void FGLRenderer::RenderScene(int recursion)
 	}
 	gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_threshold);
 	gl_drawinfo->drawlists[GLDL_MASKED].Draw(pass);
-
 	// Part 3: masked geometry with polygon offset. This list is empty most of the time so only waste time on it when in use.
 	if (gl_drawinfo->drawlists[GLDL_MASKEDOFS].Size() > 0)
 	{
@@ -986,6 +986,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		// Eventually, I want all of the 3d modes to use this pattern.
 		// Using "case 73:" to indicate that this section does not work correctly yet.
 	case 73: // Does not work well yet, switching between hud-buffered modes, and these new modes
+	case 0:
 	{
 		if (previous_vr_mode != vr_mode) {
 			// Default unbind hud buffer, in case previous mode had it set

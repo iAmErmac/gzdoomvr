@@ -2,6 +2,9 @@
 #include "gl/scene/gl_rift_hmd.h"
 #include "gl/system/gl_system.h"
 #include "gl/system/gl_cvars.h"
+#include "gl/renderer/gl_renderstate.h"
+#include "gl/renderer/gl_renderer.h"
+#include "gl/data/gl_vertexbuffer.h"
 #include <cstring>
 #include <string>
 #include <sstream>
@@ -240,28 +243,37 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	if (dYaw <= -recenterIncrement) dYaw += recenterIncrement;
 	hudYaw = hmdYaw - dYaw;
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
+	gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
+	gl_RenderState.mViewMatrix.loadIdentity();
 
-	glRotatef(hudRoll, 0, 0, 1);
-	glRotatef(hudPitch, 1, 0, 0);
-	glRotatef(dYaw, 0, 1, 0);
+	gl_RenderState.mViewMatrix.rotate(hudRoll, 0, 0, 1);
+	gl_RenderState.mViewMatrix.rotate(hudPitch, 1, 0, 0);
+	gl_RenderState.mViewMatrix.rotate(dYaw, 0, 1, 0);
 
-	glRotatef(pitchAngle, 1, 0, 0); // place hud below horizon
+	gl_RenderState.mViewMatrix.rotate(pitchAngle, 1, 0, 0); // place hud below horizon
 
-	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
+	gl_RenderState.mViewMatrix.translate(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z);
 
 	float hudDistance = 1.56; // meters
 	float hudWidth = hudScale * 1.0 / 0.4 * hudDistance;
 	float hudHeight = hudWidth * 3.0f / 4.0f;
-	glBegin(GL_TRIANGLE_STRIP);
-		glColor4f(1, 1, 1, 1);
-		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-	glEnd();
-	// glEnable(GL_TEXTURE_2D);
+
+	gl_RenderState.ResetColor();
+	gl_RenderState.ApplyMatrices();
+	gl_RenderState.Apply();
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(-0.5*hudWidth, 0.5*hudHeight, -hudDistance,   0, 1);
+	ptr++;
+	ptr->Set(-0.5*hudWidth,-0.5*hudHeight, -hudDistance,   0, 0);
+	ptr++;
+	ptr->Set( 0.5*hudWidth, 0.5*hudHeight, -hudDistance,   1, 1);
+	ptr++;
+	ptr->Set( 0.5*hudWidth,-0.5*hudHeight, -hudDistance,   1, 0);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
+
+	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
 }
 
 void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, bool reducedHud) 
@@ -286,13 +298,11 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	// Keep crosshair fixed relative to the head, modulo roll, and convert angles to degrees
 	float hudRoll = -hmdRoll * 180/3.14159;
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glTranslatef(-eyeTrans.x, 0, 0);
-
+	gl_RenderState.mModelMatrix.loadIdentity();
+	gl_RenderState.mViewMatrix.loadIdentity();
+	gl_RenderState.mViewMatrix.translate(-eyeTrans.x, 0, 0);
 	// Correct Roll, but not pitch nor yaw
-	glRotatef(hudRoll, 0, 0, 1);
+	gl_RenderState.mViewMatrix.rotate(hudRoll, 0, 0, 1);
 
 	// TODO: set crosshair distance by reading 3D depth map texture
 	float hudDistance = 25.0; // meters? looks closer than that...
@@ -305,13 +315,20 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	float yCenter = 0.5;
 	if (reducedHud)
 		yCenter = 0.58;
-	glBegin(GL_TRIANGLE_STRIP);
-		glColor4f(1, 1, 1, 0.5);
-		glTexCoord2f(0.5 - txw, yCenter + txh); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0.5 - txw, yCenter - txh); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0.5 + txw, yCenter + txh); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0.5 + txw, yCenter - txh); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-	glEnd();
+
+	gl_RenderState.SetColor(1, 1, 1, 0.5);
+	gl_RenderState.ApplyMatrices();
+	gl_RenderState.Apply();
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(-0.5*hudWidth,  0.5*hudHeight, -hudDistance,  0.5 - txw, yCenter + txh);
+	ptr++;
+	ptr->Set(-0.5*hudWidth, -0.5*hudHeight, -hudDistance,  0.5 - txw, yCenter - txh);
+	ptr++;
+	ptr->Set( 0.5*hudWidth,  0.5*hudHeight, -hudDistance,  0.5 + txw, yCenter + txh);
+	ptr++;
+	ptr->Set( 0.5*hudWidth, -0.5*hudHeight, -hudDistance,  0.5 + txw, yCenter - txh);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 }
 
 void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, float weaponDist, float weaponHeight) 
@@ -342,52 +359,62 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 	// Keep crosshair fixed relative to the head, modulo roll, and convert angles to degrees
 	float hudRoll = -hmdRoll * 180/3.14159;
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gl_RenderState.mModelMatrix.loadIdentity();
+	gl_RenderState.mViewMatrix.loadIdentity();
 
-	glTranslatef(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z); // Stereo only...
+	gl_RenderState.mViewMatrix.translate(-eyeTrans.x, -eyeTrans.y, -eyeTrans.z); // Stereo only...
 
 	// Correct Roll, but not pitch nor yaw
-	glRotatef(hudRoll, 0, 0, 1);
-	glRotatef(weaponHeight, 1, 0, 0);
+	gl_RenderState.mViewMatrix.rotate(hudRoll, 0, 0, 1);
+	gl_RenderState.mViewMatrix.rotate(weaponHeight, 1, 0, 0);
 
 	float hudDistance = weaponDist; // meters, (measured 46 cm to stock of hand weapon)
 	float hudWidth = 0.6; // meters, Adjust for good average weapon size
 	float hudHeight = 3.0 / 4.0 * hudWidth;
-	glBegin(GL_TRIANGLE_STRIP);
-		glColor4f(1, 1, 1, 1);
-		glTexCoord2f(0, 1); glVertex3f(-0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(0, 0); glVertex3f(-0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 1); glVertex3f( 0.5*hudWidth,  0.5*hudHeight, -hudDistance);
-		glTexCoord2f(1, 0); glVertex3f( 0.5*hudWidth, -0.5*hudHeight, -hudDistance);
-	glEnd();
+
+	gl_RenderState.ResetColor();
+	gl_RenderState.ApplyMatrices();
+	gl_RenderState.Apply();
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(-0.5*hudWidth, 0.5*hudHeight, -hudDistance, 0, 1);
+	ptr++;
+	ptr->Set(-0.5*hudWidth, -0.5*hudHeight, -hudDistance, 0, 0);
+	ptr++;
+	ptr->Set(0.5*hudWidth, 0.5*hudHeight, -hudDistance, 1, 1);
+	ptr++;
+	ptr->Set(0.5*hudWidth, -0.5*hudHeight, -hudDistance, 1, 0);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 }
 
 void RiftHmd::paintBlendQuad()
 {
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
+	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
+	gl_MatrixStack.Push(gl_RenderState.mProjectionMatrix);
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	gl_RenderState.mModelMatrix.loadIdentity();
+	gl_RenderState.mViewMatrix.loadIdentity();
 
 	const float rectSize = 1.0; // how much of the screen should this blend effect take up?
 
-	glBegin(GL_TRIANGLE_STRIP);
-	glColor4f(1, 1, 1, 1.0);
-	glTexCoord2f(0, 1); glVertex3f(-rectSize, rectSize, -1);
-	glTexCoord2f(0, 0); glVertex3f(-rectSize, -rectSize, -1);
-	glTexCoord2f(1, 1); glVertex3f(rectSize, rectSize, -1);
-	glTexCoord2f(1, 0); glVertex3f(rectSize, -rectSize, -1);
-	glEnd();
+	gl_RenderState.ResetColor();
+	gl_RenderState.ApplyMatrices();
+	gl_RenderState.Apply();
+	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
+	ptr->Set(-rectSize, rectSize, -1, 0, 1);
+	ptr++;
+	ptr->Set(-rectSize, -rectSize, -1, 0, 0);
+	ptr++;
+	ptr->Set(rectSize, rectSize, -1, 1, 1);
+	ptr++;
+	ptr->Set(rectSize, -rectSize, -1, 1, 0);
+	ptr++;
+	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gl_MatrixStack.Pop(gl_RenderState.mProjectionMatrix);
+	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
+	gl_MatrixStack.Pop(gl_RenderState.mModelMatrix);
 }
 
 ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
@@ -397,15 +424,19 @@ ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
 	glEnable(GL_SCISSOR_TEST);
     glScissor(v.Pos.x, v.Pos.y, v.Size.w, v.Size.h);
     // Get projection matrix for the Rift camera
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
+	gl_RenderState.mProjectionMatrix.loadIdentity();
     ovrMatrix4f proj = ovrMatrix4f_Projection(sceneLayer.Fov[eye], zNear, zFar,
                     ovrProjection_ClipRangeOpenGL);
-    glMultTransposeMatrixf(&proj.M[0][0]);
+	ovrMatrix4f proj_Transpose;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			proj_Transpose.M[i][j] = proj.M[j][i];
+		}
+	}
+	gl_RenderState.mProjectionMatrix.multMatrix(&proj_Transpose.M[0][0]);
 
     // Get view matrix for the Rift camera
-    glMatrixMode(GL_MODELVIEW);
-    glLoadIdentity();
+	gl_RenderState.mProjectionMatrix.loadIdentity();
     currentEyePose = sceneLayer.RenderPose[eye];
 	return currentEyePose;
 }
