@@ -908,6 +908,9 @@ void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
 #endif
 	clipper.Clear();
 	clipper.SafeAddClipRangeRealAngles(viewangle+frustumAngle, viewangle-frustumAngle);
+	
+	gl_RenderState.ApplyMatrices();
+
 	ProcessScene(toscreen);
 }
 
@@ -954,9 +957,6 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	// 'viewsector' will not survive the rendering so it cannot be used anymore below.
 	retval = viewsector;
 
-
-
-
 	static int previous_vr_mode = 0;
 	// Hybrid use of old and new dispatch to stereoscopic 3D modes
 	switch (vr_mode) 
@@ -967,7 +967,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		// Eventually, I want all of the 3d modes to use this pattern.
 		// Using "case 73:" to indicate that this section does not work correctly yet.
 	case 73: // Does not work well yet, switching between hud-buffered modes, and these new modes
-	case 0:
+	case 1: // Green/Magenta anaglyph
 	{
 		if (previous_vr_mode != vr_mode) {
 			// Default unbind hud buffer, in case previous mode had it set
@@ -1016,9 +1016,12 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	}
 		break;
 
+	case 0: // Mono (stereo 3D off)
 	default:
 	{
 		// Old way, original gz3doom implementation
+		SetViewAngle(viewangle);
+		SetViewMatrix(viewx, viewy, viewz, false, false);
 		// Use the Stereo3D object to set up the viewport and projection matrix
 		::Stereo3DMode.render(*this, bounds, fov, ratio, fovratio, toscreen, viewsector, camera->player);
 	}
