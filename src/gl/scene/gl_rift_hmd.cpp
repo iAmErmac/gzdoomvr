@@ -436,7 +436,7 @@ ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
 	gl_RenderState.mProjectionMatrix.multMatrix(&proj_Transpose.M[0][0]);
 
     // Get view matrix for the Rift camera
-	gl_RenderState.mProjectionMatrix.loadIdentity();
+	gl_RenderState.mViewMatrix.loadIdentity();
     currentEyePose = sceneLayer.RenderPose[eye];
 	return currentEyePose;
 }
