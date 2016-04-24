@@ -5,8 +5,10 @@
 #include "gl/system/gl_interface.h"
 #include "gl/data/gl_data.h"
 #include "gl/data/gl_matrix.h"
+#include "gl/textures/gl_material.h"
 #include "c_cvars.h"
 #include "r_defs.h"
+#include "r_data/r_translate.h"
 
 class FVertexBuffer;
 class FShader;
@@ -44,7 +46,10 @@ class FRenderState
 	bool mTextureEnabled;
 	bool mFogEnabled;
 	bool mGlowEnabled;
+	bool mSplitEnabled;
 	bool mBrightmapEnabled;
+	bool mColorMask[4];
+	bool currentColorMask[4];
 	int mLightIndex;
 	bool mColorMask[4];
 	bool currentColorMask[4];
@@ -63,15 +68,18 @@ class FRenderState
 	float mInterpolationFactor;
 	float mClipHeightTop, mClipHeightBottom;
 	float mShaderTimer;
+	bool mLastDepthClamp;
 
 	FVertexBuffer *mVertexBuffer, *mCurrentVertexBuffer;
 	FStateVec4 mColor;
 	FStateVec4 mCameraPos;
 	FStateVec4 mGlowTop, mGlowBottom;
 	FStateVec4 mGlowTopPlane, mGlowBottomPlane;
+	FStateVec4 mSplitTopPlane, mSplitBottomPlane;
 	PalEntry mFogColor;
 	PalEntry mObjectColor;
 	FStateVec4 mDynColor;
+	float mClipSplit[2];
 
 	int mEffectState;
 	int mColormapState;
@@ -99,14 +107,23 @@ public:
 
 	void Reset();
 
-	void SetShader(int shaderindex, float warptime)
+	void SetMaterial(FMaterial *mat, int clampmode, int translation, int overrideshader, bool alphatexture)
 	{
-		mEffectState = shaderindex;
-		mShaderTimer = warptime;
+		// textures without their own palette are a special case for use as an alpha texture:
+		// They use the color index directly as an alpha value instead of using the palette's red.
+		// To handle this case, we need to set a special translation for such textures.
+		if (alphatexture)
+		{
+			if (mat->tex->UseBasePalette()) translation = TRANSLATION(TRANSLATION_Standard, 8);
+		}
+		mEffectState = overrideshader >= 0? overrideshader : mat->mShaderIndex;
+		mShaderTimer = mat->tex->gl_info.shaderspeed;
+		mat->Bind(clampmode, translation);
 	}
 	void ApplyColorMask();
 
 	void Apply();
+	void ApplyColorMask();
 	void ApplyMatrices();
 	void ApplyLightIndex(int index);
 
@@ -192,6 +209,11 @@ public:
 		mTextureMode = mode;
 	}
 
+	int GetTextureMode()
+	{
+		return mTextureMode;
+	}
+
 	void EnableTexture(bool on)
 	{
 		mTextureEnabled = on;
@@ -210,6 +232,11 @@ public:
 	void EnableGlow(bool on)
 	{
 		mGlowEnabled = on;
+	}
+
+	void EnableSplit(bool on)
+	{
+		mSplitEnabled = on;
 	}
 
 	void SetLightIndex(int n)
@@ -255,6 +282,12 @@ public:
 		mGlowBottomPlane.Set(FIXED2FLOAT(bottom.a), FIXED2FLOAT(bottom.b), FIXED2FLOAT(bottom.ic), FIXED2FLOAT(bottom.d));
 	}
 
+	void SetSplitPlanes(const secplane_t &top, const secplane_t &bottom)
+	{
+		mSplitTopPlane.Set(FIXED2FLOAT(top.a), FIXED2FLOAT(top.b), FIXED2FLOAT(top.ic), FIXED2FLOAT(top.d));
+		mSplitBottomPlane.Set(FIXED2FLOAT(bottom.a), FIXED2FLOAT(bottom.b), FIXED2FLOAT(bottom.ic), FIXED2FLOAT(bottom.d));
+	}
+
 	void SetDynLight(float r, float g, float b)
 	{
 		mDynColor.Set(r, g, b, 0);
@@ -288,6 +321,28 @@ public:
 		return mFogColor;
 	}
 
+	void SetClipSplit(float bottom, float top)
+	{
+		mClipSplit[0] = bottom;
+		mClipSplit[1] = top;
+	}
+
+	void SetClipSplit(float *vals)
+	{
+		memcpy(mClipSplit, vals, 2 * sizeof(float));
+	}
+
+	void GetClipSplit(float *out)
+	{
+		memcpy(out, mClipSplit, 2 * sizeof(float));
+	}
+
+	void ClearClipSplit()
+	{
+		mClipSplit[0] = -1000000.f;
+		mClipSplit[1] = 1000000.f;
+	}
+
 	void BlendFunc(int src, int dst)
 	{
 		if (!gl_direct_state_change)
@@ -317,6 +372,16 @@ public:
 		{
 			glBlendEquation(eq);
 		}
+	}
+
+	// This wraps the depth clamp setting because we frequently need to read it which OpenGL is not particularly performant at...
+	bool SetDepthClamp(bool on)
+	{
+		bool res = mLastDepthClamp;
+		if (!on) glDisable(GL_DEPTH_CLAMP);
+		else glEnable(GL_DEPTH_CLAMP);
+		mLastDepthClamp = on;
+		return res;
 	}
 
 	void Set2DMode(bool on)

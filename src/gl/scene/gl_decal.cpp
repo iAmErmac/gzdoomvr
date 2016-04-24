@@ -103,17 +103,7 @@ void GLWall::DrawDecal(DBaseDecal *decal)
 	FMaterial *tex;
 
 
-	if (texture->UseType == FTexture::TEX_MiscPatch)
-	{
-		// We need to create a clone of this texture where we can force the
-		// texture filtering offset in.
-		if (texture->gl_info.DecalTexture == NULL)
-		{
-			texture->gl_info.DecalTexture = new FCloneTexture(texture, FTexture::TEX_Decal);
-		}
-		tex = FMaterial::ValidateTexture(texture->gl_info.DecalTexture);
-	}
-	else tex = FMaterial::ValidateTexture(texture);
+	tex = FMaterial::ValidateTexture(texture, true);
 
 
 	// the sectors are only used for their texture origin coordinates
@@ -192,10 +182,10 @@ void GLWall::DrawDecal(DBaseDecal *decal)
 	a = FIXED2FLOAT(decal->Alpha);
 	
 	// now clip the decal to the actual polygon
-	float decalwidth = tex->TextureWidth(GLUSE_PATCH)  * FIXED2FLOAT(decal->ScaleX);
-	float decalheight= tex->TextureHeight(GLUSE_PATCH) * FIXED2FLOAT(decal->ScaleY);
-	float decallefto = tex->GetLeftOffset(GLUSE_PATCH) * FIXED2FLOAT(decal->ScaleX);
-	float decaltopo  = tex->GetTopOffset(GLUSE_PATCH)  * FIXED2FLOAT(decal->ScaleY);
+	float decalwidth = tex->TextureWidth()  * FIXED2FLOAT(decal->ScaleX);
+	float decalheight= tex->TextureHeight() * FIXED2FLOAT(decal->ScaleY);
+	float decallefto = tex->GetLeftOffset() * FIXED2FLOAT(decal->ScaleX);
+	float decaltopo  = tex->GetTopOffset()  * FIXED2FLOAT(decal->ScaleY);
 
 	
 	float leftedge = glseg.fracleft * side->TexelLength;
@@ -315,11 +305,22 @@ void GLWall::DrawDecal(DBaseDecal *decal)
 	// alpha color only has an effect when using an alpha texture.
 	if (decal->RenderStyle.Flags & STYLEF_RedIsAlpha)
 	{
-		gl_RenderState.SetObjectColor(decal->AlphaColor);
+		gl_RenderState.SetObjectColor(decal->AlphaColor|0xff000000);
 	}
 
-	gl_SetColor(light, rel, p, a);
 
+
+
+	gl_SetRenderStyle(decal->RenderStyle, false, false);
+	gl_RenderState.SetMaterial(tex, CLAMP_XY, decal->Translation, 0, !!(decal->RenderStyle.Flags & STYLEF_RedIsAlpha));
+
+
+	// If srcalpha is one it looks better with a higher alpha threshold
+	if (decal->RenderStyle.SrcAlpha == STYLEALPHA_One) gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
+	else gl_RenderState.AlphaFunc(GL_GREATER, 0.f);
+
+
+	gl_SetColor(light, rel, p, a);
 	// for additively drawn decals we must temporarily set the fog color to black.
 	PalEntry fc = gl_RenderState.GetFogColor();
 	if (decal->RenderStyle.BlendOp == STYLEOP_Add && decal->RenderStyle.DestAlpha == STYLEALPHA_One)
@@ -327,23 +328,46 @@ void GLWall::DrawDecal(DBaseDecal *decal)
 		gl_RenderState.SetFog(0,-1);
 	}
 
-
-	gl_SetRenderStyle(decal->RenderStyle, false, false);
-	tex->BindPatch(decal->Translation, 0, !!(decal->RenderStyle.Flags & STYLEF_RedIsAlpha));
-
-
-	// If srcalpha is one it looks better with a higher alpha threshold
-	if (decal->RenderStyle.SrcAlpha == STYLEALPHA_One) gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
-	else gl_RenderState.AlphaFunc(GL_GREATER, 0.f);
-
-	gl_RenderState.Apply();
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
 	for (i = 0; i < 4; i++)
 	{
 		ptr->Set(dv[i].x, dv[i].z, dv[i].y, dv[i].u, dv[i].v);
 		ptr++;
 	}
-	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_FAN);
+
+	if (lightlist == NULL)
+	{
+		gl_RenderState.Apply();
+		GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_FAN);
+	}
+	else
+	{
+		unsigned int offset;
+		unsigned int count = GLRenderer->mVBO->GetCount(ptr, &offset);
+		for (unsigned k = 0; k < lightlist->Size(); k++)
+		{
+			secplane_t &lowplane = k == (*lightlist).Size() - 1 ? bottomplane : (*lightlist)[k + 1].plane;
+
+			float low1 = lowplane.ZatPoint(dv[1].x, dv[1].y);
+			float low2 = lowplane.ZatPoint(dv[2].x, dv[2].y);
+
+			if (low1 < dv[1].z || low2 < dv[2].z)
+			{
+				int thisll = (*lightlist)[k].caster != NULL ? gl_ClampLight(*(*lightlist)[k].p_lightlevel) : lightlevel;
+				FColormap thiscm;
+				thiscm.FadeColor = Colormap.FadeColor;
+				thiscm.CopyFrom3DLight(&(*lightlist)[k]);
+				gl_SetColor(thisll, rel, thiscm, a);
+				if (glset.nocoloredspritelighting) thiscm.Decolorize();
+				gl_SetFog(thisll, rel, &thiscm, RenderStyle == STYLE_Add);
+				gl_RenderState.SetSplitPlanes((*lightlist)[k].plane, lowplane);
+
+				gl_RenderState.Apply();
+				GLRenderer->mVBO->RenderArray(GL_TRIANGLE_FAN, offset, count);
+			}
+			if (low1 <= dv[0].z && low2 <= dv[3].z) break;
+		}
+	}
 
 	rendered_decals++;
 	gl_RenderState.SetTextureMode(TM_MODULATE);
@@ -359,11 +383,33 @@ void GLWall::DrawDecal(DBaseDecal *decal)
 //==========================================================================
 void GLWall::DoDrawDecals()
 {
-	DBaseDecal *decal = seg->sidedef->AttachedDecals;
-	while (decal)
+	if (seg->sidedef && seg->sidedef->AttachedDecals)
 	{
-		DrawDecal(decal);
-		decal = decal->WallNext;
+		if (lightlist != NULL)
+		{
+			gl_RenderState.EnableSplit(true);
+			glEnable(GL_CLIP_DISTANCE3);
+			glEnable(GL_CLIP_DISTANCE4);
+		}
+		else
+		{
+			gl_SetFog(lightlevel, rellight + getExtraLight(), &Colormap, false);
+		}
+
+		DBaseDecal *decal = seg->sidedef->AttachedDecals;
+		while (decal)
+		{
+			DrawDecal(decal);
+			decal = decal->WallNext;
+		}
+
+		if (lightlist != NULL)
+		{
+			glDisable(GL_CLIP_DISTANCE3);
+			glDisable(GL_CLIP_DISTANCE4);
+			gl_RenderState.EnableSplit(false);
+		}
+
 	}
 }
 

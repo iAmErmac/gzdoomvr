@@ -46,7 +46,7 @@ namespace s3d {
 
 
 /* virtual */
-void ShiftedEyePose::GetProjection(float fov, float aspectRatio, float fovRatio, float m[4][4]) const
+VSMatrix ShiftedEyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const
 {
 	double zNear = 5.0;
 	double zFar = 65536.0;
@@ -62,27 +62,18 @@ void ShiftedEyePose::GetProjection(float fov, float aspectRatio, float fovRatio,
 	double right = fW - frustumShift;
 	double bottom = -fH;
 	double top = fH;
-	double deltaZ = zFar - zNear;
 
-	memset(m, 0, 16 * sizeof(float)); // set all elements to zero, cleverly
-
-	// https://www.opengl.org/sdk/docs/man2/xhtml/glFrustum.xml
-	m[0][0] = 2 * zNear / (right - left);
-	m[1][1] = 2 * zNear / (top - bottom);
-	m[2][2] = -(zFar + zNear) / deltaZ;
-	m[2][3] = -1;
-	m[3][2] = -2 * zNear * zFar / deltaZ;
-	// m[3][3] = 0; // redundant
-	// m[2][1] = (top + bottom) / (top - bottom); // zero for the cases I know of...
-	m[2][0] = (right + left) / (right - left); // asymmetric shift is in this term
+	VSMatrix result(1);
+	result.frustum(left, right, bottom, top, zNear, zFar);
+	return result;
 }
 
 
 /* virtual */
-void ShiftedEyePose::GetViewShift(float yaw, float outViewShift[3]) const
+void ShiftedEyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 {
-	float dx = cos(DEG2RAD(yaw)) * vr_hunits_per_meter * shift;
-	float dy = sin(DEG2RAD(yaw)) * vr_hunits_per_meter * shift;
+	FLOATTYPE dx = cos(DEG2RAD(yaw)) * vr_hunits_per_meter * shift;
+	FLOATTYPE dy = sin(DEG2RAD(yaw)) * vr_hunits_per_meter * shift;
 	outViewShift[0] = dx;
 	outViewShift[1] = dy;
 	outViewShift[2] = 0;
@@ -90,7 +81,7 @@ void ShiftedEyePose::GetViewShift(float yaw, float outViewShift[3]) const
 
 
 /* static */
-const LeftEyeView& LeftEyeView::getInstance(float ipd)
+const LeftEyeView& LeftEyeView::getInstance(FLOATTYPE ipd)
 {
 	static LeftEyeView instance(ipd);
 	instance.setIpd(ipd);
@@ -99,7 +90,7 @@ const LeftEyeView& LeftEyeView::getInstance(float ipd)
 
 
 /* static */
-const RightEyeView& RightEyeView::getInstance(float ipd)
+const RightEyeView& RightEyeView::getInstance(FLOATTYPE ipd)
 {
 	static RightEyeView instance(ipd);
 	instance.setIpd(ipd);

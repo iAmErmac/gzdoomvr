@@ -94,7 +94,14 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 
 	if (lightbuffertype == GL_UNIFORM_BUFFER)
 	{
-		vp_comb.Format("#version 330 core\n#extension GL_ARB_uniform_buffer_object : require\n#define NUM_UBO_LIGHTS %d\n", lightbuffersize);
+		if (gl.glslversion < 1.4f || gl.version < 3.1f)
+		{
+			vp_comb.Format("#version 130\n#extension GL_ARB_uniform_buffer_object : require\n#define NUM_UBO_LIGHTS %d\n", lightbuffersize);
+		}
+		else
+		{
+			vp_comb.Format("#version 140\n#define NUM_UBO_LIGHTS %d\n", lightbuffersize);
+		}
 	}
 	else
 	{
@@ -198,6 +205,7 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 	muTextureMode.Init(hShader, "uTextureMode");
 	muCameraPos.Init(hShader, "uCameraPos");
 	muLightParms.Init(hShader, "uLightAttr");
+	muClipSplit.Init(hShader, "uClipSplit");
 	muColormapStart.Init(hShader, "uFixedColormapStart");
 	muColormapRange.Init(hShader, "uFixedColormapRange");
 	muLightIndex.Init(hShader, "uLightIndex");
@@ -208,6 +216,8 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 	muGlowTopColor.Init(hShader, "uGlowTopColor");
 	muGlowBottomPlane.Init(hShader, "uGlowBottomPlane");
 	muGlowTopPlane.Init(hShader, "uGlowTopPlane");
+	muSplitBottomPlane.Init(hShader, "uSplitBottomPlane");
+	muSplitTopPlane.Init(hShader, "uSplitTopPlane");
 	muFixedColormap.Init(hShader, "uFixedColormap");
 	muInterpolationFactor.Init(hShader, "uInterpolationFactor");
 	muClipHeightTop.Init(hShader, "uClipHeightTop");
@@ -227,8 +237,14 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 
 	glUseProgram(hShader);
 
-	tempindex = glGetUniformLocation(hShader, "texture2");
-	if (tempindex > 0) glUniform1i(tempindex, 1);
+	// set up other texture units (if needed by the shader)
+	for (int i = 2; i<16; i++)
+	{
+		char stringbuf[20];
+		mysnprintf(stringbuf, 20, "texture%d", i);
+		tempindex = glGetUniformLocation(hShader, stringbuf);
+		if (tempindex > 0) glUniform1i(tempindex, i - 1);
+	}
 
 	glUseProgram(0);
 	return !!linked;

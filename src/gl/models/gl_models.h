@@ -22,15 +22,25 @@ FTexture * LoadSkin(const char * path, const char * fn);
 class FModel
 {
 public:
-	FModel() { }
-	virtual ~FModel() { }
+
+	FModel() 
+	{ 
+		mVBuf = NULL;
+	}
+	virtual ~FModel();
 
 	virtual bool Load(const char * fn, int lumpnum, const char * buffer, int length) = 0;
 	virtual int FindFrame(const char * name) = 0;
 	virtual void RenderFrame(FTexture * skin, int frame, int frame2, double inter, int translation=0) = 0;
-	virtual void BuildVertexBuffer(FModelVertexBuffer *buf) = 0;
+	virtual void BuildVertexBuffer() = 0;
+	void DestroyVertexBuffer()
+	{
+		delete mVBuf;
+		mVBuf = NULL;
+	}
 	virtual float getAspectFactor() { return 1.f; }
 
+	FModelVertexBuffer *mVBuf;
 	FString mFileName;
 };
 
@@ -88,9 +98,13 @@ protected:
 	struct ModelFrame
 	{
 		char            name[16];
+		unsigned int vindex;
+	};
+
+	struct ModelFrameVertexData
+	{
 		DMDModelVertex *vertices;
 		DMDModelVertex *normals;
-		unsigned int vindex;
 	};
 
 	struct DMDLoDInfo
@@ -107,21 +121,23 @@ protected:
 	};
 
 
-	bool			loaded;
+	int				mLumpNum;
 	DMDHeader	    header;
 	DMDInfo			info;
 	FTexture **		skins;
-	FTexCoord *		texCoords;
-	
 	ModelFrame  *	frames;
+	bool			allowTexComp;  // Allow texture compression with this.
+
+	// Temp data only needed for buffer construction
+	FTexCoord *		texCoords;
+	ModelFrameVertexData *framevtx;
 	DMDLoDInfo		lodInfo[MAX_LODS];
 	DMDLoD			lods[MAX_LODS];
-	bool			allowTexComp;  // Allow texture compression with this.
 
 public:
 	FDMDModel() 
 	{ 
-		loaded = false; 
+		mLumpNum = -1;
 		frames = NULL;
 		skins = NULL;
 		for (int i = 0; i < MAX_LODS; i++)
@@ -130,13 +146,16 @@ public:
 		}
 		info.numLODs = 0;
 		texCoords = NULL;
+		framevtx = NULL;
 	}
 	virtual ~FDMDModel();
 
 	virtual bool Load(const char * fn, int lumpnum, const char * buffer, int length);
 	virtual int FindFrame(const char * name);
 	virtual void RenderFrame(FTexture * skin, int frame, int frame2, double inter, int translation=0);
-	virtual void BuildVertexBuffer(FModelVertexBuffer *buf);
+	virtual void LoadGeometry();
+	void UnloadGeometry();
+	void BuildVertexBuffer();
 
 };
 
@@ -148,6 +167,7 @@ public:
 	virtual ~FMD2Model();
 
 	virtual bool Load(const char * fn, int lumpnum, const char * buffer, int length);
+	virtual void LoadGeometry();
 
 };
 
@@ -199,10 +219,18 @@ class FMD3Model : public FModel
 
 		~MD3Surface()
 		{
+			if (skins) delete [] skins;
+			UnloadGeometry();
+		}
+
+		void UnloadGeometry()
+		{
 			if (tris) delete [] tris;
 			if (vertices) delete [] vertices;
 			if (texcoords) delete [] texcoords;
-			if (skins) delete [] skins;
+			tris = NULL;
+			vertices = NULL;
+			texcoords = NULL;
 		}
 	};
 
@@ -217,6 +245,7 @@ class FMD3Model : public FModel
 	int numFrames;
 	int numTags;
 	int numSurfaces;
+	int mLumpNum;
 
 	MD3Frame * frames;
 	MD3Surface * surfaces;
@@ -228,7 +257,8 @@ public:
 	virtual bool Load(const char * fn, int lumpnum, const char * buffer, int length);
 	virtual int FindFrame(const char * name);
 	virtual void RenderFrame(FTexture * skin, int frame, int frame2, double inter, int translation=0);
-	virtual void BuildVertexBuffer(FModelVertexBuffer *buf);
+	void LoadGeometry();
+	void BuildVertexBuffer();
 };
 
 struct FVoxelVertexHash
@@ -265,11 +295,10 @@ class FVoxelModel : public FModel
 protected:
 	FVoxel *mVoxel;
 	bool mOwningVoxel;	// if created through MODELDEF deleting this object must also delete the voxel object
+	FTexture *mPalette;
+	unsigned int mNumIndices;
 	TArray<FModelVertex> mVertices;
 	TArray<unsigned int> mIndices;
-	FTexture *mPalette;
-	unsigned int vindex;
-	unsigned int iindex;
 	
 	void MakeSlabPolys(int x, int y, kvxslab_t *voxptr, FVoxelMap &check);
 	void AddFace(int x1, int y1, int z1, int x2, int y2, int z2, int x3, int y3, int z3, int x4, int y4, int z4, BYTE color, FVoxelMap &check);
@@ -283,7 +312,7 @@ public:
 	virtual int FindFrame(const char * name);
 	virtual void RenderFrame(FTexture * skin, int frame, int frame2, double inter, int translation=0);
 	FTexture *GetPaletteTexture() const { return mPalette; }
-	void BuildVertexBuffer(FModelVertexBuffer *buf);
+	void BuildVertexBuffer();
 	float getAspectFactor();
 };
 

@@ -41,13 +41,7 @@
 /jpeg-6b/x64/
 /lzma/x64/
 /zlib/x64/
-/debian/files
-/debian/gz3doom
-/debian/gz3doom.debhelper.log
-/debian/gz3doom.substvars
-/OculusSDK
-fmodapi4*linux.tar.gz
-/build_cmake_vs2015
 /build_vc2013_64bit
 /build_vc2015
-/build_cmake
+build_cmake
+/build_cmake_vs2015

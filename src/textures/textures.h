@@ -331,10 +331,9 @@ public:
 
 	struct MiscGLInfo
 	{
-		FMaterial *Material;
-		FGLTexture *SystemTexture;
+		FMaterial *Material[2];
+		FGLTexture *SystemTexture[2];
 		FTexture *Brightmap;
-		FTexture *DecalTexture;					// This is needed for decals of UseType TEX_MiscPatch-
 		PalEntry GlowColor;
 		PalEntry FloorSkyColor;
 		PalEntry CeilingSkyColor;
@@ -342,6 +341,7 @@ public:
 		FloatRect *areas;
 		int areacount;
 		int shaderindex;
+		unsigned int precacheTime;
 		float shaderspeed;
 		int mIsTransparent:2;
 		bool bGlowing:1;						// Texture glows
@@ -352,14 +352,14 @@ public:
 		bool bDisableFullbright:1;				// This texture will not be displayed as fullbright sprite
 		bool bNoFilter:1;
 		bool bNoCompress:1;
-		bool mExpanded:1;
+		bool bNoExpand:1;
 
 		MiscGLInfo() throw ();
 		~MiscGLInfo();
 	};
 	MiscGLInfo gl_info;
 
-	virtual void PrecacheGL();
+	virtual void PrecacheGL(int cache);
 	virtual void UncacheGL();
 	void GetGlowColor(float *data);
 	PalEntry GetSkyCapColor(bool bottom);
@@ -489,6 +489,8 @@ public:
 
 	FSwitchDef *FindSwitch (FTextureID texture);
 	FDoorAnimation *FindAnimatedDoor (FTextureID picnum);
+
+	unsigned int precacheTime;
 
 private:
 

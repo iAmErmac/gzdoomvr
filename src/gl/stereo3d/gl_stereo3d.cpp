@@ -34,7 +34,6 @@
 */
 
 #include "gl/stereo3d/gl_stereo3d.h"
-#include "gl/system/gl_system.h"
 #include "vectors.h" // RAD2DEG
 #include "doomtype.h" // M_PI
 
@@ -42,7 +41,7 @@ namespace s3d {
 
 
 /* virtual */
-VSMatrix EyePose::GetProjection(float fov, float aspectRatio, float fovRatio) const
+VSMatrix EyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const
 {
 	VSMatrix result;
 
@@ -61,7 +60,7 @@ Viewport EyePose::GetViewport(const Viewport& fullViewport) const
 
 
 /* virtual */
-void EyePose::GetViewShift(float yaw, float outViewShift[3]) const
+void EyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 {
 	// pass-through for Mono view
 	outViewShift[0] = 0;
@@ -78,7 +77,6 @@ Stereo3DMode::~Stereo3DMode()
 {
 }
 
-
 // Avoid static initialization order fiasco by declaring first Mode type (Mono) here in the
 // same source file as Stereo3DMode::getCurrentMode()
 // https://isocpp.org/wiki/faq/ctors#static-init-order
@@ -89,6 +87,5 @@ const MonoView& MonoView::getInstance()
 	static MonoView instance;
 	return instance;
 }
-
 
 } /* namespace s3d */

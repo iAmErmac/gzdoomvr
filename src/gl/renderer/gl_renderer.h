@@ -11,13 +11,13 @@ struct particle_t;
 class FCanvasTexture;
 class FFlatVertexBuffer;
 class FSkyVertexBuffer;
-class FModelVertexBuffer;
 class OpenGLFrameBuffer;
 struct FDrawInfo;
 struct pspdef_t;
 class FShaderManager;
 class GLPortal;
 class FLightBuffer;
+class FSamplerManager;
 
 enum SectorRenderFlags
 {
@@ -56,9 +56,9 @@ public:
 	float mCurrentFoV;
 	AActor *mViewActor;
 	FShaderManager *mShaderManager;
+	FSamplerManager *mSamplerManager;
 	int gl_spriteindex;
 	unsigned int mFBID;
-	int mOldFBID;
 
 	FTexture *glpart2;
 	FTexture *glpart;
@@ -71,8 +71,8 @@ public:
 
 	FFlatVertexBuffer *mVBO;
 	FSkyVertexBuffer *mSkyVBO;
-	FModelVertexBuffer *mModelVBO;
 	FLightBuffer *mLights;
+
 
 	FGLRenderer(OpenGLFrameBuffer *fb);
 	~FGLRenderer() ;
@@ -81,7 +81,6 @@ public:
 	void SetViewArea();
 	void ResetViewport();
 	void SetViewport(GL_IRECT *bounds);
-	void RenderOneEye(angle_t frustumAngle, bool toscreen);
 	sector_t *RenderViewpoint (AActor * camera, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);
 	void RenderView(player_t *player);
 	void SetViewAngle(angle_t viewangle);
@@ -119,13 +118,10 @@ public:
 	void SetFixedColormap (player_t *player);
 	void WriteSavePic (player_t *player, FILE *file, int width, int height);
 	void EndDrawScene(sector_t * viewsector);
-	void EndDrawSceneSprites(sector_t * viewsector);
-	void EndDrawSceneBlend(sector_t * viewsector);
 	void Flush() {}
 
 	void SetProjection(float fov, float ratio, float fovratio);
 	void SetProjection(VSMatrix matrix); // raw matrix input from stereo 3d modes
-	void SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift);
 	void SetViewMatrix(fixed_t viewx, fixed_t viewy, fixed_t viewz, bool mirror, bool planemirror);
 	void ProcessScene(bool toscreen = false);
 

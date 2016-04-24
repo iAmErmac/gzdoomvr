@@ -36,6 +36,7 @@
 #include "templates.h"
 #include "doomdef.h"
 #include "doomstat.h"
+#include "d_event.h"
 #include "gstrings.h"
 
 #include "i_system.h"
@@ -177,7 +178,7 @@ bool CheckIfExitIsGood (AActor *self, level_info_t *info)
 	{
 		return false;
 	}
-	if (deathmatch)
+	if (deathmatch && gameaction != ga_completed)
 	{
 		Printf ("%s exited the level.\n", self->player->userinfo.GetName());
 	}
@@ -433,7 +434,7 @@ void P_PlayerInSpecialSector (player_t *player, sector_t * sector)
 	{
 		// Falling, not all the way down yet?
 		sector = player->mo->Sector;
-		if (player->mo->z != sector->floorplane.ZatPoint (player->mo->x, player->mo->y)
+		if (player->mo->Z() != sector->floorplane.ZatPoint(player->mo)
 			&& !player->mo->waterlevel)
 		{
 			return;
@@ -466,7 +467,7 @@ void P_PlayerInSpecialSector (player_t *player, sector_t * sector)
 			}
 			else if (level.time % sector->damageinterval == 0)
 			{
-				P_DamageMobj(player->mo, NULL, NULL, sector->damageamount, sector->damagetype);
+				if (!(player->cheats & (CF_GODMODE|CF_GODMODE2))) P_DamageMobj(player->mo, NULL, NULL, sector->damageamount, sector->damagetype);
 				if ((sector->Flags & SECF_ENDLEVEL) && player->health <= 10 && (!deathmatch || !(dmflags & DF_NO_EXIT)))
 				{
 					G_ExitLevel(0, false);
@@ -510,7 +511,7 @@ static void DoSectorDamage(AActor *actor, sector_t *sec, int amount, FName type,
 	if (!(flags & DAMAGE_PLAYERS) && actor->player != NULL)
 		return;
 
-	if (!(flags & DAMAGE_IN_AIR) && actor->z != sec->floorplane.ZatPoint(actor->x, actor->y) && !actor->waterlevel)
+	if (!(flags & DAMAGE_IN_AIR) && actor->Z() != sec->floorplane.ZatPoint(actor) && !actor->waterlevel)
 		return;
 
 	if (protectClass != NULL)
@@ -547,8 +548,8 @@ void P_SectorDamage(int tag, int amount, FName type, const PClass *protectClass,
 			{
 				next = actor->snext;
 				// Only affect actors touching the 3D floor
-				fixed_t z1 = sec->floorplane.ZatPoint(actor->x, actor->y);
-				fixed_t z2 = sec->ceilingplane.ZatPoint(actor->x, actor->y);
+				fixed_t z1 = sec->floorplane.ZatPoint(actor);
+				fixed_t z2 = sec->ceilingplane.ZatPoint(actor);
 				if (z2 < z1)
 				{
 					// Account for Vavoom-style 3D floors
@@ -556,12 +557,12 @@ void P_SectorDamage(int tag, int amount, FName type, const PClass *protectClass,
 					z1 = z2;
 					z2 = zz;
 				}
-				if (actor->z + actor->height > z1)
+				if (actor->Z() + actor->height > z1)
 				{
 					// If DAMAGE_IN_AIR is used, anything not beneath the 3D floor will be
 					// damaged (so, anything touching it or above it). Other 3D floors between
 					// the actor and this one will not stop this effect.
-					if ((flags & DAMAGE_IN_AIR) || actor->z <= z2)
+					if ((flags & DAMAGE_IN_AIR) || actor->Z() <= z2)
 					{
 						// Here we pass the DAMAGE_IN_AIR flag to disable the floor check, since it
 						// only works with the real sector's floor. We did the appropriate height checks
@@ -912,10 +913,10 @@ static void SetupFloorPortal (AStackPoint *point)
 {
 	NActorIterator it (NAME_LowerStackLookOnly, point->tid);
 	sector_t *Sector = point->Sector;
-	Sector->FloorSkyBox = static_cast<ASkyViewpoint*>(it.Next());
-	if (Sector->FloorSkyBox != NULL && Sector->FloorSkyBox->bAlways)
+	Sector->SkyBoxes[sector_t::floor] = static_cast<ASkyViewpoint*>(it.Next());
+	if (Sector->SkyBoxes[sector_t::floor] != NULL && Sector->SkyBoxes[sector_t::floor]->bAlways)
 	{
-		Sector->FloorSkyBox->Mate = point;
+		Sector->SkyBoxes[sector_t::floor]->Mate = point;
 		if (Sector->GetAlpha(sector_t::floor) == OPAQUE)
 			Sector->SetAlpha(sector_t::floor, Scale (point->args[0], OPAQUE, 255));
 	}
@@ -925,46 +926,13 @@ static void SetupCeilingPortal (AStackPoint *point)
 {
 	NActorIterator it (NAME_UpperStackLookOnly, point->tid);
 	sector_t *Sector = point->Sector;
-	Sector->CeilingSkyBox = static_cast<ASkyViewpoint*>(it.Next());
-	if (Sector->CeilingSkyBox != NULL && Sector->CeilingSkyBox->bAlways)
+	Sector->SkyBoxes[sector_t::ceiling] = static_cast<ASkyViewpoint*>(it.Next());
+	if (Sector->SkyBoxes[sector_t::ceiling] != NULL && Sector->SkyBoxes[sector_t::ceiling]->bAlways)
 	{
-		Sector->CeilingSkyBox->Mate = point;
+		Sector->SkyBoxes[sector_t::ceiling]->Mate = point;
 		if (Sector->GetAlpha(sector_t::ceiling) == OPAQUE)
 			Sector->SetAlpha(sector_t::ceiling, Scale (point->args[0], OPAQUE, 255));
 	}
-}
-
-static bool SpreadCeilingPortal(AStackPoint *pt, fixed_t alpha, sector_t *sector)
-{
-	bool fail = false;
-	sector->validcount = validcount;
-	for(int i=0; i<sector->linecount; i++)
-	{
-		line_t *line = sector->lines[i];
-		sector_t *backsector = sector == line->frontsector? line->backsector : line->frontsector;
-		if (line->backsector == line->frontsector) continue;
-		if (backsector == NULL) { fail = true; continue; }
-		if (backsector->validcount == validcount) continue;
-		if (backsector->CeilingSkyBox == pt) continue;
-
-		// Check if the backside would map to the same visplane
-		if (backsector->CeilingSkyBox != NULL) { fail = true; continue; }
-		if (backsector->ceilingplane != sector->ceilingplane) { fail = true; continue; }
-		if (backsector->lightlevel != sector->lightlevel) { fail = true; continue; }
-		if (backsector->GetTexture(sector_t::ceiling)		!= sector->GetTexture(sector_t::ceiling)) { fail = true; continue; }
-		if (backsector->GetXOffset(sector_t::ceiling)		!= sector->GetXOffset(sector_t::ceiling)) { fail = true; continue; }
-		if (backsector->GetYOffset(sector_t::ceiling)		!= sector->GetYOffset(sector_t::ceiling)) { fail = true; continue; }
-		if (backsector->GetXScale(sector_t::ceiling)		!= sector->GetXScale(sector_t::ceiling)) { fail = true; continue; }
-		if (backsector->GetYScale(sector_t::ceiling)		!= sector->GetYScale(sector_t::ceiling)) { fail = true; continue; }
-		if (backsector->GetAngle(sector_t::ceiling)		!= sector->GetAngle(sector_t::ceiling)) { fail = true; continue; }
-		if (SpreadCeilingPortal(pt, alpha, backsector)) { fail = true; continue; }
-	}
-	if (!fail) 
-	{
-		sector->CeilingSkyBox = pt;
-		sector->SetAlpha(sector_t::ceiling, alpha);
-	}
-	return fail;
 }
 
 void P_SetupPortals()
@@ -994,9 +962,9 @@ static void SetPortal(sector_t *sector, int plane, ASkyViewpoint *portal, fixed_
 	// plane: 0=floor, 1=ceiling, 2=both
 	if (plane > 0)
 	{
-		if (sector->CeilingSkyBox == NULL || !sector->CeilingSkyBox->bAlways) 
+		if (sector->SkyBoxes[sector_t::ceiling] == NULL || !sector->SkyBoxes[sector_t::ceiling]->bAlways) 
 		{
-			sector->CeilingSkyBox = portal;
+			sector->SkyBoxes[sector_t::ceiling] = portal;
 			if (sector->GetAlpha(sector_t::ceiling) == OPAQUE)
 				sector->SetAlpha(sector_t::ceiling, alpha);
 
@@ -1005,9 +973,9 @@ static void SetPortal(sector_t *sector, int plane, ASkyViewpoint *portal, fixed_
 	}
 	if (plane == 2 || plane == 0)
 	{
-		if (sector->FloorSkyBox == NULL || !sector->FloorSkyBox->bAlways) 
+		if (sector->SkyBoxes[sector_t::floor] == NULL || !sector->SkyBoxes[sector_t::floor]->bAlways) 
 		{
-			sector->FloorSkyBox = portal;
+			sector->SkyBoxes[sector_t::floor] = portal;
 		}
 		if (sector->GetAlpha(sector_t::floor) == OPAQUE)
 			sector->SetAlpha(sector_t::floor, alpha);
@@ -1111,7 +1079,7 @@ void P_SpawnSkybox(ASkyViewpoint *origin)
 	if (Sector == NULL)
 	{
 		Printf("Sector not initialized for SkyCamCompat\n");
-		origin->Sector = Sector = P_PointInSector(origin->x, origin->y);
+		origin->Sector = Sector = P_PointInSector(origin->X(), origin->Y());
 	}
 	if (Sector)
 	{
@@ -1276,7 +1244,7 @@ void P_InitSectorSpecial(sector_t *sector, int special, bool nothinkers)
 		if (!nothinkers)
 		{
 			new DStrobe(sector, STROBEBRIGHT, FASTDARK, false);
-			new DScroller(DScroller::sc_floor, (-FRACUNIT / 2) << 3,
+			new DScroller(DScroller::sc_floor, -((FRACUNIT / 2) << 3),
 				0, -1, int(sector - sectors), 0);
 		}
 		keepspecial = true;
@@ -2222,8 +2190,8 @@ DPusher::DPusher (DPusher::EPusher type, line_t *l, int magnitude, int angle,
 	if (source) // point source exist?
 	{
 		m_Radius = (m_Magnitude) << (FRACBITS+1); // where force goes to zero
-		m_X = m_Source->x;
-		m_Y = m_Source->y;
+		m_X = m_Source->X();
+		m_Y = m_Source->Y();
 	}
 	m_Affectee = affectee;
 }
@@ -2338,7 +2306,7 @@ void DPusher::Tick ()
 		{
 			if (hsec == NULL)
 			{ // NOT special water sector
-				if (thing->z > thing->floorz) // above ground
+				if (thing->Z() > thing->floorz) // above ground
 				{
 					xspeed = m_Xmag; // full force
 					yspeed = m_Ymag;
@@ -2351,8 +2319,8 @@ void DPusher::Tick ()
 			}
 			else // special water sector
 			{
-				ht = hsec->floorplane.ZatPoint (thing->x, thing->y);
-				if (thing->z > ht) // above ground
+				ht = hsec->floorplane.ZatPoint(thing);
+				if (thing->Z() > ht) // above ground
 				{
 					xspeed = m_Xmag; // full force
 					yspeed = m_Ymag;
@@ -2380,7 +2348,7 @@ void DPusher::Tick ()
 			{ // special water sector
 				floor = &hsec->floorplane;
 			}
-			if (thing->z > floor->ZatPoint (thing->x, thing->y))
+			if (thing->Z() > floor->ZatPoint(thing))
 			{ // above ground
 				xspeed = yspeed = 0; // no force
 			}

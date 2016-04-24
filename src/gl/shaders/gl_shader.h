@@ -103,6 +103,28 @@ public:
 	}
 };
 
+class FBufferedUniform2f
+{
+	float mBuffer[2];
+	int mIndex;
+
+public:
+	void Init(GLuint hShader, const GLchar *name)
+	{
+		mIndex = glGetUniformLocation(hShader, name);
+		memset(mBuffer, 0, sizeof(mBuffer));
+	}
+
+	void Set(const float *newvalue)
+	{
+		if (memcmp(newvalue, mBuffer, sizeof(mBuffer)))
+		{
+			memcpy(mBuffer, newvalue, sizeof(mBuffer));
+			glUniform2fv(mIndex, 1, newvalue);
+		}
+	}
+};
+
 class FBufferedUniform4f
 {
 	float mBuffer[4];
@@ -184,6 +206,7 @@ class FShader
 	FBufferedUniform1i muTextureMode;
 	FBufferedUniform4f muCameraPos;
 	FBufferedUniform4f muLightParms;
+	FBufferedUniform2f muClipSplit;
 	FUniform1i muFixedColormap;
 	FUniform4f muColormapStart;
 	FUniform4f muColormapRange;
@@ -195,6 +218,8 @@ class FShader
 	FUniform4f muGlowTopColor;
 	FUniform4f muGlowBottomPlane;
 	FUniform4f muGlowTopPlane;
+	FUniform4f muSplitBottomPlane;
+	FUniform4f muSplitTopPlane;
 	FBufferedUniform1f muInterpolationFactor;
 	FBufferedUniform1f muClipHeightTop;
 	FBufferedUniform1f muClipHeightBottom;
@@ -210,6 +235,7 @@ public:
 	int fakevb_index;
 private:
 	int currentglowstate;
+	int currentsplitstate;
 	int currentfixedcolormap;
 	bool currentTextureMatrixState;
 	bool currentModelMatrixState;
@@ -220,6 +246,7 @@ public:
 	{
 		hShader = hVertProg = hFragProg = 0;
 		currentglowstate = 0;
+		currentsplitstate = 0;
 		currentfixedcolormap = 0;
 		currentTextureMatrixState = true;	// by setting the matrix state to 'true' it is guaranteed to be set the first time the render state gets applied.
 		currentModelMatrixState = true;
@@ -267,6 +294,18 @@ public:
 	FShader *GetActiveShader() const
 	{
 		return mActiveShader;
+	}
+
+	void ResetFixedColormap()
+	{
+		for (unsigned i = 0; i < mTextureEffects.Size(); i++)
+		{
+			mTextureEffects[i]->currentfixedcolormap = -1;
+		}
+		for (unsigned i = 0; i < mTextureEffectsNAT.Size(); i++)
+		{
+			mTextureEffectsNAT[i]->currentfixedcolormap = -1;
+		}
 	}
 
 	FShader *Get(unsigned int eff, bool alphateston)

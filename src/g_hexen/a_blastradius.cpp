@@ -26,7 +26,7 @@ void BlastActor (AActor *victim, fixed_t strength, fixed_t speed, AActor * Owner
 {
 	angle_t angle,ang;
 	AActor *mo;
-	fixed_t x,y,z;
+	fixedvec3 pos;
 
 	if (!victim->SpecialBlastHandling (Owner, strength))
 	{
@@ -41,10 +41,11 @@ void BlastActor (AActor *victim, fixed_t strength, fixed_t speed, AActor * Owner
 	// Spawn blast puff
 	ang = victim->AngleTo(Owner);
 	ang >>= ANGLETOFINESHIFT;
-	x = victim->x + FixedMul (victim->radius+FRACUNIT, finecosine[ang]);
-	y = victim->y + FixedMul (victim->radius+FRACUNIT, finesine[ang]);
-	z = victim->z - victim->floorclip + (victim->height>>1);
-	mo = Spawn (blasteffect, x, y, z, ALLOW_REPLACE);
+	pos = victim->Vec3Offset(
+		FixedMul (victim->radius+FRACUNIT, finecosine[ang]),
+		FixedMul (victim->radius+FRACUNIT, finesine[ang]),
+		-victim->floorclip + (victim->height>>1));
+	mo = Spawn (blasteffect, pos, ALLOW_REPLACE);
 	if (mo)
 	{
 		mo->velx = victim->velx;
@@ -108,10 +109,10 @@ DEFINE_ACTION_FUNCTION_PARAMS (AActor, A_Blast)
 	TThinkerIterator<AActor> iterator;
 	fixed_t dist;
 
-	if (self->player && (blastflags & BF_USEAMMO))
+	if (self->player && (blastflags & BF_USEAMMO) && ACTION_CALL_FROM_WEAPON())
 	{
 		AWeapon * weapon = self->player->ReadyWeapon;
-		if (!weapon->DepleteAmmo(weapon->bAltFire))
+		if (weapon != NULL && !weapon->DepleteAmmo(weapon->bAltFire))
 			return;
 	}
 

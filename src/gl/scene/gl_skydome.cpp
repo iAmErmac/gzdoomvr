@@ -268,27 +268,27 @@ void RenderDome(FMaterial * tex, float x_offset, float y_offset, bool mirror, in
 
 	if (tex)
 	{
-		tex->Bind(0, 0);
-		texw = tex->TextureWidth(GLUSE_TEXTURE);
-		texh = tex->TextureHeight(GLUSE_TEXTURE);
+		gl_RenderState.SetMaterial(tex, CLAMP_NONE, 0, -1, false);
+		texw = tex->TextureWidth();
+		texh = tex->TextureHeight();
 		gl_RenderState.EnableModelMatrix(true);
 
 		gl_RenderState.mModelMatrix.loadIdentity();
 		gl_RenderState.mModelMatrix.rotate(-180.0f+x_offset, 0.f, 1.f, 0.f);
 
-		float xscale = texw < 1024.f ? floor(1024.f / float(texw)) : 1.f;
+		float xscale = 1024.f / float(texw);
 		float yscale = 1.f;
 		if (texh < 128)
 		{
 			// smaller sky textures must be tiled. We restrict it to 128 sky pixels, though
 			gl_RenderState.mModelMatrix.translate(0.f, -1250.f, 0.f);
-			gl_RenderState.mModelMatrix.scale(1.f, 128 / 230.f, 1.f);
+			gl_RenderState.mModelMatrix.scale(1.f, 128/230.f, 1.f);
 			yscale = 128 / texh;	// intentionally left as integer.
 		}
 		else if (texh < 200)
 		{
 			gl_RenderState.mModelMatrix.translate(0.f, -1250.f, 0.f);
-			gl_RenderState.mModelMatrix.scale(1.f, texh / 230.f, 1.f);
+			gl_RenderState.mModelMatrix.scale(1.f, texh/230.f, 1.f);
 		}
 		else if (texh <= 240)
 		{
@@ -339,8 +339,8 @@ static void RenderBox(FTextureID texno, FMaterial * gltex, float x_offset, bool 
 		faces=4;
 
 		// north
-		tex = FMaterial::ValidateTexture(sb->faces[0]);
-		tex->Bind(GLT_CLAMPX|GLT_CLAMPY, 0);
+		tex = FMaterial::ValidateTexture(sb->faces[0], false);
+		gl_RenderState.SetMaterial(tex, CLAMP_XY, 0, -1, false);
 		gl_RenderState.Apply();
 
 		ptr = GLRenderer->mVBO->GetBuffer();
@@ -355,8 +355,8 @@ static void RenderBox(FTextureID texno, FMaterial * gltex, float x_offset, bool 
 		GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 		// east
-		tex = FMaterial::ValidateTexture(sb->faces[1]);
-		tex->Bind(GLT_CLAMPX | GLT_CLAMPY, 0);
+		tex = FMaterial::ValidateTexture(sb->faces[1], false);
+		gl_RenderState.SetMaterial(tex, CLAMP_XY, 0, -1, false);
 		gl_RenderState.Apply();
 
 		ptr = GLRenderer->mVBO->GetBuffer();
@@ -371,8 +371,8 @@ static void RenderBox(FTextureID texno, FMaterial * gltex, float x_offset, bool 
 		GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 		// south
-		tex = FMaterial::ValidateTexture(sb->faces[2]);
-		tex->Bind(GLT_CLAMPX | GLT_CLAMPY, 0);
+		tex = FMaterial::ValidateTexture(sb->faces[2], false);
+		gl_RenderState.SetMaterial(tex, CLAMP_XY, 0, -1, false);
 		gl_RenderState.Apply();
 
 		ptr = GLRenderer->mVBO->GetBuffer();
@@ -387,8 +387,8 @@ static void RenderBox(FTextureID texno, FMaterial * gltex, float x_offset, bool 
 		GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 		// west
-		tex = FMaterial::ValidateTexture(sb->faces[3]);
-		tex->Bind(GLT_CLAMPX|GLT_CLAMPY, 0);
+		tex = FMaterial::ValidateTexture(sb->faces[3], false);
+		gl_RenderState.SetMaterial(tex, CLAMP_XY, 0, -1, false);
 		gl_RenderState.Apply();
 
 		ptr = GLRenderer->mVBO->GetBuffer();
@@ -405,6 +405,9 @@ static void RenderBox(FTextureID texno, FMaterial * gltex, float x_offset, bool 
 	else 
 	{
 		faces=1;
+		tex = FMaterial::ValidateTexture(sb->faces[0], false);
+		gl_RenderState.SetMaterial(tex, CLAMP_XY, 0, -1, false);
+		gl_RenderState.Apply();
 
 		ptr = GLRenderer->mVBO->GetBuffer();
 		ptr->Set(128.f, 128.f, -128.f, 0, 0);
@@ -431,8 +434,8 @@ static void RenderBox(FTextureID texno, FMaterial * gltex, float x_offset, bool 
 	}
 
 	// top
-	tex = FMaterial::ValidateTexture(sb->faces[faces]);
-	tex->Bind(GLT_CLAMPX|GLT_CLAMPY, 0);
+	tex = FMaterial::ValidateTexture(sb->faces[faces], false);
+	gl_RenderState.SetMaterial(tex, CLAMP_XY, 0, -1, false);
 	gl_RenderState.Apply();
 
 	ptr = GLRenderer->mVBO->GetBuffer();
@@ -447,8 +450,8 @@ static void RenderBox(FTextureID texno, FMaterial * gltex, float x_offset, bool 
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 	// bottom
-	tex = FMaterial::ValidateTexture(sb->faces[faces+1]);
-	tex->Bind(GLT_CLAMPX|GLT_CLAMPY, 0);
+	tex = FMaterial::ValidateTexture(sb->faces[faces+1], false);
+	gl_RenderState.SetMaterial(tex, CLAMP_XY, 0, -1, false);
 	gl_RenderState.Apply();
 
 	ptr = GLRenderer->mVBO->GetBuffer();
@@ -475,13 +478,18 @@ void GLSkyPortal::DrawContents()
 
 	// We have no use for Doom lighting special handling here, so disable it for this function.
 	int oldlightmode = glset.lightmode;
-	if (glset.lightmode == 8) glset.lightmode = 2;
+	if (glset.lightmode == 8)
+	{
+		glset.lightmode = 2;
+		gl_RenderState.SetSoftLightLevel(-1);
+	}
 
 
 	gl_RenderState.ResetColor();
 	gl_RenderState.EnableFog(false);
 	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	bool oldClamp = gl_RenderState.SetDepthClamp(true);
 
 	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
 	GLRenderer->SetupView(0, 0, 0, viewangle, !!(MirrorFlag&1), !!(PlaneMirrorFlag&1));
@@ -526,5 +534,6 @@ void GLSkyPortal::DrawContents()
 	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
 	gl_RenderState.ApplyMatrices();
 	glset.lightmode = oldlightmode;
+	gl_RenderState.SetDepthClamp(oldClamp);
 }
 

@@ -284,10 +284,6 @@ bool SDLGLVideo::SetupPixelFormat(bool allowsoftware, int multisample)
 	SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE,  8 );
 	SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE,  24 );
 	SDL_GL_SetAttribute( SDL_GL_STENCIL_SIZE,  8 );
-// Mac does not do well with quad-buffered stereo contexts...
-// Linux crashes too with stereo context
-// And Windows does not use SDL, so do not try for stereo here...
-	// SDL_GL_SetAttribute( SDL_GL_STEREO, 1 );
 	SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER,  1 );
 	if (multisample > 0) {
 		SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, 1 );

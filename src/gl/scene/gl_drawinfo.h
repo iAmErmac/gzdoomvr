@@ -8,14 +8,15 @@ enum GLDrawItemType
 	GLDIT_WALL,
 	GLDIT_FLAT,
 	GLDIT_SPRITE,
-	GLDIT_POLY,
 };
 
 enum DrawListType
 {
-	GLDL_PLAIN,
-	GLDL_MASKED,
-	GLDL_MASKEDOFS,
+	GLDL_PLAINWALLS,
+	GLDL_PLAINFLATS,
+	GLDL_MASKEDWALLS,
+	GLDL_MASKEDFLATS,
+	GLDL_MASKEDWALLSOFS,
 	GLDL_MODELS,
 
 	GLDL_TRANSLUCENT,
@@ -30,7 +31,6 @@ enum Drawpasses
 	GLPASS_LIGHTSONLY,	// only collect dynamic lights
 	GLPASS_PLAIN,		// Main pass without dynamic lights
 	GLPASS_DECALS,		// Draws a decal
-	GLPASS_DECALS_NOFOG,// Draws a decal without setting the fog (used for passes that need a fog layer)
 	GLPASS_TRANSLUCENT,	// Draws translucent objects
 };
 
@@ -106,7 +106,8 @@ public:
 	void AddFlat(GLFlat * flat);
 	void AddSprite(GLSprite * sprite);
 	void Reset();
-	void Sort();
+	void SortWalls();
+	void SortFlats();
 
 
 	void MakeSortList();
@@ -124,7 +125,10 @@ public:
 	void DoDraw(int pass, int index, bool trans);
 	void DoDrawSorted(SortNode * node);
 	void DrawSorted();
-	void Draw(int pass);
+	void Draw(int pass, bool trans = false);
+	void DrawWalls(int pass);
+	void DrawFlats(int pass);
+	void DrawDecals();
 	
 	GLDrawList * next;
 } ;

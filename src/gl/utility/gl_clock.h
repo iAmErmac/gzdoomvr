@@ -5,11 +5,12 @@
 #include "x86.h"
 #include "m_fixed.h"
 
+extern bool gl_benching;
+
 #ifdef _MSC_VER
 
 extern double gl_SecondsPerCycle;
 extern double gl_MillisecPerCycle;
-
 
 __forceinline long long GetClockCycle ()
 {
@@ -75,13 +76,13 @@ public:
 		// Not using QueryPerformanceCounter directly, so we don't need
 		// to pull in the Windows headers for every single file that
 		// wants to do some profiling.
-		long long time = GetClockCycle();
+		long long time = (gl_benching? GetClockCycle() : 0);
 		Counter -= time;
 	}
 	
 	__forceinline void Unclock()
 	{
-		long long time = GetClockCycle();
+		long long time = (gl_benching? GetClockCycle() : 0);
 		Counter += time;
 	}
 	
@@ -101,7 +102,7 @@ private:
 
 #endif // __APPLE__
 
-extern glcycle_t RenderWall,SetupWall,ClipWall,SplitWall;
+extern glcycle_t RenderWall,SetupWall,ClipWall;
 extern glcycle_t RenderFlat,SetupFlat;
 extern glcycle_t RenderSprite,SetupSprite;
 extern glcycle_t All, Finish, PortalAll, Bsp;
@@ -118,6 +119,7 @@ extern int vertexcount, flatvertices, flatprimitives;
 
 void ResetProfilingData();
 void CheckBench();
+void  checkBenchActive();
 
 
 #endif

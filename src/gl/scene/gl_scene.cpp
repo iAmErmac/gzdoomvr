@@ -87,6 +87,7 @@ CVAR(Bool, gl_texture, true, 0)
 CVAR(Bool, gl_no_skyclear, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 CVAR(Float, gl_mask_sprite_threshold, 0.5f,CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
+CVAR(Bool, gl_sort_textures, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 EXTERN_CVAR(Int, vr_mode)
 EXTERN_CVAR(Float, vr_screendist)
@@ -240,30 +241,7 @@ void FGLRenderer::SetViewAngle(angle_t viewangle)
 }
 	
 
-/*
-static void setPerspective(GLdouble fovy, GLdouble aspect, GLdouble zNear, GLdouble zFar)
-{
-	GLdouble m[4][4];
-	double sine, cotangent, deltaZ;
-	double radians = fovy / 2 * M_PI / 180;
 
-	deltaZ = zFar - zNear;
-	sine = sin(radians);
-	if ((deltaZ == 0) || (sine == 0) || (aspect == 0)) {
-		return;
-	}
-	cotangent = cos(radians) / sine;
-
-	memset(m, 0, sizeof(m));
-	m[0][0] = cotangent / aspect;
-	m[1][1] = cotangent;
-	m[2][2] = -(zFar + zNear) / deltaZ;
-	m[2][3] = -1;
-	m[3][2] = -2 * zNear * zFar / deltaZ;
-	m[3][3] = 0;
-	glLoadMatrixd(&m[0][0]);
-}
-*/
 
 void FGLRenderer::SetProjection(float fov, float ratio, float fovratio)
 {
@@ -273,15 +251,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio)
 	gl_RenderState.Set2DMode(false);
 }
 
-// raw matrix input from stereo 3d modes
-void FGLRenderer::SetProjection(VSMatrix matrix)
-{
-	gl_RenderState.mProjectionMatrix.loadIdentity();
-	gl_RenderState.mProjectionMatrix.multMatrix(matrix);
-	gl_RenderState.Set2DMode(false);
-}
 
-/* */
 //-----------------------------------------------------------------------------
 //
 // SetProjection
@@ -322,8 +292,15 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	// setPerspective(fovy, ratio, 5.f, 65536.f); // Do not use Graf Zahl's recent perspective refactoring May 2014 cmb
 	gl_RenderState.Set2DMode(false);
 }
-/* */
 
+
+// raw matrix input from stereo 3d modes
+void FGLRenderer::SetProjection(VSMatrix matrix)
+{
+	gl_RenderState.mProjectionMatrix.loadIdentity();
+	gl_RenderState.mProjectionMatrix.multMatrix(matrix);
+	gl_RenderState.Set2DMode(false);
+}
 
 //-----------------------------------------------------------------------------
 //
@@ -405,8 +382,8 @@ void FGLRenderer::SetViewMatrix(fixed_t viewx, fixed_t viewy, fixed_t viewz, boo
 	gl_RenderState.mViewMatrix.rotate(roll,  0.0f, 0.0f, 1.0f);
 	gl_RenderState.mViewMatrix.rotate(pitch, 1.0f, 0.0f, 0.0f);
 	gl_RenderState.mViewMatrix.rotate(yaw,   0.0f, mult, 0.0f);
-	// gl_RenderState.mViewMatrix.translate( GLRenderer->mCameraPos.X * mult, -GLRenderer->mCameraPos.Z*planemult, -GLRenderer->mCameraPos.Y);
-	gl_RenderState.mViewMatrix.translate(FIXED2FLOAT(viewx) * mult, -FIXED2FLOAT(viewz)*planemult, -FIXED2FLOAT(viewy));
+
+	gl_RenderState.mViewMatrix.translate(FIXED2FLOAT(viewx) * mult, -FIXED2FLOAT(viewz) * planemult , -FIXED2FLOAT(viewy));
 	gl_RenderState.mViewMatrix.scale(-mult, planemult, 1);
 
 }
@@ -479,20 +456,27 @@ void FGLRenderer::RenderScene(int recursion)
 	gl_RenderState.EnableFog(true);
 	gl_RenderState.BlendFunc(GL_ONE,GL_ZERO);
 
-	gl_drawinfo->drawlists[GLDL_PLAIN].Sort();
-	gl_drawinfo->drawlists[GLDL_MASKED].Sort();
-	gl_drawinfo->drawlists[GLDL_MASKEDOFS].Sort();
+	if (gl_sort_textures)
+	{
+		gl_drawinfo->drawlists[GLDL_PLAINWALLS].SortWalls();
+		gl_drawinfo->drawlists[GLDL_PLAINFLATS].SortFlats();
+		gl_drawinfo->drawlists[GLDL_MASKEDWALLS].SortWalls();
+		gl_drawinfo->drawlists[GLDL_MASKEDFLATS].SortFlats();
+		gl_drawinfo->drawlists[GLDL_MASKEDWALLSOFS].SortWalls();
+	}
 
 	// if we don't have a persistently mapped buffer, we have to process all the dynamic lights up front,
 	// so that we don't have to do repeated map/unmap calls on the buffer.
 	if (mLightCount > 0 && gl_fixedcolormap == CM_DEFAULT && gl_lights && !(gl.flags & RFL_BUFFER_STORAGE))
 	{
 		GLRenderer->mLights->Begin();
-		gl_drawinfo->drawlists[GLDL_PLAIN].Draw(GLPASS_LIGHTSONLY);
-		gl_drawinfo->drawlists[GLDL_MASKED].Draw(GLPASS_LIGHTSONLY);
-		gl_drawinfo->drawlists[GLDL_MASKEDOFS].Draw(GLPASS_LIGHTSONLY);
+		gl_drawinfo->drawlists[GLDL_PLAINWALLS].DrawWalls(GLPASS_LIGHTSONLY);
+		gl_drawinfo->drawlists[GLDL_PLAINFLATS].DrawFlats(GLPASS_LIGHTSONLY);
+		gl_drawinfo->drawlists[GLDL_MASKEDWALLS].DrawWalls(GLPASS_LIGHTSONLY);
+		gl_drawinfo->drawlists[GLDL_MASKEDFLATS].DrawFlats(GLPASS_LIGHTSONLY);
+		gl_drawinfo->drawlists[GLDL_MASKEDWALLSOFS].DrawWalls(GLPASS_LIGHTSONLY);
 		gl_drawinfo->drawlists[GLDL_TRANSLUCENTBORDER].Draw(GLPASS_LIGHTSONLY);
-		gl_drawinfo->drawlists[GLDL_TRANSLUCENT].Draw(GLPASS_LIGHTSONLY);
+		gl_drawinfo->drawlists[GLDL_TRANSLUCENT].Draw(GLPASS_LIGHTSONLY, true);
 		GLRenderer->mLights->Finish();
 	}
 
@@ -514,7 +498,8 @@ void FGLRenderer::RenderScene(int recursion)
 
 	gl_RenderState.EnableTexture(gl_texture);
 	gl_RenderState.EnableBrightmap(true);
-	gl_drawinfo->drawlists[GLDL_PLAIN].Draw(pass);
+	gl_drawinfo->drawlists[GLDL_PLAINWALLS].DrawWalls(pass);
+	gl_drawinfo->drawlists[GLDL_PLAINFLATS].DrawFlats(pass);
 
 
 	// Part 2: masked geometry. This is set up so that only pixels with alpha>gl_mask_threshold will show
@@ -524,13 +509,14 @@ void FGLRenderer::RenderScene(int recursion)
 		gl_RenderState.SetTextureMode(TM_MASK);
 	}
 	gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_threshold);
-	gl_drawinfo->drawlists[GLDL_MASKED].Draw(pass);
+	gl_drawinfo->drawlists[GLDL_MASKEDWALLS].DrawWalls(pass);
+	gl_drawinfo->drawlists[GLDL_MASKEDFLATS].DrawFlats(pass);
 	// Part 3: masked geometry with polygon offset. This list is empty most of the time so only waste time on it when in use.
-	if (gl_drawinfo->drawlists[GLDL_MASKEDOFS].Size() > 0)
+	if (gl_drawinfo->drawlists[GLDL_MASKEDWALLSOFS].Size() > 0)
 	{
 		glEnable(GL_POLYGON_OFFSET_FILL);
 		glPolygonOffset(-1.0f, -128.0f);
-		gl_drawinfo->drawlists[GLDL_MASKEDOFS].Draw(pass);
+		gl_drawinfo->drawlists[GLDL_MASKEDWALLSOFS].DrawWalls(pass);
 		glDisable(GL_POLYGON_OFFSET_FILL);
 		glPolygonOffset(0, 0);
 	}
@@ -545,10 +531,8 @@ void FGLRenderer::RenderScene(int recursion)
 	glPolygonOffset(-1.0f, -128.0f);
 	glDepthMask(false);
 
-	for(int i=0; i<GLDL_TRANSLUCENT; i++)
-	{
-		gl_drawinfo->drawlists[i].Draw(GLPASS_DECALS);
-	}
+	// this is the only geometry type on which decals can possibly appear
+	gl_drawinfo->drawlists[GLDL_PLAINWALLS].DrawDecals();
 
 	gl_RenderState.SetTextureMode(TM_MODULATE);
 
@@ -571,8 +555,8 @@ void FGLRenderer::RenderScene(int recursion)
 
 	glPolygonOffset(0.0f, 0.0f);
 	glDisable(GL_POLYGON_OFFSET_FILL);
-
 	RenderAll.Unclock();
+
 }
 
 //-----------------------------------------------------------------------------
@@ -970,11 +954,8 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	// 'viewsector' will not survive the rendering so it cannot be used anymore below.
 	retval = viewsector;
 
-	SetViewAngle(viewangle);
-	SetViewMatrix(viewx, viewy, viewz, false, false);
-	mCurrentFoV = fov;
-	gl_RenderState.ApplyMatrices();
-	GLRenderer->mLights->Clear();
+
+
 
 	static int previous_vr_mode = 0;
 	// Hybrid use of old and new dispatch to stereoscopic 3D modes
@@ -1020,6 +1001,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		eye->GetViewShift(GLRenderer->mAngles.Yaw.Degrees, viewShift);
 		s3d::ScopedViewShifter viewShifter(viewShift);
 		SetViewMatrix(viewx, viewy, viewz, false, false);
+		gl_RenderState.ApplyMatrices();
 
 		clipper.Clear();
 		angle_t a1 = FrustumAngle();
@@ -1063,6 +1045,7 @@ void FGLRenderer::RenderView (player_t* player)
 	OpenGLFrameBuffer* GLTarget = static_cast<OpenGLFrameBuffer*>(screen);
 	AActor *&LastCamera = GLTarget->LastCamera;
 
+	checkBenchActive();
 	if (player->camera != LastCamera)
 	{
 		// If the camera changed don't interpolate
@@ -1083,6 +1066,8 @@ void FGLRenderer::RenderView (player_t* player)
 	gl_frameMS = I_MSTime();
 
 	P_FindParticleSubsectors ();
+
+	GLRenderer->mLights->Clear();
 
 	// prepare all camera textures that have been used in the last frame
 	FCanvasTextureInfo::UpdateAll();
@@ -1111,7 +1096,6 @@ void FGLRenderer::RenderView (player_t* player)
 	GLRenderer->mLightCount = ((it.Next()) != NULL);
 
 	sector_t * viewsector = RenderViewpoint(player->camera, NULL, FieldOfView * 360.0f / FINEANGLES, ratio, fovratio, true, true);
-	// EndDrawScene(viewsector); // moved into Stereo3d logic
 
 	All.Unclock();
 }
@@ -1134,6 +1118,7 @@ void FGLRenderer::WriteSavePic (player_t *player, FILE *file, int width, int hei
 	SetFixedColormap(player);
 	gl_RenderState.SetVertexBuffer(mVBO);
 	GLRenderer->mVBO->Reset();
+	GLRenderer->mLights->Clear();
 
 	// Check if there's some lights. If not some code can be skipped.
 	TThinkerIterator<ADynamicLight> it(STAT_DLIGHT);
@@ -1206,7 +1191,7 @@ void FGLInterface::PrecacheTexture(FTexture *tex, int cache)
 	{
 		if (cache)
 		{
-			tex->PrecacheGL();
+			tex->PrecacheGL(cache);
 		}
 		else
 		{
@@ -1318,10 +1303,10 @@ extern TexFilter_s TexFilter[];
 
 void FGLInterface::RenderTextureView (FCanvasTexture *tex, AActor *Viewpoint, int FOV)
 {
-	FMaterial * gltex = FMaterial::ValidateTexture(tex);
+	FMaterial * gltex = FMaterial::ValidateTexture(tex, false);
 
-	int width = gltex->TextureWidth(GLUSE_TEXTURE);
-	int height = gltex->TextureHeight(GLUSE_TEXTURE);
+	int width = gltex->TextureWidth();
+	int height = gltex->TextureHeight();
 
 	gl_fixedcolormap=CM_DEFAULT;
 	gl_RenderState.SetFixedColormap(CM_DEFAULT);
@@ -1353,15 +1338,15 @@ void FGLInterface::RenderTextureView (FCanvasTexture *tex, AActor *Viewpoint, in
 
 	GL_IRECT bounds;
 	bounds.left=bounds.top=0;
-	bounds.width=FHardwareTexture::GetTexDimension(gltex->GetWidth(GLUSE_TEXTURE));
-	bounds.height=FHardwareTexture::GetTexDimension(gltex->GetHeight(GLUSE_TEXTURE));
+	bounds.width=FHardwareTexture::GetTexDimension(gltex->GetWidth());
+	bounds.height=FHardwareTexture::GetTexDimension(gltex->GetHeight());
 
 	GLRenderer->RenderViewpoint(Viewpoint, &bounds, FOV, (float)width/height, (float)width/height, false, false);
 
 	if (!usefb)
 	{
 		glFlush();
-		gltex->Bind(0, 0);
+		gl_RenderState.SetMaterial(gltex, 0, 0, -1, false);
 		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, bounds.width, bounds.height);
 	}
 	else
@@ -1369,8 +1354,6 @@ void FGLInterface::RenderTextureView (FCanvasTexture *tex, AActor *Viewpoint, in
 		GLRenderer->EndOffscreen();
 	}
 
-	gltex->Bind(0, 0);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, TexFilter[gl_texture_filter].magfilter);
 	tex->SetUpdated();
 }
 

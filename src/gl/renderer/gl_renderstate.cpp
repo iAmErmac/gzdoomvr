@@ -69,10 +69,9 @@ TArray<VSMatrix> gl_MatrixStack;
 void FRenderState::Reset()
 {
 	mTextureEnabled = true;
-	mBrightmapEnabled = mFogEnabled = mGlowEnabled = false;
+	mSplitEnabled = mBrightmapEnabled = mFogEnabled = mGlowEnabled = false;
 	mColorMask[0] = mColorMask[1] = mColorMask[2] = mColorMask[3] = true;
 	currentColorMask[0] = currentColorMask[1] = currentColorMask[2] = currentColorMask[3] = true;
-	mSpecialEffect = EFF_NONE;
 	mFogColor.d = -1;
 	mTextureMode = -1;
 	mLightIndex = -1;
@@ -89,10 +88,12 @@ void FRenderState::Reset()
 	mSpecialEffect = EFF_NONE;
 	mClipHeightTop = 65536.f;
 	mClipHeightBottom = -65536.f;
+	ClearClipSplit();
 
 	stSrcBlend = stDstBlend = -1;
 	stBlendEquation = -1;
 	stAlphaThreshold = -1.f;
+	mLastDepthClamp = true;
 }
 
 //==========================================================================
@@ -103,6 +104,7 @@ void FRenderState::Reset()
 
 bool FRenderState::ApplyShader()
 {
+	static const float nulvec[] = { 0.f, 0.f, 0.f, 0.f };
 	if (mSpecialEffect > EFF_NONE)
 	{
 		activeShader = GLRenderer->mShaderManager->BindEffect(mSpecialEffect);
@@ -143,6 +145,7 @@ bool FRenderState::ApplyShader()
 	activeShader->muTimer.Set(gl_frameMS * mShaderTimer / 1000.f);
 	activeShader->muAlphaThreshold.Set(mAlphaThreshold);
 	activeShader->muLightIndex.Set(mLightIndex);	// will always be -1 for now
+	activeShader->muClipSplit.Set(mClipSplit);
 
 	if (mGlowEnabled)
 	{
@@ -155,12 +158,23 @@ bool FRenderState::ApplyShader()
 	else if (activeShader->currentglowstate)
 	{
 		// if glowing is on, disable it.
-		static const float nulvec[] = { 0.f, 0.f, 0.f, 0.f };
 		activeShader->muGlowTopColor.Set(nulvec);
 		activeShader->muGlowBottomColor.Set(nulvec);
 		activeShader->muGlowTopPlane.Set(nulvec);
 		activeShader->muGlowBottomPlane.Set(nulvec);
 		activeShader->currentglowstate = 0;
+	}
+
+	if (mSplitEnabled)
+	{
+		activeShader->muSplitTopPlane.Set(mSplitTopPlane.vec);
+		activeShader->muSplitBottomPlane.Set(mSplitBottomPlane.vec);
+		activeShader->currentsplitstate = 1;
+	}
+	else
+	{
+		activeShader->muSplitTopPlane.Set(nulvec);
+		activeShader->muSplitBottomPlane.Set(nulvec);
 	}
 
 	if (mColormapState != activeShader->currentfixedcolormap)
@@ -259,7 +273,8 @@ void FRenderState::Apply()
 
 	//ApplyColorMask(); I don't think this is needed.
 
-	if (mVertexBuffer != mCurrentVertexBuffer)	{
+	if (mVertexBuffer != mCurrentVertexBuffer)
+	{
 		if (mVertexBuffer == NULL) glBindBuffer(GL_ARRAY_BUFFER, 0);
 		else mVertexBuffer->BindVBO();
 		mCurrentVertexBuffer = mVertexBuffer;
@@ -268,14 +283,6 @@ void FRenderState::Apply()
 }
 
 
-
-void FRenderState::ApplyMatrices()
-{
-	if (GLRenderer->mShaderManager != NULL)
-	{
-		GLRenderer->mShaderManager->ApplyMatrices(&mProjectionMatrix, &mViewMatrix);
-	}
-}
 
 void FRenderState::ApplyColorMask()
 {
@@ -289,6 +296,14 @@ void FRenderState::ApplyColorMask()
 		currentColorMask[1] = mColorMask[1];
 		currentColorMask[2] = mColorMask[2];
 		currentColorMask[3] = mColorMask[3];
+	}
+}
+
+void FRenderState::ApplyMatrices()
+{
+	if (GLRenderer->mShaderManager != NULL)
+	{
+		GLRenderer->mShaderManager->ApplyMatrices(&mProjectionMatrix, &mViewMatrix);
 	}
 }
 

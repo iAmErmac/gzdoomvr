@@ -88,7 +88,7 @@ void GLSkyInfo::init(int sky1, PalEntry FadeColor)
 		}
 
 		FTextureID texno = s->GetTexture(pos);
-		texture[0] = FMaterial::ValidateTexture(texno, true);
+		texture[0] = FMaterial::ValidateTexture(texno, false, true);
 		if (!texture[0] || texture[0]->tex->UseType == FTexture::TEX_Null) goto normalsky;
 		skytexno1 = texno;
 		x_offset[0] = ANGLE_TO_FLOAT(s->GetTextureXOffset(pos));
@@ -100,7 +100,7 @@ void GLSkyInfo::init(int sky1, PalEntry FadeColor)
 	normalsky:
 		if (level.flags&LEVEL_DOUBLESKY)
 		{
-			texture[1] = FMaterial::ValidateTexture(sky1texture, true);
+			texture[1] = FMaterial::ValidateTexture(sky1texture, false, true);
 			x_offset[1] = GLRenderer->mSky1Pos;
 			doublesky = true;
 		}
@@ -108,14 +108,14 @@ void GLSkyInfo::init(int sky1, PalEntry FadeColor)
 		if ((level.flags&LEVEL_SWAPSKIES || (sky1 == PL_SKYFLAT) || (level.flags&LEVEL_DOUBLESKY)) &&
 			sky2texture != sky1texture)	// If both skies are equal use the scroll offset of the first!
 		{
-			texture[0] = FMaterial::ValidateTexture(sky2texture, true);
+			texture[0] = FMaterial::ValidateTexture(sky2texture, false, true);
 			skytexno1 = sky2texture;
 			sky2 = true;
 			x_offset[0] = GLRenderer->mSky2Pos;
 		}
 		else if (!doublesky)
 		{
-			texture[0] = FMaterial::ValidateTexture(sky1texture, true);
+			texture[0] = FMaterial::ValidateTexture(sky1texture, false, true);
 			skytexno1 = sky1texture;
 			x_offset[0] = GLRenderer->mSky1Pos;
 		}
@@ -137,11 +137,12 @@ void GLSkyInfo::init(int sky1, PalEntry FadeColor)
 
 void GLWall::SkyPlane(sector_t *sector, int plane, bool allowreflect)
 {
+	int ptype = -1;
 	FPortal *portal = sector->portals[plane];
 	if (portal != NULL)
 	{
 		if (GLPortal::instack[1 - plane]) return;
-		type = RENDERWALL_SECTORSTACK;
+		ptype = PORTALTYPE_SECTORSTACK;
 		this->portal = portal;
 	}
 	else
@@ -156,13 +157,13 @@ void GLWall::SkyPlane(sector_t *sector, int plane, bool allowreflect)
 
 			if (!gl_noskyboxes && skyboxx && GLRenderer->mViewActor != skyboxx && !(skyboxx->flags&MF_JUSTHIT))
 			{
-				type = RENDERWALL_SKYBOX;
+				ptype = PORTALTYPE_SKYBOX;
 				skybox = skyboxx;
 			}
 			else
 			{
 				skyinfo.init(sector->sky, Colormap.FadeColor);
-				type = RENDERWALL_SKY;
+				ptype = PORTALTYPE_SKY;
 				sky = UniqueSkies.Get(&skyinfo);
 			}
 		}
@@ -170,11 +171,13 @@ void GLWall::SkyPlane(sector_t *sector, int plane, bool allowreflect)
 		{
 			if ((plane == sector_t::ceiling && viewz > sector->ceilingplane.d) ||
 				(plane == sector_t::floor && viewz < -sector->floorplane.d)) return;
-			type = RENDERWALL_PLANEMIRROR;
+			ptype = PORTALTYPE_PLANEMIRROR;
 			planemirror = plane == sector_t::ceiling ? &sector->ceilingplane : &sector->floorplane;
 		}
-		else return;
-		PutWall(0);
+	}
+	if (ptype != -1)
+	{
+		PutPortal(ptype);
 	}
 }
 
@@ -189,22 +192,23 @@ void GLWall::SkyLine(line_t *line)
 {
 	ASkyViewpoint * skyboxx = line->skybox;
 	GLSkyInfo skyinfo;
+	int ptype;
 
 	// JUSTHIT is used as an indicator that a skybox is in use.
 	// This is to avoid recursion
 
 	if (!gl_noskyboxes && skyboxx && GLRenderer->mViewActor != skyboxx && !(skyboxx->flags&MF_JUSTHIT))
 	{
-		type = RENDERWALL_SKYBOX;
+		ptype = PORTALTYPE_SKYBOX;
 		skybox = skyboxx;
 	}
 	else
 	{
 		skyinfo.init(line->frontsector->sky, Colormap.FadeColor);
-		type = RENDERWALL_SKY;
+		ptype = PORTALTYPE_SKY;
 		sky = UniqueSkies.Get(&skyinfo);
 	}
-	PutWall(0);
+	PutPortal(ptype);
 }
 
 

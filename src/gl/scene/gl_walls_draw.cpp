@@ -79,7 +79,6 @@ void GLWall::SetupLights()
 	case RENDERWALL_FOGBOUNDARY:
 	case RENDERWALL_MIRRORSURFACE:
 	case RENDERWALL_COLOR:
-	case RENDERWALL_COLORLAYER:
 		return;
 	}
 
@@ -118,9 +117,9 @@ void GLWall::SetupLights()
 
 			Vector fn, pos;
 
-			float x = FIXED2FLOAT(node->lightsource->x);
-			float y = FIXED2FLOAT(node->lightsource->y);
-			float z = FIXED2FLOAT(node->lightsource->z);
+			float x = FIXED2FLOAT(node->lightsource->X());
+			float y = FIXED2FLOAT(node->lightsource->Y());
+			float z = FIXED2FLOAT(node->lightsource->Z());
 			float dist = fabsf(p.DistToPoint(x, z, y));
 			float radius = (node->lightsource->GetRadius() * gl_lights_size);
 			float scale = 1.0f / ((2.f * radius) - dist);
@@ -183,11 +182,6 @@ void GLWall::RenderWall(int textured, unsigned int *store)
 	tcs[1]=uplft;
 	tcs[2]=uprgt;
 	tcs[3]=lorgt;
-	if ((flags&GLWF_GLOW) && (textured & RWF_GLOW))
-	{
-		gl_RenderState.SetGlowPlanes(topplane, bottomplane);
-		gl_RenderState.SetGlowParams(topglowcolor, bottomglowcolor);
-	}
 
 	if (!(textured & RWF_NORENDER))
 	{
@@ -238,7 +232,11 @@ void GLWall::RenderFogBoundary()
 		gl_SetFog(lightlevel, rel, &Colormap, false);
 		gl_RenderState.SetEffect(EFF_FOGBOUNDARY);
 		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(-1.0f, -128.0f);
 		RenderWall(RWF_BLANK);
+		glPolygonOffset(0.0f, 0.0f);
+		glDisable(GL_POLYGON_OFFSET_FILL);
 		gl_RenderState.SetEffect(EFF_NONE);
 	}
 }
@@ -273,8 +271,8 @@ void GLWall::RenderMirrorSurface()
 	gl_RenderState.AlphaFunc(GL_GREATER,0);
 	glDepthFunc(GL_LEQUAL);
 
-	FMaterial * pat=FMaterial::ValidateTexture(GLRenderer->mirrortexture);
-	pat->BindPatch(0);
+	FMaterial * pat=FMaterial::ValidateTexture(GLRenderer->mirrortexture, false);
+	gl_RenderState.SetMaterial(pat, CLAMP_NONE, 0, -1, false);
 
 	flags &= ~GLWF_GLOW;
 	RenderWall(RWF_BLANK);
@@ -303,6 +301,75 @@ void GLWall::RenderMirrorSurface()
 	}
 }
 
+//==========================================================================
+//
+// 
+//
+//==========================================================================
+
+void GLWall::RenderTextured(int rflags)
+{
+	int tmode = gl_RenderState.GetTextureMode();
+	int rel = rellight + getExtraLight();
+
+	if (flags & GLWF_GLOW)
+	{
+		gl_RenderState.EnableGlow(true);
+		gl_RenderState.SetGlowPlanes(topplane, bottomplane);
+		gl_RenderState.SetGlowParams(topglowcolor, bottomglowcolor);
+	}
+	gl_RenderState.SetMaterial(gltexture, flags & 3, 0, -1, false);
+
+	if (type == RENDERWALL_M2SNF)
+	{
+		if (flags & GLT_CLAMPY)
+		{
+			if (tmode == TM_MODULATE) gl_RenderState.SetTextureMode(TM_CLAMPY);
+		}
+		gl_SetFog(255, 0, NULL, false);
+	}
+
+	float absalpha = fabsf(alpha);
+	if (lightlist == NULL)
+	{
+		gl_SetColor(lightlevel, rel, Colormap, absalpha);
+		if (type != RENDERWALL_M2SNF) gl_SetFog(lightlevel, rel, &Colormap, RenderStyle == STYLE_Add);
+		RenderWall(rflags);
+	}
+	else
+	{
+		gl_RenderState.EnableSplit(true);
+		glEnable(GL_CLIP_DISTANCE3);
+		glEnable(GL_CLIP_DISTANCE4);
+
+		for (unsigned i = 0; i < lightlist->Size(); i++)
+		{
+			secplane_t &lowplane = i == (*lightlist).Size() - 1 ? bottomplane : (*lightlist)[i + 1].plane;
+			// this must use the exact same calculation method as GLWall::Process etc.
+			float low1 = FIXED2FLOAT(lowplane.ZatPoint(vertexes[0]));
+			float low2 = FIXED2FLOAT(lowplane.ZatPoint(vertexes[1]));
+
+			if (low1 < ztop[0] || low2 < ztop[1])
+			{
+				int thisll = (*lightlist)[i].caster != NULL ? gl_ClampLight(*(*lightlist)[i].p_lightlevel) : lightlevel;
+				FColormap thiscm;
+				thiscm.FadeColor = Colormap.FadeColor;
+				thiscm.CopyFrom3DLight(&(*lightlist)[i]);
+				gl_SetColor(thisll, rel, thiscm, absalpha);
+				if (type != RENDERWALL_M2SNF) gl_SetFog(thisll, rel, &thiscm, RenderStyle == STYLE_Add);
+				gl_RenderState.SetSplitPlanes((*lightlist)[i].plane, lowplane);
+				RenderWall(rflags);
+			}
+			if (low1 <= zbottom[0] && low2 <= zbottom[1]) break;
+		}
+
+		glDisable(GL_CLIP_DISTANCE3);
+		glDisable(GL_CLIP_DISTANCE4);
+		gl_RenderState.EnableSplit(false);
+	}
+	gl_RenderState.SetTextureMode(tmode);
+	gl_RenderState.EnableGlow(false);
+}
 
 //==========================================================================
 //
@@ -312,43 +379,27 @@ void GLWall::RenderMirrorSurface()
 
 void GLWall::RenderTranslucentWall()
 {
-	bool transparent = gltexture? gltexture->GetTransparent() : false;
-	
-	// currently the only modes possible are solid, additive or translucent
-	// and until that changes I won't fix this code for the new blending modes!
-	bool isadditive = RenderStyle == STYLE_Add;
-
-	if (!transparent) gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_threshold);
-	else gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
-	if (isadditive) gl_RenderState.BlendFunc(GL_SRC_ALPHA,GL_ONE);
-
-	int extra;
-	if (gltexture) 
+	if (gltexture)
 	{
-		gl_RenderState.EnableGlow(!!(flags & GLWF_GLOW));
-		gltexture->Bind(flags, 0);
-		extra = getExtraLight();
+		if (gl_fixedcolormap == CM_DEFAULT && gl_lights && (gl.flags & RFL_BUFFER_STORAGE))
+		{
+			SetupLights();
+		}
+		if (!gltexture->GetTransparent()) gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_threshold);
+		else gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		if (RenderStyle == STYLE_Add) gl_RenderState.BlendFunc(GL_SRC_ALPHA,GL_ONE);
+		RenderTextured(RWF_TEXTURED | RWF_NOSPLIT);
+		if (RenderStyle == STYLE_Add) gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
-	else 
+	else
 	{
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		gl_SetColor(lightlevel, 0, Colormap, fabsf(alpha));
+		gl_SetFog(lightlevel, 0, &Colormap, RenderStyle == STYLE_Add);
 		gl_RenderState.EnableTexture(false);
-		extra = 0;
-	}
-
-	gl_SetColor(lightlevel, extra, Colormap, fabsf(alpha));
-	if (type!=RENDERWALL_M2SNF) gl_SetFog(lightlevel, extra, &Colormap, isadditive);
-	else gl_SetFog(255, 0, NULL, false);
-
-	RenderWall(RWF_TEXTURED|RWF_NOSPLIT);
-
-	// restore default settings
-	if (isadditive) gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	if (!gltexture)	
-	{
+		RenderWall(RWF_NOSPLIT);
 		gl_RenderState.EnableTexture(true);
 	}
-	gl_RenderState.EnableGlow(false);
 }
 
 //==========================================================================
@@ -358,22 +409,6 @@ void GLWall::RenderTranslucentWall()
 //==========================================================================
 void GLWall::Draw(int pass)
 {
-	int rel;
-
-#ifdef _DEBUG
-	if (seg->linedef-lines==879)
-	{
-		int a = 0;
-	}
-#endif
-
-
-	if (type == RENDERWALL_COLORLAYER && pass != GLPASS_LIGHTSONLY)
-	{
-		glEnable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(-1.0f, -128.0f);
-	}
-
 	switch (pass)
 	{
 	case GLPASS_LIGHTSONLY:
@@ -384,30 +419,11 @@ void GLWall::Draw(int pass)
 		SetupLights();
 		// fall through
 	case GLPASS_PLAIN:
-		rel = rellight + getExtraLight();
-		gl_SetColor(lightlevel, rel, Colormap,1.0f);
-		if (type!=RENDERWALL_M2SNF) gl_SetFog(lightlevel, rel, &Colormap, false);
-		else gl_SetFog(255, 0, NULL, false);
-
-		gl_RenderState.EnableGlow(!!(flags & GLWF_GLOW));
-		gltexture->Bind(flags, 0);
-		RenderWall(RWF_TEXTURED|RWF_GLOW);
-		gl_RenderState.EnableGlow(false);
-		break;
-
-	case GLPASS_DECALS:
-	case GLPASS_DECALS_NOFOG:
-		if (seg->sidedef && seg->sidedef->AttachedDecals)
-		{
-			if (pass==GLPASS_DECALS) 
-			{
-				gl_SetFog(lightlevel, rellight + getExtraLight(), &Colormap, false);
-			}
-			DoDrawDecals();
-		}
+		RenderTextured(RWF_TEXTURED);
 		break;
 
 	case GLPASS_TRANSLUCENT:
+
 		switch (type)
 		{
 		case RENDERWALL_MIRRORSURFACE:
@@ -422,11 +438,5 @@ void GLWall::Draw(int pass)
 			RenderTranslucentWall();
 			break;
 		}
-	}
-
-	if (type == RENDERWALL_COLORLAYER && pass != GLPASS_LIGHTSONLY)
-	{
-		glDisable(GL_POLYGON_OFFSET_FILL);
-		glPolygonOffset(0, 0);
 	}
 }

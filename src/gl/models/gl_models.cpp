@@ -93,34 +93,51 @@ public:
 DeletingModelArray Models;
 
 
-//===========================================================================
-//
-//
-//
-//===========================================================================
-
-FModelVertexBuffer::FModelVertexBuffer()
+void gl_LoadModels()
 {
-	ibo_id = 0;
-	glGenBuffers(1, &ibo_id);
-	//for (unsigned i = 1; i < Models.Size(); i++)
 	for (int i = Models.Size() - 1; i >= 0; i--)
 	{
-		Models[i]->BuildVertexBuffer(this);
+		Models[i]->BuildVertexBuffer();
 	}
+}
 
+void gl_FlushModels()
+{
+	for (int i = Models.Size() - 1; i >= 0; i--)
+	{
+		Models[i]->DestroyVertexBuffer();
+	}
+}
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
+
+FModelVertexBuffer::FModelVertexBuffer(bool needindex)
+{
 	glBindVertexArray(vao_id);
 
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
-	glBufferData(GL_ARRAY_BUFFER,vbo_shadowdata.Size() * sizeof(FModelVertex), &vbo_shadowdata[0], GL_STATIC_DRAW);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_id);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER,ibo_shadowdata.Size() * sizeof(unsigned int), &ibo_shadowdata[0], GL_STATIC_DRAW);
+	ibo_id = 0;
+	if (needindex)
+	{
+		glGenBuffers(1, &ibo_id);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_id);
+	}
 
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
 	glEnableVertexAttribArray(VATTR_VERTEX);
 	glEnableVertexAttribArray(VATTR_TEXCOORD);
 	glEnableVertexAttribArray(VATTR_VERTEX2);
 	glBindVertexArray(0);
 }
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
 
 FModelVertexBuffer::~FModelVertexBuffer()
 {
@@ -128,6 +145,63 @@ FModelVertexBuffer::~FModelVertexBuffer()
 	{
 		glDeleteBuffers(1, &ibo_id);
 	}
+}
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
+
+FModelVertex *FModelVertexBuffer::LockVertexBuffer(unsigned int size)
+{
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
+	glBufferData(GL_ARRAY_BUFFER, size * sizeof(FModelVertex), NULL, GL_STATIC_DRAW);
+	return (FModelVertex*)glMapBufferRange(GL_ARRAY_BUFFER, 0, size * sizeof(FModelVertex), GL_MAP_WRITE_BIT|GL_MAP_INVALIDATE_BUFFER_BIT);
+}
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
+
+void FModelVertexBuffer::UnlockVertexBuffer()
+{
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
+	glUnmapBuffer(GL_ARRAY_BUFFER); 
+}
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
+
+unsigned int *FModelVertexBuffer::LockIndexBuffer(unsigned int size)
+{
+	if (ibo_id != 0)
+	{
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_id);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, size * sizeof(unsigned int), NULL, GL_STATIC_DRAW);
+		return (unsigned int*)glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, size * sizeof(unsigned int), GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+	}
+	else
+	{
+		return NULL;
+	}
+}
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
+
+void FModelVertexBuffer::UnlockIndexBuffer()
+{
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_id);
+	glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER); 
 }
 
 
@@ -138,7 +212,7 @@ FModelVertexBuffer::~FModelVertexBuffer()
 //
 //===========================================================================
 
-unsigned int FModelVertexBuffer::SetupFrame(unsigned int frame1, unsigned int frame2, float factor)
+unsigned int FModelVertexBuffer::SetupFrame(unsigned int frame1, unsigned int frame2)
 {
 	glBindBuffer(GL_ARRAY_BUFFER, vbo_id);
 	glVertexAttribPointer(VATTR_VERTEX, 3, GL_FLOAT, false, sizeof(FModelVertex), &VMO[frame1].x);
@@ -147,6 +221,16 @@ unsigned int FModelVertexBuffer::SetupFrame(unsigned int frame1, unsigned int fr
 	return frame1;
 }
 
+//===========================================================================
+//
+// FModel::~FModel
+//
+//===========================================================================
+
+FModel::~FModel()
+{
+	if (mVBuf != NULL) delete mVBuf;
+}
 
 
 
@@ -293,7 +377,7 @@ static FModel * FindModel(const char * path, const char * modelfile)
 			return NULL;
 		}
 	}
-
+	// The vertex buffer cannot be initialized here because this gets called before OpenGL is initialized
 	model->mFileName = fullname;
 	Models.Push(model);
 	return model;
@@ -734,7 +818,8 @@ void gl_RenderFrameModels( const FSpriteModelFrame *smf,
 
 		if (mdl!=NULL)
 		{
-			gl_RenderState.SetVertexBuffer(GLRenderer->mModelVBO);
+			mdl->BuildVertexBuffer();
+			gl_RenderState.SetVertexBuffer(mdl->mVBuf);
 
 			if ( smfNext && smf->modelframes[i] != smfNext->modelframes[i] )
 				mdl->RenderFrame(smf->skins[i], smf->modelframes[i], smfNext->modelframes[i], inter, translation);
@@ -838,6 +923,12 @@ void gl_RenderModel(GLSprite * spr)
 	gl_RenderState.mModelMatrix.rotate(-ANGLE_TO_FLOAT(smf->angleoffset), 0, 1, 0);
 	gl_RenderState.mModelMatrix.rotate(smf->pitchoffset, 0, 0, 1);
 	gl_RenderState.mModelMatrix.rotate(-smf->rolloffset, 1, 0, 0);
+
+	// consider the pixel stretching. For non-voxels this must be factored out here
+	float stretch = (smf->models[0] != NULL ? smf->models[0]->getAspectFactor() : 1.f) / glset.pixelstretch;
+	gl_RenderState.mModelMatrix.scale(1, stretch, 1);
+
+
 	gl_RenderState.EnableModelMatrix(true);
 	gl_RenderFrameModels( smf, spr->actor->state, spr->actor->tics, RUNTIME_TYPE(spr->actor), NULL, translation );
 	gl_RenderState.EnableModelMatrix(false);

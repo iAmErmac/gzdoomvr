@@ -418,14 +418,13 @@ void P_SerializeWorld (FArchive &arc)
 			<< sec->sky
 			<< sec->MoreFlags
 			<< sec->Flags
-			<< sec->FloorSkyBox << sec->CeilingSkyBox
+			<< sec->SkyBoxes[sector_t::floor] << sec->SkyBoxes[sector_t::ceiling]
 			<< sec->ZoneNumber;
 		if (SaveVersion < 4529)
 		{
 			short secretsector;
 			arc << secretsector;
 			if (secretsector) sec->Flags |= SECF_WASSECRET;
-			sec->special &= ~(SECRET_MASK|FRICTION_MASK|PUSH_MASK);
 			P_InitSectorSpecial(sec, sec->special, true);
 		}
 		arc	<< sec->interpolations[0]

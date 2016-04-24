@@ -1290,8 +1290,8 @@ void DBaseStatusBar::Draw (EHudState state)
 				y -= height * 2;
 		}
 
-		value = &CPlayer->mo->z;
-		for (i = 2, value = &CPlayer->mo->z; i >= 0; y -= height, --value, --i)
+		fixedvec3 pos = CPlayer->mo->Pos();
+		for (i = 2, value = &pos.z; i >= 0; y -= height, --value, --i)
 		{
 			mysnprintf (line, countof(line), "%c: %d", labels[i], *value >> FRACBITS);
 			screen->DrawText (SmallFont, CR_GREEN, xpos, y, line, 
@@ -1550,9 +1550,12 @@ void DBaseStatusBar::DrawPowerups ()
 	// Each icon gets a 32x32 block to draw itself in.
 	int x, y;
 	AInventory *item;
+	const int yshift = SmallFont->GetHeight();
 
 	x = -20;
-	y = 17;
+	y = 17 
+		+ (ST_IsTimeVisible()    ? yshift : 0)
+		+ (ST_IsLatencyVisible() ? yshift : 0);
 	for (item = CPlayer->mo->Inventory; item != NULL; item = item->Inventory)
 	{
 		if (item->DrawPowerup (x, y))

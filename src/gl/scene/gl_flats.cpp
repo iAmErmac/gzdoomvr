@@ -73,18 +73,18 @@ CVAR(Int, gl_breaksec, -1, 0)
 // information
 //
 //==========================================================================
-
+static float tics;
 void gl_SetPlaneTextureRotation(const GLSectorPlane * secplane, FMaterial * gltexture)
 {
 	// only manipulate the texture matrix if needed.
 	if (secplane->xoffs != 0 || secplane->yoffs != 0 ||
 		secplane->xscale != FRACUNIT || secplane->yscale != FRACUNIT ||
 		secplane->angle != 0 || 
-		gltexture->TextureWidth(GLUSE_TEXTURE) != 64 ||
-		gltexture->TextureHeight(GLUSE_TEXTURE) != 64)
+		gltexture->TextureWidth() != 64 ||
+		gltexture->TextureHeight() != 64)
 	{
-		float uoffs=FIXED2FLOAT(secplane->xoffs)/gltexture->TextureWidth(GLUSE_TEXTURE);
-		float voffs=FIXED2FLOAT(secplane->yoffs)/gltexture->TextureHeight(GLUSE_TEXTURE);
+		float uoffs = FIXED2FLOAT(secplane->xoffs) / gltexture->TextureWidth();
+		float voffs = FIXED2FLOAT(secplane->yoffs) / gltexture->TextureHeight();
 
 		float xscale1=FIXED2FLOAT(secplane->xscale);
 		float yscale1=FIXED2FLOAT(secplane->yscale);
@@ -94,8 +94,8 @@ void gl_SetPlaneTextureRotation(const GLSectorPlane * secplane, FMaterial * glte
 		}
 		float angle=-ANGLE_TO_FLOAT(secplane->angle);
 
-		float xscale2=64.f/gltexture->TextureWidth(GLUSE_TEXTURE);
-		float yscale2=64.f/gltexture->TextureHeight(GLUSE_TEXTURE);
+		float xscale2=64.f/gltexture->TextureWidth();
+		float yscale2=64.f/gltexture->TextureHeight();
 
 		gl_RenderState.mTextureMatrix.loadIdentity();
 		gl_RenderState.mTextureMatrix.scale(xscale1 ,yscale1,1.0f);
@@ -141,8 +141,8 @@ void GLFlat::SetupSubsectorLights(int pass, subsector_t * sub, int *dli)
 
 		// we must do the side check here because gl_SetupLight needs the correct plane orientation
 		// which we don't have for Legacy-style 3D-floors
-		fixed_t planeh = plane.plane.ZatPoint(light->x, light->y);
-		if (gl_lights_checkside && ((planeh<light->z && ceiling) || (planeh>light->z && !ceiling)))
+		fixed_t planeh = plane.plane.ZatPoint(light);
+		if (gl_lights_checkside && ((planeh<light->Z() && ceiling) || (planeh>light->Z() && !ceiling)))
 		{
 			node=node->nextLight;
 			continue;
@@ -344,7 +344,7 @@ void GLFlat::Draw(int pass, bool trans)	// trans only has meaning for GLPASS_LIG
 	case GLPASS_ALL:
 		gl_SetColor(lightlevel, rel, Colormap,1.0f);
 		gl_SetFog(lightlevel, rel, &Colormap, false);
-		gltexture->Bind();
+		gl_RenderState.SetMaterial(gltexture, CLAMP_NONE, 0, -1, false);
 		gl_SetPlaneTextureRotation(&plane, gltexture);
 		DrawSubsectors(pass, (pass == GLPASS_ALL || dynlightindex > -1), false);
 		gl_RenderState.EnableTextureMatrix(false);
@@ -370,7 +370,7 @@ void GLFlat::Draw(int pass, bool trans)	// trans only has meaning for GLPASS_LIG
 		}
 		else 
 		{
-			gltexture->Bind();
+			gl_RenderState.SetMaterial(gltexture, CLAMP_NONE, 0, -1, false);
 			gl_SetPlaneTextureRotation(&plane, gltexture);
 			DrawSubsectors(pass, true, true);
 			gl_RenderState.EnableTextureMatrix(false);
@@ -405,7 +405,7 @@ inline void GLFlat::PutFlat(bool fog)
 	else
 	{
 		bool masked = gltexture->isMasked() && ((renderflags&SSRF_RENDER3DPLANES) || stack);
-		list = masked ? GLDL_MASKED : GLDL_PLAIN;
+		list = masked ? GLDL_MASKEDFLATS : GLDL_PLAINFLATS;
 	}
 	gl_drawinfo->drawlists[list].AddFlat (this);
 }
@@ -427,7 +427,7 @@ void GLFlat::Process(sector_t * model, int whichplane, bool fog)
 	{
 		if (plane.texture==skyflatnum) return;
 
-		gltexture=FMaterial::ValidateTexture(plane.texture, true);
+		gltexture=FMaterial::ValidateTexture(plane.texture, false, true);
 		if (!gltexture) return;
 		if (gltexture->tex->isFullbright()) 
 		{
@@ -466,7 +466,8 @@ void GLFlat::SetFrom3DFloor(F3DFloor *rover, bool top, bool underside)
 	lightlevel = *light->p_lightlevel;
 	
 	if (rover->flags & FF_FOG) Colormap.LightColor = (light->extra_colormap)->Fade;
-	else Colormap.CopyLightColor(light->extra_colormap);
+	else Colormap.CopyFrom3DLight(light);
+
 
 	alpha = rover->alpha/255.0f;
 	renderstyle = rover->flags&FF_ADDITIVETRANS? STYLE_Add : STYLE_Translucent;
@@ -546,13 +547,13 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 		if (x.ffloors.Size())
 		{
 			light = P_GetPlaneLight(sector, &frontsector->floorplane, false);
-			if ((!(sector->GetFlags(sector_t::floor)&PLANEF_ABSLIGHTING) || !light->fromsector)	
+			if ((!(sector->GetFlags(sector_t::floor)&PLANEF_ABSLIGHTING) || light->lightsource == NULL)	
 				&& (light->p_lightlevel != &frontsector->lightlevel))
 			{
 				lightlevel = *light->p_lightlevel;
 			}
 
-			Colormap.CopyLightColor(light->extra_colormap);
+			Colormap.CopyFrom3DLight(light);
 		}
 		renderstyle = STYLE_Translucent;
 		if (alpha!=0.0f) Process(frontsector, false, false);
@@ -604,7 +605,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 			{
 				lightlevel = *light->p_lightlevel;
 			}
-			Colormap.CopyLightColor(light->extra_colormap);
+			Colormap.CopyFrom3DLight(light);
 		}
 		renderstyle = STYLE_Translucent;
 		if (alpha!=0.0f) Process(frontsector, true, false);

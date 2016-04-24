@@ -75,12 +75,12 @@ void gl_SetDynSpriteLight(AActor *self, fixed_t x, fixed_t y, fixed_t z, subsect
 	while (node)
 	{
 		light=node->lightsource;
-		if (!light->owned || light->target == NULL || light->target->IsVisibleToPlayer())
+		//if (!light->owned || light->target == NULL || light->target->IsVisibleToPlayer())
 		{
 			light=node->lightsource;
 			//if (!light->owned || light->target == NULL || light->target->IsVisibleToPlayer())
 			{
-				float dist = FVector3(FIXED2FLOAT(x - light->x), FIXED2FLOAT(y - light->y), FIXED2FLOAT(z - light->z)).Length();
+				float dist = FVector3(FIXED2FLOAT(x - light->X()), FIXED2FLOAT(y - light->Y()), FIXED2FLOAT(z - light->Z())).Length();
 				radius = light->GetRadius() * gl_lights_size;
 
 				if (dist < radius)
@@ -117,7 +117,7 @@ void gl_SetDynSpriteLight(AActor *thing, particle_t *particle)
 {
 	if (thing != NULL)
 	{
-		gl_SetDynSpriteLight(thing, thing->x, thing->y, thing->z + (thing->height >> 1), thing->subsector);
+		gl_SetDynSpriteLight(thing, thing->X(), thing->Y(), thing->Z() + (thing->height >> 1), thing->subsector);
 	}
 	else if (particle != NULL)
 	{

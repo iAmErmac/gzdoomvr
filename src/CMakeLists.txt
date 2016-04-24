@@ -223,27 +223,18 @@ endif( X64 )
 if( NOT OPENGL_FOUND )
 	message( FATAL_ERROR "OpenGL is required for building." )
 endif( NOT OPENGL_FOUND )
-if( NOT OPENGL_GLU_FOUND )
-	message( FATAL_ERROR "OpenGL GLU is required for building." )
-endif( NOT OPENGL_GLU_FOUND )
 
 set( ZDOOM_LIBS ${ZDOOM_LIBS} ${OPENGL_LIBRARIES} )
 include_directories( ${OPENGL_INCLUDE_DIR} )
 
-
-
-
-# Decide on the name of the FMOD library we want to use.
-
 if( NOT NO_OPENAL )
     find_package( OpenAL )
-	mark_as_advanced(CLEAR OPENAL_LIBRARY OPENAL_INCLUDE_DIR)
-    if( OPENAL_FOUND )
+	mark_as_advanced(CLEAR OPENAL_INCLUDE_DIR)
+    if( OPENAL_INCLUDE_DIR )
         include_directories( ${OPENAL_INCLUDE_DIR} )
-        set( ZDOOM_LIBS ${OPENAL_LIBRARY} ${ZDOOM_LIBS} )
-    else( OPENAL_FOUND )
-        set( NO_OPENAL ON )
-    endif( OPENAL_FOUND )
+    else( OPENAL_INCLUDE_DIR )
+		set( NO_OPENAL ON )
+    endif( OPENAL_INCLUDE_DIR )
 endif( NOT NO_OPENAL )
 
 if( NOT NO_FMOD )
@@ -307,7 +298,6 @@ if( NO_FMOD )
 endif( NO_FMOD )
 if( NO_OPENAL )
 	add_definitions( -DNO_OPENAL=1 )
-endif( NO_OPENAL )
 # install fmod dll
 if (FMOD_LIBRARY)
 	get_filename_component(FMOD_DIR "${FMOD_LIBRARY}" PATH)
@@ -318,13 +308,17 @@ if (FMOD_LIBRARY)
 	endforeach()
 endif()
 
-# Search for libSndFile
+	set(MPG123_FOUND NO)
+	set(SNDFILE_FOUND NO)
+else( NO_OPENAL )
+	# Search for libSndFile
 
-find_package( SndFile )
+	find_package( SndFile )
 
-# Search for libmpg123
+	# Search for libmpg123
 
-find_package( MPG123 )
+	find_package( MPG123 )
+endif( NO_OPENAL )
 
 # Search for FluidSynth
 
@@ -502,6 +496,11 @@ if( ZD_CMAKE_COMPILER_IS_GNUCXX_COMPATIBLE )
 	set( CMAKE_CXX_FLAGS_MINSIZEREL "${REL_CXX_FLAGS} ${CMAKE_CXX_FLAGS_MINSIZEREL}" )
 	set( CMAKE_CXX_FLAGS_RELWITHDEBINFO "${REL_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}" )
 
+	if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.5")
+                set( CMAKE_C_FLAGS "-Wno-unused-result ${CMAKE_C_FLAGS}" )
+		set( CMAKE_CXX_FLAGS "-Wno-unused-result ${CMAKE_CXX_FLAGS}" )
+        endif(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "4.5")
+	set( CMAKE_C_FLAGS "-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wno-missing-field-initializers ${CMAKE_C_FLAGS}" )
 	set( CMAKE_CXX_FLAGS "-Wall -Wextra -Wno-unused -Wno-unused-parameter -Wno-missing-field-initializers ${CMAKE_CXX_FLAGS}" )
 
 	# Remove extra warnings when using the official DirectX headers.
@@ -615,10 +614,6 @@ endif( NOT DYN_FLUIDSYNTH )
 
 # Start defining source files for ZDoom
 set( PLAT_WIN32_SOURCES
-	gl/hqnx_asm/hq2x_asm.cpp
-	gl/hqnx_asm/hq3x_asm.cpp
-	gl/hqnx_asm/hq4x_asm.cpp
-	gl/hqnx_asm/hqnx_asm_Image.cpp
 	win32/eaxedit.cpp
 	win32/fb_d3d9.cpp
 	win32/fb_d3d9_wipe.cpp
@@ -1252,6 +1247,7 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	gl/textures/gl_material.cpp
 	gl/textures/gl_hirestex.cpp
 	gl/textures/gl_bitmap.cpp
+	gl/textures/gl_samplers.cpp
 	gl/textures/gl_translate.cpp
 	gl/textures/gl_hqresize.cpp
 	gl/textures/gl_skyboxtexture.cpp
@@ -1276,6 +1272,7 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	gl/scene/gl_vertex.cpp
 	gl/scene/gl_spritelight.cpp
 	gl/scene/rift_initializer.cpp
+
 	gl/stereo3d/gl_stereo3d.cpp
 	gl/stereo3d/gl_stereo_cvars.cpp
 	gl/stereo3d/gl_stereo_leftright.cpp
@@ -1477,10 +1474,6 @@ if( MSVC )
 	endif( ZDOOM_GENERATE_MAPFILE )
 
 	if( NO_GENERATOR_EXPRESSIONS )
-	add_custom_command(TARGET zdoom POST_BUILD
-		COMMAND "mt.exe" -manifest \"${CMAKE_CURRENT_SOURCE_DIR}\\win32\\zdoom.exe.manifest\" -outputresource:\"$(TargetDir)$(TargetFileName)\"\;\#1
-		COMMENT "Adding manifest..."
-	)
 	else( NO_GENERATOR_EXPRESSIONS )
 		add_custom_command(TARGET zdoom POST_BUILD
 			COMMAND "mt.exe" -manifest \"${CMAKE_CURRENT_SOURCE_DIR}\\win32\\zdoom.exe.manifest\" -outputresource:\"$<TARGET_FILE:zdoom>\"\;\#1
@@ -1514,18 +1507,6 @@ if( APPLE )
 		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/posix/osx/zdoom-info.plist" )
 
 	if( NOT NO_FMOD )
-	# Fix fmod link so that it can be found in the app bundle.
-	find_program( OTOOL otool HINTS "/usr/bin" "${OSX_DEVELOPER_ROOT}/usr/bin" )
-	find_program( INSTALL_NAME_TOOL install_name_tool HINTS "/usr/bin" "${OSX_DEVELOPER_ROOT}/usr/bin" )
-	execute_process( COMMAND "${OTOOL}" -L "${FMOD_LIBRARY}"
-		COMMAND grep "libfmodex.dylib (compat"
-		COMMAND head -n1
-		COMMAND awk "{print $1}"
-		OUTPUT_VARIABLE FMOD_LINK
-		OUTPUT_STRIP_TRAILING_WHITESPACE )
-	add_custom_command( TARGET zdoom POST_BUILD
-		COMMAND "${INSTALL_NAME_TOOL}" -change "${FMOD_LINK}" @executable_path/../Frameworks/libfmodex.dylib "$<TARGET_FILE:zdoom>"
-		COMMENT "Relinking FMOD Ex" )
 	endif( NOT NO_FMOD )
 endif( APPLE )
 

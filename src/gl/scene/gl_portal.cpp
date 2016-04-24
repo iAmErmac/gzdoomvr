@@ -154,15 +154,17 @@ void GLPortal::DrawPortalStencil()
 			// Cap the stencil at the top and bottom
 			int n = lines.Size() * 2;
 			FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-			ptr->Set(-32767.0f, 32767.0f, -32767.0f, 0, 0);
-			ptr->Set(-32767.0f, 32767.0f, 32767.0f, 0, 0);
-			ptr->Set(32767.0f, 32767.0f, 32767.0f, 0, 0);
-			ptr->Set(32767.0f, 32767.0f, -32767.0f, 0, 0);
+			ptr[0].Set(-32767.0f, 32767.0f, -32767.0f, 0, 0);
+			ptr[1].Set(-32767.0f, 32767.0f, 32767.0f, 0, 0);
+			ptr[2].Set(32767.0f, 32767.0f, 32767.0f, 0, 0);
+			ptr[3].Set(32767.0f, 32767.0f, -32767.0f, 0, 0);
+			ptr += 4;
 			mPrimIndices[n + 1] = GLRenderer->mVBO->GetCount(ptr, &mPrimIndices[n]);
-			ptr->Set(-32767.0f, -32767.0f, -32767.0f, 0, 0);
-			ptr->Set(-32767.0f, -32767.0f, 32767.0f, 0, 0);
-			ptr->Set(32767.0f, -32767.0f, 32767.0f, 0, 0);
-			ptr->Set(32767.0f, -32767.0f, -32767.0f, 0, 0);
+			ptr[0].Set(-32767.0f, -32767.0f, -32767.0f, 0, 0);
+			ptr[1].Set(-32767.0f, -32767.0f, 32767.0f, 0, 0);
+			ptr[2].Set(32767.0f, -32767.0f, 32767.0f, 0, 0);
+			ptr[3].Set(32767.0f, -32767.0f, -32767.0f, 0, 0);
+			ptr += 4;
 			mPrimIndices[n + 3] = GLRenderer->mVBO->GetCount(ptr, &mPrimIndices[n + 2]);
 		}
 	}
@@ -201,6 +203,7 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 		glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);		// increment stencil of valid pixels
 		{
 			ScopedColorMask colorMask(0, 0, 0, 0); // glColorMask(0,0,0,0);						// don't write to the graphics buffer
+			gl_RenderState.SetEffect(EFF_STENCIL);
 			gl_RenderState.EnableTexture(false);
 			gl_RenderState.ResetColor();
 			glDepthFunc(GL_LESS);
@@ -221,6 +224,7 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 				else doquery = false;	// some kind of error happened
 
 				DrawPortalStencil();
+
 				glEndQuery(GL_SAMPLES_PASSED);
 
 				// Clear Z-buffer
@@ -234,7 +238,7 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 				// set normal drawing mode
 				gl_RenderState.EnableTexture(true);
 				glDepthFunc(GL_LESS);
-				gl_RenderState.ResetColorMask();
+				// glColorMask(1, 1, 1, 1);
 				gl_RenderState.SetEffect(EFF_NONE);
 				glDepthRange(0, 1);
 
@@ -245,8 +249,8 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 				if (sampleCount == 0) 	// not visible
 				{
 					// restore default stencil op.
-					glStencilOp(GL_KEEP,GL_KEEP,GL_KEEP);
-					glStencilFunc(GL_EQUAL,recursion,~0);		// draw sky into stencil
+					glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+					glStencilFunc(GL_EQUAL, recursion, ~0);		// draw sky into stencil
 					PortalAll.Unclock();
 					return false;
 				}
@@ -270,7 +274,6 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 				glDepthMask(false);							// don't write to Z-buffer!
 			}
 		}
-
 		recursion++;
 
 
@@ -290,7 +293,6 @@ bool GLPortal::Start(bool usestencil, bool doquery)
 	planestack.Push(gl_RenderState.GetClipHeightTop());
 	planestack.Push(gl_RenderState.GetClipHeightBottom());
 	glDisable(GL_CLIP_DISTANCE0);
-	glDisable(GL_CLIP_DISTANCE1);
 	gl_RenderState.SetClipHeightBottom(-65536.f);
 	gl_RenderState.SetClipHeightTop(65536.f);
 
@@ -359,7 +361,7 @@ void GLPortal::End(bool usestencil)
 	if (f > -65535.f) glEnable(GL_CLIP_DISTANCE0);
 	planestack.Pop(f);
 	gl_RenderState.SetClipHeightTop(f);
-	if (f < 65535.f) glEnable(GL_CLIP_DISTANCE1);
+	if (f < 65535.f) glEnable(GL_CLIP_DISTANCE0);
 
 	if (usestencil)
 	{
@@ -372,7 +374,7 @@ void GLPortal::End(bool usestencil)
 		viewangle=savedviewangle;
 		GLRenderer->mViewActor=savedviewactor;
 		in_area=savedviewarea;
-		GLRenderer->SetupView(viewx, viewy, viewz, viewangle, !!(MirrorFlag&1), !!(PlaneMirrorFlag&1));
+		GLRenderer->SetupView(viewx, viewy, viewz, viewangle, !!(MirrorFlag & 1), !!(PlaneMirrorFlag & 1));
 
 		{
 			ScopedColorMask colorMask(0, 0, 0, 0); // glColorMask(0, 0, 0, 0);						// no graphics
@@ -395,16 +397,16 @@ void GLPortal::End(bool usestencil)
 
 			// second step: restore the depth buffer to the previous values and reset the stencil
 			glDepthFunc(GL_LEQUAL);
-			glDepthRange(0,1);
-			glStencilOp(GL_KEEP,GL_KEEP,GL_DECR);
-			glStencilFunc(GL_EQUAL,recursion,~0);		// draw sky into stencil
+			glDepthRange(0, 1);
+			glStencilOp(GL_KEEP, GL_KEEP, GL_DECR);
+			glStencilFunc(GL_EQUAL, recursion, ~0);		// draw sky into stencil
 			DrawPortalStencil();
 			glDepthFunc(GL_LESS);
 
 
-		gl_RenderState.EnableTexture(true);
-		gl_RenderState.SetEffect(EFF_NONE);
-		} // glColorMask(1, 1, 1, 1);
+			gl_RenderState.EnableTexture(true);
+			gl_RenderState.SetEffect(EFF_NONE);
+		}  // glColorMask(1, 1, 1, 1);
 		recursion--;
 
 		// restore old stencil op.
@@ -639,22 +641,23 @@ void GLSkyboxPortal::DrawContents()
 
 	PlaneMirrorMode=0;
 
-	glDisable(GL_DEPTH_CLAMP);
-
-	viewx = origin->PrevX + FixedMul(r_TicFrac, origin->x - origin->PrevX);
-	viewy = origin->PrevY + FixedMul(r_TicFrac, origin->y - origin->PrevY);
-	viewz = origin->PrevZ + FixedMul(r_TicFrac, origin->z - origin->PrevZ);
+	bool oldclamp = gl_RenderState.SetDepthClamp(false);
+	fixedvec3 viewpos = origin->InterpolatedPosition(r_TicFrac);
+	viewx = viewpos.x;
+	viewy = viewpos.y;
+	viewz = viewpos.z;
 	viewangle += origin->PrevAngle + FixedMul(r_TicFrac, origin->angle - origin->PrevAngle);
 
-	// Don't let the viewpoint be too close to a floor or ceiling!
-	fixed_t floorh = origin->Sector->floorplane.ZatPoint(origin->x, origin->y);
-	fixed_t ceilh = origin->Sector->ceilingplane.ZatPoint(origin->x, origin->y);
+	// Don't let the viewpoint be too close to a floor or ceiling
+	fixed_t floorh = origin->Sector->floorplane.ZatPoint(origin);
+	fixed_t ceilh = origin->Sector->ceilingplane.ZatPoint(origin);
 	if (viewz<floorh+4*FRACUNIT) viewz=floorh+4*FRACUNIT;
 	if (viewz>ceilh-4*FRACUNIT) viewz=ceilh-4*FRACUNIT;
 
 
 	GLRenderer->mViewActor = origin;
 
+	validcount++;
 	inskybox=true;
 	GLRenderer->SetupView(viewx, viewy, viewz, viewangle, !!(MirrorFlag&1), !!(PlaneMirrorFlag&1));
 	GLRenderer->SetViewArea();
@@ -665,10 +668,10 @@ void GLSkyboxPortal::DrawContents()
 	SaveMapSection();
 	currentmapsection[mapsection>>3] |= 1 << (mapsection & 7);
 
-	GLRenderer->DrawScene(false);
+	GLRenderer->DrawScene();
 	origin->flags&=~MF_JUSTHIT;
 	inskybox=false;
-	glEnable(GL_DEPTH_CLAMP);
+	gl_RenderState.SetDepthClamp(oldclamp);
 	skyboxrecursion--;
 
 	PlaneMirrorMode=old_pm;
@@ -748,7 +751,9 @@ void GLSectorStackPortal::DrawContents()
 	viewx += origin->xDisplacement;
 	viewy += origin->yDisplacement;
 	GLRenderer->mViewActor = NULL;
-	GLRenderer->mCurrentPortal = this;
+
+
+	validcount++;
 
 	// avoid recursions!
 	if (origin->plane != -1) instack[origin->plane]++;
@@ -757,7 +762,7 @@ void GLSectorStackPortal::DrawContents()
 	SaveMapSection();
 	SetupCoverage();
 	ClearClipper();
-	GLRenderer->DrawScene(false);
+	GLRenderer->DrawScene();
 	RestoreMapSection();
 
 	if (origin->plane != -1) instack[origin->plane]--;
@@ -794,6 +799,8 @@ void GLPlaneMirrorPortal::DrawContents()
 	GLRenderer->mViewActor = NULL;
 	PlaneMirrorMode = ksgn(origin->c);
 
+	validcount++;
+
 	PlaneMirrorFlag++;
 	GLRenderer->SetupView(viewx, viewy, viewz, viewangle, !!(MirrorFlag&1), !!(PlaneMirrorFlag&1));
 	ClearClipper();
@@ -801,18 +808,18 @@ void GLPlaneMirrorPortal::DrawContents()
 	float f = FIXED2FLOAT(planez);
 	if (PlaneMirrorMode < 0)
 	{
-		gl_RenderState.SetClipHeightTop(f);	// ceiling mirror: clip everytihng with a z lower than the portal's ceiling
-		glEnable(GL_CLIP_DISTANCE1);
+		gl_RenderState.SetClipHeightTop(f);	// ceiling mirror: clip everything with a z lower than the portal's ceiling
+		gl_RenderState.SetClipHeightBottom(-65536.f);
 	}
 	else
 	{
 		gl_RenderState.SetClipHeightBottom(f);	// floor mirror: clip everything with a z higher than the portal's floor
-		glEnable(GL_CLIP_DISTANCE0);
+		gl_RenderState.SetClipHeightTop(65536.f);
 	}
 
-	GLRenderer->DrawScene(false);
+	glEnable(GL_CLIP_DISTANCE0);
+	GLRenderer->DrawScene();
 	glDisable(GL_CLIP_DISTANCE0);
-	glDisable(GL_CLIP_DISTANCE1);
 	gl_RenderState.SetClipHeightBottom(-65536.f);
 	gl_RenderState.SetClipHeightTop(65536.f);
 	PlaneMirrorFlag--;
@@ -908,6 +915,8 @@ void GLMirrorPortal::DrawContents()
 
 	GLRenderer->mViewActor = NULL;
 
+	validcount++;
+
 	MirrorFlag++;
 	GLRenderer->SetupView(viewx, viewy, viewz, viewangle, !!(MirrorFlag&1), !!(PlaneMirrorFlag&1));
 
@@ -920,7 +929,7 @@ void GLMirrorPortal::DrawContents()
 	angle_t a1 = linedef->v2->GetClipAngle();
 	clipper.SafeAddClipRange(a1,a2);
 
-	GLRenderer->DrawScene(false);
+	GLRenderer->DrawScene();
 
 	MirrorFlag--;
 }
@@ -928,13 +937,23 @@ void GLMirrorPortal::DrawContents()
 
 int GLMirrorPortal::ClipSeg(seg_t *seg) 
 { 
-	// this seg is completely behind the mirror!
+	// this seg is completely behind the mirror.
 	if (P_PointOnLineSide(seg->v1->x, seg->v1->y, linedef) &&
 		P_PointOnLineSide(seg->v2->x, seg->v2->y, linedef)) 
 	{
 		return PClip_InFront;
 	}
 	return PClip_Inside; 
+}
+
+int GLMirrorPortal::ClipSubsector(subsector_t *sub) 
+{ 
+	// this seg is completely behind the mirror!
+	for(unsigned int i=0;i<sub->numlines;i++)
+	{
+		if (P_PointOnLineSide(sub->firstline[i].v1->x, sub->firstline[i].v1->y, linedef) == 0) return PClip_Inside;
+	}
+	return PClip_InFront; 
 }
 
 int GLMirrorPortal::ClipPoint(fixed_t x, fixed_t y) 
@@ -983,7 +1002,7 @@ void GLHorizonPortal::DrawContents()
 	float z;
 	player_t * player=&players[consoleplayer];
 
-	gltexture=FMaterial::ValidateTexture(sp->texture, true);
+	gltexture=FMaterial::ValidateTexture(sp->texture, false, true);
 	if (!gltexture) 
 	{
 		ClearScreen();
@@ -1009,7 +1028,7 @@ void GLHorizonPortal::DrawContents()
 	}
 
 
-	gltexture->Bind();
+	gl_RenderState.SetMaterial(gltexture, CLAMP_NONE, 0, -1, false);
 
 	gl_SetPlaneTextureRotation(sp, gltexture);
 	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);

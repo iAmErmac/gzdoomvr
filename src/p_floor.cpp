@@ -342,16 +342,16 @@ bool EV_DoFloor (DFloor::EFloor floortype, line_t *line, int tag,
 			floor->m_Speed = height;
 		case DFloor::floorLowerByValue:
 			floor->m_Direction = -1;
-			newheight = sec->floorplane.ZatPoint (0, 0) - height;
-			floor->m_FloorDestDist = sec->floorplane.PointToDist (0, 0, newheight);
+			newheight = sec->floorplane.ZatPoint (sec->soundorg[0], sec->soundorg[1]) - height;
+			floor->m_FloorDestDist = sec->floorplane.PointToDist (sec->soundorg[0], sec->soundorg[1], newheight);
 			break;
 
 		case DFloor::floorRaiseInstant:
 			floor->m_Speed = height;
 		case DFloor::floorRaiseByValue:
 			floor->m_Direction = 1;
-			newheight = sec->floorplane.ZatPoint (0, 0) + height;
-			floor->m_FloorDestDist = sec->floorplane.PointToDist (0, 0, newheight);
+			newheight = sec->floorplane.ZatPoint (sec->soundorg[0], sec->soundorg[1]) + height;
+			floor->m_FloorDestDist = sec->floorplane.PointToDist (sec->soundorg[0], sec->soundorg[1], newheight);
 			break;
 
 		case DFloor::floorMoveToValue:
@@ -478,7 +478,7 @@ bool EV_DoFloor (DFloor::EFloor floortype, line_t *line, int tag,
 			(floor->m_Direction<0 && floor->m_FloorDestDist<sec->floorplane.d) ||	// moving down but going up
 			(floor->m_Speed >= abs(sec->floorplane.d - floor->m_FloorDestDist)))	// moving in one step
 		{
-			floor->StopInterpolation();
+			floor->StopInterpolation(true);
 
 			// [Graf Zahl]
 			// Don't make sounds for instant movement hacks but make an exception for

@@ -158,8 +158,10 @@ void P_SetPsprite (player_t *player, int position, FState *state, bool nofunctio
 		}
 
 
-		if (sv_fastweapons >= 2 && position == ps_weapon)
-			psp->tics = state->ActionFunc == NULL? 0 : 1;
+		if (sv_fastweapons == 2 && position == ps_weapon)
+			psp->tics = state->ActionFunc == NULL ? 0 : 1;
+		else if (sv_fastweapons == 3)
+			psp->tics = (state->GetTics() != 0);
 		else if (sv_fastweapons)
 			psp->tics = 1;		// great for producing decals :)
 		else
@@ -891,7 +893,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AInventory, A_GunFlash)
 
 angle_t P_BulletSlope (AActor *mo, AActor **pLineTarget)
 {
-	static const int angdiff[3] = { -1<<26, 1<<26, 0 };
+	static const int angdiff[3] = { -(1<<26), 1<<26, 0 };
 	int i;
 	angle_t an;
 	angle_t pitch;

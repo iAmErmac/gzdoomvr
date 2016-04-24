@@ -12,7 +12,7 @@ out vec4 FragColor;
 		vec4 lights[];
 	};
 #else
-	layout(std140) uniform LightBufferUBO
+	/*layout(std140)*/ uniform LightBufferUBO
 	{
 		vec4 lights[NUM_UBO_LIGHTS];
 	};
@@ -53,23 +53,34 @@ vec4 desaturate(vec4 texel)
 
 vec4 getTexel(vec2 st)
 {
-	vec4 texel = texture2D(tex, st);
+	vec4 texel = texture(tex, st);
 	
 	//
 	// Apply texture modes
 	//
 	switch (uTextureMode)
 	{
-		case 1:
+		case 1:	// TM_MASK
 			texel.rgb = vec3(1.0,1.0,1.0);
 			break;
 			
-		case 2:
+		case 2:	// TM_OPAQUE
 			texel.a = 1.0;
 			break;
 			
-		case 3:
+		case 3:	// TM_INVERSE
 			texel = vec4(1.0-texel.r, 1.0-texel.b, 1.0-texel.g, texel.a);
+			break;
+			
+		case 4:	// TM_REDTOALPHA
+			texel = vec4(1.0, 1.0, 1.0, texel.r*texel.a);
+			break;
+			
+		case 5:	// TM_CLAMPY
+			if (st.t < 0.0 || st.t > 1.0)
+			{
+				texel.a = 0.0;
+			}
 			break;
 	}
 	texel *= uObjectColor;
@@ -302,8 +313,7 @@ void main()
 		
 		case 2:
 		{
-			frag = frag * uFixedColormapStart;
-			frag.a *= vColor.a;
+			frag = vColor * frag * uFixedColormapStart;
 			break;
 		}
 

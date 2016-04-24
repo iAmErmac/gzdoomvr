@@ -487,11 +487,15 @@ public:
 
 	void Uncrouch()
 	{
-		crouchfactor = FRACUNIT;
-		crouchoffset = 0;
-		crouchdir = 0;
-		crouching = 0;
-		crouchviewdelta = 0;
+		if (crouchfactor != FRACUNIT)
+		{
+			crouchfactor = FRACUNIT;
+			crouchoffset = 0;
+			crouchdir = 0;
+			crouching = 0;
+			crouchviewdelta = 0;
+			viewheight = mo->ViewHeight;
+		}
 	}
 	
 	bool CanCrouch() const

@@ -279,6 +279,11 @@ struct secplane_t
 		return FixedMul (ic, -d - DMulScale16 (a, v->x, b, v->y));
 	}
 
+	fixed_t ZatPoint (const AActor *ac) const
+	{
+		return FixedMul (ic, -d - DMulScale16 (a, ac->X(), b, ac->Y()));
+	}
+
 	// Returns the value of z at (x,y) if d is equal to dist
 	fixed_t ZatPointDist (fixed_t x, fixed_t y, fixed_t dist) const
 	{
@@ -389,7 +394,7 @@ enum
 	SECF_DRAWN			= 128,	// sector has been drawn at least once
 	SECF_HIDDEN			= 256,	// Do not draw on textured automap
 	SECF_NOFLOORSKYBOX	= 512,	// force use of regular sky 
-	SECF_NOCEILINGSKYBOX	= 1024,	// force use of regular sky 
+	SECF_NOCEILINGSKYBOX	= 1024,	// force use of regular sky (do not separate from NOFLOORSKYBOX!!!)
 };
 
 enum
@@ -495,6 +500,11 @@ struct secspecial_t
 	short leakydamage;		// chance of leaking through radiation suit
 	int Flags;
 
+	secspecial_t()
+	{
+		Clear();
+	}
+
 	void Clear()
 	{
 		memset(this, 0, sizeof(*this));
@@ -532,7 +542,6 @@ struct sector_t
 	sector_t *GetHeightSec() const;
 
 	DInterpolation *SetInterpolation(int position, bool attach);
-	void StopInterpolation(int position);
 
 	ASkyViewpoint *GetSkyBox(int which);
 
@@ -732,6 +741,17 @@ struct sector_t
 		return pos == floor? floorplane:ceilingplane;
 	}
 
+	fixed_t HighestCeiling(AActor *a) const
+	{
+		return ceilingplane.ZatPoint(a);
+	}
+
+	fixed_t LowestFloor(AActor *a) const
+	{
+		return floorplane.ZatPoint(a);
+	}
+
+
 	bool isSecret() const
 	{
 		return !!(Flags & SECF_SECRET);
@@ -849,7 +869,7 @@ struct sector_t
 
 	// [RH] The sky box to render for this sector. NULL means use a
 	// regular sky.
-	TObjPtr<ASkyViewpoint> FloorSkyBox, CeilingSkyBox;
+	TObjPtr<ASkyViewpoint> SkyBoxes[2];
 
 	int							sectornum;			// for comparing sector copies
 
@@ -1064,6 +1084,11 @@ struct line_t
 	int 		validcount;	// if == validcount, already checked
 	int			locknumber;	// [Dusk] lock number for special
 	TObjPtr<ASkyViewpoint> skybox;
+
+	bool isLinePortal() const
+	{
+		return false;
+	}
 };
 
 // phares 3/14/98
