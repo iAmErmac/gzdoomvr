@@ -1017,6 +1017,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		break;
 
 	case 0: // Mono (stereo 3D off)
+	case 2: // Red/Cyan anaglyph
 	default:
 	{
 		// Old way, original gz3doom implementation
