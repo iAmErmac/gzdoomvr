@@ -243,8 +243,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	if (dYaw <= -recenterIncrement) dYaw += recenterIncrement;
 	hudYaw = hmdYaw - dYaw;
 
-	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
-	gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
+	// gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
 	gl_RenderState.mViewMatrix.loadIdentity();
 
 	gl_RenderState.mViewMatrix.rotate(hudRoll, 0, 0, 1);
@@ -260,6 +259,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	float hudHeight = hudWidth * 3.0f / 4.0f;
 
 	gl_RenderState.ResetColor();
+	// gl_RenderState.SetColor(0.5, 1, 0.5, 0.5); // TODO: temporarily! for testing only
 	gl_RenderState.ApplyMatrices();
 	gl_RenderState.Apply();
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
@@ -273,7 +273,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	ptr++;
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
-	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
+	// gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
 }
 
 void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherEyePose, bool reducedHud) 
@@ -389,9 +389,9 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 
 void RiftHmd::paintBlendQuad()
 {
-	gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
-	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
-	gl_MatrixStack.Push(gl_RenderState.mProjectionMatrix);
+	// gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
+	// gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
+	// gl_MatrixStack.Push(gl_RenderState.mProjectionMatrix);
 
 	gl_RenderState.mModelMatrix.loadIdentity();
 	gl_RenderState.mViewMatrix.loadIdentity();
@@ -412,9 +412,9 @@ void RiftHmd::paintBlendQuad()
 	ptr++;
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
-	gl_MatrixStack.Pop(gl_RenderState.mProjectionMatrix);
-	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
-	gl_MatrixStack.Pop(gl_RenderState.mModelMatrix);
+	// gl_MatrixStack.Pop(gl_RenderState.mProjectionMatrix);
+	// gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
+	// gl_MatrixStack.Pop(gl_RenderState.mModelMatrix);
 }
 
 ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
@@ -438,6 +438,7 @@ ovrPosef& RiftHmd::setSceneEyeView(int eye, float zNear, float zFar) {
     // Get view matrix for the Rift camera
 	gl_RenderState.mViewMatrix.loadIdentity();
     currentEyePose = sceneLayer.RenderPose[eye];
+
 	return currentEyePose;
 }
 
