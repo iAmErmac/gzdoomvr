@@ -79,9 +79,9 @@ void HudTexture::renderToScreen() {
 	gl_RenderState.EnableTexture(true);
 	glBindTexture(GL_TEXTURE_2D, renderedTexture);
 	// Very simple draw routine maps texture onto entire screen; no glOrtho or whatever!
-	gl_MatrixStack.Push(gl_RenderState.mProjectionMatrix);
-	gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
-	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
+	// gl_MatrixStack.Push(gl_RenderState.mProjectionMatrix);
+	// gl_MatrixStack.Push(gl_RenderState.mModelMatrix);
+	// gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
 	gl_RenderState.mProjectionMatrix.loadIdentity();
 	gl_RenderState.mModelMatrix.loadIdentity();
 	gl_RenderState.mViewMatrix.loadIdentity();
@@ -100,9 +100,9 @@ void HudTexture::renderToScreen() {
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
-	gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
-	gl_MatrixStack.Pop(gl_RenderState.mModelMatrix);
-	gl_MatrixStack.Pop(gl_RenderState.mProjectionMatrix);
+	// gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
+	// gl_MatrixStack.Pop(gl_RenderState.mModelMatrix);
+	// gl_MatrixStack.Pop(gl_RenderState.mProjectionMatrix);
 }
 
 void HudTexture::unbind() {

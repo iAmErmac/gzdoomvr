@@ -312,13 +312,14 @@ void GLWall::RenderTextured(int rflags)
 	int tmode = gl_RenderState.GetTextureMode();
 	int rel = rellight + getExtraLight();
 
+	////
 	if (flags & GLWF_GLOW)
 	{
 		gl_RenderState.EnableGlow(true);
 		gl_RenderState.SetGlowPlanes(topplane, bottomplane);
 		gl_RenderState.SetGlowParams(topglowcolor, bottomglowcolor);
 	}
-	gl_RenderState.SetMaterial(gltexture, flags & 3, 0, -1, false);
+	gl_RenderState.SetMaterial(gltexture, flags & 3, 0, -1, false); // hurts HUD
 
 	if (type == RENDERWALL_M2SNF)
 	{
@@ -328,6 +329,7 @@ void GLWall::RenderTextured(int rflags)
 		}
 		gl_SetFog(255, 0, NULL, false);
 	}
+	////
 
 	float absalpha = fabsf(alpha);
 	if (lightlist == NULL)
@@ -419,7 +421,7 @@ void GLWall::Draw(int pass)
 		SetupLights();
 		// fall through
 	case GLPASS_PLAIN:
-		RenderTextured(RWF_TEXTURED);
+		RenderTextured(RWF_TEXTURED); // Hurts hud
 		break;
 
 	case GLPASS_TRANSLUCENT:

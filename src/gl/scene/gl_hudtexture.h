@@ -13,6 +13,7 @@ public:
 	int getHeight() {return h;}
 	bool isBound() const {return m_isBound;}
 	void renderToScreen();
+	int getTexId() const { return renderedTexture; }
 	void unbind();
 	void setScreenScale(float s) {screenSizeScale = s;}
 

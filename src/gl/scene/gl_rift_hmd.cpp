@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include "gl/scene/gl_rift_hmd.h"
+#include "gl/scene/gl_hudtexture.h"
 #include "gl/system/gl_system.h"
 #include "gl/system/gl_cvars.h"
 #include "gl/renderer/gl_renderstate.h"
@@ -142,7 +143,7 @@ ovrResult RiftHmd::init_scene_texture()
 
 	// create OpenGL framebuffer for rendering to Rift
 	glGenFramebuffers(1, &sceneFrameBuffer);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, sceneFrameBuffer);
 	// color layer will be provided by Rift API at render time...
 	// depth buffer
 	glGenRenderbuffers(1, &depthBuffer);
@@ -151,7 +152,7 @@ ovrResult RiftHmd::init_scene_texture()
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
 
 	// clean up
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
 	return result;
@@ -162,16 +163,28 @@ ovrSizei RiftHmd::getViewSize() {
 }
 
 void RiftHmd::bindToSceneFrameBuffer() {
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, sceneFrameBuffer);
 }
 
 bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 {
+	// glBindFramebuffer(GL_FRAMEBUFFER, 0); HudTexture::hudTexture->renderToScreen(); // OK
+
 	if (sceneFrameBuffer == 0) init_graphics();
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneFrameBuffer);
+
+	// glBindFramebuffer(GL_FRAMEBUFFER, 0); HudTexture::hudTexture->renderToScreen(); // OK
+
+	glBindFramebuffer(GL_FRAMEBUFFER, sceneFrameBuffer);
+
+	// glBindFramebuffer(GL_FRAMEBUFFER, 0); HudTexture::hudTexture->renderToScreen(); glBindFramebuffer(GL_FRAMEBUFFER, sceneFrameBuffer);
+ // OK
+
     double displayMidpointSeconds = ovr_GetPredictedDisplayTime(hmd, 0);
 	double sampleTime = ovr_GetTimeInSeconds(); // for tracking latency
-    ovrTrackingState hmdState = ovr_GetTrackingState(hmd, displayMidpointSeconds, true);
+
+	// HudTexture::hudTexture->renderToScreen(); // too late
+	
+	ovrTrackingState hmdState = ovr_GetTrackingState(hmd, displayMidpointSeconds, true);
     // print hmdState.HeadPose.ThePose
     ovr_CalcEyePoses(hmdState.HeadPose.ThePose, 
             hmdToEyeOffset,
@@ -185,7 +198,9 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 		sceneLayer.RenderPose[eye].Position = pos;
 	}
 
-    // Increment to use next texture, just before writing
+	// HudTexture::hudTexture->renderToScreen(); // too late
+	
+	// Increment to use next texture, just before writing
     // 2d) Advance CurrentIndex within each used texture set to target the next consecutive texture buffer for the following frame.
 	unsigned int textureId;
 	ovr_GetTextureSwapChainBufferGL(hmd, sceneTextureSet, -1, &textureId);
@@ -195,8 +210,12 @@ bool RiftHmd::bindToSceneFrameBufferAndUpdate()
 			textureId,
             0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
-	GLenum fbStatus = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+	GLenum fbStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	GLenum desiredStatus = GL_FRAMEBUFFER_COMPLETE;
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0); HudTexture::hudTexture->renderToScreen(); glBindFramebuffer(GL_FRAMEBUFFER, sceneFrameBuffer);
+	// OK
+
 	if (fbStatus != GL_FRAMEBUFFER_COMPLETE)
 		return false;
 	return true;

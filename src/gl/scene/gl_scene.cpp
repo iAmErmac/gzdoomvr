@@ -70,6 +70,7 @@
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/scene/gl_portal.h"
 #include "gl/scene/gl_stereo3d.h"
+#include "gl/scene/gl_hudtexture.h"
 #include "gl/shaders/gl_shader.h"
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/stereo3d/scoped_view_shifter.h"
@@ -480,12 +481,55 @@ void FGLRenderer::RenderScene(int recursion)
 		GLRenderer->mLights->Finish();
 	}
 
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
 	// Part 1: solid geometry. This is set up so that there are no transparent parts
 	glDepthFunc(GL_LESS);
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // flickery status only
+
+
 	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+
+	{
+		/*
+		glDepthFunc(GL_ALWAYS); // Helps
+		gl_RenderState.AlphaFunc(GL_GREATER, 0.f); // Helps
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		glDepthFunc(GL_LESS);
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		/* */
+	} // OK
+
 	glDisable(GL_POLYGON_OFFSET_FILL);
 
 	int pass;
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // 
 
 	if (mLightCount > 0 && gl_fixedcolormap == CM_DEFAULT && gl_lights && (gl.flags & RFL_BUFFER_STORAGE))
 	{
@@ -496,11 +540,78 @@ void FGLRenderer::RenderScene(int recursion)
 		pass = GLPASS_PLAIN;
 	}
 
+	{
+		/*
+		glDepthFunc(GL_ALWAYS); // Helps
+		gl_RenderState.AlphaFunc(GL_GREATER, 0.f); // Helps
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		glDepthFunc(GL_LESS);
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		/* */
+	} // OK
+
 	gl_RenderState.EnableTexture(gl_texture);
 	gl_RenderState.EnableBrightmap(true);
+
+	{
+		/*
+		glDepthFunc(GL_ALWAYS); // Helps
+		gl_RenderState.AlphaFunc(GL_GREATER, 0.f); // Helps
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		glDepthFunc(GL_LESS);
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		/* */
+	} // OK
+
 	gl_drawinfo->drawlists[GLDL_PLAINWALLS].DrawWalls(pass);
+
+	{
+		/*
+		glDepthFunc(GL_ALWAYS);
+		gl_RenderState.AlphaFunc(GL_GREATER, 0.f);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		// gl_RenderState.EnableFog(false);
+		// gl_RenderState.EnableGlow(false);
+		// gl_RenderState.Apply(); // not helping
+		// gl_RenderState.SetMaterial(gltexture, CLAMP_NONE, 0, -1, false);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		glDepthFunc(GL_LESS);
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		/* */
+	} // BLACK, unless I turn off RenderedTextured in DrawWalls
+	// Problem seems to be from gl_RenderState.setMaterial
+
 	gl_drawinfo->drawlists[GLDL_PLAINFLATS].DrawFlats(pass);
 
+	{
+		/*
+		glDepthFunc(GL_ALWAYS); // Helps
+		gl_RenderState.AlphaFunc(GL_GREATER, 0.f); // Helps
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		glDepthFunc(GL_LESS);
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		/* */
+	} // BLACK
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // 
 
 	// Part 2: masked geometry. This is set up so that only pixels with alpha>gl_mask_threshold will show
 	if (!gl_texture) 
@@ -524,6 +635,28 @@ void FGLRenderer::RenderScene(int recursion)
 	gl_drawinfo->drawlists[GLDL_MODELS].Draw(pass);
 
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	{
+		/*
+		glDepthFunc(GL_ALWAYS); // Helps
+		gl_RenderState.AlphaFunc(GL_GREATER, 0.f); // Helps
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		glDepthFunc(GL_LESS);
+		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
+		/* */
+	} // BLACK
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // BLACK
 
 	// Part 4: Draw decals (not a real pass)
 	glDepthFunc(GL_LEQUAL);
@@ -602,6 +735,15 @@ EXTERN_CVAR(Bool, gl_draw_sync)
 
 void FGLRenderer::DrawScene(bool toscreen)
 {
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
 	static int recursion=0;
 
 	CreateScene();
@@ -615,7 +757,27 @@ void FGLRenderer::DrawScene(bool toscreen)
 		static_cast<OpenGLFrameBuffer*>(screen)->Swap();
 		All.Clock();
 	}
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
 	RenderScene(recursion);
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // BLACK
+
 
 	// Handle all portals after rendering the opaque objects but before
 	// doing all translucent stuff
@@ -623,6 +785,16 @@ void FGLRenderer::DrawScene(bool toscreen)
 	GLPortal::EndFrame();
 	recursion--;
 	RenderTranslucent();
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // BLACK
+
 }
 
 
@@ -841,15 +1013,66 @@ void FGLRenderer::EndDrawSceneBlend(sector_t * viewsector)
 
 void FGLRenderer::ProcessScene(bool toscreen)
 {
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
+
 	FDrawInfo::StartDrawInfo();
 	iter_dlightf = iter_dlight = draw_dlight = draw_dlightf = 0;
 	GLPortal::BeginScene();
 
 	int mapsection = R_PointInSubsector(viewx, viewy)->mapsection;
 	memset(&currentmapsection[0], 0, currentmapsection.Size());
+
+	{
+		/* 
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
+
 	currentmapsection[mapsection>>3] |= 1 << (mapsection & 7);
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
 	DrawScene(toscreen);
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // BLACK
+
+
 	FDrawInfo::EndDrawInfo();
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // BLACK
 
 }
 
@@ -900,6 +1123,16 @@ void FGLRenderer::SetFixedColormap (player_t *player)
 // Renders on eye position of one viewpoint in a scene
 void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
 {
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
+
 #ifdef _DEBUG
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f); 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -911,7 +1144,25 @@ void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
 	
 	gl_RenderState.ApplyMatrices();
 
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // OK
+
 	ProcessScene(toscreen);
+
+	{
+		/*
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
+		HudTexture::hudTexture->renderToScreen();
+		sharedRiftHmd->bindToSceneFrameBuffer();
+		/* */
+	} // BLACK
 }
 
 //-----------------------------------------------------------------------------
