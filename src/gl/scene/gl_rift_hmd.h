@@ -33,10 +33,17 @@ public:
 
 private:
 	ovrResult init_scene_texture();
+	void createShaders();
+
 
 	unsigned int sceneFrameBuffer;
 	unsigned int depthBuffer;
 	unsigned int frameIndex;
+
+	unsigned int hudQuadShader;
+	int hqsViewMatrixLoc;
+	int hqsProjMatrixLoc;
+	int hqsHudTextureLoc;
 
 // #ifdef HAVE_OCULUS_API
 	ovrTextureSwapChain sceneTextureSet;

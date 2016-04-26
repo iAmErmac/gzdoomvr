@@ -20,6 +20,28 @@ extern "C" {
 
 using namespace std;
 
+static const char* hudQuadShaderVrtxSrc = ""
+"#version 140\n"
+"in vec4 position;\n"
+"in vec2 texCoord;\n"
+"uniform mat4 projectionMatrix = mat4(1);\n"
+"uniform mat4 viewMatrix = mat4(1);\n"
+"out vec2 fragTexCoord;\n"
+"void main() {\n"
+"	gl_Position = projectionMatrix * viewMatrix * position;\n"
+"	fragTexCoord = texCoord;\n"
+"}\n";
+
+static const char* hudQuadShaderFragSrc = ""
+"#version 140\n"
+"in vec2 fragTexCoord;\n"
+"uniform sampler2D hudTexture;\n"
+"out vec4 color;\n"
+"void main() {\n"
+"	vec4 s = texture(hudTexture, fragTexCoord);\n"
+"	color = vec4(s.r, s.g, s.b, s.a);\n"
+"}\n";
+
 RiftHmd::RiftHmd()
 	: hmd(nullptr)
 	, sceneFrameBuffer(0)
@@ -29,6 +51,29 @@ RiftHmd::RiftHmd()
 	, frameIndex(0)
 	, poseOrigin(OVR::Vector3f(0,0,0))
 {
+}
+
+void RiftHmd::createShaders() {
+	int hudQuadShaderVrtx = glCreateShader(GL_VERTEX_SHADER);
+	int hudQuadShaderFrag = glCreateShader(GL_FRAGMENT_SHADER);
+
+	glShaderSource(hudQuadShaderVrtx, 1, &hudQuadShaderVrtxSrc, nullptr);
+	glShaderSource(hudQuadShaderFrag, 1, &hudQuadShaderFragSrc, nullptr);
+	glCompileShader(hudQuadShaderVrtx);
+	glCompileShader(hudQuadShaderFrag);
+	hudQuadShader = glCreateProgram();
+	glAttachShader(hudQuadShader, hudQuadShaderVrtx);
+	glAttachShader(hudQuadShader, hudQuadShaderFrag);
+	glLinkProgram(hudQuadShader);
+	GLsizei infoLength;
+	GLchar infoBuffer[1001];
+	glGetProgramInfoLog(hudQuadShader, 1000, &infoLength, infoBuffer);
+	if (*infoBuffer) {
+		fprintf(stderr, "%s", infoBuffer);
+	}
+	hqsViewMatrixLoc = glGetUniformLocation(hudQuadShader, "viewMatrix");
+	hqsProjMatrixLoc = glGetUniformLocation(hudQuadShader, "projectionMatrix");
+	hqsHudTextureLoc = glGetUniformLocation(hudQuadShader, "hudTexture");
 }
 
 void RiftHmd::destroy() {
@@ -72,6 +117,8 @@ ovrResult RiftHmd::init_graphics()
 	result = init_scene_texture();
 	if OVR_FAILURE(result)
 		return result;
+
+	createShaders();
 
 	return result;
 }
@@ -278,9 +325,9 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	float hudHeight = hudWidth * 3.0f / 4.0f;
 
 	gl_RenderState.ResetColor();
-	// gl_RenderState.SetColor(0.5, 1, 0.5, 0.5); // TODO: temporarily! for testing only
 	gl_RenderState.ApplyMatrices();
 	gl_RenderState.Apply();
+
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
 	ptr->Set(-0.5*hudWidth, 0.5*hudHeight, -hudDistance,   0, 1);
 	ptr++;
@@ -290,6 +337,16 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	ptr++;
 	ptr->Set( 0.5*hudWidth,-0.5*hudHeight, -hudDistance,   1, 0);
 	ptr++;
+
+	// It turns out I did not need to use my own shader
+	const bool useMyShader = false;
+	if (useMyShader) {
+		glUseProgram(hudQuadShader);
+		gl_RenderState.mViewMatrix.matrixToGL(hqsViewMatrixLoc);
+		gl_RenderState.mProjectionMatrix.matrixToGL(hqsProjMatrixLoc);
+		glUniform1i(hqsHudTextureLoc, 0);
+	}
+
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 	// gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);

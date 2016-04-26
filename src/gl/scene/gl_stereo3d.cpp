@@ -629,24 +629,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				HudTexture::hudTexture = checkHudTexture(HudTexture::hudTexture, 1.0);
 
-				// HUD Texture OK here
-				const bool testHudTexture = true;
-				if (testHudTexture) {
-					// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					// blitHudTextureToScreen();
-					// blitHudTextureToScreen(); // menu does appear, if placed before a certain line
-					// HudTexture::hudTexture->renderToScreen();
-				}
-
 				sharedRiftHmd->bindToSceneFrameBufferAndUpdate();
-
-				// TODO: Figure out why hud texture does not make it to screen
-				if (testHudTexture) {
-					// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					// HudTexture::hudTexture->renderToScreen();
-					// sharedRiftHmd->bindToSceneFrameBuffer();
-				} // OK
-
 
 				glClearColor(0, 0, 0, 0);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -657,12 +640,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					sharedRiftHmd->recenter_pose();
 				}
 
-				if (testHudTexture) {
-					// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					// HudTexture::hudTexture->renderToScreen();
-					// sharedRiftHmd->bindToSceneFrameBuffer();
-				} // OK
-
 				// FIRST PASS - 3D
 				// Temporarily modify global variables, so HUD could draw correctly
 				int oldScreenBlocks = screenblocks;
@@ -672,53 +649,13 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glEnable(GL_STENCIL_TEST); // required for correct clipping of unhandled texture hack flats
 				gl_RenderState.Set2DMode(false); // required for correct sector darkening in map mode
 
-				if (testHudTexture) {
-					// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					// HudTexture::hudTexture->renderToScreen();
-					// sharedRiftHmd->bindToSceneFrameBuffer();
-				} // OK
-
 				// left eye view - 3D scene pass
 				{
 					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-
-					if (testHudTexture) {
-						// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-						// blitHudTextureToScreen();
-						// sharedRiftHmd->bindToSceneFrameBuffer();
-					} // OK
-
-					// AHAA!
 					renderer.RenderOneEye(a1, true);
-
-					if (testHudTexture) {
-						// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-						// blitHudTextureToScreen();
-						// sharedRiftHmd->bindToSceneFrameBuffer();
-					} // BLACK
-
 				}
 				ovrPosef leftEyePose = sharedRiftHmd->getCurrentEyePose();
-
-				{
-					/*
-					glDepthFunc(GL_ALWAYS);
-					gl_RenderState.AlphaFunc(GL_GREATER, 0.f);
-					glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-					HudTexture::hudTexture->renderToScreen();
-					sharedRiftHmd->bindToSceneFrameBuffer();
-					glDepthFunc(GL_LESS);
-					gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
-					/* */
-				} // BLACK
-
-				if (testHudTexture) {
-					// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					// HudTexture::hudTexture->renderToScreen();
-					// sharedRiftHmd->bindToSceneFrameBuffer();
-				} // BLACK
 
 				// right eye view - 3D scene pass
 				{
@@ -737,20 +674,22 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					hud_weap_blend1 = GL_SRC_ALPHA;
 				}
 
-				if (testHudTexture) {
-					// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					// HudTexture::hudTexture->renderToScreen();
-					// sharedRiftHmd->bindToSceneFrameBuffer();
-				} // BLACK!!!
-
 				//// HUD Pass ////
 				// gl_RenderState.EnableAlphaTest(false);
+				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f); // Required to show menu dim color
 				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
 				gl_RenderState.Apply();
 
+				// Undo texture state trickery from 3D pass
+				// TODO: figure out how to work well with the gzdoom material system.
+				// I'm seeing occasional brief flashes of other textures where this hud is supposed to be.
+				glBindSampler(0, 0);
+				glActiveTexture(GL_TEXTURE0);
 				HudTexture::hudTexture->bindRenderTexture();
-				glDisable(GL_DEPTH_TEST);
+
+				// glDisable(GL_DEPTH_TEST);
 				float hudPitchDegrees = -5 - 20 * vr_hud_scale / 0.6; // -25 is good for vr_hud_scale 0.6
+
 				// note: crosshair is suppressed during hud pass?
 				// left eye view - hud pass
 				{
@@ -824,19 +763,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
 				}
-
-				{
-					/*
-					glDepthFunc(GL_ALWAYS);
-					gl_RenderState.AlphaFunc(GL_GREATER, 0.f);
-					glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-					HudTexture::hudTexture->renderToScreen();
-					sharedRiftHmd->bindToSceneFrameBuffer();
-					glDepthFunc(GL_LESS);
-					gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
-					/* */
-				} // BLACK
 				  
 				//// Blend Effects Pass
 				{ //  separate pass for full screen effects like radiation suit
@@ -860,19 +786,6 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					}
 				}
 
-				{
-					/*
-					glDepthFunc(GL_ALWAYS);
-					gl_RenderState.AlphaFunc(GL_GREATER, 0.f);
-					glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					glViewport(0, 0, SCREENWIDTH, SCREENHEIGHT);
-					HudTexture::hudTexture->renderToScreen();
-					sharedRiftHmd->bindToSceneFrameBuffer();
-					glDepthFunc(GL_LESS);
-					gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
-					/* */
-				} // BLACK
-
 				sharedRiftHmd->commitFrame();
 
 				// glEnable(GL_BLEND);
@@ -885,7 +798,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				static bool swapThisFrame = true;
 				// swapThisFrame = ! swapThisFrame; // Only mirror every other frame
-				if (swapThisFrame && ! testHudTexture)
+				if (swapThisFrame)
 					blitRiftBufferToScreen();
 
 				sharedRiftHmd->submitFrame(1.0/calc_mapunits_per_meter(player));
