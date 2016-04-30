@@ -44,6 +44,7 @@ private:
 	int hqsViewMatrixLoc;
 	int hqsProjMatrixLoc;
 	int hqsHudTextureLoc;
+	unsigned int hudVbo;
 
 // #ifdef HAVE_OCULUS_API
 	ovrTextureSwapChain sceneTextureSet;

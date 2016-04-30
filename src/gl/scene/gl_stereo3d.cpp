@@ -635,7 +635,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 				static bool hmdEverRecentered = false;
-				if (! hmdEverRecentered) {
+				if (!hmdEverRecentered) {
 					hmdEverRecentered = true;
 					sharedRiftHmd->recenter_pose();
 				}
@@ -676,18 +676,33 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				//// HUD Pass ////
 				// gl_RenderState.EnableAlphaTest(false);
-				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f); // Required to show menu dim color
-				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
-				gl_RenderState.Apply();
 
 				// Undo texture state trickery from 3D pass
 				// TODO: figure out how to work well with the gzdoom material system.
 				// I'm seeing occasional brief flashes of other textures where this hud is supposed to be.
-				glBindSampler(0, 0);
-				glActiveTexture(GL_TEXTURE0);
-				HudTexture::hudTexture->bindRenderTexture();
 
-				// glDisable(GL_DEPTH_TEST);
+				// One approach is to run a no-op weapon pass, to clear the GL state without needing
+				// to understand how it should be done correctly
+				const bool useFakeWeaponPass = false;
+				if (useFakeWeaponPass) { // causes later weapon to not appear
+					// works, but still flickers like hackGLState
+					renderer.EndDrawSceneSprites(viewsector); // paint weapon
+					// renderer.EndDrawScene(viewsector); // paint weapon and blend, same
+				}
+
+				// One approach to get the hud pass to work is these direct GL state changes.
+				// Presumably I should be using built-in FMaterial or something, to really play well with others.
+				const bool hackGlState = true;
+				if (hackGlState) {
+					glBindSampler(0, 0);
+					glActiveTexture(GL_TEXTURE0);
+				}
+
+				HudTexture::hudTexture->bindRenderTexture();
+				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f); // Required to show menu dim color
+				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
+
+				glDisable(GL_DEPTH_TEST); // needed to not hide crosshair with hud
 				float hudPitchDegrees = -5 - 20 * vr_hud_scale / 0.6; // -25 is good for vr_hud_scale 0.6
 
 				// note: crosshair is suppressed during hud pass?
@@ -706,6 +721,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 
 				//// Crosshair Pass ////
 				gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
 				gl_RenderState.Apply();
 
 				HudTexture::crosshairTexture->bindRenderTexture();
@@ -736,20 +752,26 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				viewwidth = SCREENWIDTH;
 				viewheight = SCREENHEIGHT;
 
-				// gl_RenderState.EnableAlphaTest(true);
-				glDisable(GL_BLEND); // Required to get partial weapon visibility during invisible mode
-				gl_RenderState.Apply();
-				bindAndClearHudTexture(*this);
-				renderer.EndDrawSceneSprites(viewsector); // paint weapon
-				HudTexture::hudTexture->unbind();
-				glEnable(GL_BLEND);
+				{ // paint weapon to offscreen buffer
+					// gl_RenderState.EnableAlphaTest(true);
+					// gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
+					gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
+					glDisable(GL_BLEND); // Required to get partial weapon visibility during invisible mode
+					gl_RenderState.Apply();
+					bindAndClearHudTexture(*this);
+					renderer.EndDrawSceneSprites(viewsector); // paint weapon
+					HudTexture::hudTexture->unbind();
+				}
 
 				sharedRiftHmd->bindToSceneFrameBuffer();
 				HudTexture::hudTexture->bindRenderTexture();
-
+				glEnable(GL_BLEND);
 				// gl_RenderState.EnableAlphaTest(false);
+				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
 				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
 				gl_RenderState.Apply(); // good - suit no longer obscures weapon; implicitly enables GL_TEXTURE_2D
+
+				// glDisable(GL_BLEND);
 
 				// left eye view - weapon pass
 				{
@@ -764,6 +786,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
 				}
 				  
+				glEnable(GL_BLEND);
 				//// Blend Effects Pass
 				{ //  separate pass for full screen effects like radiation suit
 					bindAndClearHudTexture(*this);

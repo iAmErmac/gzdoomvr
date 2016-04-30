@@ -74,6 +74,39 @@ void RiftHmd::createShaders() {
 	hqsViewMatrixLoc = glGetUniformLocation(hudQuadShader, "viewMatrix");
 	hqsProjMatrixLoc = glGetUniformLocation(hudQuadShader, "projectionMatrix");
 	hqsHudTextureLoc = glGetUniformLocation(hudQuadShader, "hudTexture");
+
+	// Create my own vertex buffer objects
+	GLuint hud_n_xhair_buffers[] = {0, 0};
+	glGenBuffers(2, hud_n_xhair_buffers);
+	hudVbo = hud_n_xhair_buffers[0];
+	GLuint xhairVbo = hud_n_xhair_buffers[1];
+
+	float hudScale = 0.4;
+	float hudDistance = 1.56; // meters
+	float hudWidth = hudScale * 1.0 / 0.4 * hudDistance;
+	float hudHeight = hudWidth * 3.0f / 4.0f;
+	float hud_vbo_data[] = {
+		-0.5*hudWidth, 0.5*hudHeight, -hudDistance,   0, 1,
+		-0.5*hudWidth,-0.5*hudHeight, -hudDistance,   0, 0,
+		0.5*hudWidth, 0.5*hudHeight, -hudDistance,   1, 1,
+		0.5*hudWidth,-0.5*hudHeight, -hudDistance,   1, 0
+	};
+
+	/*
+	GLuint vao;
+	glGenVertexArrays(1, &vao);
+	glBindVertexArray(vao);
+	int positionLoc = glGetAttribLocation(hudQuadShader, "position");
+	int texCoordLoc = glGetAttribLocation(hudQuadShader, "texCoord");
+	glEnableVertexAttribArray(positionLoc);
+	glEnableVertexAttribArray(texCoordLoc);
+	glBindBuffer(GL_ARRAY_BUFFER, hudVbo);
+	// glVertexAttribPointer(positionLoc, 3, GL_FLOAT, false, sizeof(FLOAT) * 5, 0);
+	// glVertexAttribPointer(texCoordLoc, 2, GL_FLOAT, false, sizeof(FLOAT) * 5, (void*)12);
+	glBufferData(GL_ARRAY_BUFFER, 20 * sizeof(float), &hud_vbo_data[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	*/
+	
 }
 
 void RiftHmd::destroy() {
@@ -339,7 +372,7 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	ptr++;
 
 	// It turns out I did not need to use my own shader
-	const bool useMyShader = false;
+	const bool useMyShader = true;
 	if (useMyShader) {
 		glUseProgram(hudQuadShader);
 		gl_RenderState.mViewMatrix.matrixToGL(hqsViewMatrixLoc);
@@ -347,7 +380,16 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 		glUniform1i(hqsHudTextureLoc, 0);
 	}
 
-	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
+
+	const bool useMyVbos = false;
+	if (useMyVbos) {
+		glBindBuffer(GL_ARRAY_BUFFER, hudVbo);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 20);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+	else {
+		GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
+	}
 
 	// gl_MatrixStack.Pop(gl_RenderState.mViewMatrix);
 }
