@@ -60,6 +60,7 @@ EXTERN_CVAR(Bool, hud_scale)
 EXTERN_CVAR(Int, hud_althudscale)
 EXTERN_CVAR(Bool, crosshairscale)
 EXTERN_CVAR(Bool, freelook)
+EXTERN_CVAR(Bool, gl_billboard_faces_camera)
 EXTERN_CVAR(Float, movebob)
 EXTERN_CVAR(Float, turbo)
 EXTERN_CVAR(Int, screenblocks)
@@ -74,6 +75,7 @@ CCMD(oculardium_optimosa)
 	hud_scale = 1;
 	hud_althudscale = 1;
 	crosshairscale = 1;
+	gl_billboard_faces_camera = true;
 	movebob = 0.05; // No bobbing
 	turbo = 80; // Slower walking
 	vr_mode = 8; // Rift mode

@@ -22,6 +22,7 @@ gz3doom.exe %* ^
  +m_use_mouse false ^
  +smooth_mouse false ^
  +wipetype none ^
- +vr_view_yoffset 4
+ +vr_view_yoffset 4 ^
+ +gl_billboard_faces_camera true
 REM pause is for debugging
 REM pause
