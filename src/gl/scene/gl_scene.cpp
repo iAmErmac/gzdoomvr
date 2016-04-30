@@ -56,6 +56,7 @@
 #include "a_hexenglobal.h"
 #include "p_local.h"
 #include "gl/gl_functions.h"
+
 #include "gl/dynlights/gl_lightbuffer.h"
 #include "gl/system/gl_interface.h"
 #include "gl/system/gl_framebuffer.h"
@@ -172,7 +173,6 @@ void FGLRenderer::ResetViewport()
 {
 	int trueheight = static_cast<OpenGLFrameBuffer*>(screen)->GetTrueHeight();	// ugh...
 	glViewport(0, (trueheight-screen->GetHeight())/2, screen->GetWidth(), screen->GetHeight());
-	// glViewport(viewwindowx, (trueheight-screen->GetHeight())/2, viewwidth, screen->GetHeight()); // CMB change to maybe work with side-by-side stereo
 }
 
 //-----------------------------------------------------------------------------
@@ -260,6 +260,7 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio)
 //
 // eyeShift is the off-center eye position for stereo 3D, in meters
 //-----------------------------------------------------------------------------
+
 void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float eyeShift, bool doFrustumShift)
 {
 	gl_RenderState.mProjectionMatrix.loadIdentity();
@@ -293,7 +294,6 @@ void FGLRenderer::SetProjection(float fov, float ratio, float fovratio, float ey
 	// setPerspective(fovy, ratio, 5.f, 65536.f); // Do not use Graf Zahl's recent perspective refactoring May 2014 cmb
 	gl_RenderState.Set2DMode(false);
 }
-
 
 // raw matrix input from stereo 3d modes
 void FGLRenderer::SetProjection(VSMatrix matrix)
@@ -499,9 +499,9 @@ void FGLRenderer::RenderScene(int recursion)
 
 	gl_RenderState.EnableTexture(gl_texture);
 	gl_RenderState.EnableBrightmap(true);
-
 	gl_drawinfo->drawlists[GLDL_PLAINWALLS].DrawWalls(pass);
 	gl_drawinfo->drawlists[GLDL_PLAINFLATS].DrawFlats(pass);
+
 
 	// Part 2: masked geometry. This is set up so that only pixels with alpha>gl_mask_threshold will show
 	if (!gl_texture) 
@@ -512,6 +512,7 @@ void FGLRenderer::RenderScene(int recursion)
 	gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_threshold);
 	gl_drawinfo->drawlists[GLDL_MASKEDWALLS].DrawWalls(pass);
 	gl_drawinfo->drawlists[GLDL_MASKEDFLATS].DrawFlats(pass);
+
 	// Part 3: masked geometry with polygon offset. This list is empty most of the time so only waste time on it when in use.
 	if (gl_drawinfo->drawlists[GLDL_MASKEDWALLSOFS].Size() > 0)
 	{
@@ -616,7 +617,6 @@ void FGLRenderer::DrawScene(bool toscreen)
 		static_cast<OpenGLFrameBuffer*>(screen)->Swap();
 		All.Clock();
 	}
-
 	RenderScene(recursion);
 
 	// Handle all portals after rendering the opaque objects but before
@@ -788,12 +788,12 @@ void FGLRenderer::EndDrawSceneSprites(sector_t * viewsector)
 	// [BB] HUD models need to be rendered here. Make sure that
 	// DrawPlayerSprites is only called once. Either to draw
 	// HUD models or to draw the weapon sprites.
-	const bool renderHUDModel = gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player);
-	if (renderHUDModel)
+	const bool renderHUDModel = gl_IsHUDModelForPlayerAvailable( players[consoleplayer].camera->player );
+	if ( renderHUDModel )
 	{
 		// [BB] The HUD model should be drawn over everything else already drawn.
 		glClear(GL_DEPTH_BUFFER_BIT);
-		DrawPlayerSprites(viewsector, true);
+		DrawPlayerSprites (viewsector, true);
 	}
 
 	glDisable(GL_STENCIL_TEST);
@@ -802,9 +802,9 @@ void FGLRenderer::EndDrawSceneSprites(sector_t * viewsector)
 
 	ResetViewport();
 	// [BB] Only draw the sprites if we didn't render a HUD model before.
-	if (renderHUDModel == false)
+	if ( renderHUDModel == false )
 	{
-		DrawPlayerSprites(viewsector, false);
+		DrawPlayerSprites (viewsector, false);
 	}
 	gl_RenderState.SetFixedColormap(CM_DEFAULT);
 	gl_RenderState.SetSoftLightLevel(-1);
@@ -849,9 +849,7 @@ void FGLRenderer::ProcessScene(bool toscreen)
 
 	int mapsection = R_PointInSubsector(viewx, viewy)->mapsection;
 	memset(&currentmapsection[0], 0, currentmapsection.Size());
-
 	currentmapsection[mapsection>>3] |= 1 << (mapsection & 7);
-
 	DrawScene(toscreen);
 
 	FDrawInfo::EndDrawInfo();
@@ -925,7 +923,7 @@ void FGLRenderer::RenderOneEye(angle_t frustumAngle, bool toscreen)
 //-----------------------------------------------------------------------------
 
 sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen)
-{
+{	
 	sector_t * retval;
 	R_SetupFrame (camera);
 	SetViewArea();
@@ -998,11 +996,11 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // TODO: not for all 3d modes
 		mCurrentFoV = fov;
 		// Stereo mode specific perspective projection
-		SetProjection(eye->GetProjection(fov, ratio, fovratio));
+		SetProjection( eye->GetProjection(fov, ratio, fovratio) );
 		// SetProjection(fov, ratio, fovratio);	// switch to perspective mode and set up clipper
 		SetViewAngle(viewangle);
 		// Stereo mode specific viewpoint adjustment - temporarily shifts global viewx, viewy, viewz
-		eye->GetViewShift(GLRenderer->mAngles.Yaw.Degrees, viewShift);
+		eye->GetViewShift(GLRenderer->mAngles.Yaw, viewShift);
 		s3d::ScopedViewShifter viewShifter(viewShift);
 		SetViewMatrix(viewx, viewy, viewz, false, false);
 		gl_RenderState.ApplyMatrices();
@@ -1037,7 +1035,6 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 
 	gl_frameCount++;	// This counter must be increased right before the interpolations are restored.
 	interpolator.RestoreInterpolations ();
-
 	return retval;
 }
 

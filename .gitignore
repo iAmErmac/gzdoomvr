@@ -31,9 +31,9 @@
 /tools/zipdir/x64
 /wadsrc/*.pk3
 /build_vc2013
-/build_cmake
 /build_cmake32
 /build_cmake64
+/build_cmake_vs2015
 /bzip2/x64/
 /disasm.txt
 /game-music-emu/x64/
@@ -44,4 +44,3 @@
 /build_vc2013_64bit
 /build_vc2015
 build_cmake
-/build_cmake_vs2015

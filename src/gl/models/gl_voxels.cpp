@@ -59,7 +59,6 @@
 #include "gl/utility/gl_geometric.h"
 #include "gl/utility/gl_convert.h"
 #include "gl/renderer/gl_renderstate.h"
-#include "gl/data/gl_data.h"
 
 
 //===========================================================================

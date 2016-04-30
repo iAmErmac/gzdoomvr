@@ -131,7 +131,7 @@ void OpenGLFrameBuffer::InitializeState()
 	{
 		first=false;
 		// [BB] For some reason this crashes, if compiled with MinGW and optimization. Has to be investigated.
-#if defined _MSC_VER || defined __APPLE__
+#ifdef _MSC_VER
 		gl_PrintStartupLog();
 #endif
 
