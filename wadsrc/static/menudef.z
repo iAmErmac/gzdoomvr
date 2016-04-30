@@ -173,6 +173,7 @@ OptionMenu "GLPrefOptions"
 	Option "Smooth sprite edges",		gl_sprite_blend,				"OnOff"
 	Option "Fuzz Style",				gl_fuzztype,					"FuzzStyle"
 	Option "Sprite billboard",			gl_billboard_mode,				"BillboardModes"
+	Option "Sprites face camera",		gl_billboard_faces_camera,		"OnOff"
 	Option "Particle style",			gl_particles_style,				"Particles"
 	Slider "Ambient light level",		gl_light_ambient,				1.0, 255.0, 5.0
 	Option "Rendering quality",			gl_render_precise,				"Precision"
