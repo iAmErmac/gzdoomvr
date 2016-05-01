@@ -264,7 +264,8 @@ void GLSprite::Draw(int pass)
 				&& (gl_billboard_mode == 1 || (actor && actor->renderflags & RF_FORCEXYBILLBOARD))));
 
 			const bool drawBillboardFacingCamera = gl_billboard_faces_camera;
-
+			// [Nash] has +ROLLSPRITE
+			const bool drawRollSpriteActor = (actor != NULL && actor->renderflags & RF_ROLLSPRITE);
 			gl_RenderState.Apply();
 
 			FVector3 v1;
@@ -272,7 +273,15 @@ void GLSprite::Draw(int pass)
 			FVector3 v3;
 			FVector3 v4;
 
-			if (drawWithXYBillboard || drawBillboardFacingCamera)
+						// [fgsfds] check sprite type mask
+			DWORD spritetype = (DWORD)-1;
+			if (actor != NULL) spritetype = actor->renderflags & RF_SPRITETYPEMASK;
+			
+						// [Nash] is a flat sprite
+			const bool isFlatSprite = (spritetype == RF_WALLSPRITE || spritetype == RF_FLATSPRITE || spritetype == RF_PITCHFLATSPRITE);
+			
+			// [Nash] check for special sprite drawing modes
+			if (drawWithXYBillboard || drawBillboardFacingCamera || drawRollSpriteActor || isFlatSprite)
 			{
 				// Compute center of sprite
 				float xcenter = (x1 + x2)*0.5;
@@ -284,7 +293,8 @@ void GLSprite::Draw(int pass)
 				mat.Translate(xcenter, zcenter, ycenter); // move to sprite center
 
 				// Order of rotations matters. Perform yaw rotation (Y, face camera) before pitch (X, tilt up/down).
-				if (drawBillboardFacingCamera) {
+				if (drawBillboardFacingCamera) 
+				{
 					// [CMB] Rotate relative to camera XY position, not just camera direction,
 					// which is nicer in VR
 					float xrel = xcenter - GLRenderer->mViewActor->X();
@@ -294,6 +304,30 @@ void GLSprite::Draw(int pass)
 					float relAngleDeg = counterRotationDeg + absAngleDeg;
 
 					mat.Rotate(0, 1, 0, relAngleDeg);
+				}
+
+				// [fgsfds] calculate yaw vectors
+				float yawvecX, yawvecY, FlatAngle;
+				
+				if (isFlatSprite)
+				{
+					//Pulled this from A_CheckBlock.
+					//double s = angle.Sin();
+					//double c = angle.Cos();
+					//pos = mobj->Vec3Offset(xofs * c + yofs * s, xofs * s - yofs * c, zofs);
+
+					//This is what the old code looked like at first.
+					//yawvecX = FIXED2FLOAT(finecosine[actor->angle >> ANGLETOFINESHIFT]);
+					//yawvecY = FIXED2FLOAT(finesine[actor->angle >> ANGLETOFINESHIFT]);
+					//FlatAngle = FIXED2FLOAT((actor->flatangle) / 180);
+
+					DAngle angle = actor->Angles.Yaw;
+					double s = angle.Sin();
+					double c = angle.Cos();
+					
+					yawvecX = c * angle.Degrees;
+					yawvecY = s * angle.Degrees;
+					FlatAngle = actor->FlatAngle.Degrees / 180;
 				}
 
 				if (drawWithXYBillboard)
