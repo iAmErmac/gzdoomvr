@@ -311,23 +311,13 @@ void GLSprite::Draw(int pass)
 				float angleRad = (270. - GLRenderer->mAngles.Yaw).Radians();
 				if (isFlatSprite)
 				{
-					//Pulled this from A_CheckBlock.
-					//double s = angle.Sin();
-					//double c = angle.Cos();
-					//pos = mobj->Vec3Offset(xofs * c + yofs * s, xofs * s - yofs * c, zofs);
-
-					//This is what the old code looked like at first.
-					//yawvecX = FIXED2FLOAT(finecosine[actor->angle >> ANGLETOFINESHIFT]);
-					//yawvecY = FIXED2FLOAT(finesine[actor->angle >> ANGLETOFINESHIFT]);
-					//FlatAngle = FIXED2FLOAT((actor->flatangle) / 180);
-
 					DAngle angle = actor->Angles.Yaw;
 					double s = angle.Sin();
 					double c = angle.Cos();
 					
 					yawvecX = c * angle.Degrees;
 					yawvecY = s * angle.Degrees;
-					FlatAngle = actor->FlatAngle.Degrees / 180;
+					FlatAngle = actor->FlatAngle.Degrees;
 				}
 
 				// [MC] This is the only thing that I changed in Nash's submission which 
