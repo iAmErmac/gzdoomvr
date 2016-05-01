@@ -642,172 +642,162 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					sharedRiftHmd->recenter_pose();
 				}
 
-				// FIRST PASS - 3D
-				// Temporarily modify global variables, so HUD could draw correctly
-				int oldScreenBlocks = screenblocks;
-				screenblocks = 12; // full screen
-				//
-				glEnable(GL_DEPTH_TEST); // required for correct depth sorting
-				glEnable(GL_STENCIL_TEST); // required for correct clipping of unhandled texture hack flats
-				gl_RenderState.Set2DMode(false); // required for correct sector darkening in map mode
-
-				// left eye view - 3D scene pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					renderer.RenderOneEye(a1, true);
-				}
-				ovrPosef leftEyePose = sharedRiftHmd->getCurrentEyePose();
-
-				// right eye view - 3D scene pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					renderer.RenderOneEye(a1, false);
-				}
-				ovrPosef rightEyePose = sharedRiftHmd->getCurrentEyePose();
-
 				// Our mode of painting screen quads for HUD, crosshair, and weapon
 				// depends on whether invulnerability is on
-
 				int hud_weap_blend1 = GL_ONE; // first ingredient of blend mode for nice background effects
 				if (gl_fixedcolormap) { // invulnerability or night goggles
-					// so the HUD and weapon panes won't be opaque
+										// so the HUD and weapon panes won't be opaque
 					hud_weap_blend1 = GL_SRC_ALPHA;
 				}
 
-				//// HUD Pass ////
-				// gl_RenderState.EnableAlphaTest(false);
-
-				// Undo texture state trickery from 3D pass
-				// TODO: figure out how to work well with the gzdoom material system.
-				// I'm seeing occasional brief flashes of other textures where this hud is supposed to be.
-
-				// One approach is to run a no-op weapon pass, to clear the GL state without needing
-				// to understand how it should be done correctly
-				const bool useFakeWeaponPass = false;
-				if (useFakeWeaponPass) { // causes later weapon to not appear
-					// works, but still flickers like hackGLState
-					renderer.EndDrawSceneSprites(viewsector); // paint weapon
-					// renderer.EndDrawScene(viewsector); // paint weapon and blend, same
-				}
-
-				// One approach to get the hud pass to work is these direct GL state changes.
-				// Presumably I should be using built-in FMaterial or something, to really play well with others.
-				const bool hackGlState = true;
-				if (hackGlState) {
-					glBindSampler(0, 0);
-					glActiveTexture(GL_TEXTURE0);
-				}
-
-				HudTexture::hudTexture->bindRenderTexture();
-				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f); // Required to show menu dim color
-				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
-
-				glDisable(GL_DEPTH_TEST); // needed to not hide crosshair with hud
-				float hudPitchDegrees = -5 - 20 * vr_hud_scale / 0.6; // -25 is good for vr_hud_scale 0.6
-
-				// note: crosshair is suppressed during hud pass?
-				// left eye view - hud pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
-				}
-				// right eye view - hud pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
-				}
-
-				//// Crosshair Pass ////
-				gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
-				gl_RenderState.Apply();
-
-				HudTexture::crosshairTexture->bindRenderTexture();
-
-				// left eye view - crosshair pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintCrosshairQuad(leftEyePose, rightEyePose, oldScreenBlocks <= 10);
-				}
-				// right eye view - crosshair pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintCrosshairQuad(rightEyePose, leftEyePose, oldScreenBlocks <= 10);
-				}
-
-				/* */
-				//// Weapon Pass ////
-				// Temporarily adjust view window parameters, to fool weapon into drawing full size,
-				// even when "screenblocks" is a smaller number
+				int oldScreenBlocks = screenblocks;
 				int oldViewWindowX = viewwindowx;
 				int oldViewWindowY = viewwindowy;
 				int oldViewWidth = viewwidth;
 				int oldViewHeight = viewheight;
-				viewwindowx = 0;
-				viewwindowy = 0;
-				viewwidth = SCREENWIDTH;
-				viewheight = SCREENHEIGHT;
+				ovrPosef leftEyePose, rightEyePose;
 
-				{ // paint weapon to offscreen buffer
-					// gl_RenderState.EnableAlphaTest(true);
-					// gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
-					gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
-					glDisable(GL_BLEND); // Required to get partial weapon visibility during invisible mode
+				{   // FIRST PASS - 3D
+					// Temporarily modify global variables, so HUD could draw correctly
+					screenblocks = 12; // full screen
+					//
+					glEnable(GL_DEPTH_TEST); // required for correct depth sorting
+					glEnable(GL_STENCIL_TEST); // required for correct clipping of unhandled texture hack flats
+					gl_RenderState.Set2DMode(false); // required for correct sector darkening in map mode
+
+					// left eye view - 3D scene pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						renderer.RenderOneEye(a1, true);
+					}
+					leftEyePose = sharedRiftHmd->getCurrentEyePose();
+
+					// right eye view - 3D scene pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						renderer.RenderOneEye(a1, false);
+					}
+					rightEyePose = sharedRiftHmd->getCurrentEyePose();
+				}
+
+				{   //// HUD Pass ////
+					// gl_RenderState.EnableAlphaTest(false);
+
+					const bool hackGlState = true; // fixes wrong-texture-on-hud problem
+					if (hackGlState) {
+						glBindSampler(0, 0);
+						glActiveTexture(GL_TEXTURE0);
+					}
+
+					HudTexture::hudTexture->bindRenderTexture();
+					gl_RenderState.AlphaFunc(GL_EQUAL, 0.f); // Required to show menu dim color
+					gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
+
+					glDisable(GL_DEPTH_TEST); // needed to not hide crosshair with hud
+					float hudPitchDegrees = -5 - 20 * vr_hud_scale / 0.6; // -25 is good for vr_hud_scale 0.6
+
+					// note: crosshair is suppressed during hud pass?
+					// left eye view - hud pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
+					}
+					// right eye view - hud pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
+					}
+				}
+
+				{   //// Crosshair Pass ////
+					gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+					gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
 					gl_RenderState.Apply();
-					bindAndClearHudTexture(*this);
-					renderer.EndDrawSceneSprites(viewsector); // paint weapon
-					HudTexture::hudTexture->unbind();
+
+					HudTexture::crosshairTexture->bindRenderTexture();
+
+					// left eye view - crosshair pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintCrosshairQuad(leftEyePose, rightEyePose, oldScreenBlocks <= 10);
+					}
+					// right eye view - crosshair pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintCrosshairQuad(rightEyePose, leftEyePose, oldScreenBlocks <= 10);
+					}
 				}
 
-				sharedRiftHmd->bindToSceneFrameBuffer();
-				HudTexture::hudTexture->bindRenderTexture();
-				glEnable(GL_BLEND);
-				// gl_RenderState.EnableAlphaTest(false);
-				gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
-				gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
-				gl_RenderState.Apply(); // good - suit no longer obscures weapon; implicitly enables GL_TEXTURE_2D
+				{   //// Weapon Pass ////
+					// Temporarily adjust view window parameters, to fool weapon into drawing full size,
+					// even when "screenblocks" is a smaller number
+					viewwindowx = 0;
+					viewwindowy = 0;
+					viewwidth = SCREENWIDTH;
+					viewheight = SCREENHEIGHT;
 
-				// glDisable(GL_BLEND);
-
-				// left eye view - weapon pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintWeaponQuad(leftEyePose, rightEyePose, vr_weapondist, vr_weapon_height);
-				}
-				// right eye view - weapon pass
-				{
-					sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
-					PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-					sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
-				}
-				  
-				glEnable(GL_BLEND);
-				//// Blend Effects Pass
-				{ //  separate pass for full screen effects like radiation suit
-					bindAndClearHudTexture(*this);
-					renderer.EndDrawSceneBlend(viewsector); // paint suit effects etc.
-					HudTexture::hudTexture->unbind();
+					{ // paint weapon to offscreen buffer
+						// gl_RenderState.EnableAlphaTest(true);
+						// gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
+						gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
+						glDisable(GL_BLEND); // Required to get partial weapon visibility during invisible mode
+						gl_RenderState.Apply();
+						bindAndClearHudTexture(*this);
+						renderer.EndDrawSceneSprites(viewsector); // paint weapon
+						HudTexture::hudTexture->unbind();
+					}
 
 					sharedRiftHmd->bindToSceneFrameBuffer();
 					HudTexture::hudTexture->bindRenderTexture();
-
+					glEnable(GL_BLEND);
 					// gl_RenderState.EnableAlphaTest(false);
+					gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
 					gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
-					gl_RenderState.Apply();
+					gl_RenderState.Apply(); // good - suit no longer obscures weapon; implicitly enables GL_TEXTURE_2D
+
+					// glDisable(GL_BLEND);
+
+					// left eye view - weapon pass
 					{
 						sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
-						sharedRiftHmd->paintBlendQuad();
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintWeaponQuad(leftEyePose, rightEyePose, vr_weapondist, vr_weapon_height);
 					}
+					// right eye view - weapon pass
 					{
 						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
-						sharedRiftHmd->paintBlendQuad();
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintWeaponQuad(rightEyePose, leftEyePose, vr_weapondist, vr_weapon_height);
+					}
+				}
+				  
+				{   //// Blend Effects Pass
+					glEnable(GL_BLEND);
+					{ //  separate pass for full screen effects like radiation suit
+						bindAndClearHudTexture(*this);
+						renderer.EndDrawSceneBlend(viewsector); // paint suit effects etc.
+						HudTexture::hudTexture->unbind();
+
+						sharedRiftHmd->bindToSceneFrameBuffer();
+						HudTexture::hudTexture->bindRenderTexture();
+
+						// gl_RenderState.EnableAlphaTest(false);
+						gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
+						gl_RenderState.Apply();
+						{
+							sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
+							sharedRiftHmd->paintBlendQuad();
+						}
+						{
+							sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
+							sharedRiftHmd->paintBlendQuad();
+						}
 					}
 				}
 
