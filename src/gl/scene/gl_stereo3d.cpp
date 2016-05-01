@@ -10,6 +10,7 @@
 #include "gl/renderer/gl_colormap.h"
 #include "gl/stereo3d/scoped_color_mask.h"
 #include "gl/scene/gl_hudtexture.h"
+#include "gl/textures/gl_samplers.h"
 #include "gl/utility/gl_clock.h"
 #include "gl/utility/gl_convert.h"
 #include "doomstat.h"
@@ -686,6 +687,19 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				if (hackGlState) {
 					glBindSampler(0, 0);
 					glActiveTexture(GL_TEXTURE0);
+
+					// Things that don't help the flickering problem
+					// renderer.mSamplerManager->Bind(0, 0); // undoes needed glBindSampler(0,0)
+					glEnable(GL_TEXTURE_2D);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_LOD, 0);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LOD, 0);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_RED);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+					gl_RenderState.mTextureMatrix.loadIdentity();
 				}
 
 				{   //// Crosshair Pass ////
