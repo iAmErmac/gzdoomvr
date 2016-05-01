@@ -309,14 +309,11 @@ void GLSprite::Draw(int pass)
 				// [fgsfds] calculate yaw vectors
 				float yawvecX, yawvecY, FlatAngle;
 				float angleRad = (270. - GLRenderer->mAngles.Yaw).Radians();
+				float rollDegrees = actor->Angles.Roll.Degrees;
 				if (isFlatSprite)
 				{
-					DAngle angle = actor->Angles.Yaw;
-					double s = angle.Sin();
-					double c = angle.Cos();
-					
-					yawvecX = c * angle.Degrees;
-					yawvecY = s * angle.Degrees;
+					yawvecX = actor->Angles.Yaw.Cos();
+					yawvecY = actor->Angles.Yaw.Sin();
 					FlatAngle = actor->FlatAngle.Degrees;
 				}
 
@@ -338,13 +335,14 @@ void GLSprite::Draw(int pass)
 					if (drawRollSpriteActor)
 					{
 						//fixed_t rollDegrees = 360.0 * (1.0 - ((actor->roll >> 16) / (float)(65536)));
-						float rollDegrees = actor->Angles.Roll.Degrees;
 						mat.Rotate(yawvecX, 0, yawvecY, rollDegrees);
 					}
 				}
 				else if (spritetype == RF_FLATSPRITE)
 				{ // [fgsfds] rotate the sprite so it faces upwards/downwards
 					mat.Rotate(-yawvecY, 0, yawvecX, -90.f);
+					if (drawRollSpriteActor)
+						mat.Rotate(yawvecX, 0, yawvecY, rollDegrees);
 				}
 				// [fgsfds] Rotate the sprite about the sight vector (roll) 
 				else if (spritetype == RF_WALLSPRITE)
