@@ -308,6 +308,7 @@ void FGLRenderer::CreateScene()
 	R_SetView();
 	validcount++;	// used for processing sidedefs only once by the renderer.
 	gl_RenderBSPNode (nodes + numnodes - 1);
+	if (GLRenderer->mCurrentPortal != NULL) GLRenderer->mCurrentPortal->RenderAttached();
 	Bsp.Unclock();
 
 	// And now the crappy hacks that have to be done to avoid rendering anomalies:
@@ -351,7 +352,8 @@ void FGLRenderer::RenderScene(int recursion)
 
 	// if we don't have a persistently mapped buffer, we have to process all the dynamic lights up front,
 	// so that we don't have to do repeated map/unmap calls on the buffer.
-	if (mLightCount > 0 && gl_fixedcolormap == CM_DEFAULT && gl_lights && !(gl.flags & RFL_BUFFER_STORAGE))
+	bool haslights = mLightCount > 0 && gl_fixedcolormap == CM_DEFAULT && gl_lights;
+	if (gl.lightmethod == LM_DEFERRED && haslights)
 	{
 		GLRenderer->mLights->Begin();
 		gl_drawinfo->drawlists[GLDL_PLAINWALLS].DrawWalls(GLPASS_LIGHTSONLY);
@@ -371,12 +373,20 @@ void FGLRenderer::RenderScene(int recursion)
 
 	int pass;
 
-	if (mLightCount > 0 && gl_fixedcolormap == CM_DEFAULT && gl_lights && (gl.flags & RFL_BUFFER_STORAGE))
+	if (!haslights || gl.lightmethod == LM_DEFERRED)
+	{
+		pass = GLPASS_PLAIN;
+	}
+	else if (gl.lightmethod == LM_DIRECT)
 	{
 		pass = GLPASS_ALL;
 	}
 	else
 	{
+		// process everything that needs to handle textured dynamic lights.
+		if (haslights) RenderMultipassStuff();
+
+		// The remaining lists which are unaffected by dynamic lights are just processed as normal.
 		pass = GLPASS_PLAIN;
 	}
 
@@ -418,6 +428,10 @@ void FGLRenderer::RenderScene(int recursion)
 
 	// this is the only geometry type on which decals can possibly appear
 	gl_drawinfo->drawlists[GLDL_PLAINWALLS].DrawDecals();
+	if (gl.lightmethod == LM_SOFTWARE)
+	{
+		// also process the render lists with walls and dynamic lights
+	}
 
 	gl_RenderState.SetTextureMode(TM_MODULATE);
 
@@ -490,7 +504,7 @@ void FGLRenderer::DrawScene(bool toscreen)
 	static int recursion=0;
 
 	CreateScene();
-	GLRenderer->mCurrentPortal = NULL;	// this must be reset before any portal recursion takes place.
+	GLRenderer->mClipPortal = NULL;	// this must be reset before any portal recursion takes place.
 
 	// Up to this point in the main draw call no rendering is performed so we can wait
 	// with swapping the render buffer until now.
@@ -511,7 +525,7 @@ void FGLRenderer::DrawScene(bool toscreen)
 }
 
 
-static void FillScreen()
+void gl_FillScreen()
 {
 	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 	gl_RenderState.EnableTexture(false);
@@ -616,7 +630,7 @@ void FGLRenderer::DrawBlend(sector_t * viewsector)
 			{
 				gl_RenderState.BlendFunc(GL_DST_COLOR, GL_ZERO);
 				gl_RenderState.SetColor(extra_red, extra_green, extra_blue, 1.0f);
-				FillScreen();
+				gl_FillScreen();
 			}
 		}
 		else if (blendv.a)
@@ -646,7 +660,7 @@ void FGLRenderer::DrawBlend(sector_t * viewsector)
 	{
 		gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		gl_RenderState.SetColor(blend[0], blend[1], blend[2], blend[3]);
-		FillScreen();
+		gl_FillScreen();
 	}
 }
 
@@ -683,10 +697,17 @@ void FGLRenderer::EndDrawScene(sector_t * viewsector)
 	{
 		DrawPlayerSprites (viewsector, false);
 	}
+	int cm = gl_RenderState.GetFixedColormap();
 	gl_RenderState.SetFixedColormap(CM_DEFAULT);
 	gl_RenderState.SetSoftLightLevel(-1);
 	DrawTargeterSprites();
 	DrawBlend(viewsector);
+	if (gl.glslversion == 0.0)
+	{
+		gl_RenderState.SetFixedColormap(cm);
+		gl_RenderState.DrawColormapOverlay();
+		gl_RenderState.SetFixedColormap(CM_DEFAULT);
+	}
 
 	// Restore standard rendering state
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -773,13 +794,13 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	SetViewArea();
 
 	// We have to scale the pitch to account for the pixel stretching, because the playsim doesn't know about this and treats it as 1:1.
-	double radPitch = clamp(ViewPitch.Normalized180().Radians(), -PI / 2, PI / 2);
+	double radPitch = ViewPitch.Normalized180().Radians();
 	double angx = cos(radPitch);
 	double angy = sin(radPitch) * glset.pixelstretch;
 	double alen = sqrt(angx*angx + angy*angy);
 
 	mAngles.Pitch = (float)RAD2DEG(asin(angy / alen));
-	mAngles.Roll.Degrees = camera->Angles.Roll.Degrees;
+	mAngles.Roll.Degrees = ViewRoll.Degrees;
 
 	// Scroll the sky
 	mSky1Pos = (float)fmod(gl_frameMS * level.skyspeed1, 1024.f) * 90.f/256.f;
@@ -870,7 +891,7 @@ void FGLRenderer::RenderView (player_t* player)
 
 	P_FindParticleSubsectors ();
 
-	GLRenderer->mLights->Clear();
+	if (gl.lightmethod != LM_SOFTWARE) GLRenderer->mLights->Clear();
 
 	// NoInterpolateView should have no bearing on camera textures, but needs to be preserved for the main view below.
 	bool saved_niv = NoInterpolateView;
@@ -902,7 +923,7 @@ void FGLRenderer::RenderView (player_t* player)
 	TThinkerIterator<ADynamicLight> it(STAT_DLIGHT);
 	GLRenderer->mLightCount = ((it.Next()) != NULL);
 
-	sector_t * viewsector = RenderViewpoint(player->camera, NULL, FieldOfView * 360.0f / FINEANGLES, ratio, fovratio, true, true);
+	sector_t * viewsector = RenderViewpoint(player->camera, NULL, FieldOfView.Degrees, ratio, fovratio, true, true);
 
 	All.Unclock();
 }
@@ -925,14 +946,14 @@ void FGLRenderer::WriteSavePic (player_t *player, FILE *file, int width, int hei
 	SetFixedColormap(player);
 	gl_RenderState.SetVertexBuffer(mVBO);
 	GLRenderer->mVBO->Reset();
-	GLRenderer->mLights->Clear();
+	if (gl.lightmethod != LM_SOFTWARE) GLRenderer->mLights->Clear();
 
 	// Check if there's some lights. If not some code can be skipped.
 	TThinkerIterator<ADynamicLight> it(STAT_DLIGHT);
 	GLRenderer->mLightCount = ((it.Next()) != NULL);
 
 	sector_t *viewsector = RenderViewpoint(players[consoleplayer].camera, &bounds, 
-								FieldOfView * 360.0f / FINEANGLES, 1.6f, 1.6f, true, false);
+								FieldOfView.Degrees, 1.6f, 1.6f, true, false);
 	glDisable(GL_STENCIL_TEST);
 	gl_RenderState.SetFixedColormap(CM_DEFAULT);
 	gl_RenderState.SetSoftLightLevel(-1);
@@ -1118,7 +1139,7 @@ void FGLInterface::RenderTextureView (FCanvasTexture *tex, AActor *Viewpoint, in
 	gl_fixedcolormap=CM_DEFAULT;
 	gl_RenderState.SetFixedColormap(CM_DEFAULT);
 
-	bool usefb = gl_usefb || width > screen->GetWidth() || height > screen->GetHeight();
+	bool usefb = gl_usefb || gltex->GetWidth() > screen->GetWidth() || gltex->GetHeight() > screen->GetHeight();
 	if (!usefb)
 	{
 		glFlush();

@@ -666,6 +666,8 @@ enum
 	TELF_KEEPORIENTATION	= 4,
 	TELF_KEEPVELOCITY		= 8,
 	TELF_KEEPHEIGHT			= 16,
+	TELF_ROTATEBOOM			= 32,
+	TELF_ROTATEBOOMINVERSE	= 64,
 };
 
 //Spawns teleport fog. Pass the actor to pluck TeleFogFromType and TeleFogToType. 'from' determines if this is the fog to spawn at the old position (true) or new (false).
@@ -696,7 +698,7 @@ void P_DoDeferedScripts (void);
 //
 // [RH] p_quake.c
 //
-bool P_StartQuakeXYZ(AActor *activator, int tid, int intensityX, int intensityY, int intensityZ, int duration, int damrad, int tremrad, FSoundID quakesfx, int flags, double waveSpeedX, double waveSpeedY, double waveSpeedZ, int falloff, int highpoint);
+bool P_StartQuakeXYZ(AActor *activator, int tid, int intensityX, int intensityY, int intensityZ, int duration, int damrad, int tremrad, FSoundID quakesfx, int flags, double waveSpeedX, double waveSpeedY, double waveSpeedZ, int falloff, int highpoint, double rollIntensity, double rollWave);
 bool P_StartQuake(AActor *activator, int tid, int intensity, int duration, int damrad, int tremrad, FSoundID quakesfx);
 
 #endif

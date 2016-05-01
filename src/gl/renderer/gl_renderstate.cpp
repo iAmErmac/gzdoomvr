@@ -69,7 +69,7 @@ TArray<VSMatrix> gl_MatrixStack;
 void FRenderState::Reset()
 {
 	mTextureEnabled = true;
-	mSplitEnabled = mBrightmapEnabled = mFogEnabled = mGlowEnabled = false;
+	mClipLineEnabled = mSplitEnabled = mBrightmapEnabled = mFogEnabled = mGlowEnabled = false;
 	mColorMask[0] = mColorMask[1] = mColorMask[2] = mColorMask[3] = true;
 	currentColorMask[0] = currentColorMask[1] = currentColorMask[2] = currentColorMask[3] = true;
 	mFogColor.d = -1;
@@ -86,8 +86,8 @@ void FRenderState::Reset()
 	mColormapState = CM_DEFAULT;
 	mLightParms[3] = -1.f;
 	mSpecialEffect = EFF_NONE;
-	mClipHeightTop = 65536.f;
-	mClipHeightBottom = -65536.f;
+	mClipHeight = 0.f;
+	mClipHeightDirection = 0.f;
 	ClearClipSplit();
 
 	stSrcBlend = stDstBlend = -1;
@@ -140,8 +140,8 @@ bool FRenderState::ApplyShader()
 	activeShader->muObjectColor.Set(mObjectColor);
 	activeShader->muDynLightColor.Set(mDynColor.vec);
 	activeShader->muInterpolationFactor.Set(mInterpolationFactor);
-	activeShader->muClipHeightTop.Set(mClipHeightTop);
-	activeShader->muClipHeightBottom.Set(mClipHeightBottom);
+	activeShader->muClipHeight.Set(mClipHeight);
+	activeShader->muClipHeightDirection.Set(mClipHeightDirection);
 	activeShader->muTimer.Set(gl_frameMS * mShaderTimer / 1000.f);
 	activeShader->muAlphaThreshold.Set(mAlphaThreshold);
 	activeShader->muLightIndex.Set(mLightIndex);	// will always be -1 for now
@@ -171,10 +171,22 @@ bool FRenderState::ApplyShader()
 		activeShader->muSplitBottomPlane.Set(mSplitBottomPlane.vec);
 		activeShader->currentsplitstate = 1;
 	}
-	else
+	else if (activeShader->currentsplitstate)
 	{
 		activeShader->muSplitTopPlane.Set(nulvec);
 		activeShader->muSplitBottomPlane.Set(nulvec);
+		activeShader->currentsplitstate = 0;
+	}
+
+	if (mClipLineEnabled)
+	{
+		activeShader->muClipLine.Set(mClipLine.vec);
+		activeShader->currentcliplinestate = 1;
+	}
+	else if (activeShader->currentcliplinestate)
+	{
+		activeShader->muClipLine.Set(-10000000.0, 0, 0, 0);
+		activeShader->currentcliplinestate = 0;
 	}
 
 	if (mColormapState != activeShader->currentfixedcolormap)
@@ -279,7 +291,14 @@ void FRenderState::Apply()
 		else mVertexBuffer->BindVBO();
 		mCurrentVertexBuffer = mVertexBuffer;
 	}
-	ApplyShader();
+	if (gl.glslversion > 0) 
+	{
+		ApplyShader();
+	}
+	else
+	{
+		ApplyFixedFunction();
+	}
 }
 
 
@@ -309,9 +328,35 @@ void FRenderState::ApplyMatrices()
 
 void FRenderState::ApplyLightIndex(int index)
 {
-	if (GLRenderer->mLights->GetBufferType() == GL_UNIFORM_BUFFER && index > -1)
+	if (gl.lightmethod != LM_SOFTWARE)
 	{
-		index = GLRenderer->mLights->BindUBO(index);
+		if (index > -1 && GLRenderer->mLights->GetBufferType() == GL_UNIFORM_BUFFER)
+		{
+			index = GLRenderer->mLights->BindUBO(index);
+		}
+		activeShader->muLightIndex.Set(index);
 	}
-	activeShader->muLightIndex.Set(index);
+}
+
+void FRenderState::SetClipHeight(float height, float direction)
+{
+	mClipHeight = height;
+	mClipHeightDirection = direction;
+	if (direction != 0.f)
+	{
+		if (gl.glslversion >= 1.3f) glEnable(GL_CLIP_DISTANCE0);
+		else
+		{
+			// This does not work. Need someone who understands how glClipPlane works...
+			//glEnable(GL_CLIP_PLANE0);
+			// Plane mirrors never are slopes.
+			//double d[4] = { 0, direction, 0, -direction * height };
+			//glClipPlane(GL_CLIP_PLANE0, d);
+		}
+	}
+	else
+	{
+		if (gl.glslversion >= 1.3f) glDisable(GL_CLIP_DISTANCE0);
+		//else glDisable(GL_CLIP_PLANE0);
+	}
 }

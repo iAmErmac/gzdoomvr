@@ -107,7 +107,8 @@ private:
 	area_t savedviewarea;
 	bool savedshowviewer;
 	DVector3 savedviewpath[2];
-	GLPortal *NextPortal;
+	GLPortal *PrevPortal;
+	GLPortal *PrevClipPortal;
 	TArray<BYTE> savedmapsection;
 	TArray<unsigned int> mPrimIndices;
 
@@ -130,6 +131,8 @@ protected:
 	virtual const char *GetName() = 0;
 	void SaveMapSection();
 	void RestoreMapSection();
+	virtual void PushState() {}
+	virtual void PopState() {}
 
 public:
 
@@ -166,6 +169,7 @@ public:
 	virtual int ClipSubsector(subsector_t *sub) { return PClip_Inside; }
 	virtual int ClipPoint(const DVector2 &pos) { return PClip_Inside; }
 	virtual line_t *ClipLine() { return NULL; }
+	virtual void RenderAttached() {}
 
 	static void BeginScene();
 	static void StartFrame();
@@ -191,10 +195,10 @@ struct GLLinePortal : public GLPortal
 
 	GLLinePortal(FGLLinePortal *line)
 	{
-		if (line->reference->mType != PORTT_LINKED)
+		if (line->lines[0]->mType != PORTT_LINKED)
 		{
 			// For non-linked portals we must check the actual linedef.
-			line_t *lline = line->reference->mDestination;
+			line_t *lline = line->lines[0]->mDestination;
 			v1 = lline->v1;
 			v2 = lline->v2;
 		}
@@ -222,6 +226,8 @@ struct GLLinePortal : public GLPortal
 	virtual int ClipSubsector(subsector_t *sub);
 	virtual int ClipPoint(const DVector2 &pos);
 	virtual bool NeedCap() { return false; }
+	virtual void PushState();
+	virtual void PopState();
 };
 
 
@@ -253,6 +259,7 @@ protected:
 	virtual void * GetSource() const { return glport; }
 	virtual const char *GetName();
 	virtual line_t *ClipLine() { return line(); }
+	virtual void RenderAttached();
 
 public:
 	
@@ -341,6 +348,8 @@ protected:
 	virtual void DrawContents();
 	virtual void * GetSource() const { return origin; }
 	virtual const char *GetName();
+	virtual void PushState();
+	virtual void PopState();
 	secplane_t * origin;
 
 public:

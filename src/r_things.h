@@ -31,14 +31,26 @@
 
 struct vissprite_t
 {
+	struct posang
+	{
+		FVector3 vpos;			// view origin
+		FAngle vang;			// view angle
+	};
+
 	short			x1, x2;
 	FVector3		gpos;			// origin in world coordinates
 	union
 	{
-		float		gzb, gzt;		// global bottom / top for silhouette clipping
-		int			y1, y2;			// top / bottom of particle on screen
+		struct
+		{
+			float	gzb, gzt;		// global bottom / top for silhouette clipping
+		};
+		struct
+		{
+			int		y1, y2;			// top / bottom of particle on screen
+		};
 	};
-	angle_t			angle;
+	DAngle			Angle;
 	fixed_t			xscale;
 	float			yscale;
 	float			depth;
@@ -61,16 +73,9 @@ struct vissprite_t
 			fixed_t	xiscale;		// negative if flipped
 		};
 		// Used by wall sprites
-		struct
-		{
-			FWallCoords wallc;
-		};
+		FWallCoords wallc;
 		// Used by voxels
-		struct
-		{
-			FVector3 vpos;			// view origin
-			FAngle vang;			// view angle
-		};
+		posang pa;
 	};
 	sector_t		*heightsec;		// killough 3/27/98: height sector for underwater/fake ceiling
 	sector_t		*sector;		// [RH] sector this sprite is in
@@ -88,7 +93,6 @@ struct vissprite_t
 	int				CurrentPortalUniq; // [ZZ] to identify the portal that this thing is in. used for clipping.
 
 	vissprite_t() {}
-	vissprite_t &vissprite_t::operator= (const vissprite_t &o) { memcpy(this, &o, sizeof *this); return *this; }
 };
 
 struct particle_t;
@@ -137,7 +141,7 @@ void R_CheckOffscreenBuffer(int width, int height, bool spansonly);
 enum { DVF_OFFSCREEN = 1, DVF_SPANSONLY = 2, DVF_MIRRORED = 4 };
 
 void R_DrawVoxel(const FVector3 &viewpos, FAngle viewangle,
-	const FVector3 &sprpos, angle_t dasprang,
+	const FVector3 &sprpos, DAngle dasprang,
 	fixed_t daxscale, fixed_t dayscale, struct FVoxel *voxobj,
 	lighttable_t *colormap, short *daumost, short *dadmost, int minslabz, int maxslabz, int flags);
 

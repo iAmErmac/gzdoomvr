@@ -747,8 +747,12 @@ typedef const GLubyte * (APIENTRY *PFNGLGETSTRINGIPROC)(GLenum, GLuint);
 
 bool Win32GLVideo::checkCoreUsability()
 {
-	// if we explicitly want to disable 4.x features this must fail.
-	if (Args->CheckParm("-gl3")) return false;
+	const char *version = Args->CheckValue("-glversion");
+	if (version != NULL)
+	{
+		if (strtod(version, NULL) < 4.0) return false;
+	}
+	if (Args->CheckParm("-noshader")) return false;
 
 	// GL 4.4 implies GL_ARB_buffer_storage
 	if (strcmp((char*)glGetString(GL_VERSION), "4.4") >= 0) return true;
@@ -778,7 +782,6 @@ bool Win32GLVideo::InitHardware (HWND Window, int multisample)
 
 	if (!SetupPixelFormat(multisample))
 	{
-		I_Error ("R_OPENGL: Unabl...\n");
 		return false;
 	}
 
@@ -801,6 +804,8 @@ bool Win32GLVideo::InitHardware (HWND Window, int multisample)
 					0
 				};
 
+				//Printf("Trying to create an OpenGL %d.%d %s profile context\n", versions[i] / 10, versions[i] % 10, prof == WGL_CONTEXT_CORE_PROFILE_BIT_ARB ? "Core" : "Compatibility");
+
 				m_hRC = myWglCreateContextAttribsARB(m_hDC, 0, ctxAttribs);
 				if (m_hRC != NULL) break;
 			}
@@ -808,8 +813,13 @@ bool Win32GLVideo::InitHardware (HWND Window, int multisample)
 
 		if (m_hRC == NULL && prof == WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB)
 		{
-			I_Error ("R_OPENGL: Unable to create an OpenGL 3.x render context.\n");
-			return false;
+
+			m_hRC = wglCreateContext(m_hDC);
+			if (m_hRC == NULL)
+			{
+				I_Error("R_OPENGL: Unable to create an OpenGL render context.\n");
+				return false;
+			}
 		}
 
 		if (m_hRC != NULL)
@@ -829,7 +839,7 @@ bool Win32GLVideo::InitHardware (HWND Window, int multisample)
 		}
 	}
 	// We get here if the driver doesn't support the modern context creation API which always means an old driver.
-	I_Error ("R_OPENGL: Unable to create an OpenGL 3.x render context.\n");
+	I_Error ("R_OPENGL: Unable to create an OpenGL render context. Insufficient driver support for context creation\n");
 	return false;
 }
 

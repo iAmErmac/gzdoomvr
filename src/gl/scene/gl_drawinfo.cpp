@@ -319,8 +319,29 @@ void GLDrawList::SortWallIntoPlane(SortNode * head,SortNode * sort)
 		// Bad things will happen if the memory must be reallocated!
 		GLWall w = *ws;
 		AddWall(&w);
+	
+		// Splitting is done in the shader with clip planes, if available
+		if (gl.glslversion < 1.3f)
+		{
+			GLWall * ws1;
+			ws1=&walls[walls.Size()-1];
+			ws=&walls[drawitems[sort->itemindex].index];	// may have been reallocated!
+			float newtexv = ws->uplft.v + ((ws->lolft.v - ws->uplft.v) / (ws->zbottom[0] - ws->ztop[0])) * (fh->z - ws->ztop[0]);
 
-		// Splitting is done in the shader with clip planes.
+			// I make the very big assumption here that translucent walls in sloped sectors
+			// and 3D-floors never coexist in the same level. If that were the case this
+			// code would become extremely more complicated.
+			if (!ceiling)
+			{
+				ws->ztop[1] = ws1->zbottom[1] = ws->ztop[0] = ws1->zbottom[0] = fh->z;
+				ws->uprgt.v = ws1->lorgt.v = ws->uplft.v = ws1->lolft.v = newtexv;
+			}
+			else
+			{
+				ws1->ztop[1] = ws->zbottom[1] = ws1->ztop[0] = ws->zbottom[0] = fh->z;
+				ws1->uplft.v = ws->lolft.v = ws1->uprgt.v = ws->lorgt.v=newtexv;
+			}
+		}
 
 		SortNode * sort2 = SortNodes.GetNew();
 		memset(sort2, 0, sizeof(SortNode));
@@ -357,8 +378,26 @@ void GLDrawList::SortSpriteIntoPlane(SortNode * head,SortNode * sort)
 		// We have to split this sprite
 		GLSprite s=*ss;
 		AddSprite(&s);	// add a copy to avoid reallocation issues.
+	
+		// Splitting is done in the shader with clip planes, if available
+		if (gl.glslversion < 1.3f)
+		{
+			GLSprite * ss1;
+			ss1=&sprites[sprites.Size()-1];
+			ss=&sprites[drawitems[sort->itemindex].index];	// may have been reallocated!
+			float newtexv=ss->vt + ((ss->vb-ss->vt)/(ss->z2-ss->z1))*(fh->z-ss->z1);
 
-		// Splitting is done in the shader with clip planes.
+			if (!ceiling)
+			{
+				ss->z1=ss1->z2=fh->z;
+				ss->vt=ss1->vb=newtexv;
+			}
+			else
+			{
+				ss1->z1=ss->z2=fh->z;
+				ss1->vt=ss->vb=newtexv;
+			}
+		}
 
 		SortNode * sort2=SortNodes.GetNew();
 		memset(sort2,0,sizeof(SortNode));
@@ -767,11 +806,17 @@ void GLDrawList::DrawSorted()
 		sorted=DoSort(SortNodes[SortNodeStart]);
 	}
 	gl_RenderState.ClearClipSplit();
-	glEnable(GL_CLIP_DISTANCE1);
-	glEnable(GL_CLIP_DISTANCE2);
+	if (gl.glslversion >= 1.3f)
+	{
+		glEnable(GL_CLIP_DISTANCE1);
+		glEnable(GL_CLIP_DISTANCE2);
+	}
 	DoDrawSorted(sorted);
-	glDisable(GL_CLIP_DISTANCE1);
-	glDisable(GL_CLIP_DISTANCE2);
+	if (gl.glslversion >= 1.3f)
+	{
+		glDisable(GL_CLIP_DISTANCE1);
+		glDisable(GL_CLIP_DISTANCE2);
+	}
 	gl_RenderState.ClearClipSplit();
 }
 
@@ -946,10 +991,15 @@ static FDrawInfoList di_list;
 FDrawInfo::FDrawInfo()
 {
 	next = NULL;
+	if (gl.lightmethod == LM_SOFTWARE)
+	{
+		dldrawlists = new GLDrawList[GLLDL_TYPES];
+	}
 }
 
 FDrawInfo::~FDrawInfo()
 {
+	if (dldrawlists != NULL) delete[] dldrawlists;
 	ClearBuffers();
 }
 
@@ -973,13 +1023,17 @@ void FDrawInfo::StartScene()
 	ss_renderflags.Resize(numsubsectors);
 	no_renderflags.Resize(numsubsectors);
 
-	memset(&sectorrenderflags[0], 0, numsectors*sizeof(sectorrenderflags[0]));
-	memset(&ss_renderflags[0], 0, numsubsectors*sizeof(ss_renderflags[0]));
-	memset(&no_renderflags[0], 0, numnodes*sizeof(no_renderflags[0]));
+	memset(&sectorrenderflags[0], 0, numsectors * sizeof(sectorrenderflags[0]));
+	memset(&ss_renderflags[0], 0, numsubsectors * sizeof(ss_renderflags[0]));
+	memset(&no_renderflags[0], 0, numnodes * sizeof(no_renderflags[0]));
 
-	next=gl_drawinfo;
-	gl_drawinfo=this;
-	for(int i=0;i<GLDL_TYPES;i++) drawlists[i].Reset();
+	next = gl_drawinfo;
+	gl_drawinfo = this;
+	for (int i = 0; i < GLDL_TYPES; i++) drawlists[i].Reset();
+	if (dldrawlists != NULL)
+	{
+		for (int i = 0; i < GLLDL_TYPES; i++) dldrawlists[i].Reset();
+	}
 }
 
 //==========================================================================
@@ -992,6 +1046,10 @@ void FDrawInfo::EndDrawInfo()
 	FDrawInfo * di = gl_drawinfo;
 
 	for(int i=0;i<GLDL_TYPES;i++) di->drawlists[i].Reset();
+	if (di->dldrawlists != NULL)
+	{
+		for (int i = 0; i < GLLDL_TYPES; i++) di->dldrawlists[i].Reset();
+	}
 	gl_drawinfo=di->next;
 	di_list.Release(di);
 }
@@ -1222,7 +1280,7 @@ void FDrawInfo::FloodLowerGap(seg_t * seg)
 
 
 	if (fakebsector->GetTexture(sector_t::floor) == skyflatnum) return;
-	if (fakebsector->GetPlaneTexZF(sector_t::floor) > ViewPos.Z) return;
+	if (fakebsector->GetPlaneTexZ(sector_t::floor) > ViewPos.Z) return;
 
 	if (seg->sidedef == seg->linedef->sidedef[0])
 	{

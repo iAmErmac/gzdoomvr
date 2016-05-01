@@ -43,14 +43,13 @@
 #include "version.h"
 #include "i_system.h"
 #include "v_text.h"
+#include "r_data/r_translate.h"
 #include "gl/system/gl_interface.h"
 #include "gl/system/gl_cvars.h"
 
+void gl_PatchMenu();
 static TArray<FString>  m_Extensions;
-
 RenderContext gl;
-
-int occlusion_type=0;
 
 //==========================================================================
 //
@@ -65,10 +64,35 @@ static void CollectExtensions()
 	int max = 0;
 	glGetIntegerv(GL_NUM_EXTENSIONS, &max);
 
-	for(int i = 0; i < max; i++)
+	if (0 == max)
 	{
-		extension = (const char*)glGetStringi(GL_EXTENSIONS, i);
-		m_Extensions.Push(FString(extension));
+		// Try old method to collect extensions
+		const char *supported = (char *)glGetString(GL_EXTENSIONS);
+
+		if (nullptr != supported)
+		{
+			char *extensions = new char[strlen(supported) + 1];
+			strcpy(extensions, supported);
+
+			char *extension = strtok(extensions, " ");
+
+			while (extension)
+			{
+				m_Extensions.Push(FString(extension));
+				extension = strtok(nullptr, " ");
+			}
+
+			delete [] extensions;
+		}
+	}
+	else
+	{
+		// Use modern method to collect extensions
+		for (int i = 0; i < max; i++)
+		{
+			extension = (const char*)glGetStringi(GL_EXTENSIONS, i);
+			m_Extensions.Push(FString(extension));
+		}
 	}
 }
 
@@ -107,36 +131,79 @@ static void InitContext()
 //
 //==========================================================================
 
+#define FUDGE_FUNC(name, ext) 	if (_ptrc_##name == NULL) _ptrc_##name = _ptrc_##name##ext;
+
+
 void gl_LoadExtensions()
 {
 	InitContext();
 	CollectExtensions();
 
 	const char *version = Args->CheckValue("-glversion");
-	if (version == NULL) version = (const char*)glGetString(GL_VERSION);
-	else Printf("Emulating OpenGL v %s\n", version);
+	const char *glversion = (const char*)glGetString(GL_VERSION);
+
+	if (version == NULL)
+	{
+		version = glversion;
+	}
+	else
+	{
+		double v1 = strtod(version, NULL);
+		double v2 = strtod(glversion, NULL);
+		if (v2 < v1) version = glversion;
+		else Printf("Emulating OpenGL v %s\n", version);
+	}
+
+	gl.version = strtod(version, NULL) + 0.01f;
 
 	// Don't even start if it's lower than 3.0
-	if (strcmp(version, "3.0") < 0)
+	if ((gl.version < 2.0 || !CheckExtension("GL_EXT_framebuffer_object")) && gl.version < 3.0)
 	{
-		I_FatalError("Unsupported OpenGL version.\nAt least OpenGL 3.0 is required to run " GAMENAME ".\n");
+		I_FatalError("Unsupported OpenGL version.\nAt least OpenGL 2.0 with framebuffer support is required to run " GAMENAME ".\n");
 	}
 
 	// add 0.01 to account for roundoff errors making the number a tad smaller than the actual version
-	gl.version = strtod(version, NULL) + 0.01f;
 	gl.glslversion = strtod((char*)glGetString(GL_SHADING_LANGUAGE_VERSION), NULL) + 0.01f;
 
 	gl.vendorstring = (char*)glGetString(GL_VENDOR);
+	gl.lightmethod = LM_SOFTWARE;
 
-	if (CheckExtension("GL_ARB_texture_compression")) gl.flags|=RFL_TEXTURE_COMPRESSION;
-	if (CheckExtension("GL_EXT_texture_compression_s3tc")) gl.flags|=RFL_TEXTURE_COMPRESSION_S3TC;
-	if (!Args->CheckParm("-gl3"))
+	if (gl.version >= 3.3f || CheckExtension("GL_ARB_sampler_objects"))
 	{
-		if (gl.version >= 3.3f || CheckExtension("GL_ARB_sampler_objects"))
-		{
-			gl.flags |= RFL_SAMPLER_OBJECTS;
-		}
+		gl.flags |= RFL_SAMPLER_OBJECTS;
+	}
+	
+	// Buffer lighting is only feasible with GLSL 1.3 and higher, even if 1.2 supports the extension.
+	if (gl.version > 3.0f && (gl.version >= 3.3f || CheckExtension("GL_ARB_uniform_buffer_object")))
+	{
+		gl.lightmethod = LM_DEFERRED;
+	}
 
+	if (CheckExtension("GL_ARB_texture_compression")) gl.flags |= RFL_TEXTURE_COMPRESSION;
+	if (CheckExtension("GL_EXT_texture_compression_s3tc")) gl.flags |= RFL_TEXTURE_COMPRESSION_S3TC;
+
+	if (Args->CheckParm("-noshader") || gl.glslversion < 1.2f)
+	{
+		gl.version = 2.11f;
+		gl.glslversion = 0;
+		gl.lightmethod = LM_SOFTWARE;
+	}
+	else if (gl.version < 3.0f)
+	{
+		if (CheckExtension("GL_NV_GPU_shader4") || CheckExtension("GL_EXT_GPU_shader4")) gl.glslversion = 1.21f;	// for pre-3.0 drivers that support capable hardware. Needed for Apple.
+		else gl.glslversion = 0;
+	}
+	else if (gl.version < 4.f)
+	{
+		if (strstr(gl.vendorstring, "ATI Tech")) 
+		{
+			gl.version = 2.11f;
+			gl.glslversion = 1.21f;
+			gl.lightmethod = LM_SOFTWARE;		// do not use uniform buffers with the fallback shader, it may cause problems.
+		}
+	}
+	else
+	{
 		// don't use GL 4.x features when running in GL 3 emulation mode.
 		if (CheckExtension("GL_ARB_buffer_storage"))
 		{
@@ -151,19 +218,60 @@ void gl_LoadExtensions()
 				}
 			}
 			gl.flags |= RFL_BUFFER_STORAGE;
+			gl.lightmethod = LM_DIRECT;
+		}
+		else
+		{
+			gl.version = 3.3f;
 		}
 	}
-	
+
+	const char *lm = Args->CheckValue("-lightmethod");
+	if (lm != NULL)
+	{
+		if (!stricmp(lm, "deferred") && gl.lightmethod == LM_DIRECT) gl.lightmethod = LM_DEFERRED;	
+		if (!stricmp(lm, "textured")) gl.lightmethod = LM_SOFTWARE;
+	}
+
 	int v;
-	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &v);
-	gl.maxuniforms = v;
-	glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &v);
-	gl.maxuniformblock = v;
-	glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &v);
-	gl.uniformblockalignment = v;
 	
-	glGetIntegerv(GL_MAX_TEXTURE_SIZE,&gl.max_texturesize);
+	if (gl.lightmethod != LM_SOFTWARE && !(gl.flags & RFL_SHADER_STORAGE_BUFFER))
+	{
+		glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &v);
+		gl.maxuniforms = v;
+		glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &v);
+		gl.maxuniformblock = v;
+		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &v);
+		gl.uniformblockalignment = v;
+	}
+	else
+	{
+		gl.maxuniforms = 0;
+		gl.maxuniformblock = 0;
+		gl.uniformblockalignment = 0;
+	}
+	
+
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &gl.max_texturesize);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	// fudge a bit with the framebuffer stuff to avoid redundancies in the main code. Some of the older cards do not have the ARB stuff but the calls are nearly identical.
+	FUDGE_FUNC(glGenerateMipmap, EXT);
+	FUDGE_FUNC(glGenFramebuffers, EXT);
+	FUDGE_FUNC(glBindFramebuffer, EXT);
+	FUDGE_FUNC(glDeleteFramebuffers, EXT);
+	FUDGE_FUNC(glFramebufferTexture2D, EXT);
+	FUDGE_FUNC(glGenerateMipmap, EXT);
+	FUDGE_FUNC(glGenFramebuffers, EXT);
+	FUDGE_FUNC(glBindFramebuffer, EXT);
+	FUDGE_FUNC(glDeleteFramebuffers, EXT);
+	FUDGE_FUNC(glFramebufferTexture2D, EXT);
+	FUDGE_FUNC(glFramebufferRenderbuffer, EXT);
+	FUDGE_FUNC(glGenRenderbuffers, EXT);
+	FUDGE_FUNC(glDeleteRenderbuffers, EXT);
+	FUDGE_FUNC(glRenderbufferStorage, EXT);
+	FUDGE_FUNC(glBindRenderbuffer, EXT);
+	gl_PatchMenu();
 }
 
 //==========================================================================
@@ -191,22 +299,35 @@ void gl_PrintStartupLog()
 	Printf("\nMax. texture size: %d\n", v);
 	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &v);
 	Printf ("Max. texture units: %d\n", v);
-	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &v);
-	Printf ("Max. fragment uniforms: %d\n", v);
-	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &v);
-	Printf ("Max. vertex uniforms: %d\n", v);
-	glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &v);
-	Printf ("Max. uniform block size: %d\n", v);
-	glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &v);
-	Printf ("Uniform block alignment: %d\n", v);
-
 	glGetIntegerv(GL_MAX_VARYING_FLOATS, &v);
 	Printf ("Max. varying: %d\n", v);
-	glGetIntegerv(GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS, &v);
-	Printf("Max. combined shader storage blocks: %d\n", v);
-	glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &v);
-	Printf("Max. vertex shader storage blocks: %d\n", v);
+	
+	if (gl.lightmethod != LM_SOFTWARE && !(gl.flags & RFL_SHADER_STORAGE_BUFFER))
+	{
+		glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &v);
+		Printf ("Max. uniform block size: %d\n", v);
+		glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &v);
+		Printf ("Uniform block alignment: %d\n", v);
+	}
 
+	if (gl.flags & RFL_SHADER_STORAGE_BUFFER)
+	{
+		glGetIntegerv(GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS, &v);
+		Printf("Max. combined shader storage blocks: %d\n", v);
+		glGetIntegerv(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS, &v);
+		Printf("Max. vertex shader storage blocks: %d\n", v);
+	}
+
+	// For shader-less, the special alphatexture translation must be changed to actually set the alpha, because it won't get translated by a shader.
+	if (gl.glslversion == 0)
+	{
+		FRemapTable *remap = translationtables[TRANSLATION_Standard][8];
+		for (int i = 0; i < 256; i++)
+		{
+			remap->Remap[i] = i;
+			remap->Palette[i] = PalEntry(i, 255, 255, 255);
+		}
+	}
 
 }
 

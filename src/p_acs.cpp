@@ -5768,7 +5768,9 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 				argCount > 10 ? ACSToDouble(args[10]) : 1.0,
 				argCount > 11 ? ACSToDouble(args[11]) : 1.0,
 				argCount > 12 ? args[12] : 0,
-				argCount > 13 ? args[13] : 0);
+				argCount > 13 ? args[13] : 0,
+				argCount > 14 ? args[14] : 0,
+				argCount > 15 ? args[15] : 0);
 		}
 
 		case ACSF_SetLineActivation:
@@ -8748,23 +8750,24 @@ scriptwait:
 			{
 				int tag = STACK(3);
 				int secnum;
-				DVector2 pos(ACSToDouble(STACK(2)), ACSToDouble(STACK(1)));
+				double x = double(STACK(2));
+				double y = double(STACK(1));
 				double z = 0;
 
 				if (tag != 0)
 					secnum = P_FindFirstSectorFromTag (tag);
 				else
-					secnum = int(P_PointInSector (pos) - sectors);
+					secnum = int(P_PointInSector (x, y) - sectors);
 
 				if (secnum >= 0)
 				{
 					if (pcd == PCD_GETSECTORFLOORZ)
 					{
-						z = sectors[secnum].floorplane.ZatPoint (pos);
+						z = sectors[secnum].floorplane.ZatPoint (x, y);
 					}
 					else
 					{
-						z = sectors[secnum].ceilingplane.ZatPoint (pos);
+						z = sectors[secnum].ceilingplane.ZatPoint (x, y);
 					}
 				}
 				sp -= 2;

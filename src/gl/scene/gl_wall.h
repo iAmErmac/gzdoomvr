@@ -176,6 +176,7 @@ private:
 	void CheckTexturePosition();
 
 	void Put3DWall(lightlist_t * lightlist, bool translucent);
+	void SplitWallComplex(sector_t * frontsector, bool translucent, float maplightbottomleft, float maplightbottomright);
 	void SplitWall(sector_t * frontsector, bool translucent);
 
 	void SetupLights();
@@ -288,7 +289,7 @@ public:
 	bool ceiling;
 	BYTE renderflags;
 	int vboindex;
-	int vboheight;
+	//int vboheight;
 
 	int dynlightindex;
 
@@ -350,6 +351,7 @@ public:
 	particle_t * particle;
 	TArray<lightlist_t> *lightlist;
 
+	void SplitSprite(sector_t * frontsector, bool translucent);
 	void SetLowerParam();
 	void PerformSpriteClipAdjustment(AActor *thing, const DVector2 &thingpos, float spriteheight);
 
@@ -357,7 +359,7 @@ public:
 
 	void Draw(int pass);
 	void PutSprite(bool translucent);
-	void Process(AActor* thing,sector_t * sector, bool thruportal = false);
+	void Process(AActor* thing,sector_t * sector, int thruportal = false);
 	void ProcessParticle (particle_t *particle, sector_t *sector);//, int shade, int fakeside)
 	void SetThingColor(PalEntry);
 
@@ -374,5 +376,6 @@ inline float Dist2(float x1,float y1,float x2,float y2)
 
 void gl_SetDynSpriteLight(AActor *self, float x, float y, float z, subsector_t *subsec);
 void gl_SetDynSpriteLight(AActor *actor, particle_t *particle);
+void gl_RenderActorsInPortal(FGLLinePortal *glport);
 
 #endif

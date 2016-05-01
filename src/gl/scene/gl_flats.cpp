@@ -193,7 +193,7 @@ void GLFlat::DrawSubsector(subsector_t * sub)
 
 //==========================================================================
 //
-//
+// this is only used by LM_DEFERRED
 //
 //==========================================================================
 
@@ -399,7 +399,7 @@ void GLFlat::Draw(int pass, bool trans)	// trans only has meaning for GLPASS_LIG
 	switch (pass)
 	{
 	case GLPASS_PLAIN:			// Single-pass rendering
-	case GLPASS_ALL:
+	case GLPASS_ALL:			// Same, but also creates the dynlight data.
 		gl_SetColor(lightlevel, rel, Colormap,1.0f);
 		gl_SetFog(lightlevel, rel, &Colormap, false);
 		if (sector->special != GLSector_Skybox)
@@ -438,7 +438,7 @@ void GLFlat::Draw(int pass, bool trans)	// trans only has meaning for GLPASS_LIG
 		{
 			gl_RenderState.SetMaterial(gltexture, CLAMP_NONE, 0, -1, false);
 			gl_SetPlaneTextureRotation(&plane, gltexture);
-			DrawSubsectors(pass, true, true);
+			DrawSubsectors(pass, gl.lightmethod != LM_SOFTWARE, true);
 			gl_RenderState.EnableTextureMatrix(false);
 		}
 		if (renderstyle==STYLE_Add) gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -473,6 +473,7 @@ inline void GLFlat::PutFlat(bool fog)
 		bool masked = gltexture->isMasked() && ((renderflags&SSRF_RENDER3DPLANES) || stack);
 		list = masked ? GLDL_MASKEDFLATS : GLDL_PLAINFLATS;
 	}
+	dynlightindex = -1;	// make sure this is always initialized to something proper.
 	gl_drawinfo->drawlists[list].AddFlat (this);
 }
 
@@ -595,14 +596,14 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 			{
 				gl_drawinfo->AddFloorStack(sector);	// stacked sector things require visplane merging.
 			}
-			alpha = frontsector->GetAlpha(sector_t::floor) / 65536.0f;
+			alpha = frontsector->GetAlpha(sector_t::floor);
 		}
 		else
 		{
 			alpha = 1.0f - frontsector->GetReflect(sector_t::floor);
 		}
 
-		if (alpha != 0.f && sector->GetTexture(sector_t::floor) != skyflatnum)
+		if (alpha != 0.f && frontsector->GetTexture(sector_t::floor) != skyflatnum)
 		{
 			if (frontsector->VBOHeightcheck(sector_t::floor))
 			{
@@ -654,14 +655,14 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 			{
 				gl_drawinfo->AddCeilingStack(sector);
 			}
-			alpha = frontsector->GetAlpha(sector_t::ceiling) / 65536.0f;
+			alpha = frontsector->GetAlpha(sector_t::ceiling);
 		}
 		else
 		{
 			alpha = 1.0f - frontsector->GetReflect(sector_t::ceiling);
 		}
 
-		if (alpha != 0.f && sector->GetTexture(sector_t::ceiling) != skyflatnum)
+		if (alpha != 0.f && frontsector->GetTexture(sector_t::ceiling) != skyflatnum)
 		{
 			if (frontsector->VBOHeightcheck(sector_t::ceiling))
 			{

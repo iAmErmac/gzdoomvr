@@ -140,4 +140,3 @@ bool gl_GetLight(int group, Plane & p, ADynamicLight * light, bool checkside, bo
 	return true;
 }
 
-

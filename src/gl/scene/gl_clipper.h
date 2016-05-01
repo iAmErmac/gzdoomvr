@@ -2,7 +2,6 @@
 #define __GL_CLIPPER
 
 #include "doomtype.h"
-#include "tables.h"
 #include "xs_Float.h"
 #include "r_utility.h"
 
@@ -130,13 +129,12 @@ public:
 		SafeRemoveClipRange(AngleToPseudo(startangle), AngleToPseudo(endangle));
 	}
 
-	bool CheckBox(const fixed_t *bspcoord);
+	bool CheckBox(const float *bspcoord);
 };
 
 
 extern Clipper clipper;
 
-angle_t R_PointToPseudoAngle (fixed_t x, fixed_t y);
 angle_t R_PointToPseudoAngle(double x, double y);
 void R_SetView();
 

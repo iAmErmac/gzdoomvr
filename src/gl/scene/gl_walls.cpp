@@ -214,7 +214,15 @@ void GLWall::PutPortal(int ptype)
 
 	case PORTALTYPE_LINETOLINE:
 		portal=GLPortal::FindPortal(lineportal);
-		if (!portal) portal=new GLLineToLinePortal(lineportal);
+		if (!portal)
+		{
+			line_t *otherside = lineportal->lines[0]->mDestination;
+			if (otherside != NULL)
+			{
+				gl_RenderActorsInPortal(linePortalToGL[otherside->portalindex]);
+			}
+			portal = new GLLineToLinePortal(lineportal);
+		}
 		portal->AddLine(this);
 		break;
 
@@ -251,9 +259,95 @@ void GLWall::Put3DWall(lightlist_t * lightlist, bool translucent)
 //
 //==========================================================================
 
+void GLWall::SplitWallComplex(sector_t * frontsector, bool translucent, float maplightbottomleft, float maplightbottomright)
+{
+	GLWall copyWall1, copyWall2;
+
+	// check for an intersection with the upper plane
+	if ((maplightbottomleft<ztop[0] && maplightbottomright>ztop[1]) ||
+		(maplightbottomleft>ztop[0] && maplightbottomright<ztop[1]))
+	{
+		float clen = MAX<float>(fabsf(glseg.x2 - glseg.x1), fabsf(glseg.y2 - glseg.y2));
+
+		float dch = ztop[1] - ztop[0];
+		float dfh = maplightbottomright - maplightbottomleft;
+		float coeff = (ztop[0] - maplightbottomleft) / (dfh - dch);
+
+		// check for inaccuracies - let's be a little generous here!
+		if (coeff*clen<.1f)
+		{
+			maplightbottomleft = ztop[0];
+		}
+		else if (coeff*clen>clen - .1f)
+		{
+			maplightbottomright = ztop[1];
+		}
+		else
+		{
+			// split the wall in two at the intersection and recursively split both halves
+			copyWall1 = copyWall2 = *this;
+
+			copyWall1.glseg.x2 = copyWall2.glseg.x1 = glseg.x1 + coeff * (glseg.x2 - glseg.x1);
+			copyWall1.glseg.y2 = copyWall2.glseg.y1 = glseg.y1 + coeff * (glseg.y2 - glseg.y1);
+			copyWall1.ztop[1] = copyWall2.ztop[0] = ztop[0] + coeff * (ztop[1] - ztop[0]);
+			copyWall1.zbottom[1] = copyWall2.zbottom[0] = zbottom[0] + coeff * (zbottom[1] - zbottom[0]);
+			copyWall1.glseg.fracright = copyWall2.glseg.fracleft = glseg.fracleft + coeff * (glseg.fracright - glseg.fracleft);
+			copyWall1.uprgt.u = copyWall2.uplft.u = uplft.u + coeff * (uprgt.u - uplft.u);
+			copyWall1.uprgt.v = copyWall2.uplft.v = uplft.v + coeff * (uprgt.v - uplft.v);
+			copyWall1.lorgt.u = copyWall2.lolft.u = lolft.u + coeff * (lorgt.u - lolft.u);
+			copyWall1.lorgt.v = copyWall2.lolft.v = lolft.v + coeff * (lorgt.v - lolft.v);
+
+			copyWall1.SplitWall(frontsector, translucent);
+			copyWall2.SplitWall(frontsector, translucent);
+			return;
+		}
+	}
+
+	// check for an intersection with the lower plane
+	if ((maplightbottomleft<zbottom[0] && maplightbottomright>zbottom[1]) ||
+		(maplightbottomleft>zbottom[0] && maplightbottomright<zbottom[1]))
+	{
+		float clen = MAX<float>(fabsf(glseg.x2 - glseg.x1), fabsf(glseg.y2 - glseg.y2));
+
+		float dch = zbottom[1] - zbottom[0];
+		float dfh = maplightbottomright - maplightbottomleft;
+		float coeff = (zbottom[0] - maplightbottomleft) / (dfh - dch);
+
+		// check for inaccuracies - let's be a little generous here because there's
+		// some conversions between floats and fixed_t's involved
+		if (coeff*clen<.1f)
+		{
+			maplightbottomleft = zbottom[0];
+		}
+		else if (coeff*clen>clen - .1f)
+		{
+			maplightbottomright = zbottom[1];
+		}
+		else
+		{
+			// split the wall in two at the intersection and recursively split both halves
+			copyWall1 = copyWall2 = *this;
+
+			copyWall1.glseg.x2 = copyWall2.glseg.x1 = glseg.x1 + coeff * (glseg.x2 - glseg.x1);
+			copyWall1.glseg.y2 = copyWall2.glseg.y1 = glseg.y1 + coeff * (glseg.y2 - glseg.y1);
+			copyWall1.ztop[1] = copyWall2.ztop[0] = ztop[0] + coeff * (ztop[1] - ztop[0]);
+			copyWall1.zbottom[1] = copyWall2.zbottom[0] = zbottom[0] + coeff * (zbottom[1] - zbottom[0]);
+			copyWall1.glseg.fracright = copyWall2.glseg.fracleft = glseg.fracleft + coeff * (glseg.fracright - glseg.fracleft);
+			copyWall1.uprgt.u = copyWall2.uplft.u = uplft.u + coeff * (uprgt.u - uplft.u);
+			copyWall1.uprgt.v = copyWall2.uplft.v = uplft.v + coeff * (uprgt.v - uplft.v);
+			copyWall1.lorgt.u = copyWall2.lolft.u = lolft.u + coeff * (lorgt.u - lolft.u);
+			copyWall1.lorgt.v = copyWall2.lolft.v = lolft.v + coeff * (lorgt.v - lolft.v);
+
+			copyWall1.SplitWall(frontsector, translucent);
+			copyWall2.SplitWall(frontsector, translucent);
+			return;
+		}
+	}
+}
+
 void GLWall::SplitWall(sector_t * frontsector, bool translucent)
 {
-	GLWall copyWall1,copyWall2;
+	GLWall copyWall1;
 	float maplightbottomleft;
 	float maplightbottomright;
 	unsigned int i;
@@ -296,16 +390,25 @@ void GLWall::SplitWall(sector_t * frontsector, bool translucent)
 				continue;
 			}
 
-			// check for an intersection with the upper and lower planes of the wall segment
-			if ((maplightbottomleft<ztop[0] && maplightbottomright>ztop[1]) ||
-				(maplightbottomleft>ztop[0] && maplightbottomright<ztop[1]) ||
-				(maplightbottomleft<zbottom[0] && maplightbottomright>zbottom[1]) ||
-				(maplightbottomleft>zbottom[0] && maplightbottomright<zbottom[1]))
+			if (gl.glslversion >= 1.3f)
 			{
-				// Use hardware clipping if this cannot be done cleanly.
-				this->lightlist = &lightlist;
-				PutWall(translucent);
-				goto out;
+				// check for an intersection with the upper and lower planes of the wall segment
+				if ((maplightbottomleft<ztop[0] && maplightbottomright>ztop[1]) ||
+					(maplightbottomleft > ztop[0] && maplightbottomright < ztop[1]) ||
+					(maplightbottomleft<zbottom[0] && maplightbottomright>zbottom[1]) ||
+					(maplightbottomleft > zbottom[0] && maplightbottomright < zbottom[1]))
+				{
+					// Use hardware clipping if this cannot be done cleanly.
+					this->lightlist = &lightlist;
+					PutWall(translucent);
+					goto out;
+				}
+			}
+			else
+			{
+				// crappy fallback if no clip planes available
+				SplitWallComplex(frontsector, translucent, maplightbottomleft, maplightbottomright);
+				return;
 			}
 
 			// 3D floor is completely within this light
@@ -360,12 +463,12 @@ bool GLWall::DoHorizon(seg_t * seg,sector_t * fs, vertex_t * v1,vertex_t * v2)
 	lightlist_t * light;
 
 	// ZDoom doesn't support slopes in a horizon sector so I won't either!
-	ztop[1] = ztop[0] = fs->GetPlaneTexZF(sector_t::ceiling);
-	zbottom[1] = zbottom[0] = fs->GetPlaneTexZF(sector_t::floor);
+	ztop[1] = ztop[0] = fs->GetPlaneTexZ(sector_t::ceiling);
+	zbottom[1] = zbottom[0] = fs->GetPlaneTexZ(sector_t::floor);
 
-	if (ViewPos.Z < fs->GetPlaneTexZF(sector_t::ceiling))
+	if (ViewPos.Z < fs->GetPlaneTexZ(sector_t::ceiling))
 	{
-		if (ViewPos.Z > fs->GetPlaneTexZF(sector_t::floor))
+		if (ViewPos.Z > fs->GetPlaneTexZ(sector_t::floor))
 			zbottom[1] = zbottom[0] = ViewPos.Z;
 
 		if (fs->GetTexture(sector_t::ceiling) == skyflatnum)
@@ -393,9 +496,9 @@ bool GLWall::DoHorizon(seg_t * seg,sector_t * fs, vertex_t * v1,vertex_t * v2)
 		ztop[1] = ztop[0] = zbottom[0];
 	} 
 
-	if (ViewPos.Z > fs->GetPlaneTexZF(sector_t::floor))
+	if (ViewPos.Z > fs->GetPlaneTexZ(sector_t::floor))
 	{
-		zbottom[1] = zbottom[0] = fs->GetPlaneTexZF(sector_t::floor);
+		zbottom[1] = zbottom[0] = fs->GetPlaneTexZ(sector_t::floor);
 		if (fs->GetTexture(sector_t::floor) == skyflatnum)
 		{
 			SkyPlane(fs, sector_t::floor, false);
@@ -707,12 +810,12 @@ void GLWall::DoMidTexture(seg_t * seg, bool drawfogboundary,
 		float rowoffset = tci.RowOffset(seg->sidedef->GetTextureYOffset(side_t::mid));
 		if ((seg->linedef->flags & ML_DONTPEGBOTTOM) >0)
 		{
-			texturebottom = MAX(realfront->GetPlaneTexZF(sector_t::floor), realback->GetPlaneTexZF(sector_t::floor)) + rowoffset;
+			texturebottom = MAX(realfront->GetPlaneTexZ(sector_t::floor), realback->GetPlaneTexZ(sector_t::floor)) + rowoffset;
 			texturetop = texturebottom + tci.mRenderHeight;
 		}
 		else
 		{
-			texturetop = MIN(realfront->GetPlaneTexZF(sector_t::ceiling), realback->GetPlaneTexZF(sector_t::ceiling)) + rowoffset;
+			texturetop = MIN(realfront->GetPlaneTexZ(sector_t::ceiling), realback->GetPlaneTexZ(sector_t::ceiling)) + rowoffset;
 			texturebottom = texturetop - tci.mRenderHeight;
 		}
 	}
@@ -896,7 +999,7 @@ void GLWall::DoMidTexture(seg_t * seg, bool drawfogboundary,
 	// set up alpha blending
 	//
 	// 
-	if (seg->linedef->Alpha)// && seg->linedef->special!=Line_Fogsheet)
+	if (seg->linedef->alpha != 0)
 	{
 		bool translucent = false;
 
@@ -904,13 +1007,13 @@ void GLWall::DoMidTexture(seg_t * seg, bool drawfogboundary,
 		{
 		case 0:
 			RenderStyle=STYLE_Translucent;
-			alpha=FIXED2FLOAT(seg->linedef->Alpha);
-			translucent = seg->linedef->Alpha < FRACUNIT || (gltexture && gltexture->GetTransparent());
+			alpha = seg->linedef->alpha;
+			translucent =alpha < 1. || (gltexture && gltexture->GetTransparent());
 			break;
 
 		case ML_ADDTRANS:
 			RenderStyle=STYLE_Add;
-			alpha=FIXED2FLOAT(seg->linedef->Alpha);
+			alpha = seg->linedef->alpha;
 			translucent=true;
 			break;
 		}
@@ -1065,7 +1168,7 @@ void GLWall::BuildFFBlock(seg_t * seg, F3DFloor * rover,
 		to = (rover->flags&(FF_UPPERTEXTURE | FF_LOWERTEXTURE)) ?
 			0.f : tci.RowOffset(mastersd->GetTextureYOffset(side_t::mid));
 
-		to += rowoffset + rover->top.model->GetPlaneTexZF(rover->top.isceiling);
+		to += rowoffset + rover->top.model->GetPlaneTexZ(rover->top.isceiling);
 
 		uplft.v = tci.FloatToTexV(to - ff_topleft);
 		uprgt.v = tci.FloatToTexV(to - ff_topright);
@@ -1372,8 +1475,8 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 		segfront = frontsector;
 		segback = backsector;
 	}
-	frefz = realfront->GetPlaneTexZF(sector_t::floor);
-	crefz = realfront->GetPlaneTexZF(sector_t::ceiling);
+	frefz = realfront->GetPlaneTexZ(sector_t::floor);
+	crefz = realfront->GetPlaneTexZ(sector_t::ceiling);
 
 	if (seg->sidedef == seg->linedef->sidedef[0])
 	{
@@ -1422,7 +1525,7 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 	glseg.y2 = v2->fY();
 	Colormap = frontsector->ColorMap;
 	flags = 0;
-	dynlightindex = UINT_MAX;
+	dynlightindex = -1;
 	lightlist = NULL;
 
 	int rel = 0;
@@ -1525,7 +1628,7 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 				if (gltexture)
 				{
 					DoTexture(RENDERWALL_TOP, seg, (seg->linedef->flags & (ML_DONTPEGTOP)) == 0,
-						crefz, realback->GetPlaneTexZF(sector_t::ceiling),
+						crefz, realback->GetPlaneTexZ(sector_t::ceiling),
 						fch1, fch2, bch1a, bch2a, 0);
 				}
 				else if (!(seg->sidedef->Flags & WALLF_POLYOBJ))
@@ -1538,7 +1641,7 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 						if (gltexture)
 						{
 							DoTexture(RENDERWALL_TOP, seg, (seg->linedef->flags & (ML_DONTPEGTOP)) == 0,
-								crefz, realback->GetPlaneTexZF(sector_t::ceiling),
+								crefz, realback->GetPlaneTexZ(sector_t::ceiling),
 								fch1, fch2, bch1a, bch2a, 0);
 						}
 					}
@@ -1602,10 +1705,10 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 			if (gltexture)
 			{
 				DoTexture(RENDERWALL_BOTTOM, seg, (seg->linedef->flags & ML_DONTPEGBOTTOM) > 0,
-					realback->GetPlaneTexZF(sector_t::floor), frefz,
+					realback->GetPlaneTexZ(sector_t::floor), frefz,
 					bfh1, bfh2, ffh1, ffh2,
 					frontsector->GetTexture(sector_t::ceiling) == skyflatnum && backsector->GetTexture(sector_t::ceiling) == skyflatnum ?
-					frefz - realback->GetPlaneTexZF(sector_t::ceiling) :
+					frefz - realback->GetPlaneTexZ(sector_t::ceiling) :
 					frefz - crefz);
 			}
 			else if (!(seg->sidedef->Flags & WALLF_POLYOBJ))
@@ -1621,7 +1724,7 @@ void GLWall::Process(seg_t *seg, sector_t * frontsector, sector_t * backsector)
 					if (gltexture)
 					{
 						DoTexture(RENDERWALL_BOTTOM, seg, (seg->linedef->flags & ML_DONTPEGBOTTOM) > 0,
-							realback->GetPlaneTexZF(sector_t::floor), frefz,
+							realback->GetPlaneTexZ(sector_t::floor), frefz,
 							bfh1, bfh2, ffh1, ffh2, frefz - crefz);
 					}
 				}
@@ -1648,8 +1751,8 @@ void GLWall::ProcessLowerMiniseg(seg_t *seg, sector_t * frontsector, sector_t * 
 	if (frontsector->GetTexture(sector_t::floor) == skyflatnum) return;
 	lightlist = NULL;
 
-	float ffh = frontsector->GetPlaneTexZF(sector_t::floor);
-	float bfh = backsector->GetPlaneTexZF(sector_t::floor);
+	float ffh = frontsector->GetPlaneTexZ(sector_t::floor);
+	float bfh = backsector->GetPlaneTexZ(sector_t::floor);
 	if (bfh > ffh)
 	{
 		this->seg = seg;
@@ -1681,7 +1784,7 @@ void GLWall::ProcessLowerMiniseg(seg_t *seg, sector_t * frontsector, sector_t * 
 		bottomflat = frontsector->GetTexture(sector_t::floor);
 		topplane = frontsector->ceilingplane;
 		bottomplane = frontsector->floorplane;
-		dynlightindex = UINT_MAX;
+		dynlightindex = -1;
 
 		zfloor[0] = zfloor[1] = ffh;
 

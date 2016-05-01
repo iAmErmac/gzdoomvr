@@ -781,15 +781,12 @@ Outside comments: A faster version with only 10 (not 24) multiplies.
 	}
 };
 
+#define BAM_FACTOR (90. / 0x40000000)
+
 template<class vec_t>
 struct TAngle
 {
 	vec_t Degrees;
-
-private:
-	const double BAM_FACTOR = (90. / 0x40000000);
-public:
-
 
 	// This is to catch any accidental attempt to assign an angle_t to this type. Any explicit exception will require a type cast.
 	TAngle(int) = delete;
@@ -1138,7 +1135,8 @@ struct TRotator
 
 	Angle Pitch;	// up/down
 	Angle Yaw;		// left/right
-	Angle Roll;		// rotation about the forward axis
+	Angle Roll;		// rotation about the forward axis.
+	Angle CamRoll;	// Roll specific to actor cameras. Used by quakes.
 
 	TRotator ()
 	{
