@@ -682,35 +682,10 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					rightEyePose = sharedRiftHmd->getCurrentEyePose();
 				}
 
-				{   //// HUD Pass ////
-					// gl_RenderState.EnableAlphaTest(false);
-
-					const bool hackGlState = true; // fixes wrong-texture-on-hud problem
-					if (hackGlState) {
-						glBindSampler(0, 0);
-						glActiveTexture(GL_TEXTURE0);
-					}
-
-					HudTexture::hudTexture->bindRenderTexture();
-					gl_RenderState.AlphaFunc(GL_EQUAL, 0.f); // Required to show menu dim color
-					gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
-
-					glDisable(GL_DEPTH_TEST); // needed to not hide crosshair with hud
-					float hudPitchDegrees = -5 - 20 * vr_hud_scale / 0.6; // -25 is good for vr_hud_scale 0.6
-
-					// note: crosshair is suppressed during hud pass?
-					// left eye view - hud pass
-					{
-						sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
-						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-						sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
-					}
-					// right eye view - hud pass
-					{
-						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
-						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
-						sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
-					}
+				const bool hackGlState = true; // fixes wrong-texture-on-hud problem
+				if (hackGlState) {
+					glBindSampler(0, 0);
+					glActiveTexture(GL_TEXTURE0);
 				}
 
 				{   //// Crosshair Pass ////
@@ -731,6 +706,31 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
 						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
 						sharedRiftHmd->paintCrosshairQuad(rightEyePose, leftEyePose, oldScreenBlocks <= 10);
+					}
+				}
+
+				{   //// HUD Pass ////
+					// gl_RenderState.EnableAlphaTest(false);
+
+					HudTexture::hudTexture->bindRenderTexture();
+					gl_RenderState.AlphaFunc(GL_EQUAL, 0.f); // Required to show menu dim color
+					gl_RenderState.BlendFunc(hud_weap_blend1, GL_ONE_MINUS_SRC_ALPHA);
+
+					glDisable(GL_DEPTH_TEST); // needed to not hide crosshair with hud
+					float hudPitchDegrees = -5 - 20 * vr_hud_scale / 0.6; // -25 is good for vr_hud_scale 0.6
+
+					// note: crosshair is suppressed during hud pass?
+					// left eye view - hud pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Left, zNear, zFar); // Left eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
+					}
+					// right eye view - hud pass
+					{
+						sharedRiftHmd->setSceneEyeView(ovrEye_Right, zNear, zFar); // Right eye
+						PositionTrackingShifter positionTracker(sharedRiftHmd, player, renderer);
+						sharedRiftHmd->paintHudQuad(vr_hud_scale, hudPitchDegrees, 20);
 					}
 				}
 
@@ -842,6 +842,8 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				glClear(GL_COLOR_BUFFER_BIT);
 
 				screenblocks = oldScreenBlocks;
+
+				// Leave hud texture bound, to get menus etc.
 			}
 
 			break;
