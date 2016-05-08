@@ -921,8 +921,26 @@ set( NOT_COMPILED_SOURCE_FILES
 	asm_x86_64/tmap3.s
 )
 
+# HTC Vive [CMB]
+find_path(OPENVR_SDK_PATH
+	NAMES 
+		headers/openvr.h
+	PATHS
+		C:/Users/cmbruns/git/openvr
+)
+find_path(OPENVR_INCLUDE_DIRECTORY
+	NAMES
+		openvr.h
+	PATHS
+		${OPENVR_SDK_PATH}/headers
+)
+find_library(OPENVR_LIBRARY
+	NAMES openvr_api
+	PATHS "${OPENVR_SDK_PATH}/lib/win32/"
+)
+
 # OCULUS
-# Maybe compile in support for Oculus Rift CMB Oct 2013
+# Support for Oculus Rift [CMB]
 find_path(OCULUS_SDK_PATH
     NAMES
         LibOVR/Include/OVR_CAPI.h
@@ -1414,6 +1432,12 @@ if (OCULUS_INCLUDE_DIRECTORY AND OCULUS_LIBRARIES)
         find_library(UDEV_LIBRARY NAMES udev libudev.so.1)
         target_link_libraries(zdoom ${UDEV_LIBRARY})
     endif()
+endif()
+
+if (OPENVR_LIBRARY AND OPENVR_INCLUDE_DIRECTORY)
+	include_directories("${OPENVR_INCLUDE_DIRECTORY}")
+	target_link_libraries(zdoom ${OPENVR_LIBRARY})
+	add_definitions("-DUSE_OPENVR")
 endif()
 
 set_source_files_properties( xlat/parse_xlat.cpp PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c" )
