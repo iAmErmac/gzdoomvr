@@ -2,6 +2,9 @@
 #include "openvr.h"
 #include <string>
 #include "doomtype.h" // Printf
+#include "g_game.h" // G_Add...
+#include "r_utility.h" // viewpitch
+#include "gl/renderer/gl_renderer.h"
 
 using namespace vr;
 
@@ -89,32 +92,62 @@ OpenVRMode::OpenVRMode(FLOATTYPE ipd)
 	}
 }
 
+void OpenVRMode::updateDoomViewDirection() const
+{
+	if (ivrSystem == nullptr)
+		return;
+	// Compute how far in the future to predict HMD pose
+	float secondsSinceLastVsync = 0;
+	ivrSystem->GetTimeSinceLastVsync(&secondsSinceLastVsync, nullptr);
+	float displayFrequency = ivrSystem->GetFloatTrackedDeviceProperty(k_unTrackedDeviceIndex_Hmd, Prop_DisplayFrequency_Float);
+	float frameDuration = 1.0f / displayFrequency;
+	float vsyncToPhotons = ivrSystem->GetFloatTrackedDeviceProperty(k_unTrackedDeviceIndex_Hmd, Prop_SecondsFromVsyncToPhotons_Float);
+	float predictedSecondsFromNow = frameDuration - secondsSinceLastVsync + vsyncToPhotons;
+
+	// Compute HMD pose, in terms of yaw, pitch, and roll
+	TrackedDevicePose_t trackedDevicePoses[k_unMaxTrackedDeviceCount];
+	ivrSystem->GetDeviceToAbsoluteTrackingPose(
+		TrackingUniverseStanding,
+		predictedSecondsFromNow,
+		trackedDevicePoses,
+		k_unMaxTrackedDeviceCount
+	);
+	TrackedDevicePose_t& hmdPose = trackedDevicePoses[k_unTrackedDeviceIndex_Hmd];
+	HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose.mDeviceToAbsoluteTracking);
+	// Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+
+	double hmdyaw = eulerAngles.v[0];
+	double hmdpitch = eulerAngles.v[1];
+	double hmdroll = -eulerAngles.v[2];
+
+	// Set HMD angle game state parameters for NEXT frame
+	static double previousYaw = 0;
+	static bool havePreviousYaw = false;
+	if (!havePreviousYaw) {
+		previousYaw = hmdyaw;
+		havePreviousYaw = true;
+	}
+	double dYaw = hmdyaw - previousYaw;
+	G_AddViewAngle((int)(-32768.0*dYaw / 3.14159)); // determined empirically
+	previousYaw = hmdyaw;
+
+	// Pitch
+	int pitch = -32768 / 3.14159*hmdpitch;
+	int dPitch = (pitch - viewpitch / 65536); // empirical
+	G_AddViewPitch(-dPitch);
+
+	// Roll can be local, because it doesn't affect gameplay.
+	GLRenderer->mAngles.Roll = hmdroll * 180.0 / 3.14159;
+
+	// Late-schedule update to renderer angles directly, too
+	GLRenderer->mAngles.Pitch = -hmdpitch * 180.0 / 3.14159;
+	GLRenderer->mAngles.Yaw += dYaw * 180.0 / 3.14159; // TODO: Is this correct? Maybe minus?
+}
+
 /* virtual */
 void OpenVRMode::SetUp() const
 {
-	if (ivrSystem != nullptr) 
-	{
-		// Compute how far in the future to predict HMD pose
-		float secondsSinceLastVsync = 0;
-		ivrSystem->GetTimeSinceLastVsync(&secondsSinceLastVsync, nullptr);
-		float displayFrequency = ivrSystem->GetFloatTrackedDeviceProperty(k_unTrackedDeviceIndex_Hmd, Prop_DisplayFrequency_Float);
-		float frameDuration = 1.0f / displayFrequency;
-		float vsyncToPhotons = ivrSystem->GetFloatTrackedDeviceProperty(k_unTrackedDeviceIndex_Hmd, Prop_SecondsFromVsyncToPhotons_Float);
-		float predictedSecondsFromNow = frameDuration - secondsSinceLastVsync + vsyncToPhotons;
-
-		// Compute HMD pose
-		TrackedDevicePose_t trackedDevicePoses[k_unMaxTrackedDeviceCount];
-		ivrSystem->GetDeviceToAbsoluteTrackingPose(
-			TrackingUniverseStanding,
-			predictedSecondsFromNow,
-			trackedDevicePoses,
-			k_unMaxTrackedDeviceCount
-		);
-		TrackedDevicePose_t& hmdPose = trackedDevicePoses[k_unTrackedDeviceIndex_Hmd];
-		HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose.mDeviceToAbsoluteTracking);
-		bool foo = hmdPose.bPoseIsValid;
-		Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
-	}	
+	updateDoomViewDirection();	
 }
 
 /* virtual */

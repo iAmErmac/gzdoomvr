@@ -56,6 +56,8 @@ public:
 
 protected:
 	OpenVRMode(FLOATTYPE ipd);
+	void updateDoomViewDirection() const;
+
 	EyePose centralEye;
 	vr::IVRSystem* ivrSystem;
 };
