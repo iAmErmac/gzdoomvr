@@ -36,6 +36,7 @@
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/stereo3d/gl_stereo_leftright.h"
 #include "gl/stereo3d/gl_anaglyph.h"
+#include "gl/stereo3d/gl_openvr.h"
 #include "gl/system/gl_cvars.h"
 
 // Set up 3D-specific console variables:
@@ -79,6 +80,9 @@ const Stereo3DMode& Stereo3DMode::getCurrentMode()
 		break;
 	case 6:
 		setCurrentMode(RightEyeView::getInstance(vr_ipd));
+		break;
+	case 10:
+		setCurrentMode(OpenVRMode::getInstance(vr_ipd));
 		break;
 	case 0:
 	default:

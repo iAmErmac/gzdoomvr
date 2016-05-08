@@ -970,6 +970,8 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		// Using "case 73:" to indicate that this section does not work correctly yet.
 	case 73: // Does not work well yet, switching between hud-buffered modes, and these new modes
 	case 1: // Green/Magenta anaglyph
+	case 9: // Blue/Yellow anaglyph
+	case 10: // HTC Vive
 	{
 		if (previous_vr_mode != vr_mode) {
 			// Default unbind hud buffer, in case previous mode had it set
