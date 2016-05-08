@@ -362,14 +362,10 @@ void RiftHmd::paintHudQuad(float hudScale, float pitchAngle, float yawRange)
 	gl_RenderState.Apply();
 
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-	ptr->Set(-0.5*hudWidth, 0.5*hudHeight, -hudDistance,   0, 1);
-	ptr++;
-	ptr->Set(-0.5*hudWidth,-0.5*hudHeight, -hudDistance,   0, 0);
-	ptr++;
-	ptr->Set( 0.5*hudWidth, 0.5*hudHeight, -hudDistance,   1, 1);
-	ptr++;
-	ptr->Set( 0.5*hudWidth,-0.5*hudHeight, -hudDistance,   1, 0);
-	ptr++;
+	ptr->Set(-0.5*hudWidth, 0.5*hudHeight, -hudDistance,   0, 1); ptr++;
+	ptr->Set(-0.5*hudWidth,-0.5*hudHeight, -hudDistance,   0, 0); ptr++;
+	ptr->Set( 0.5*hudWidth, 0.5*hudHeight, -hudDistance,   1, 1); ptr++;
+	ptr->Set( 0.5*hudWidth,-0.5*hudHeight, -hudDistance,   1, 0); ptr++;
 
 	// It turns out I did not need to use my own shader
 	const bool useMyShader = true;
@@ -438,14 +434,10 @@ void RiftHmd::paintCrosshairQuad(const ovrPosef& eyePose, const ovrPosef& otherE
 	gl_RenderState.ApplyMatrices();
 	gl_RenderState.Apply();
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-	ptr->Set(-0.5*hudWidth,  0.5*hudHeight, -hudDistance,  0.5 - txw, yCenter + txh);
-	ptr++;
-	ptr->Set(-0.5*hudWidth, -0.5*hudHeight, -hudDistance,  0.5 - txw, yCenter - txh);
-	ptr++;
-	ptr->Set( 0.5*hudWidth,  0.5*hudHeight, -hudDistance,  0.5 + txw, yCenter + txh);
-	ptr++;
-	ptr->Set( 0.5*hudWidth, -0.5*hudHeight, -hudDistance,  0.5 + txw, yCenter - txh);
-	ptr++;
+	ptr->Set(-0.5*hudWidth,  0.5*hudHeight, -hudDistance,  0.5 - txw, yCenter + txh); ptr++;
+	ptr->Set(-0.5*hudWidth, -0.5*hudHeight, -hudDistance,  0.5 - txw, yCenter - txh); ptr++;
+	ptr->Set( 0.5*hudWidth,  0.5*hudHeight, -hudDistance,  0.5 + txw, yCenter + txh); ptr++;
+	ptr->Set( 0.5*hudWidth, -0.5*hudHeight, -hudDistance,  0.5 + txw, yCenter - txh); ptr++;
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 }
 
@@ -494,14 +486,10 @@ void RiftHmd::paintWeaponQuad(const ovrPosef& eyePose, const ovrPosef& otherEyeP
 	gl_RenderState.ApplyMatrices();
 	gl_RenderState.Apply();
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-	ptr->Set(-0.5*hudWidth, 0.5*hudHeight, -hudDistance, 0, 1);
-	ptr++;
-	ptr->Set(-0.5*hudWidth, -0.5*hudHeight, -hudDistance, 0, 0);
-	ptr++;
-	ptr->Set(0.5*hudWidth, 0.5*hudHeight, -hudDistance, 1, 1);
-	ptr++;
-	ptr->Set(0.5*hudWidth, -0.5*hudHeight, -hudDistance, 1, 0);
-	ptr++;
+	ptr->Set(-0.5*hudWidth, 0.5*hudHeight, -hudDistance, 0, 1); ptr++;
+	ptr->Set(-0.5*hudWidth, -0.5*hudHeight, -hudDistance, 0, 0); ptr++;
+	ptr->Set(0.5*hudWidth, 0.5*hudHeight, -hudDistance, 1, 1); ptr++;
+	ptr->Set(0.5*hudWidth, -0.5*hudHeight, -hudDistance, 1, 0); ptr++;
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 }
 
@@ -520,14 +508,10 @@ void RiftHmd::paintBlendQuad()
 	gl_RenderState.ApplyMatrices();
 	gl_RenderState.Apply();
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-	ptr->Set(-rectSize, rectSize, -1, 0, 1);
-	ptr++;
-	ptr->Set(-rectSize, -rectSize, -1, 0, 0);
-	ptr++;
-	ptr->Set(rectSize, rectSize, -1, 1, 1);
-	ptr++;
-	ptr->Set(rectSize, -rectSize, -1, 1, 0);
-	ptr++;
+	ptr->Set(-rectSize, rectSize, -1, 0, 1); ptr++;
+	ptr->Set(-rectSize, -rectSize, -1, 0, 0); ptr++;
+	ptr->Set(rectSize, rectSize, -1, 1, 1); ptr++;
+	ptr->Set(rectSize, -rectSize, -1, 1, 0); ptr++;
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 	// gl_MatrixStack.Pop(gl_RenderState.mProjectionMatrix);

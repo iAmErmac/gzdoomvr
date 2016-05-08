@@ -27,7 +27,7 @@
 
 extern void P_CalcHeight (player_t *player);
 
-extern DBaseStatusBar *StatusBar; // To access crosshair drawing
+// extern DBaseStatusBar *StatusBar; // To access crosshair drawing
 
 
 EXTERN_CVAR(Bool, vid_vsync)
@@ -658,6 +658,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 				int oldViewHeight = viewheight;
 				ovrPosef leftEyePose, rightEyePose;
 
+				if(true)
 				{   // FIRST PASS - 3D
 					// Temporarily modify global variables, so HUD could draw correctly
 					screenblocks = 12; // full screen
@@ -702,6 +703,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					gl_RenderState.mTextureMatrix.loadIdentity();
 				}
 
+				if (true)
 				{   //// Crosshair Pass ////
 					gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 					gl_RenderState.AlphaFunc(GL_EQUAL, 0.f);
@@ -723,6 +725,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					}
 				}
 
+				if(true)
 				{   //// HUD Pass ////
 					// gl_RenderState.EnableAlphaTest(false);
 
@@ -748,6 +751,9 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					}
 				}
 
+				// Something about the weapon pass causes the hud items occasionally misproject into the upper left corner (but not the blend pass).
+				// But the associated flickering of the status bar does not require the weapon pass.
+				if (true)
 				{   //// Weapon Pass ////
 					// Temporarily adjust view window parameters, to fool weapon into drawing full size,
 					// even when "screenblocks" is a smaller number
@@ -763,7 +769,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 						glDisable(GL_BLEND); // Required to get partial weapon visibility during invisible mode
 						gl_RenderState.Apply();
 						bindAndClearHudTexture(*this);
-						renderer.EndDrawSceneSprites(viewsector); // paint weapon
+						renderer.EndDrawSceneSprites(viewsector); // paint weapon; hud misprojection caused here
 						HudTexture::hudTexture->unbind();
 					}
 
@@ -791,6 +797,7 @@ void Stereo3D::render(FGLRenderer& renderer, GL_IRECT * bounds, float fov0, floa
 					}
 				}
 				  
+				if (true)
 				{   //// Blend Effects Pass
 					glEnable(GL_BLEND);
 					{ //  separate pass for full screen effects like radiation suit

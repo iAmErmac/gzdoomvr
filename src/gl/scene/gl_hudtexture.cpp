@@ -89,14 +89,10 @@ void HudTexture::renderToScreen() {
 	gl_RenderState.ApplyMatrices();
 	gl_RenderState.Apply();
 	FFlatVertex *ptr = GLRenderer->mVBO->GetBuffer();
-	ptr->Set(-1,  1, 0.5,  0, 1);
-	ptr++;
-	ptr->Set( 1,  1, 0.5,  1, 1);
-	ptr++;
-	ptr->Set(-1, -1, 0.5,  0, 0);
-	ptr++;
-	ptr->Set( 1, -1, 0.5,  1, 0);
-	ptr++;
+	ptr->Set(-1,  1, 0.5,  0, 1); ptr++;
+	ptr->Set( 1,  1, 0.5,  1, 1); ptr++;
+	ptr->Set(-1, -1, 0.5,  0, 0); ptr++;
+	ptr->Set( 1, -1, 0.5,  1, 0); ptr++;
 	GLRenderer->mVBO->RenderCurrent(ptr, GL_TRIANGLE_STRIP);
 
 	glBindTexture(GL_TEXTURE_2D, 0);
