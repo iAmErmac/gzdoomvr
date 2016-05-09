@@ -80,8 +80,10 @@ const OpenVRMode& OpenVRMode::getInstance(FLOATTYPE ipd)
 
 OpenVRMode::OpenVRMode(FLOATTYPE ipd) 
 	: ivrSystem(nullptr)
+	, leftEyeView(ipd)
+	, rightEyeView(ipd)
 {
-	eye_ptrs.Push(&centralEye); // default behavior to Mono non-stereo rendering
+	eye_ptrs.Push(&leftEyeView); // default behavior to Mono non-stereo rendering
 
 	EVRInitError eError;
 	if (VR_IsHmdPresent())
@@ -132,12 +134,12 @@ void OpenVRMode::updateDoomViewDirection() const
 	previousYaw = hmdyaw;
 
 	// Pitch
-	int pitch = -32768 / 3.14159*hmdpitch;
+	int pitch = (int)(-32768 / 3.14159*hmdpitch);
 	int dPitch = (pitch - viewpitch / 65536); // empirical
 	G_AddViewPitch(-dPitch);
 
 	// Roll can be local, because it doesn't affect gameplay.
-	GLRenderer->mAngles.Roll = hmdroll * 180.0 / 3.14159;
+	GLRenderer->mAngles.Roll = (float)(hmdroll * 180.0 / 3.14159);
 
 	// Late-schedule update to renderer angles directly, too
 	GLRenderer->mAngles.Pitch = -hmdpitch * 180.0 / 3.14159;

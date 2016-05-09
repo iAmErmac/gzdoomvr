@@ -37,6 +37,7 @@
 #define GL_OPENVR_H_
 
 #include "gl_stereo3d.h"
+#include "gl_stereo_leftright.h"
 
 // forward declaration from openvr.h
 namespace vr {
@@ -58,7 +59,8 @@ protected:
 	OpenVRMode(FLOATTYPE ipd);
 	void updateDoomViewDirection() const;
 
-	EyePose centralEye;
+	LeftEyePose leftEyeView;
+	RightEyePose rightEyeView;
 	vr::IVRSystem* ivrSystem;
 };
 
