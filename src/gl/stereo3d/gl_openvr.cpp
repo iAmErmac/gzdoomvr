@@ -24,7 +24,7 @@ static HmdVector3d_t eulerAnglesFromQuat(HmdQuaternion_t quat) {
 	double pitch = asin(2 * (q0*q2 - q3*q1));
 	double yaw = atan2(2 * (q0*q3 + q1*q2), 1 - 2 * (q2*q2 + q3*q3));
 
-	return HmdVector3d_t{ yaw, pitch, roll };
+	return HmdVector3d_t{ yaw, pitch, -roll };
 }
 
 static HmdQuaternion_t quatFromMatrix(HmdMatrix34_t matrix) {
