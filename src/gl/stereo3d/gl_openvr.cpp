@@ -78,9 +78,61 @@ const OpenVRMode& OpenVRMode::getInstance(FLOATTYPE ipd)
 	return instance;
 }
 
+
+OpenVREyePose::OpenVREyePose(FLOATTYPE signedIpd)
+	: ShiftedEyePose( FLOATTYPE(0.5) * signedIpd )
+{
+}
+
+
+static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2) 
+{
+	float tmp[16];
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			tmp[4*i + j] = m2.m[i][j];
+		}
+	}
+	int i = 3;
+	for (int j = 0; j < 4; ++j) {
+		tmp[4 * i + j] = 0;
+	}
+	tmp[15] = 1;
+	m1.loadMatrix(&tmp[0]);
+}
+
+
+void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
+{
+	EVREye eye = vr::Eye_Left;
+	if (shift > 0)
+		eye = vr::Eye_Right;
+
+	float zNear = 5.0;
+	float zFar = 65536.0;
+	vr::HmdMatrix44_t projection = vrsystem.GetProjectionMatrix(
+			eye, zNear, zFar, vr::API_OpenGL);
+	projectionMatrix.copy(&projection.m[0][0]);
+	vr::HmdMatrix34_t eyeToHead = vrsystem.GetEyeToHeadTransform(eye);
+	vSMatrixFromHmdMatrix34(eyeToHeadTransform, eyeToHead);
+
+	uint32_t w, h;
+	vrsystem.GetRecommendedRenderTargetSize(&w, &h);
+
+	// create frame buffers
+	framebuffer.initialize(w, h);
+
+}
+
+
+void OpenVREyePose::dispose()
+{
+	framebuffer.dispose();
+}
+
 OpenVRMode::OpenVRMode(FLOATTYPE ipd) 
 	: ivrSystem(nullptr)
-	, leftEyeView(ipd)
+	, leftEyeView(-ipd)
 	, rightEyeView(ipd)
 {
 	eye_ptrs.Push(&leftEyeView); // default behavior to Mono non-stereo rendering
@@ -89,8 +141,18 @@ OpenVRMode::OpenVRMode(FLOATTYPE ipd)
 	if (VR_IsHmdPresent())
 	{
 		ivrSystem = VR_Init(&eError, VRApplication_Scene);
-		std::string errMsg = VR_GetVRInitErrorAsEnglishDescription(eError);
-		HmdMatrix34_t mat1 = ivrSystem->GetEyeToHeadTransform(Eye_Left);
+		if (eError != vr::VRInitError_None) {
+			std::string errMsg = VR_GetVRInitErrorAsEnglishDescription(eError);
+			ivrSystem = nullptr;
+			return;
+			// TODO: report error
+		}
+		// OK
+		leftEyeView.initialize(*ivrSystem);
+		rightEyeView.initialize(*ivrSystem);
+
+		if (!vr::VRCompositor())
+			return;
 	}
 }
 
@@ -158,6 +220,8 @@ OpenVRMode::~OpenVRMode()
 	if (ivrSystem != nullptr) {
 		VR_Shutdown();
 		ivrSystem = nullptr;
+		leftEyeView.dispose();
+		rightEyeView.dispose();
 	}
 }
 

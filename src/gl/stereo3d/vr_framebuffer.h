@@ -1,9 +1,9 @@
 /*
-** gl_openvr.h
+** vr_framebuffer.h
 ** Stereoscopic 3D API
 **
 **---------------------------------------------------------------------------
-** Copyright 2015 Christopher Bruns
+** Copyright 2016 Christopher Bruns
 ** All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
@@ -33,54 +33,29 @@
 **
 */
 
-#ifndef GL_OPENVR_H_
-#define GL_OPENVR_H_
+#ifndef VR_FRAMEBUFFER_H_
+#define VR_FRAMEBUFFER_H_
 
-#include "gl_stereo3d.h"
-#include "gl_stereo_leftright.h"
-#include "vr_framebuffer.h"
-
-// forward declaration from openvr.h
-namespace vr {
-	class IVRSystem;
-	struct HmdMatrix44_t;
-}
-
-/* stereoscopic 3D API */
 namespace s3d {
 
-class OpenVREyePose : public ShiftedEyePose
+class VrFramebuffer 
 {
 public:
-	OpenVREyePose(FLOATTYPE signedIpd);
-	void initialize(vr::IVRSystem& vrsystem);
+	VrFramebuffer();
 	void dispose();
+	bool initialize(int width, int height);
 
 protected:
-	VSMatrix projectionMatrix;
-	VSMatrix eyeToHeadTransform;
-	VrFramebuffer framebuffer;
+	unsigned int width;
+	unsigned int height;
+	unsigned int renderFramebufferId;
+	unsigned int depthBufferId;
+	unsigned int renderTextureId;
+	unsigned int resolveFramebufferId;
+	unsigned int resolveTextureId;
 };
 
-class OpenVRMode : public Stereo3DMode
-{
-public:
-	static const OpenVRMode& getInstance(FLOATTYPE ipd);
+} // namespace s3d
 
-	virtual ~OpenVRMode();
-	virtual void SetUp() const;
+#endif // VR_FRAMEBUFFER_H_
 
-protected:
-	OpenVRMode(FLOATTYPE ipd);
-	void updateDoomViewDirection() const;
-
-	OpenVREyePose leftEyeView;
-	OpenVREyePose rightEyeView;
-
-	vr::IVRSystem* ivrSystem;
-};
-
-} /* namespace st3d */
-
-
-#endif /* GL_OPENVR_H_ */
