@@ -187,33 +187,77 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], secto
 	while (deltaYawDegrees < -180)
 		deltaYawDegrees += 360;
 
-	// First test, just get stereoscopic shift, not position shift
+	/// First just get local inter-eye stereoscopic shift, not full position shift ///
+
+	// extract rotation component from hmd transform
 	LSMatrix44 hmdLs(hmdPose);
 	LSMatrix44 hmdRot = hmdLs.getWithoutTranslation().transpose();
 
+	// compute local eye shift
 	LSMatrix44 eyeShift2;
 	eyeShift2 = eyeShift2 * eyeToHeadTransform; // eye to head
 	eyeShift2 = eyeShift2 * hmdRot; // head to openvr
 	eyeShift2.rotate(-deltaYawDegrees, 0, 1, 0); // openvr to doom
-	// LSMatrix44 eyeShift = eyeToHeadTransform * hmdRot;
 
-	LSMatrix44 origShift;
-	origShift.multMatrix(eyeToHeadTransform);
-	float origShiftX = origShift[0][3];
+	float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
 
-	outViewShift[0] = eyeShift2[0][3] * verticalDoomUnitsPerMeter * glset.pixelstretch;
-	outViewShift[1] = -eyeShift2[2][3] * verticalDoomUnitsPerMeter * glset.pixelstretch; // "viewy" is horizontal direction in doom
-	outViewShift[2] = 0; // Set absolute height below; "viewz" is height in doom
+	// TODO: position tracking in the horizontal direction
+	// We need to track incremental changes in three locations:
+	// 1) the measured absolute hmd location
+	// 2) the game player view location
+	// 3) the actual view location we used in this method
+	static bool haveOldLocations = false;
+	// All these values are in meters :)
+	static float oldHmdX, oldHmdZ; // doom units, rotated to doom frame
+	static float oldPlayerX, oldPlayerZ; // doom units, float
+	static float  oldViewX, oldViewZ; // doom units, float
+	// Construct translation-only version of hmd transform
+	LSMatrix44 hmdPos; 
+	hmdPos.loadIdentity();
+	hmdPos[0][3] = hmdLs[0][3];
+	hmdPos[1][3] = hmdLs[1][3];
+	hmdPos[2][3] = hmdLs[2][3];
+	// Rotate hmd translation to match doom frame
+	hmdPos.rotate(-deltaYawDegrees, 0, 1, 0); // openvr to doom
+	float newHmdX = hmdPos[0][3] * horizontalDoomUnitsPerMeter;
+	float newHmdZ = hmdPos[2][3] * horizontalDoomUnitsPerMeter;
+	float newPlayerX = FIXED2FLOAT(viewx);
+	float newPlayerZ = FIXED2FLOAT(viewy);
+	float newViewX = newPlayerX;
+	float newViewZ = newPlayerZ;
+	if (haveOldLocations) {
+		float deltaHmdX = newHmdX - oldHmdX;
+		float deltaHmdZ = newHmdZ - oldHmdZ;
+		float deltaPlayerX = newPlayerX - oldPlayerX;
+		float deltaPlayerZ = newPlayerZ - oldPlayerZ;
+		newViewX = oldViewX + deltaHmdX - deltaPlayerX; // TODO:
+		newViewZ = oldViewZ + deltaHmdZ - deltaPlayerZ; // TODO:
+		// TODO: try to move player to new view location...
+	}
+	else {
+		haveOldLocations = true;
+		oldHmdX = newHmdX;
+		oldHmdZ = newHmdZ;
+		oldPlayerX = newPlayerX;
+		oldPlayerZ = newPlayerZ;
+		oldViewX = newViewX;
+		oldViewZ = newViewZ;
+	}
 
-	// Set viewy to exact absolute height above the floor
+
+	// OpenVR knows exactly where the floor is, so...
+	// ...set viewy to exact absolute height above the floor
 	float openvrHeightMeters = hmdLs[1][3] - eyeShift2[1][3];
 	float floorZ = FIXED2FLOAT(viewsector->floorplane.ZatPoint(viewx, viewy));
 	float doomViewZDoomUnits = verticalDoomUnitsPerMeter * openvrHeightMeters + floorZ; // TODO: times 1.2?
 	fixed_t eyeViewZ = FLOAT2FIXED(doomViewZDoomUnits);
 	viewz = eyeViewZ; // temporarily set view height, old value will be restored in TearDown()
-
-	// TODO: position tracking in the horizontal direction
-
+					  
+	// output horizontal per-eye shifts, for stereoscopic rendering by caller of this method
+	outViewShift[0] = eyeShift2[0][3] * horizontalDoomUnitsPerMeter;
+	outViewShift[1] = -eyeShift2[2][3] * horizontalDoomUnitsPerMeter; // "viewy" is horizontal direction in doom
+	outViewShift[2] = 0; // Set absolute height above; "viewz" is height in doom
+	
 	// Printf("viewy = %.1f\n", doomViewYDoomUnits);
 
 	/*
