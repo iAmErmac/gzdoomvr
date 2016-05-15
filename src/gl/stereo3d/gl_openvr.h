@@ -1,9 +1,9 @@
 /*
 ** gl_openvr.h
-** Stereoscopic 3D API
+** Stereoscopic virtual reality mode for the HTC Vive headset
 **
 **---------------------------------------------------------------------------
-** Copyright 2015 Christopher Bruns
+** Copyright 2016 Christopher Bruns
 ** All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@ namespace vr {
 	class IVRSystem;
 	struct HmdMatrix44_t;
 	struct Texture_t;
+	struct TrackedDevicePose_t;
 	enum EVREye;
 }
 
@@ -56,12 +57,15 @@ class OpenVREyePose : public ShiftedEyePose
 public:
 	OpenVREyePose(vr::EVREye eye);
 	virtual ~OpenVREyePose();
-	virtual GL_IRECT* GetViewportBounds(GL_IRECT* bounds) const;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
+	virtual GL_IRECT* GetViewportBounds(GL_IRECT* bounds) const;
+	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const;
 	virtual void SetUp() const;
 	virtual void TearDown() const;
+
 	void initialize(vr::IVRSystem& vrsystem);
 	void dispose();
+	void setCurrentHmdPose(const vr::TrackedDevicePose_t * pose) const {currentPose = pose;}
 	bool submitFrame() const;
 
 protected:
@@ -70,6 +74,7 @@ protected:
 	VrFramebuffer framebuffer;
 	vr::Texture_t* eyeTexture;
 	vr::EVREye eye;
+	mutable const vr::TrackedDevicePose_t * currentPose;
 
 private:
 	typedef ShiftedEyePose super;
@@ -81,8 +86,8 @@ public:
 	static const OpenVRMode& getInstance();
 
 	virtual ~OpenVRMode();
-	virtual void SetUp() const;
-	virtual void TearDown() const;
+	virtual void SetUp() const; // called immediately before rendering a scene frame
+	virtual void TearDown() const; // called immediately after rendering a scene frame
 
 protected:
 	OpenVRMode();
@@ -93,6 +98,7 @@ protected:
 	OpenVREyePose rightEyeView;
 
 	vr::IVRSystem* ivrSystem;
+	mutable int cachedScreenBlocks;
 
 private:
 	typedef Stereo3DMode super;

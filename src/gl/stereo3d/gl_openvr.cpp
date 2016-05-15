@@ -1,3 +1,37 @@
+/*
+** gl_openvr.cpp
+** Stereoscopic virtual reality mode for the HTC Vive headset
+**
+**---------------------------------------------------------------------------
+** Copyright 2016 Christopher Bruns
+** All rights reserved.
+**
+** Redistribution and use in source and binary forms, with or without
+** modification, are permitted provided that the following conditions
+** are met:
+**
+** 1. Redistributions of source code must retain the above copyright
+**    notice, this list of conditions and the following disclaimer.
+** 2. Redistributions in binary form must reproduce the above copyright
+**    notice, this list of conditions and the following disclaimer in the
+**    documentation and/or other materials provided with the distribution.
+** 3. The name of the author may not be used to endorse or promote products
+**    derived from this software without specific prior written permission.
+**
+** THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+** IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+** OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+** IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+** INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+** NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+**---------------------------------------------------------------------------
+**
+*/
+
 #include "gl/stereo3d/gl_openvr.h"
 #include "openvr.h"
 #include <string>
@@ -6,6 +40,10 @@
 #include "r_utility.h" // viewpitch
 #include "gl/renderer/gl_renderer.h"
 #include "gl/system/gl_system.h"
+#include "c_cvars.h"
+#include "LSMatrix.h"
+
+EXTERN_CVAR(Int, screenblocks);
 
 using namespace vr;
 
@@ -24,7 +62,7 @@ static HmdVector3d_t eulerAnglesFromQuat(HmdQuaternion_t quat) {
 	double pitch = asin(2 * (q0*q2 - q3*q1));
 	double yaw = atan2(2 * (q0*q3 + q1*q2), 1 - 2 * (q2*q2 + q3*q3));
 
-	return HmdVector3d_t{ yaw, pitch, -roll };
+	return HmdVector3d_t{ yaw, pitch, roll };
 }
 
 static HmdQuaternion_t quatFromMatrix(HmdMatrix34_t matrix) {
@@ -84,6 +122,7 @@ OpenVREyePose::OpenVREyePose(vr::EVREye eye)
 	: ShiftedEyePose( 0.0f )
 	, eye(eye)
 	, eyeTexture(nullptr)
+	, currentPose(nullptr)
 {
 }
 
@@ -106,6 +145,73 @@ GL_IRECT* OpenVREyePose::GetViewportBounds(GL_IRECT* bounds) const
 	return &viewportBounds;
 }
 
+
+static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2)
+{
+	float tmp[16];
+	for (int i = 0; i < 3; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			tmp[4 * i + j] = m2.m[i][j];
+		}
+	}
+	int i = 3;
+	for (int j = 0; j < 4; ++j) {
+		tmp[4 * i + j] = 0;
+	}
+	tmp[15] = 1;
+	m1.loadMatrix(&tmp[0]);
+}
+
+
+/* virtual */
+void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
+{
+	if (currentPose == nullptr)
+		return;
+	const vr::TrackedDevicePose_t& hmd = *currentPose;
+	if (! hmd.bDeviceIsConnected)
+		return;
+	if (! hmd.bPoseIsValid)
+		return;
+	const vr::HmdMatrix34_t& hmdPose = hmd.mDeviceToAbsoluteTracking;
+
+	// Pitch and Roll are identical between OpenVR and Doom worlds.
+	// But yaw can differ, depending on starting state, and controller movement.
+	float doomYawDegrees = GLRenderer->mAngles.Yaw.Degrees;
+	float openVrYawDegrees = -eulerAnglesFromMatrix(hmdPose).v[0] * 180.0 / 3.14159;
+	float deltaYawDegrees = doomYawDegrees - openVrYawDegrees;
+	while (deltaYawDegrees > 180)
+		deltaYawDegrees -= 360;
+	while (deltaYawDegrees < -180)
+		deltaYawDegrees += 360;
+
+	// First test, just get stereoscopic shift, not position shift
+	LSMatrix44 hmdLs(hmdPose);
+	LSMatrix44 hmdRot = hmdLs.getWithoutTranslation().transpose();
+
+	LSMatrix44 eyeShift2;
+	eyeShift2 = eyeShift2 * eyeToHeadTransform; // eye to head
+	eyeShift2 = eyeShift2 * hmdRot; // head to openvr
+	eyeShift2.rotate(-deltaYawDegrees, 0, 1, 0); // openvr to doom
+	// LSMatrix44 eyeShift = eyeToHeadTransform * hmdRot;
+
+	LSMatrix44 origShift;
+	origShift.multMatrix(eyeToHeadTransform);
+	float origShiftX = origShift[0][3];
+
+	float doomUnitsPerMeter = 32.0f;
+	outViewShift[0] = eyeShift2[0][3] * doomUnitsPerMeter;
+	outViewShift[1] = -eyeShift2[2][3] * doomUnitsPerMeter;
+	outViewShift[2] = -eyeShift2[1][3] * doomUnitsPerMeter; // TODO: sign here?
+
+	if (eye == vr::Eye_Left) {
+		Printf("dYaw = %.1f yaw = %.1f doomShift = %.1f, %.1f\n", 
+			deltaYawDegrees,
+			GLRenderer->mAngles.Yaw.Degrees,
+			eyeShift2[0][3] * doomUnitsPerMeter,
+			-eyeShift2[2][3] * doomUnitsPerMeter);
+	}
+}
 
 /* virtual */
 VSMatrix OpenVREyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const
@@ -135,23 +241,6 @@ void OpenVREyePose::TearDown() const
 	// submitFrame();
 	super::TearDown();
 }
-
-static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2) 
-{
-	float tmp[16];
-	for (int i = 0; i < 3; ++i) {
-		for (int j = 0; j < 4; ++j) {
-			tmp[4*i + j] = m2.m[i][j];
-		}
-	}
-	int i = 3;
-	for (int j = 0; j < 4; ++j) {
-		tmp[4 * i + j] = 0;
-	}
-	tmp[15] = 1;
-	m1.loadMatrix(&tmp[0]);
-}
-
 
 void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 {
@@ -288,7 +377,7 @@ void OpenVRMode::updateHmdPose(
 	G_AddViewPitch(-dPitch);
 
 	// Roll can be local, because it doesn't affect gameplay.
-	GLRenderer->mAngles.Roll = (float)(hmdroll * 180.0 / 3.14159);
+	GLRenderer->mAngles.Roll = -hmdroll * 180.0 / 3.14159;
 
 	// Late-schedule update to renderer angles directly, too
 	GLRenderer->mAngles.Pitch = -hmdpitch * 180.0 / 3.14159;
@@ -300,16 +389,16 @@ void OpenVRMode::SetUp() const
 {
 	super::SetUp();
 
-	// updateDoomViewDirection();
+	cachedScreenBlocks = screenblocks;
+	screenblocks = 12; // always be full-screen during 3D scene render
 
 	if (vr::VRCompositor() == nullptr)
 		return;
 
 	static vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount];
 	vr::VRCompositor()->WaitGetPoses(
-		poses,
-		vr::k_unMaxTrackedDeviceCount,
-		nullptr, 0
+		poses, vr::k_unMaxTrackedDeviceCount, // current pose
+		nullptr, 0 // future pose?
 	);
 
 	TrackedDevicePose_t& hmdPose = poses[vr::k_unTrackedDeviceIndex_Hmd];
@@ -318,14 +407,17 @@ void OpenVRMode::SetUp() const
 		HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose.mDeviceToAbsoluteTracking);
 		// Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
 		updateHmdPose(eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+		leftEyeView.setCurrentHmdPose(&hmdPose);
+		rightEyeView.setCurrentHmdPose(&hmdPose);
 	}
 }
 
 /* virtual */
 void OpenVRMode::TearDown() const
 {
-	// updateDoomViewDirection();
-	// Unbind framebuffer
+	screenblocks = cachedScreenBlocks;
+
+	// Unbind eye texture framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	leftEyeView.submitFrame();
 	rightEyeView.submitFrame();
