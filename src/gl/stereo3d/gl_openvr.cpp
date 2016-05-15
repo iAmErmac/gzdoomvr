@@ -40,6 +40,7 @@
 #include "r_utility.h" // viewpitch
 #include "gl/renderer/gl_renderer.h"
 #include "gl/system/gl_system.h"
+#include "gl/data/gl_data.h"
 #include "c_cvars.h"
 #include "LSMatrix.h"
 
@@ -122,6 +123,7 @@ OpenVREyePose::OpenVREyePose(vr::EVREye eye)
 	: ShiftedEyePose( 0.0f )
 	, eye(eye)
 	, eyeTexture(nullptr)
+	, verticalDoomUnitsPerMeter(27.0f)
 	, currentPose(nullptr)
 {
 }
@@ -164,7 +166,7 @@ static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2)
 
 
 /* virtual */
-void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
+void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const
 {
 	if (currentPose == nullptr)
 		return;
@@ -199,11 +201,20 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 	origShift.multMatrix(eyeToHeadTransform);
 	float origShiftX = origShift[0][3];
 
-	float doomUnitsPerMeter = 32.0f;
-	outViewShift[0] = eyeShift2[0][3] * doomUnitsPerMeter;
-	outViewShift[1] = -eyeShift2[2][3] * doomUnitsPerMeter;
-	outViewShift[2] = -eyeShift2[1][3] * doomUnitsPerMeter; // TODO: sign here?
+	outViewShift[0] = eyeShift2[0][3] * verticalDoomUnitsPerMeter * glset.pixelstretch;
+	outViewShift[1] = -eyeShift2[2][3] * verticalDoomUnitsPerMeter * glset.pixelstretch; // "viewy" is horizontal direction in doom
+	outViewShift[2] = 0; // Set absolute height below; "viewz" is height in doom
 
+	// Set viewy to exact absolute height above the floor
+	float openvrHeightMeters = hmdLs[1][3];
+	float floorZ = FIXED2FLOAT(viewsector->floorplane.ZatPoint(viewx, viewy));
+	float doomViewZDoomUnits = verticalDoomUnitsPerMeter * openvrHeightMeters + floorZ; // TODO: times 1.2?
+	fixed_t eyeViewZ = FLOAT2FIXED(doomViewZDoomUnits);
+	viewz = eyeViewZ; // temporarily set view height, old value will be restored in TearDown()
+
+	// Printf("viewy = %.1f\n", doomViewYDoomUnits);
+
+	/*
 	if (eye == vr::Eye_Left) {
 		Printf("dYaw = %.1f yaw = %.1f doomShift = %.1f, %.1f\n", 
 			deltaYawDegrees,
@@ -211,6 +222,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 			eyeShift2[0][3] * doomUnitsPerMeter,
 			-eyeShift2[2][3] * doomUnitsPerMeter);
 	}
+	*/
 }
 
 /* virtual */
@@ -227,6 +239,8 @@ void OpenVREyePose::SetUp() const
 {
 	super::SetUp();
 
+	cachedViewZ = viewz;
+
 	// bind framebuffer
 	framebuffer.bindRenderBuffer();
 
@@ -238,7 +252,8 @@ void OpenVREyePose::SetUp() const
 /* virtual */
 void OpenVREyePose::TearDown() const
 {
-	// submitFrame();
+	viewz = cachedViewZ;
+
 	super::TearDown();
 }
 

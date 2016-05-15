@@ -1003,16 +1003,18 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		// SetProjection(fov, ratio, fovratio);	// switch to perspective mode and set up clipper
 		SetViewAngle(viewangle);
 		// Stereo mode specific viewpoint adjustment - temporarily shifts global viewx, viewy, viewz
-		eye->GetViewShift(GLRenderer->mAngles.Yaw, viewShift);
-		s3d::ScopedViewShifter viewShifter(viewShift);
-		SetViewMatrix(viewx, viewy, viewz, false, false);
-		gl_RenderState.ApplyMatrices();
+		eye->GetViewShift(GLRenderer->mAngles.Yaw, viewShift, retval);
+		{ // tear down ScopedViewShifter before tearing down eye
+			s3d::ScopedViewShifter viewShifter(viewShift);
+			SetViewMatrix(viewx, viewy, viewz, false, false);
+			gl_RenderState.ApplyMatrices();
 
-		clipper.Clear();
-		angle_t a1 = FrustumAngle();
-		clipper.SafeAddClipRangeRealAngles(viewangle + a1, viewangle - a1);
+			clipper.Clear();
+			angle_t a1 = FrustumAngle();
+			clipper.SafeAddClipRangeRealAngles(viewangle + a1, viewangle - a1);
 
-		ProcessScene(toscreen);
+			ProcessScene(toscreen);
+		}
 		if (mainview) EndDrawScene(retval);	// do not call this for camera textures.
 		eye->TearDown();
 	}

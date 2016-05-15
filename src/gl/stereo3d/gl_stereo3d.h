@@ -64,7 +64,7 @@ public:
 	virtual GL_IRECT* GetViewportBounds(GL_IRECT* bounds) const;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
 	virtual Viewport GetViewport(const Viewport& fullViewport) const;
-	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const;
+	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const;
 	virtual void SetUp() const {};
 	virtual void TearDown() const {};
 };

@@ -67,7 +67,7 @@ Viewport EyePose::GetViewport(const Viewport& fullViewport) const
 
 
 /* virtual */
-void EyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
+void EyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const
 {
 	// pass-through for Mono view
 	outViewShift[0] = 0;

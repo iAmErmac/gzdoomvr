@@ -48,7 +48,7 @@ public:
 	FLOATTYPE getShift() const { return shift; }
 	void setShift(FLOATTYPE shift) { this->shift = shift; }
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
-	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const;
+	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const;
 protected:
 	FLOATTYPE shift;
 };
