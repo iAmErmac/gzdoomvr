@@ -206,11 +206,13 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], secto
 	outViewShift[2] = 0; // Set absolute height below; "viewz" is height in doom
 
 	// Set viewy to exact absolute height above the floor
-	float openvrHeightMeters = hmdLs[1][3];
+	float openvrHeightMeters = hmdLs[1][3] - eyeShift2[1][3];
 	float floorZ = FIXED2FLOAT(viewsector->floorplane.ZatPoint(viewx, viewy));
 	float doomViewZDoomUnits = verticalDoomUnitsPerMeter * openvrHeightMeters + floorZ; // TODO: times 1.2?
 	fixed_t eyeViewZ = FLOAT2FIXED(doomViewZDoomUnits);
 	viewz = eyeViewZ; // temporarily set view height, old value will be restored in TearDown()
+
+	// TODO: position tracking in the horizontal direction
 
 	// Printf("viewy = %.1f\n", doomViewYDoomUnits);
 
@@ -336,6 +338,7 @@ OpenVRMode::OpenVRMode()
 }
 
 
+// TODO: obsolete method
 void OpenVRMode::updateDoomViewDirection() const
 {
 	if (ivrSystem == nullptr)

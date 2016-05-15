@@ -97,6 +97,7 @@ bool VrFramebuffer::initialize(int width, int height)
 		return false;
 	}
 
+	// TODO: obsolete resolve buffer, unless we use multisampling
 	glGenFramebuffers(1, &resolveFramebufferId);
 	glBindFramebuffer(GL_FRAMEBUFFER, resolveFramebufferId);
 
