@@ -44,6 +44,8 @@
 namespace vr {
 	class IVRSystem;
 	struct HmdMatrix44_t;
+	struct Texture_t;
+	enum EVREye;
 }
 
 /* stereoscopic 3D API */
@@ -52,32 +54,47 @@ namespace s3d {
 class OpenVREyePose : public ShiftedEyePose
 {
 public:
-	OpenVREyePose(FLOATTYPE signedIpd);
+	OpenVREyePose(vr::EVREye eye);
+	virtual ~OpenVREyePose();
+	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
+	virtual void SetUp() const;
+	virtual void TearDown() const;
 	void initialize(vr::IVRSystem& vrsystem);
 	void dispose();
+	bool submitFrame() const;
 
 protected:
 	VSMatrix projectionMatrix;
 	VSMatrix eyeToHeadTransform;
 	VrFramebuffer framebuffer;
+	vr::Texture_t* eyeTexture;
+	vr::EVREye eye;
+
+private:
+	typedef ShiftedEyePose super;
 };
 
 class OpenVRMode : public Stereo3DMode
 {
 public:
-	static const OpenVRMode& getInstance(FLOATTYPE ipd);
+	static const OpenVRMode& getInstance();
 
 	virtual ~OpenVRMode();
 	virtual void SetUp() const;
+	virtual void TearDown() const;
 
 protected:
-	OpenVRMode(FLOATTYPE ipd);
+	OpenVRMode();
 	void updateDoomViewDirection() const;
+	void updateHmdPose(double hmdYawRadians, double hmdPitchRadians, double hmdRollRadians) const;
 
 	OpenVREyePose leftEyeView;
 	OpenVREyePose rightEyeView;
 
 	vr::IVRSystem* ivrSystem;
+
+private:
+	typedef Stereo3DMode super;
 };
 
 } /* namespace st3d */

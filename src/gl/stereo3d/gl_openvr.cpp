@@ -5,6 +5,7 @@
 #include "g_game.h" // G_Add...
 #include "r_utility.h" // viewpitch
 #include "gl/renderer/gl_renderer.h"
+#include "gl/system/gl_system.h"
 
 using namespace vr;
 
@@ -72,18 +73,56 @@ static HmdVector3d_t eulerAnglesFromMatrix(HmdMatrix34_t mat) {
 
 
 /* static */
-const OpenVRMode& OpenVRMode::getInstance(FLOATTYPE ipd)
+const OpenVRMode& OpenVRMode::getInstance()
 {
-	static OpenVRMode instance(ipd);
+	static OpenVRMode instance;
 	return instance;
 }
 
 
-OpenVREyePose::OpenVREyePose(FLOATTYPE signedIpd)
-	: ShiftedEyePose( FLOATTYPE(0.5) * signedIpd )
+OpenVREyePose::OpenVREyePose(vr::EVREye eye)
+	: ShiftedEyePose( 0.0f )
+	, eye(eye)
+	, eyeTexture(nullptr)
 {
 }
 
+
+/* virtual */
+OpenVREyePose::~OpenVREyePose() 
+{
+	dispose();
+}
+
+
+/* virtual */ 
+VSMatrix OpenVREyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const
+{
+	// Ignore those arguments and get the projection from the SDK
+	VSMatrix vs1 = ShiftedEyePose::GetProjection(fov, aspectRatio, fovRatio);
+	return projectionMatrix;
+}
+
+
+/* virtual */
+void OpenVREyePose::SetUp() const
+{
+	super::SetUp();
+
+	// bind framebuffer
+	framebuffer.bindRenderBuffer();
+
+	// TODO: just for testing
+	glClearColor(1, 0.5f, 0.5f, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+/* virtual */
+void OpenVREyePose::TearDown() const
+{
+	// submitFrame();
+	super::TearDown();
+}
 
 static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2) 
 {
@@ -104,15 +143,20 @@ static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2)
 
 void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 {
-	EVREye eye = vr::Eye_Left;
-	if (shift > 0)
-		eye = vr::Eye_Right;
-
 	float zNear = 5.0;
 	float zFar = 65536.0;
 	vr::HmdMatrix44_t projection = vrsystem.GetProjectionMatrix(
 			eye, zNear, zFar, vr::API_OpenGL);
-	projectionMatrix.copy(&projection.m[0][0]);
+	vr::HmdMatrix44_t proj_transpose;
+	for (int i = 0; i < 4; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			proj_transpose.m[i][j] = projection.m[j][i];
+		}
+	}
+	projectionMatrix.loadIdentity();
+	projectionMatrix.multMatrix(&proj_transpose.m[0][0]);
+
+
 	vr::HmdMatrix34_t eyeToHead = vrsystem.GetEyeToHeadTransform(eye);
 	vSMatrixFromHmdMatrix34(eyeToHeadTransform, eyeToHead);
 
@@ -122,18 +166,35 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 	// create frame buffers
 	framebuffer.initialize(w, h);
 
+	if (eyeTexture == nullptr)
+		eyeTexture = new vr::Texture_t();
+	eyeTexture->handle = (void*)framebuffer.getRenderTextureId(); // TODO: use resolveTextureId, after I implement warping
+	eyeTexture->eType = vr::API_OpenGL;
+	eyeTexture->eColorSpace = vr::ColorSpace_Gamma;
 }
 
 
 void OpenVREyePose::dispose()
 {
 	framebuffer.dispose();
+	delete eyeTexture;
+	eyeTexture = nullptr;
 }
 
-OpenVRMode::OpenVRMode(FLOATTYPE ipd) 
+
+bool OpenVREyePose::submitFrame() const
+{
+	if (eyeTexture == nullptr)
+		return false;
+	vr::VRCompositor()->Submit(eye, eyeTexture);
+	return true;
+}
+
+
+OpenVRMode::OpenVRMode() 
 	: ivrSystem(nullptr)
-	, leftEyeView(-ipd)
-	, rightEyeView(ipd)
+	, leftEyeView(vr::Eye_Left)
+	, rightEyeView(vr::Eye_Right)
 {
 	eye_ptrs.Push(&leftEyeView); // default behavior to Mono non-stereo rendering
 
@@ -153,8 +214,11 @@ OpenVRMode::OpenVRMode(FLOATTYPE ipd)
 
 		if (!vr::VRCompositor())
 			return;
+
+		eye_ptrs.Push(&rightEyeView); // NOW we render to two eyes
 	}
 }
+
 
 void OpenVRMode::updateDoomViewDirection() const
 {
@@ -177,12 +241,23 @@ void OpenVRMode::updateDoomViewDirection() const
 		k_unMaxTrackedDeviceCount
 	);
 	TrackedDevicePose_t& hmdPose = trackedDevicePoses[k_unTrackedDeviceIndex_Hmd];
+
 	HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose.mDeviceToAbsoluteTracking);
 	// Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
 
-	double hmdyaw = eulerAngles.v[0];
-	double hmdpitch = eulerAngles.v[1];
-	double hmdroll = -eulerAngles.v[2];
+	if (hmdPose.bPoseIsValid)
+		updateHmdPose(eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+}
+
+
+void OpenVRMode::updateHmdPose(
+	double hmdYawRadians, 
+	double hmdPitchRadians, 
+	double hmdRollRadians) const 
+{
+	double hmdyaw = hmdYawRadians;
+	double hmdpitch = hmdPitchRadians;
+	double hmdroll = hmdRollRadians;
 
 	// Set HMD angle game state parameters for NEXT frame
 	static double previousYaw = 0;
@@ -211,7 +286,36 @@ void OpenVRMode::updateDoomViewDirection() const
 /* virtual */
 void OpenVRMode::SetUp() const
 {
-	updateDoomViewDirection();	
+	super::SetUp();
+
+	updateDoomViewDirection();
+
+	if (vr::VRCompositor() == nullptr)
+		return;
+
+	static vr::TrackedDevicePose_t poses[vr::k_unMaxTrackedDeviceCount];
+	vr::VRCompositor()->WaitGetPoses(
+		poses,
+		vr::k_unMaxTrackedDeviceCount,
+		nullptr, 0
+	);
+
+	TrackedDevicePose_t& hmdPose = poses[vr::k_unTrackedDeviceIndex_Hmd];
+}
+
+/* virtual */
+void OpenVRMode::TearDown() const
+{
+	updateDoomViewDirection();
+	// Unbind framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	leftEyeView.submitFrame();
+	rightEyeView.submitFrame();
+	glFinish();
+
+	// TODO: bind Hud framebuffer
+
+	super::TearDown();
 }
 
 /* virtual */

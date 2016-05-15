@@ -44,7 +44,17 @@ VrFramebuffer::VrFramebuffer()
 {
 }
 
-void VrFramebuffer::dispose() 
+bool VrFramebuffer::bindRenderBuffer() const
+{
+	if (renderFramebufferId == 0)
+		return false;
+	glBindFramebuffer(GL_FRAMEBUFFER, renderFramebufferId);
+	glViewport(0, 0, width, height);
+	return true;
+}
+
+
+void VrFramebuffer::dispose()
 {
 	glDeleteRenderbuffers(1, &depthBufferId); depthBufferId = 0;
 	glDeleteTextures(1, &renderTextureId); renderTextureId = 0;

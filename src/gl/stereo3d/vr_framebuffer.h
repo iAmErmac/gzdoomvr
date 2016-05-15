@@ -42,8 +42,10 @@ class VrFramebuffer
 {
 public:
 	VrFramebuffer();
+	bool bindRenderBuffer() const;
 	void dispose();
 	bool initialize(int width, int height);
+	unsigned int getRenderTextureId() const {return renderTextureId;}
 
 protected:
 	unsigned int width;

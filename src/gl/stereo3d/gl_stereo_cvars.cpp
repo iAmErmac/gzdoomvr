@@ -82,7 +82,7 @@ const Stereo3DMode& Stereo3DMode::getCurrentMode()
 		setCurrentMode(RightEyeView::getInstance(vr_ipd));
 		break;
 	case 10:
-		setCurrentMode(OpenVRMode::getInstance(vr_ipd));
+		setCurrentMode(OpenVRMode::getInstance());
 		break;
 	case 0:
 	default:
