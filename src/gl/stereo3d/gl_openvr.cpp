@@ -300,7 +300,7 @@ void OpenVRMode::SetUp() const
 {
 	super::SetUp();
 
-	updateDoomViewDirection();
+	// updateDoomViewDirection();
 
 	if (vr::VRCompositor() == nullptr)
 		return;
@@ -313,12 +313,18 @@ void OpenVRMode::SetUp() const
 	);
 
 	TrackedDevicePose_t& hmdPose = poses[vr::k_unTrackedDeviceIndex_Hmd];
+
+	if (hmdPose.bPoseIsValid) {
+		HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose.mDeviceToAbsoluteTracking);
+		// Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+		updateHmdPose(eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+	}
 }
 
 /* virtual */
 void OpenVRMode::TearDown() const
 {
-	updateDoomViewDirection();
+	// updateDoomViewDirection();
 	// Unbind framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	leftEyeView.submitFrame();
