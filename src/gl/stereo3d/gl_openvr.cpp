@@ -95,7 +95,19 @@ OpenVREyePose::~OpenVREyePose()
 }
 
 
-/* virtual */ 
+/* virtual */
+GL_IRECT* OpenVREyePose::GetViewportBounds(GL_IRECT* bounds) const
+{
+	static GL_IRECT viewportBounds;
+	viewportBounds.left = 0;
+	viewportBounds.top = 0;
+	viewportBounds.width = framebuffer.getWidth();
+	viewportBounds.height = framebuffer.getHeight();
+	return &viewportBounds;
+}
+
+
+/* virtual */
 VSMatrix OpenVREyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const
 {
 	// Ignore those arguments and get the projection from the SDK

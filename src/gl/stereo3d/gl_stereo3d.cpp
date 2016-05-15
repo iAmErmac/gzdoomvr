@@ -41,6 +41,13 @@ namespace s3d {
 
 
 /* virtual */
+GL_IRECT* EyePose::GetViewportBounds(GL_IRECT* bounds) const
+{
+	return bounds;
+}
+
+
+/* virtual */
 VSMatrix EyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const
 {
 	VSMatrix result;

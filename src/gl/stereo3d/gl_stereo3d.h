@@ -39,6 +39,7 @@
 #include <cstring> // needed for memcpy on linux, which is needed by VSMatrix copy ctor
 #include "tarray.h"
 #include "gl/data/gl_matrix.h"
+#include "gl/renderer/gl_renderer.h"
 
 
 /* stereoscopic 3D API */
@@ -60,6 +61,7 @@ class EyePose
 public:
 	EyePose() {}
 	virtual ~EyePose() {}
+	virtual GL_IRECT* GetViewportBounds(GL_IRECT* bounds) const;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
 	virtual Viewport GetViewport(const Viewport& fullViewport) const;
 	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const;

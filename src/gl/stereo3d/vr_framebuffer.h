@@ -46,6 +46,8 @@ public:
 	void dispose();
 	bool initialize(int width, int height);
 	unsigned int getRenderTextureId() const {return renderTextureId;}
+	unsigned int getWidth() const {return width;}
+	unsigned int getHeight() const {return height;}
 
 protected:
 	unsigned int width;

@@ -56,6 +56,7 @@ class OpenVREyePose : public ShiftedEyePose
 public:
 	OpenVREyePose(vr::EVREye eye);
 	virtual ~OpenVREyePose();
+	virtual GL_IRECT* GetViewportBounds(GL_IRECT* bounds) const;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
 	virtual void SetUp() const;
 	virtual void TearDown() const;

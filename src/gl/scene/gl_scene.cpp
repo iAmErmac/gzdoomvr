@@ -993,8 +993,9 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	{
 		const s3d::EyePose * eye = stereo3dMode.getEyePose(eye_ix);
 		eye->SetUp();
-		// TODO: stereo specific viewport - needed when implementing side-by-side modes etc.
-		SetViewport(bounds);
+		// Stereo specific viewport - needed when implementing side-by-side modes etc.
+		GL_IRECT * eyeBounds = eye->GetViewportBounds(bounds);
+		SetViewport(eyeBounds);
 		glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT); // TODO: not for all 3d modes
 		mCurrentFoV = fov;
 		// Stereo mode specific perspective projection
