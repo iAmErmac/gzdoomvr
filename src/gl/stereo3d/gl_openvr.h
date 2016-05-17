@@ -79,7 +79,7 @@ protected:
 	float verticalDoomUnitsPerMeter;
 
 	mutable const vr::TrackedDevicePose_t * currentPose;
-	mutable fixed_t cachedViewZ; // to help set absolute view height
+	// mutable fixed_t cachedViewZ; // to help set absolute view height
 
 private:
 	typedef ShiftedEyePose super;
@@ -104,6 +104,7 @@ protected:
 
 	vr::IVRSystem* ivrSystem;
 	mutable int cachedScreenBlocks;
+	mutable const vr::TrackedDevicePose_t * currentPose;
 
 private:
 	typedef Stereo3DMode super;
