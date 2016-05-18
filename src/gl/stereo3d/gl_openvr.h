@@ -104,7 +104,9 @@ protected:
 
 	vr::IVRSystem* ivrSystem;
 	mutable int cachedScreenBlocks;
-	mutable const vr::TrackedDevicePose_t * currentPose;
+	// mutable const vr::TrackedDevicePose_t * currentPose;
+	mutable fixed_t cachedViewX;
+	mutable fixed_t cachedViewY;
 
 private:
 	typedef Stereo3DMode super;

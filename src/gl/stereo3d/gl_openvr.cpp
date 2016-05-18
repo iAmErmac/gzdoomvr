@@ -237,76 +237,6 @@ void OpenVREyePose::SetUp() const
 	// glClearColor(1, 0.5f, 0.5f, 0);
 	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// TODO: position tracking in the horizontal direction
-	// We need to track incremental changes in three locations:
-	// 1) the measured absolute hmd location
-	// 2) the game player view location
-	// 3) the actual view location we used in this method
-	static bool haveOldLocations = false;
-	// All these values are in meters :)
-	static float oldHmdX, oldHmdZ; // doom units, rotated to doom frame
-	static float oldPlayerX, oldPlayerZ; // doom units, float
-	static float  oldViewX, oldViewZ; // doom units, float
-
-	// Construct translation-only version of hmd transform
-	// Pitch and Roll are identical between OpenVR and Doom worlds.
-	// But yaw can differ, depending on starting state, and controller movement.
-	float doomYawDegrees = GLRenderer->mAngles.Yaw.Degrees;
-	if (currentPose != nullptr) {
-		const vr::HmdMatrix34_t& hmdPose = currentPose->mDeviceToAbsoluteTracking;
-		float openVrYawDegrees = -eulerAnglesFromMatrix(hmdPose).v[0] * 180.0 / 3.14159;
-		float deltaYawDegrees = doomYawDegrees - openVrYawDegrees;
-		while (deltaYawDegrees > 180)
-			deltaYawDegrees -= 360;
-		while (deltaYawDegrees < -180)
-			deltaYawDegrees += 360;
-
-		// extract rotation component from hmd transform
-		LSMatrix44 hmdLs(hmdPose);
-		LSMatrix44 hmdRot = hmdLs.getWithoutTranslation().transpose();
-		LSMatrix44 hmdPos;
-		hmdPos.loadIdentity();
-		hmdPos[0][3] = hmdLs[0][3];
-		hmdPos[1][3] = hmdLs[1][3];
-		hmdPos[2][3] = hmdLs[2][3];
-		// Rotate hmd translation to match doom frame
-		hmdPos.rotate(-deltaYawDegrees, 0, 1, 0); // openvr to doom
-		float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
-		float newHmdX = hmdPos[0][3] * horizontalDoomUnitsPerMeter;
-		float newHmdZ = hmdPos[2][3] * horizontalDoomUnitsPerMeter;
-		float newPlayerX = FIXED2FLOAT(viewx);
-		float newPlayerZ = FIXED2FLOAT(viewy);
-		float newViewX = newPlayerX;
-		float newViewZ = newPlayerZ;
-		if (haveOldLocations) {
-			float deltaHmdX = newHmdX - oldHmdX;
-			float deltaHmdZ = newHmdZ - oldHmdZ;
-			float deltaPlayerX = newPlayerX - oldPlayerX;
-			float deltaPlayerZ = newPlayerZ - oldPlayerZ;
-
-			// Let's see, if only the hmd changed, but not the player, we
-			// still definitely want to shift the view, because the player
-			// moved their head. And we should update the player position for next tic.
-			// 
-			// If only the player moved, but not the hmd, I guess we ALSO follow
-			// the move, because (maybe) the player moved the controller or something.
-			// 
-			// If BOTH move the same, I guess we just move the hmd amount.
-			newViewX = oldViewX + deltaHmdX - deltaPlayerX; // TODO:
-			newViewZ = oldViewZ + deltaHmdZ - deltaPlayerZ; // TODO:
-			// TODO: try to move player to new view location...
-		}
-		else {
-			haveOldLocations = true;
-		}
-		oldHmdX = newHmdX;
-		oldHmdZ = newHmdZ;
-		oldPlayerX = newPlayerX;
-		oldPlayerZ = newPlayerZ;
-		oldViewX = newViewX;
-		oldViewZ = newViewZ;
-	}
-
 }
 
 /* virtual */
@@ -477,15 +407,83 @@ void OpenVRMode::SetUp() const
 		nullptr, 0 // future pose?
 	);
 
-	TrackedDevicePose_t& hmdPose = poses[vr::k_unTrackedDeviceIndex_Hmd];
+	TrackedDevicePose_t& hmdPose0 = poses[vr::k_unTrackedDeviceIndex_Hmd];
 
-	if (hmdPose.bPoseIsValid) {
-		HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose.mDeviceToAbsoluteTracking);
+	if (hmdPose0.bPoseIsValid) {
+		const vr::HmdMatrix34_t& hmdPose = hmdPose0.mDeviceToAbsoluteTracking;
+		HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose);
 		// Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
 		updateHmdPose(eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
-		currentPose = &hmdPose;
-		leftEyeView.setCurrentHmdPose(&hmdPose);
-		rightEyeView.setCurrentHmdPose(&hmdPose);
+		leftEyeView.setCurrentHmdPose(&hmdPose0);
+		rightEyeView.setCurrentHmdPose(&hmdPose0);
+
+		// TODO: position tracking in the horizontal direction
+		// We need to track incremental changes in three locations:
+		// 1) the measured absolute hmd location
+		// 2) the game player view location
+		// 3) the actual view location we used in this method
+		static bool haveOldLocations = false;
+		// All these values are in meters :)
+		static float oldHmdX, oldHmdZ; // doom units, rotated to doom frame
+		static float oldPlayerX, oldPlayerZ; // doom units, float
+		static float  oldViewX, oldViewZ; // doom units, float
+
+		// Construct translation-only version of hmd transform
+		// Pitch and Roll are identical between OpenVR and Doom worlds.
+		// But yaw can differ, depending on starting state, and controller movement.
+		float doomYawDegrees = GLRenderer->mAngles.Yaw.Degrees;
+		float openVrYawDegrees = -eulerAnglesFromMatrix(hmdPose).v[0] * 180.0 / 3.14159;
+		float deltaYawDegrees = doomYawDegrees - openVrYawDegrees;
+		while (deltaYawDegrees > 180)
+			deltaYawDegrees -= 360;
+		while (deltaYawDegrees < -180)
+			deltaYawDegrees += 360;
+
+		// extract rotation component from hmd transform
+		LSMatrix44 hmdLs(hmdPose);
+		LSMatrix44 hmdRot = hmdLs.getWithoutTranslation().transpose();
+		LSMatrix44 hmdPos;
+		hmdPos.loadIdentity();
+		hmdPos[0][3] = hmdLs[0][3];
+		hmdPos[1][3] = hmdLs[1][3];
+		hmdPos[2][3] = hmdLs[2][3];
+		// Rotate hmd translation to match doom frame
+		hmdPos.rotate(-deltaYawDegrees, 0, 1, 0); // openvr to doom
+		float verticalDoomUnitsPerMeter = 27.0f; // TODO: abstract this
+		float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
+		float newHmdX = hmdPos[0][3] * horizontalDoomUnitsPerMeter;
+		float newHmdZ = hmdPos[2][3] * horizontalDoomUnitsPerMeter;
+		float newPlayerX = FIXED2FLOAT(viewx);
+		float newPlayerZ = FIXED2FLOAT(viewy);
+		float newViewX = newPlayerX;
+		float newViewZ = newPlayerZ;
+		if (haveOldLocations) {
+			float deltaHmdX = newHmdX - oldHmdX;
+			float deltaHmdZ = newHmdZ - oldHmdZ;
+			float deltaPlayerX = newPlayerX - oldPlayerX;
+			float deltaPlayerZ = newPlayerZ - oldPlayerZ;
+
+			// Let's see, if only the hmd changed, but not the player, we
+			// still definitely want to shift the view, because the player
+			// moved their head. And we should update the player position for next tic.
+			// 
+			// If only the player moved, but not the hmd, I guess we ALSO follow
+			// the move, because (maybe) the player moved the controller or something.
+			// 
+			// If BOTH move the same, I guess we just move the hmd amount.
+			newViewX = oldViewX + deltaHmdX - deltaPlayerX; // TODO:
+			newViewZ = oldViewZ + deltaHmdZ - deltaPlayerZ; // TODO:
+			// TODO: try to move player to new view location...
+		}
+		else {
+			haveOldLocations = true;
+		}
+		oldHmdX = newHmdX;
+		oldHmdZ = newHmdZ;
+		oldPlayerX = newPlayerX;
+		oldPlayerZ = newPlayerZ;
+		oldViewX = newViewX;
+		oldViewZ = newViewZ;
 	}
 }
 
