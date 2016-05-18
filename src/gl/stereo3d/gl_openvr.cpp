@@ -395,6 +395,9 @@ void OpenVRMode::SetUp() const
 {
 	super::SetUp();
 
+	cachedViewX = viewx;
+	cachedViewY = viewy;
+
 	cachedScreenBlocks = screenblocks;
 	screenblocks = 12; // always be full-screen during 3D scene render
 
@@ -474,6 +477,9 @@ void OpenVRMode::SetUp() const
 			newViewX = oldViewX + deltaHmdX - deltaPlayerX; // TODO:
 			newViewZ = oldViewZ + deltaHmdZ - deltaPlayerZ; // TODO:
 			// TODO: try to move player to new view location...
+
+			// viewx = FLOAT2FIXED(newViewX - deltaHmdX); // TODO: not working
+			// viewy = FLOAT2FIXED(newViewZ + deltaHmdZ);
 		}
 		else {
 			haveOldLocations = true;
@@ -491,6 +497,8 @@ void OpenVRMode::SetUp() const
 void OpenVRMode::TearDown() const
 {
 	screenblocks = cachedScreenBlocks;
+	viewy = cachedViewY;
+	viewx = cachedViewX;
 
 	// Unbind eye texture framebuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
