@@ -479,10 +479,14 @@ void OpenVRMode::SetUp() const
 			// If BOTH move the same, I guess we just move the hmd amount.
 			newViewX = oldViewX - deltaHmdX; // TODO:
 			newViewZ = oldViewZ + deltaHmdZ; // TODO:
+
 			// TODO: try to move player to new view location...
+			float xDiscrepancy = newViewX - newPlayerX;
+			float zDiscrepancy = newViewZ - newPlayerZ;
 
 			viewx = FLOAT2FIXED(newViewX); // OK
-			viewy = FLOAT2FIXED(newViewZ);
+			viewy = FLOAT2FIXED(newViewZ); // OK
+
 		}
 		else {
 			haveOldLocations = true;
