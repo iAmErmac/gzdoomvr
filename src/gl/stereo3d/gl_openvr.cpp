@@ -447,14 +447,14 @@ void OpenVRMode::SetUp() const
 
 		// extract rotation component from hmd transform
 		LSMatrix44 hmdLs(hmdPose);
-		LSMatrix44 hmdRot = hmdLs.getWithoutTranslation().transpose();
+		LSMatrix44 hmdRot = hmdLs.getWithoutTranslation(); // .transpose();
 		LSMatrix44 hmdPos;
 		hmdPos.loadIdentity();
 		hmdPos[0][3] = hmdLs[0][3];
 		hmdPos[1][3] = hmdLs[1][3];
 		hmdPos[2][3] = hmdLs[2][3];
 		// Rotate hmd translation to match doom frame
-		hmdPos.rotate(-deltaYawDegrees, 0, 1, 0); // openvr to doom
+		hmdPos.rotate(deltaYawDegrees, 0, 1, 0); // openvr to doom
 		float verticalDoomUnitsPerMeter = 27.0f; // TODO: abstract this
 		float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
 		float newHmdX = hmdPos[0][3] * horizontalDoomUnitsPerMeter;
@@ -477,12 +477,12 @@ void OpenVRMode::SetUp() const
 			// the move, because (maybe) the player moved the controller or something.
 			// 
 			// If BOTH move the same, I guess we just move the hmd amount.
-			newViewX = oldViewX + deltaHmdX - deltaPlayerX; // TODO:
-			newViewZ = oldViewZ + deltaHmdZ - deltaPlayerZ; // TODO:
+			newViewX = oldViewX - deltaHmdX; // TODO:
+			newViewZ = oldViewZ + deltaHmdZ; // TODO:
 			// TODO: try to move player to new view location...
 
-			// viewx = FLOAT2FIXED(newViewX - deltaHmdX); // TODO: not working
-			// viewy = FLOAT2FIXED(newViewZ + deltaHmdZ);
+			viewx = FLOAT2FIXED(newViewX); // OK
+			viewy = FLOAT2FIXED(newViewZ);
 		}
 		else {
 			haveOldLocations = true;
