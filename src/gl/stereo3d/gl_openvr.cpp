@@ -187,21 +187,24 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], secto
 	while (deltaYawDegrees < -180)
 		deltaYawDegrees += 360;
 
+	Printf("delta yaw = %.0f; yaw = %.0f\n", deltaYawDegrees, openVrYawDegrees);
+
 	// extract rotation component from hmd transform
 	LSMatrix44 hmdLs(hmdPose);
-	LSMatrix44 hmdRot = hmdLs.getWithoutTranslation().transpose();
+	LSMatrix44 hmdRot = hmdLs.getWithoutTranslation(); // .transpose();
 
 	/// In these eye methods, just get local inter-eye stereoscopic shift, not full position shift ///
 
 	// compute local eye shift
 	LSMatrix44 eyeShift2;
+	eyeShift2.loadIdentity();
 	eyeShift2 = eyeShift2 * eyeToHeadTransform; // eye to head
 	eyeShift2 = eyeShift2 * hmdRot; // head to openvr
-	eyeShift2.rotate(-deltaYawDegrees, 0, 1, 0); // openvr to doom
+	eyeShift2.rotate(deltaYawDegrees, 0, 1, 0); // openvr to doom
 
 	// OpenVR knows exactly where the floor is, so...
 	// ...set viewz to exact absolute height above the floor
-	float openvrHeightMeters = hmdLs[1][3] - eyeShift2[1][3];
+	float openvrHeightMeters = hmdLs[1][3] + eyeShift2[1][3];
 	float doomFloorZ = FIXED2FLOAT(viewsector->floorplane.ZatPoint(viewx, viewy));
 	float doomViewZDoomUnits = verticalDoomUnitsPerMeter * openvrHeightMeters + doomFloorZ;
 	float deltaViewZ = doomViewZDoomUnits - FIXED2FLOAT(viewz);
@@ -210,7 +213,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], secto
 
 	// output per-eye shifts, for stereoscopic rendering by caller of this method
 	outViewShift[0] = eyeShift2[0][3] * horizontalDoomUnitsPerMeter;
-	outViewShift[1] = -eyeShift2[2][3] * horizontalDoomUnitsPerMeter; // "viewy" is horizontal direction in doom
+	outViewShift[1] = eyeShift2[2][3] * horizontalDoomUnitsPerMeter; // "viewy" is horizontal direction in doom
 	outViewShift[2] = deltaViewZ; // Set absolute height above; "viewz" is height in doom
 }
 
