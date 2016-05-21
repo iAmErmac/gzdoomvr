@@ -240,7 +240,7 @@ void OpenVREyePose::SetUp() const
 	// bind framebuffer
 	framebuffer.bindRenderBuffer();
 
-	// TODO: just for testing
+	// just for testing
 	// glClearColor(1, 0.5f, 0.5f, 0);
 	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -385,7 +385,8 @@ void OpenVRMode::updateHmdPose(
 	previousYaw = hmdyaw;
 
 	// Pitch
-	int pitch = (int)(-32768 / 3.14159*hmdpitch);
+	float doomPitch = atan(tan(hmdpitch) / glset.pixelstretch);
+	int pitch = (int)(-32768 / 3.14159*doomPitch);
 	int dPitch = (pitch - viewpitch / 65536); // empirical
 	G_AddViewPitch(-dPitch);
 
@@ -393,8 +394,11 @@ void OpenVRMode::updateHmdPose(
 	GLRenderer->mAngles.Roll = -hmdroll * 180.0 / 3.14159;
 
 	// Late-schedule update to renderer angles directly, too
-	GLRenderer->mAngles.Pitch = -hmdpitch * 180.0 / 3.14159;
-	GLRenderer->mAngles.Yaw += dYaw * 180.0 / 3.14159; // TODO: Is this correct? Maybe minus?
+	bool doLateScheduledRotationTracking = true;
+	if (doLateScheduledRotationTracking) {
+		GLRenderer->mAngles.Pitch = -hmdpitch * 180.0 / 3.14159;
+		GLRenderer->mAngles.Yaw += dYaw * 180.0 / 3.14159; // "plus" is the correct direction
+	}
 }
 
 /* virtual */
@@ -488,10 +492,13 @@ void OpenVRMode::SetUp(player_t* player) const
 			float xDiscrepancy = newViewX - newPlayerX;
 			float zDiscrepancy = newViewZ - newPlayerZ;
 			float absDiscrepancy = sqrt(xDiscrepancy*xDiscrepancy + zDiscrepancy*zDiscrepancy);
-			float teleportThreshold = 0.5 * horizontalDoomUnitsPerMeter;
+
+			float teleportThreshold = 1.0 * horizontalDoomUnitsPerMeter;
+			float tetherThreshold = 0.5 * horizontalDoomUnitsPerMeter;
 
 			// Feature toggles
 			bool doTeleportViewpoint = true;
+			bool doTetherViewpoint = true;
 			bool doFollowHmdLocation = true;
 			bool doLateScheduledPositionTracking = true;
 
@@ -505,13 +512,25 @@ void OpenVRMode::SetUp(player_t* player) const
 			else if (doFollowHmdLocation) {
 				// Move in-game player pawn to new position, if possible
 				// player->mo->Move(FLOAT2FIXED(xDiscrepancy), FLOAT2FIXED(zDiscrepancy), 0);
-				if (P_TryMove(player->mo, FLOAT2FIXED(newViewX), FLOAT2FIXED(newViewZ), true, nullptr)) {
+				// player->mo->SetOrigin(FLOAT2FIXED(newViewX), FLOAT2FIXED(newViewZ), viewy, true);
+				if (P_TryMove(player->mo, FLOAT2FIXED(newViewX), FLOAT2FIXED(newViewZ), true, nullptr))
+				{
+					// Let's hope player location updated already...
+					newPlayerX = FIXED2FLOAT(player->mo->X());
+					newPlayerZ = FIXED2FLOAT(player->mo->Y());
+					deltaPlayerX = newPlayerX - oldPlayerX;
+					deltaPlayerZ = newPlayerZ - oldPlayerZ;
+					float xDiscrepancy = newViewX - newPlayerX;
+					float zDiscrepancy = newViewZ - newPlayerZ;
+					float absDiscrepancy = sqrt(xDiscrepancy*xDiscrepancy + zDiscrepancy*zDiscrepancy);
 				}
-				// Let's hope player location updated already...
-				newPlayerX = FIXED2FLOAT(player->mo->X());
-				newPlayerZ = FIXED2FLOAT(player->mo->Y());
-				deltaPlayerX = newPlayerX - oldPlayerX;
-				deltaPlayerZ = newPlayerZ - oldPlayerZ;
+			}
+
+			// Prevent viewpoint from moving more than a certain amount away from true in-game player location
+			if (doTetherViewpoint && (absDiscrepancy >= tetherThreshold)) {
+				float tetherScale = tetherThreshold / absDiscrepancy;
+				newViewX = newPlayerX + tetherScale * xDiscrepancy;
+				newViewZ = newPlayerZ + tetherScale * zDiscrepancy;
 			}
 
 			if (doLateScheduledPositionTracking)
