@@ -47,8 +47,8 @@ public:
 	ShiftedEyePose(FLOATTYPE shift) : shift(shift) {};
 	FLOATTYPE getShift() const { return shift; }
 	void setShift(FLOATTYPE shift) { this->shift = shift; }
-	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
-	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const;
+	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
+	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const override;
 protected:
 	FLOATTYPE shift;
 };

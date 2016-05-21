@@ -988,7 +988,7 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 	// Render (potentially) multiple views for stereo 3d
 	float viewShift[3];
 	const s3d::Stereo3DMode& stereo3dMode = s3d::Stereo3DMode::getCurrentMode();
-	stereo3dMode.SetUp();
+	stereo3dMode.SetUp(camera->player);
 	for (int eye_ix = 0; eye_ix < stereo3dMode.eye_count(); ++eye_ix)
 	{
 		const s3d::EyePose * eye = stereo3dMode.getEyePose(eye_ix);

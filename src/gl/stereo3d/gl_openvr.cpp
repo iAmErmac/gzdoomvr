@@ -36,7 +36,9 @@
 #include "openvr.h"
 #include <string>
 #include "doomtype.h" // Printf
+#include "d_player.h"
 #include "g_game.h" // G_Add...
+#include "p_local.h" // P_TryMove
 #include "r_utility.h" // viewpitch
 #include "gl/renderer/gl_renderer.h"
 #include "gl/system/gl_system.h"
@@ -187,7 +189,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], secto
 	while (deltaYawDegrees < -180)
 		deltaYawDegrees += 360;
 
-	Printf("delta yaw = %.0f; yaw = %.0f\n", deltaYawDegrees, openVrYawDegrees);
+	// Printf("delta yaw = %.0f; yaw = %.0f\n", deltaYawDegrees, openVrYawDegrees);
 
 	// extract rotation component from hmd transform
 	LSMatrix44 hmdLs(hmdPose);
@@ -215,6 +217,8 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], secto
 	outViewShift[0] = eyeShift2[0][3] * horizontalDoomUnitsPerMeter;
 	outViewShift[1] = eyeShift2[2][3] * horizontalDoomUnitsPerMeter; // "viewy" is horizontal direction in doom
 	outViewShift[2] = deltaViewZ; // Set absolute height above; "viewz" is height in doom
+
+	// Printf("viewshift = %2.1f, %2.1f\n", outViewShift[0], outViewShift[1]);
 }
 
 /* virtual */
@@ -394,9 +398,9 @@ void OpenVRMode::updateHmdPose(
 }
 
 /* virtual */
-void OpenVRMode::SetUp() const
+void OpenVRMode::SetUp(player_t* player) const
 {
-	super::SetUp();
+	super::SetUp(player);
 
 	cachedViewX = viewx;
 	cachedViewY = viewy;
@@ -459,8 +463,8 @@ void OpenVRMode::SetUp() const
 		float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
 		float newHmdX = hmdPos[0][3] * horizontalDoomUnitsPerMeter;
 		float newHmdZ = hmdPos[2][3] * horizontalDoomUnitsPerMeter;
-		float newPlayerX = FIXED2FLOAT(viewx);
-		float newPlayerZ = FIXED2FLOAT(viewy);
+		float newPlayerX = FIXED2FLOAT(player->mo->X());
+		float newPlayerZ = FIXED2FLOAT(player->mo->Y());
 		float newViewX = newPlayerX;
 		float newViewZ = newPlayerZ;
 		if (haveOldLocations) {
@@ -477,15 +481,46 @@ void OpenVRMode::SetUp() const
 			// the move, because (maybe) the player moved the controller or something.
 			// 
 			// If BOTH move the same, I guess we just move the hmd amount.
-			newViewX = oldViewX - deltaHmdX; // TODO:
-			newViewZ = oldViewZ + deltaHmdZ; // TODO:
+			newViewX = oldViewX - deltaHmdX + deltaPlayerX; // TODO:
+			newViewZ = oldViewZ + deltaHmdZ + deltaPlayerZ; // TODO:
 
-			// TODO: try to move player to new view location...
+			// try to move player to new view location...
 			float xDiscrepancy = newViewX - newPlayerX;
 			float zDiscrepancy = newViewZ - newPlayerZ;
+			float absDiscrepancy = sqrt(xDiscrepancy*xDiscrepancy + zDiscrepancy*zDiscrepancy);
+			float teleportThreshold = 0.5 * horizontalDoomUnitsPerMeter;
 
-			viewx = FLOAT2FIXED(newViewX); // OK
-			viewy = FLOAT2FIXED(newViewZ); // OK
+			// Feature toggles
+			bool doTeleportViewpoint = true;
+			bool doFollowHmdLocation = true;
+			bool doLateScheduledPositionTracking = true;
+
+			// Is our viewpoint too far from the true player location?
+			if (doTeleportViewpoint && (absDiscrepancy >= teleportThreshold)) {
+				// Teleport viewpoint to actual player location
+				newViewX = newPlayerX;
+				newViewZ = newPlayerZ;
+				xDiscrepancy = zDiscrepancy = absDiscrepancy = 0;
+			}
+			else if (doFollowHmdLocation) {
+				// Move in-game player pawn to new position, if possible
+				// player->mo->Move(FLOAT2FIXED(xDiscrepancy), FLOAT2FIXED(zDiscrepancy), 0);
+				if (P_TryMove(player->mo, FLOAT2FIXED(newViewX), FLOAT2FIXED(newViewZ), true, nullptr)) {
+				}
+				// Let's hope player location updated already...
+				newPlayerX = FIXED2FLOAT(player->mo->X());
+				newPlayerZ = FIXED2FLOAT(player->mo->Y());
+				deltaPlayerX = newPlayerX - oldPlayerX;
+				deltaPlayerZ = newPlayerZ - oldPlayerZ;
+			}
+
+			if (doLateScheduledPositionTracking)
+			{
+				viewx = FLOAT2FIXED(newViewX); // OK
+				viewy = FLOAT2FIXED(newViewZ); // OK
+			}
+
+			// Printf("dxz = %.1f, %.1f (%.1f)\n", xDiscrepancy, zDiscrepancy, absDiscrepancy);
 
 		}
 		else {

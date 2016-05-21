@@ -61,11 +61,11 @@ class AnaglyphLeftPose : public LeftEyePose
 {
 public:
 	AnaglyphLeftPose(const ColorMask& colorMask, float ipd) : LeftEyePose(ipd), colorMask(colorMask) {}
-	virtual void SetUp() const { 
+	virtual void SetUp() const override { 
 		gl_RenderState.SetColorMask(colorMask.r, colorMask.g, colorMask.b, true);
 		gl_RenderState.ApplyColorMask();
 	}
-	virtual void TearDown() const { 
+	virtual void TearDown() const override { 
 		gl_RenderState.ResetColorMask();
 		gl_RenderState.ApplyColorMask();
 	}
@@ -77,11 +77,11 @@ class AnaglyphRightPose : public RightEyePose
 {
 public:
 	AnaglyphRightPose(const ColorMask& colorMask, float ipd) : RightEyePose(ipd), colorMask(colorMask) {}
-	virtual void SetUp() const { 
+	virtual void SetUp() const override { 
 		gl_RenderState.SetColorMask(colorMask.r, colorMask.g, colorMask.b, true);
 		gl_RenderState.ApplyColorMask();
 	}
-	virtual void TearDown() const { 
+	virtual void TearDown() const override { 
 		gl_RenderState.ResetColorMask();
 		gl_RenderState.ApplyColorMask();
 	}

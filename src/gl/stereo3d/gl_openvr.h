@@ -56,12 +56,12 @@ class OpenVREyePose : public ShiftedEyePose
 {
 public:
 	OpenVREyePose(vr::EVREye eye);
-	virtual ~OpenVREyePose();
-	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const;
-	virtual GL_IRECT* GetViewportBounds(GL_IRECT* bounds) const;
-	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const;
-	virtual void SetUp() const;
-	virtual void TearDown() const;
+	virtual ~OpenVREyePose() override;
+	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
+	virtual GL_IRECT* GetViewportBounds(GL_IRECT* bounds) const override;
+	virtual void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const override;
+	virtual void SetUp() const override;
+	virtual void TearDown() const override;
 
 	void initialize(vr::IVRSystem& vrsystem);
 	void dispose();
@@ -90,9 +90,9 @@ class OpenVRMode : public Stereo3DMode
 public:
 	static const OpenVRMode& getInstance();
 
-	virtual ~OpenVRMode();
-	virtual void SetUp() const; // called immediately before rendering a scene frame
-	virtual void TearDown() const; // called immediately after rendering a scene frame
+	virtual ~OpenVRMode() override;
+	virtual void SetUp(player_t* player) const override; // called immediately before rendering a scene frame
+	virtual void TearDown() const override; // called immediately after rendering a scene frame
 
 protected:
 	OpenVRMode();

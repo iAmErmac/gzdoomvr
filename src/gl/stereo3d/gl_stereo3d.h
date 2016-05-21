@@ -83,7 +83,7 @@ public:
 	virtual const EyePose * getEyePose(int ix) const { return eye_ptrs(ix); }
 
 	/* hooks for setup and cleanup operations for each stereo mode */
-	virtual void SetUp() const {};
+	virtual void SetUp(player_t* player) const {};
 	virtual void TearDown() const {};
 
 protected:
