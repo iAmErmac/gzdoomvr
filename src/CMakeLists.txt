@@ -651,6 +651,29 @@ else()
 	set( ZDOOM_LIBS ${ZDOOM_LIBS} ${CMAKE_DL_LIBS} )
 endif()
 
+if (GZDOOM_USE_OPENVR)
+    find_path(OPENVR_SDK_PATH
+        NAMES 
+            headers/openvr.h
+        PATHS
+            C:/Users/cmbruns/git/openvr
+    )
+    find_path(OPENVR_INCLUDE_DIRECTORY
+        NAMES
+            openvr.h
+        PATHS
+            ${OPENVR_SDK_PATH}/headers
+    )
+    include_directories("${OPENVR_INCLUDE_DIRECTORY}")
+    find_library(OPENVR_LIBRARY
+        NAMES openvr_api
+        # TODO: Generalize for Mac and Linux and 64-bit Windows
+        PATHS "${OPENVR_SDK_PATH}/lib/win32/"
+    )
+    list(APPEND ZDOOM_LIBS ${OPENVR_LIBRARY})
+    add_definitions("-DUSE_OPENVR")
+endif()
+
 # Start defining source files for ZDoom
 set( PLAT_WIN32_SOURCES
 	win32/eaxedit.cpp
@@ -1120,6 +1143,7 @@ set( FASTMATH_SOURCES
 	gl/stereo3d/gl_stereo_leftright.cpp
 	gl/stereo3d/scoped_view_shifter.cpp
 	gl/stereo3d/gl_anaglyph.cpp
+	gl/stereo3d/gl_openvr.cpp
 	gl/stereo3d/gl_quadstereo.cpp
 	gl/stereo3d/gl_sidebyside3d.cpp
 	gl/dynlights/gl_dynlight.cpp

@@ -33,11 +33,12 @@
 **
 */
 
-#include "gl/stereo3d/gl_stereo3d.h"
-#include "gl/stereo3d/gl_stereo_leftright.h"
-#include "gl/stereo3d/gl_anaglyph.h"
-#include "gl/stereo3d/gl_quadstereo.h"
-#include "gl/stereo3d/gl_sidebyside3d.h"
+#include "gl_stereo3d.h"
+#include "gl_stereo_leftright.h"
+#include "gl_anaglyph.h"
+#include "gl_openvr.h"
+#include "gl_quadstereo.h"
+#include "gl_sidebyside3d.h"
 #include "gl/system/gl_cvars.h"
 
 // Set up 3D-specific console variables:
@@ -103,8 +104,12 @@ const Stereo3DMode& Stereo3DMode::getCurrentMode()
 	// TODO: 8: Oculus Rift
 	case 9:
 		setCurrentMode(AmberBlue::getInstance(vr_ipd));
-		break;	
-	// TODO: 10: HTC Vive/OpenVR
+		break;
+#ifdef USE_OPENVR
+	case 10:
+		setCurrentMode(OpenVRMode::getInstance());
+		break;
+#endif
 	case 0:
 	default:
 		setCurrentMode(MonoView::getInstance());
