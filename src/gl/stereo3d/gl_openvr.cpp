@@ -60,6 +60,15 @@ using namespace vr;
 namespace s3d 
 {
 
+/* static */
+const Stereo3DMode& OpenVRMode::getInstance()
+{
+		static OpenVRMode instance;
+		if (! instance.hmdWasFound)
+			return  MonoView::getInstance();
+		return instance;
+}
+
 static HmdVector3d_t eulerAnglesFromQuat(HmdQuaternion_t quat) {
 	double q0 = quat.w;
 	// permute axes to make "Y" up/yaw
@@ -120,14 +129,6 @@ static HmdVector3d_t eulerAnglesFromMatrix(HmdMatrix34_t mat) {
 }
 
 
-/* static */
-const OpenVRMode& OpenVRMode::getInstance()
-{
-	static OpenVRMode instance;
-	return instance;
-}
-
-
 OpenVREyePose::OpenVREyePose(vr::EVREye eye)
 	: ShiftedEyePose( 0.0f )
 	, eye(eye)
@@ -143,35 +144,6 @@ OpenVREyePose::~OpenVREyePose()
 {
 	dispose();
 }
-
-/* virtual */
-/* virtual */
-void OpenVRMode::Present() const {
-	const bool renderToDesktop = true;
-	// TODO: stub implementation draws to screen instead of to HMD
-	if (renderToDesktop) {
-		GLRenderer->mBuffers->BindOutputFB();
-		GLRenderer->ClearBorders();
-
-		// Compute screen regions to use for left and right eye views
-		int leftWidth = GLRenderer->mOutputLetterbox.width / 2;
-		int rightWidth = GLRenderer->mOutputLetterbox.width - leftWidth;
-		GL_IRECT leftHalfScreen = GLRenderer->mOutputLetterbox;
-		leftHalfScreen.width = leftWidth;
-		GL_IRECT rightHalfScreen = GLRenderer->mOutputLetterbox;
-		rightHalfScreen.width = rightWidth;
-		rightHalfScreen.left += leftWidth;
-
-		GLRenderer->mBuffers->BindEyeTexture(0, 0);
-		GLRenderer->DrawPresentTexture(leftHalfScreen, true);
-		GLRenderer->mBuffers->BindEyeTexture(1, 0);
-		GLRenderer->DrawPresentTexture(rightHalfScreen, true);
-	}
-	else {
-		// TODO:
-	}
-}
-
 
 static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2)
 {
@@ -252,19 +224,6 @@ VSMatrix OpenVREyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOA
 	return projectionMatrix;
 }
 
-
-/* virtual */
-void OpenVREyePose::SetUp() const
-{
-	super::SetUp();
-}
-
-/* virtual */
-void OpenVREyePose::TearDown() const
-{
-	super::TearDown();
-}
-
 void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 {
 	float zNear = 5.0;
@@ -283,9 +242,6 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 
 	vr::HmdMatrix34_t eyeToHead = vrsystem.GetEyeToHeadTransform(eye);
 	vSMatrixFromHmdMatrix34(eyeToHeadTransform, eyeToHead);
-
-	uint32_t w, h;
-	vrsystem.GetRecommendedRenderTargetSize(&w, &h);
 
 	if (eyeTexture == nullptr)
 		eyeTexture = new vr::Texture_t();
@@ -316,30 +272,73 @@ bool OpenVREyePose::submitFrame() const
 
 
 OpenVRMode::OpenVRMode() 
-	: ivrSystem(nullptr)
+	: vrSystem(nullptr)
 	, leftEyeView(vr::Eye_Left)
 	, rightEyeView(vr::Eye_Right)
+	, hmdWasFound(false)
+	, sceneWidth(0), sceneHeight(0)
 {
 	eye_ptrs.Push(&leftEyeView); // default behavior to Mono non-stereo rendering
 
 	EVRInitError eError;
 	if (VR_IsHmdPresent())
 	{
-		ivrSystem = VR_Init(&eError, VRApplication_Scene);
+		vrSystem = VR_Init(&eError, VRApplication_Scene);
 		if (eError != vr::VRInitError_None) {
 			std::string errMsg = VR_GetVRInitErrorAsEnglishDescription(eError);
-			ivrSystem = nullptr;
+			vrSystem = nullptr;
 			return;
 			// TODO: report error
 		}
+		vrSystem->GetRecommendedRenderTargetSize(&sceneWidth, &sceneHeight);
+
 		// OK
-		leftEyeView.initialize(*ivrSystem);
-		rightEyeView.initialize(*ivrSystem);
+		leftEyeView.initialize(*vrSystem);
+		rightEyeView.initialize(*vrSystem);
 
 		if (!vr::VRCompositor())
 			return;
 
 		eye_ptrs.Push(&rightEyeView); // NOW we render to two eyes
+		hmdWasFound = true;
+	}
+}
+
+/* virtual */
+// AdjustViewports() is called from within FLGRenderer::SetOutputViewport(...)
+void OpenVRMode::AdjustViewports() const
+{
+	GLRenderer->mSceneViewport.width = sceneWidth;
+	GLRenderer->mSceneViewport.height = sceneHeight;
+
+	GLRenderer->mScreenViewport.width = sceneWidth;
+	GLRenderer->mScreenViewport.height = sceneHeight;
+}
+
+/* virtual */
+void OpenVRMode::Present() const {
+	const bool renderToDesktop = true;
+	// TODO: stub implementation draws to screen instead of to HMD
+	if (renderToDesktop) {
+		GLRenderer->mBuffers->BindOutputFB();
+		GLRenderer->ClearBorders();
+
+		// Compute screen regions to use for left and right eye views
+		int leftWidth = GLRenderer->mOutputLetterbox.width / 2;
+		int rightWidth = GLRenderer->mOutputLetterbox.width - leftWidth;
+		GL_IRECT leftHalfScreen = GLRenderer->mOutputLetterbox;
+		leftHalfScreen.width = leftWidth;
+		GL_IRECT rightHalfScreen = GLRenderer->mOutputLetterbox;
+		rightHalfScreen.width = rightWidth;
+		rightHalfScreen.left += leftWidth;
+
+		GLRenderer->mBuffers->BindEyeTexture(0, 0);
+		GLRenderer->DrawPresentTexture(leftHalfScreen, true);
+		GLRenderer->mBuffers->BindEyeTexture(1, 0);
+		GLRenderer->DrawPresentTexture(rightHalfScreen, true);
+	}
+	else {
+		// TODO:
 	}
 }
 
@@ -424,9 +423,9 @@ void OpenVRMode::TearDown() const
 /* virtual */
 OpenVRMode::~OpenVRMode() 
 {
-	if (ivrSystem != nullptr) {
+	if (vrSystem != nullptr) {
 		VR_Shutdown();
-		ivrSystem = nullptr;
+		vrSystem = nullptr;
 		leftEyeView.dispose();
 		rightEyeView.dispose();
 	}

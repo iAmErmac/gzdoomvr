@@ -58,8 +58,6 @@ public:
 	virtual ~OpenVREyePose() override;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
 	virtual void GetViewShift(float yaw, float outViewShift[3]) const override;
-	virtual void SetUp() const override;
-	virtual void TearDown() const override;
 
 	void initialize(vr::IVRSystem& vrsystem);
 	void dispose();
@@ -76,34 +74,34 @@ protected:
 	float verticalDoomUnitsPerMeter;
 
 	mutable const vr::TrackedDevicePose_t * currentPose;
-
-private:
-	typedef ShiftedEyePose super;
 };
 
 class OpenVRMode : public Stereo3DMode
 {
 public:
-	static const OpenVRMode& getInstance();
+	static const Stereo3DMode& getInstance(); // Might return Mono mode, if no HMD available
 
 	virtual ~OpenVRMode() override;
 	virtual void SetUp() const override; // called immediately before rendering a scene frame
 	virtual void TearDown() const override; // called immediately after rendering a scene frame
 	virtual void Present() const override;
+	virtual void AdjustViewports() const override;
 
 protected:
 	OpenVRMode();
-	void updateDoomViewDirection() const;
+	// void updateDoomViewDirection() const;
 	void updateHmdPose(double hmdYawRadians, double hmdPitchRadians, double hmdRollRadians) const;
 
 	OpenVREyePose leftEyeView;
 	OpenVREyePose rightEyeView;
 
-	vr::IVRSystem* ivrSystem;
+	vr::IVRSystem* vrSystem;
 	mutable int cachedScreenBlocks;
 
 private:
 	typedef Stereo3DMode super;
+	bool hmdWasFound;
+	uint32_t sceneWidth, sceneHeight;
 };
 
 } /* namespace st3d */
