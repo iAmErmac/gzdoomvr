@@ -57,6 +57,7 @@ public:
 	OpenVREyePose(vr::EVREye eye);
 	virtual ~OpenVREyePose() override;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
+	virtual void GetViewShift(float yaw, float outViewShift[3]) const override;
 	virtual void SetUp() const override;
 	virtual void TearDown() const override;
 
@@ -71,11 +72,10 @@ protected:
 	vr::Texture_t* eyeTexture;
 	vr::EVREye eye;
 
-	// TODO: adjust doomUnitsPerMeter according to player height and seated/standing
+	// TODO: adjust doomUnitsPerMeter according to player height
 	float verticalDoomUnitsPerMeter;
 
 	mutable const vr::TrackedDevicePose_t * currentPose;
-	// mutable fixed_t cachedViewZ; // to help set absolute view height
 
 private:
 	typedef ShiftedEyePose super;
@@ -101,9 +101,6 @@ protected:
 
 	vr::IVRSystem* ivrSystem;
 	mutable int cachedScreenBlocks;
-	// mutable const vr::TrackedDevicePose_t * currentPose;
-	mutable fixed_t cachedViewX;
-	mutable fixed_t cachedViewY;
 
 private:
 	typedef Stereo3DMode super;

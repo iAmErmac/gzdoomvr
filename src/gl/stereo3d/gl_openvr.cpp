@@ -37,6 +37,7 @@
 #include "gl_openvr.h"
 #include "openvr.h"
 #include <string>
+#include "gl/system/gl_system.h"
 #include "doomtype.h" // Printf
 #include "d_player.h"
 #include "g_game.h" // G_Add...
@@ -44,14 +45,13 @@
 #include "r_utility.h" // viewpitch
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderbuffers.h"
-#include "gl/system/gl_system.h"
 #include "gl/data/gl_data.h"
+#include "math/cmath.h"
 #include "c_cvars.h"
+#include "LSMatrix.h"
 
 // For conversion between real-world and doom units
 #define VERTICAL_DOOM_UNITS_PER_METER 27.0f
-
-static const bool useAbsoluteYaw = false;
 
 EXTERN_CVAR(Int, screenblocks);
 
@@ -147,23 +147,29 @@ OpenVREyePose::~OpenVREyePose()
 /* virtual */
 /* virtual */
 void OpenVRMode::Present() const {
-	GLRenderer->mBuffers->BindEyeTexture(0, 0);
-	GLRenderer->DrawPresentTexture(leftHalfScreen, true);
+	const bool renderToDesktop = true;
+	// TODO: stub implementation draws to screen instead of to HMD
+	if (renderToDesktop) {
+		GLRenderer->mBuffers->BindOutputFB();
+		GLRenderer->ClearBorders();
 
-	GLRenderer->mBuffers->BindEyeTexture(1, 0);
-	GLRenderer->DrawPresentTexture(rightHalfScreen, true);
-}
+		// Compute screen regions to use for left and right eye views
+		int leftWidth = GLRenderer->mOutputLetterbox.width / 2;
+		int rightWidth = GLRenderer->mOutputLetterbox.width - leftWidth;
+		GL_IRECT leftHalfScreen = GLRenderer->mOutputLetterbox;
+		leftHalfScreen.width = leftWidth;
+		GL_IRECT rightHalfScreen = GLRenderer->mOutputLetterbox;
+		rightHalfScreen.width = rightWidth;
+		rightHalfScreen.left += leftWidth;
 
-
-/* virtual */
-GL_IRECT* OpenVREyePose::GetViewportBounds(GL_IRECT* bounds) const
-{
-	static GL_IRECT viewportBounds;
-	viewportBounds.left = 0;
-	viewportBounds.top = 0;
-	viewportBounds.width = framebuffer.getWidth();
-	viewportBounds.height = framebuffer.getHeight();
-	return &viewportBounds;
+		GLRenderer->mBuffers->BindEyeTexture(0, 0);
+		GLRenderer->DrawPresentTexture(leftHalfScreen, true);
+		GLRenderer->mBuffers->BindEyeTexture(1, 0);
+		GLRenderer->DrawPresentTexture(rightHalfScreen, true);
+	}
+	else {
+		// TODO:
+	}
 }
 
 
@@ -185,7 +191,7 @@ static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const vr::HmdMatrix34_t& m2)
 
 
 /* virtual */
-void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], sector_t* viewsector) const
+void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 {
 	if (currentPose == nullptr)
 		return;
@@ -219,23 +225,21 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3], secto
 	eyeShift2.loadIdentity();
 	eyeShift2 = eyeShift2 * eyeToHeadTransform; // eye to head
 	eyeShift2 = eyeShift2 * hmdRot; // head to openvr
-	if (! useAbsoluteYaw) {
-		eyeShift2.rotate(deltaYawDegrees, 0, 1, 0); // openvr to doom
-	}
 
 	// OpenVR knows exactly where the floor is, so...
 	// ...set viewz to exact absolute height above the floor
-	float openvrHeightMeters = hmdLs[1][3] + eyeShift2[1][3];
-	float doomFloorZ = FIXED2FLOAT(viewsector->floorplane.ZatPoint(viewx, viewy));
-	float doomViewZDoomUnits = verticalDoomUnitsPerMeter * openvrHeightMeters + doomFloorZ;
-	float deltaViewZ = doomViewZDoomUnits - FIXED2FLOAT(viewz);
+	// float openvrHeightMeters = hmdLs[1][3] + eyeShift2[1][3];
+	// float doomFloorZ = FIXED2FLOAT(viewsector->floorplane.ZatPoint(viewx, viewy));
+	// float doomViewZDoomUnits = verticalDoomUnitsPerMeter * openvrHeightMeters + doomFloorZ;
+	// float deltaViewZ = doomViewZDoomUnits - FIXED2FLOAT(viewz);
 
 	float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
 
 	// output per-eye shifts, for stereoscopic rendering by caller of this method
 	outViewShift[0] = eyeShift2[0][3] * horizontalDoomUnitsPerMeter;
 	outViewShift[1] = eyeShift2[2][3] * horizontalDoomUnitsPerMeter; // "viewy" is horizontal direction in doom
-	outViewShift[2] = deltaViewZ; // Set absolute height above; "viewz" is height in doom
+	// outViewShift[2] = deltaViewZ; // Set absolute height above; "viewz" is height in doom
+	outViewShift[2] = eyeShift2[1][3] * verticalDoomUnitsPerMeter;
 
 	// Printf("viewshift = %2.1f, %2.1f\n", outViewShift[0], outViewShift[1]);
 }
@@ -253,35 +257,12 @@ VSMatrix OpenVREyePose::GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOA
 void OpenVREyePose::SetUp() const
 {
 	super::SetUp();
-
-	// cachedViewZ = viewz;
-
-	// bind framebuffer
-	framebuffer.bindRenderBuffer();
-
-	// just for testing
-	// glClearColor(1, 0.5f, 0.5f, 0);
-	// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 }
 
 /* virtual */
 void OpenVREyePose::TearDown() const
 {
-	// viewz = cachedViewZ;
-
 	super::TearDown();
-}
-
-void OpenVREyePose::EndDrawScene(sector_t * viewsector) const
-{
-	// VR_GetScreenBuffer()->ClearAndBind();
-	GLRenderer->EndDrawSceneSprites(viewsector);
-	// framebuffer.bindRenderBuffer();
-
-	GLRenderer->EndDrawSceneBlend(viewsector);
-
-	framebuffer.resolve();
 }
 
 void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
@@ -306,12 +287,9 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 	uint32_t w, h;
 	vrsystem.GetRecommendedRenderTargetSize(&w, &h);
 
-	// create frame buffers
-	framebuffer.initialize(w, h);
-
 	if (eyeTexture == nullptr)
 		eyeTexture = new vr::Texture_t();
-	eyeTexture->handle = (void*)framebuffer.getDisplayTextureId(); // returns resolveTextureId, if multisampled
+	eyeTexture->handle = 0; // TODO: populate this at resolve time
 	eyeTexture->eType = vr::API_OpenGL;
 	eyeTexture->eColorSpace = vr::ColorSpace_Gamma;
 }
@@ -319,9 +297,10 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 
 void OpenVREyePose::dispose()
 {
-	framebuffer.dispose();
-	delete eyeTexture;
-	eyeTexture = nullptr;
+	if (eyeTexture) {
+		delete eyeTexture;
+		eyeTexture = nullptr;
+	}
 }
 
 
@@ -381,52 +360,34 @@ void OpenVRMode::updateHmdPose(
 		havePreviousYaw = true;
 	}
 	double dYaw = hmdyaw - previousYaw;
-	if (useAbsoluteYaw) {
-		// double doomYaw = DEG2RAD(GLRenderer->mAngles.Yaw.Degrees);
-		float fviewangle = (float)(viewangle >> ANGLETOFINESHIFT)*360.0f / FINEANGLES;
-		double doomYaw = DEG2RAD(270.0f - fviewangle);
-		// double doomYaw = bam2rad(LocalViewAngle);
-		dYaw = hmdyaw - doomYaw;
-		while (dYaw <= -DEG2RAD(180)) dYaw += DEG2RAD(360);
-		while (dYaw > DEG2RAD(180)) dYaw -= DEG2RAD(360);
-		if (abs(dYaw) > 0.3) {
-			Printf("dyaw = %6.2f\n", dYaw);
-			dYaw = 0.1 * dYaw; // take it slow...
-		}
-	}
 	G_AddViewAngle((int)(-32768.0*dYaw / 3.14159)); // determined empirically
 	// G_AddViewAngle(rad2bam(dYaw));
 	previousYaw = hmdyaw;
 
+	/* */
 	// Pitch
-	float doomPitch = atan(tan(hmdpitch) / glset.pixelstretch);
-	int pitch = (int)(-32768 / 3.14159*doomPitch);
-	int dPitch = (pitch - viewpitch / 65536); // empirical
-	G_AddViewPitch(-dPitch);
+	double hmdPitchInDoom = -atan(tan(hmdpitch) / glset.pixelstretch);
+	double viewPitchInDoom = GLRenderer->mAngles.Pitch.Radians();
+	double dPitch = hmdPitchInDoom - viewPitchInDoom;
+	G_AddViewPitch((int)(-32768.0*dPitch / 3.14159));
+	/* */
 
 	// Roll can be local, because it doesn't affect gameplay.
 	GLRenderer->mAngles.Roll = -hmdroll * 180.0 / 3.14159;
 
 	// Late-schedule update to renderer angles directly, too
-	bool doLateScheduledRotationTracking = false;
+	bool doLateScheduledRotationTracking = true;
 	if (doLateScheduledRotationTracking) {
-		GLRenderer->mAngles.Pitch = -hmdpitch * 180.0 / 3.14159;
-		if (useAbsoluteYaw) {
-			GLRenderer->mAngles.Yaw = RAD2DEG(hmdyaw);
-		}
-		else {
-			GLRenderer->mAngles.Yaw += dYaw * 180.0 / 3.14159; // "plus" is the correct direction
-		}
+		GLRenderer->mAngles.Pitch = RAD2DEG(-hmdpitch);
+		GLRenderer->mAngles.Yaw += RAD2DEG(dYaw); // "plus" is the correct direction
 	}
+	/* */
 }
 
 /* virtual */
-void OpenVRMode::SetUp(player_t* player) const
+void OpenVRMode::SetUp() const
 {
-	super::SetUp(player);
-
-	cachedViewX = viewx;
-	cachedViewY = viewy;
+	super::SetUp();
 
 	cachedScreenBlocks = screenblocks;
 	screenblocks = 12; // always be full-screen during 3D scene render
@@ -449,134 +410,7 @@ void OpenVRMode::SetUp(player_t* player) const
 		updateHmdPose(eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
 		leftEyeView.setCurrentHmdPose(&hmdPose0);
 		rightEyeView.setCurrentHmdPose(&hmdPose0);
-
-		// TODO: position tracking in the horizontal direction
-		// We need to track incremental changes in three locations:
-		// 1) the measured absolute hmd location
-		// 2) the game player view location
-		// 3) the actual view location we used in this method
-		static bool haveOldLocations = false;
-		// All these values are in meters :)
-		static float oldHmdX, oldHmdZ; // doom units, rotated to doom frame
-		static float oldPlayerX, oldPlayerZ; // doom units, float
-		static float  oldViewX, oldViewZ; // doom units, float
-
-		// Construct translation-only version of hmd transform
-		// Pitch and Roll are identical between OpenVR and Doom worlds.
-		// But yaw can differ, depending on starting state, and controller movement.
-		float doomYawDegrees = GLRenderer->mAngles.Yaw.Degrees;
-		float openVrYawDegrees = -eulerAnglesFromMatrix(hmdPose).v[0] * 180.0 / 3.14159;
-		float deltaYawDegrees = doomYawDegrees - openVrYawDegrees;
-		while (deltaYawDegrees > 180)
-			deltaYawDegrees -= 360;
-		while (deltaYawDegrees < -180)
-			deltaYawDegrees += 360;
-
-		// extract rotation component from hmd transform
-		LSMatrix44 hmdLs(hmdPose);
-		LSMatrix44 hmdRot = hmdLs.getWithoutTranslation(); // .transpose();
-		LSMatrix44 hmdPos;
-		hmdPos.loadIdentity();
-		hmdPos[0][3] = hmdLs[0][3];
-		hmdPos[1][3] = hmdLs[1][3];
-		hmdPos[2][3] = hmdLs[2][3];
-		// Rotate hmd translation to match doom frame
-		hmdPos.rotate(deltaYawDegrees, 0, 1, 0); // openvr to doom
-		float verticalDoomUnitsPerMeter = VERTICAL_DOOM_UNITS_PER_METER; // TODO: abstract this
-		float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
-		float newHmdX = hmdPos[0][3] * horizontalDoomUnitsPerMeter;
-		float newHmdZ = hmdPos[2][3] * horizontalDoomUnitsPerMeter;
-		float newPlayerX = FIXED2FLOAT(player->mo->X());
-		float newPlayerZ = FIXED2FLOAT(player->mo->Y());
-		float newViewX = newPlayerX;
-		float newViewZ = newPlayerZ;
-		if (haveOldLocations) {
-			float deltaHmdX = newHmdX - oldHmdX;
-			float deltaHmdZ = newHmdZ - oldHmdZ;
-			float deltaPlayerX = newPlayerX - oldPlayerX;
-			float deltaPlayerZ = newPlayerZ - oldPlayerZ;
-
-			// Let's see, if only the hmd changed, but not the player, we
-			// still definitely want to shift the view, because the player
-			// moved their head. And we should update the player position for next tic.
-			// 
-			// If only the player moved, but not the hmd, I guess we ALSO follow
-			// the move, because (maybe) the player moved the controller or something.
-			// 
-			// If BOTH move the same, I guess we just move the hmd amount.
-			newViewX = oldViewX - deltaHmdX + deltaPlayerX; // TODO:
-			newViewZ = oldViewZ + deltaHmdZ + deltaPlayerZ; // TODO:
-
-			// try to move player to new view location...
-			float xDiscrepancy = newViewX - newPlayerX;
-			float zDiscrepancy = newViewZ - newPlayerZ;
-			float absDiscrepancy = sqrt(xDiscrepancy*xDiscrepancy + zDiscrepancy*zDiscrepancy);
-
-			float teleportThreshold = 1.0 * horizontalDoomUnitsPerMeter;
-			float tetherThreshold = 0.5 * horizontalDoomUnitsPerMeter;
-
-			// Feature toggles
-			bool doTeleportViewpoint = true;
-			bool doTetherViewpoint = true;
-			bool doFollowHmdLocation = true; // delayed in-game position tracking
-			bool doUpdateTiccmd = false; // experimental version of in-game position tracking
-			bool doLateScheduledPositionTracking = true; // instant view-only position tracking
-
-			// Is our viewpoint too far from the true player location?
-			if (doTeleportViewpoint && (absDiscrepancy >= teleportThreshold)) {
-				// Teleport viewpoint to actual player location
-				newViewX = newPlayerX;
-				newViewZ = newPlayerZ;
-				xDiscrepancy = zDiscrepancy = absDiscrepancy = 0;
-			}
-			else if (doFollowHmdLocation) {
-				// Move in-game player pawn to new position, if possible
-				// player->mo->Move(FLOAT2FIXED(xDiscrepancy), FLOAT2FIXED(zDiscrepancy), 0);
-				// player->mo->SetOrigin(FLOAT2FIXED(newViewX), FLOAT2FIXED(newViewZ), viewy, true);
-				// player->cmd.ucmd.forwardmove;
-				if (P_TryMove(player->mo, FLOAT2FIXED(newViewX), FLOAT2FIXED(newViewZ), true, nullptr))
-				{
-					// Let's hope player location updated already...
-					newPlayerX = FIXED2FLOAT(player->mo->X());
-					newPlayerZ = FIXED2FLOAT(player->mo->Y());
-					deltaPlayerX = newPlayerX - oldPlayerX;
-					deltaPlayerZ = newPlayerZ - oldPlayerZ;
-					float xDiscrepancy = newViewX - newPlayerX;
-					float zDiscrepancy = newViewZ - newPlayerZ;
-					float absDiscrepancy = sqrt(xDiscrepancy*xDiscrepancy + zDiscrepancy*zDiscrepancy);
-				}
-			}
-			else if (doUpdateTiccmd) {
-				// TODO: Does not work
-				// player->cmd.ucmd.forwardmove += int(5000.0 * xDiscrepancy);
-				// Printf("render ticcmd %p\n", &player->cmd);
-			}
-
-			// Prevent viewpoint from moving more than a certain amount away from true in-game player location
-			if (doTetherViewpoint && (absDiscrepancy >= tetherThreshold)) {
-				float tetherScale = tetherThreshold / absDiscrepancy;
-				newViewX = newPlayerX + tetherScale * xDiscrepancy;
-				newViewZ = newPlayerZ + tetherScale * zDiscrepancy;
-			}
-
-			if (doLateScheduledPositionTracking)
-			{
-				viewx = FLOAT2FIXED(newViewX); // OK
-				viewy = FLOAT2FIXED(newViewZ); // OK
-			}
-
-			// Printf("dxz = %.1f, %.1f (%.1f)\n", xDiscrepancy, zDiscrepancy, absDiscrepancy);
-
-		}
-		else {
-			haveOldLocations = true;
-		}
-		oldHmdX = newHmdX;
-		oldHmdZ = newHmdZ;
-		oldPlayerX = newPlayerX;
-		oldPlayerZ = newPlayerZ;
-		oldViewX = newViewX;
-		oldViewZ = newViewZ;
+		// TODO: position tracking
 	}
 }
 
@@ -584,17 +418,6 @@ void OpenVRMode::SetUp(player_t* player) const
 void OpenVRMode::TearDown() const
 {
 	screenblocks = cachedScreenBlocks;
-	viewy = cachedViewY;
-	viewx = cachedViewX;
-
-	// Unbind eye texture framebuffer
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	leftEyeView.submitFrame();
-	rightEyeView.submitFrame();
-	glFinish();
-
-	// TODO: bind Hud framebuffer
-
 	super::TearDown();
 }
 
