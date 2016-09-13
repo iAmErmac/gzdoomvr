@@ -313,7 +313,8 @@ void FGLRenderBuffers::CreateEyeBuffers(int eye)
 
 	while (mEyeFBs.Size() <= eye)
 	{
-		GLuint texture = Create2DTexture("EyeTexture", GL_RGBA8, mWidth, mHeight);
+		// GL_RGBA16F, GL_RGBA16, GL_RGBA32F all do not work with OpenVR and HTC Vive
+		GLuint texture = Create2DTexture("EyeTexture", GL_RGBA12, mWidth, mHeight);
 		mEyeTextures.Push(texture);
 		mEyeFBs.Push(CreateFrameBuffer("EyeFB", texture));
 	}

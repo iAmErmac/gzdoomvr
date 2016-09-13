@@ -176,7 +176,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 	// Pitch and Roll are identical between OpenVR and Doom worlds.
 	// But yaw can differ, depending on starting state, and controller movement.
 	float doomYawDegrees = GLRenderer->mAngles.Yaw.Degrees;
-	float openVrYawDegrees = -eulerAnglesFromMatrix(hmdPose).v[0] * 180.0 / 3.14159;
+	float openVrYawDegrees = RAD2DEG(-eulerAnglesFromMatrix(hmdPose).v[0]);
 	float deltaYawDegrees = doomYawDegrees - openVrYawDegrees;
 	while (deltaYawDegrees > 180)
 		deltaYawDegrees -= 360;
@@ -346,6 +346,12 @@ void OpenVRMode::Present() const {
 	}
 }
 
+static int mAngleFromRadians(double radians) 
+{
+	double m = std::round(65535.0 * radians / (2.0 * M_PI));
+	return int(m);
+}
+
 void OpenVRMode::updateHmdPose(
 	double hmdYawRadians, 
 	double hmdPitchRadians, 
@@ -363,8 +369,7 @@ void OpenVRMode::updateHmdPose(
 		havePreviousYaw = true;
 	}
 	double dYaw = hmdyaw - previousYaw;
-	G_AddViewAngle((int)(-32768.0*dYaw / 3.14159)); // determined empirically
-	// G_AddViewAngle(rad2bam(dYaw));
+	G_AddViewAngle(mAngleFromRadians(-dYaw));
 	previousYaw = hmdyaw;
 
 	/* */
@@ -372,11 +377,11 @@ void OpenVRMode::updateHmdPose(
 	double hmdPitchInDoom = -atan(tan(hmdpitch) / glset.pixelstretch);
 	double viewPitchInDoom = GLRenderer->mAngles.Pitch.Radians();
 	double dPitch = hmdPitchInDoom - viewPitchInDoom;
-	G_AddViewPitch((int)(-32768.0*dPitch / 3.14159));
+	G_AddViewPitch(mAngleFromRadians(-dPitch));
 	/* */
 
 	// Roll can be local, because it doesn't affect gameplay.
-	GLRenderer->mAngles.Roll = -hmdroll * 180.0 / 3.14159;
+	GLRenderer->mAngles.Roll = RAD2DEG(-hmdroll);
 
 	// Late-schedule update to renderer angles directly, too
 	bool doLateScheduledRotationTracking = true;
