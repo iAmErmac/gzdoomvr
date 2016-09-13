@@ -128,7 +128,6 @@ static HmdVector3d_t eulerAnglesFromMatrix(HmdMatrix34_t mat) {
 	return eulerAnglesFromQuat(quatFromMatrix(mat));
 }
 
-
 OpenVREyePose::OpenVREyePose(vr::EVREye eye)
 	: ShiftedEyePose( 0.0f )
 	, eye(eye)
@@ -239,17 +238,15 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 	projectionMatrix.loadIdentity();
 	projectionMatrix.multMatrix(&proj_transpose.m[0][0]);
 
-
 	vr::HmdMatrix34_t eyeToHead = vrsystem.GetEyeToHeadTransform(eye);
 	vSMatrixFromHmdMatrix34(eyeToHeadTransform, eyeToHead);
 
 	if (eyeTexture == nullptr)
 		eyeTexture = new vr::Texture_t();
-	eyeTexture->handle = 0; // TODO: populate this at resolve time
+	eyeTexture->handle = nullptr; // TODO: populate this at resolve time
 	eyeTexture->eType = vr::API_OpenGL;
-	eyeTexture->eColorSpace = vr::ColorSpace_Gamma;
+	eyeTexture->eColorSpace = vr::ColorSpace_Linear;
 }
-
 
 void OpenVREyePose::dispose()
 {
@@ -259,13 +256,13 @@ void OpenVREyePose::dispose()
 	}
 }
 
-
 bool OpenVREyePose::submitFrame() const
 {
 	if (eyeTexture == nullptr)
 		return false;
 	if (vr::VRCompositor() == nullptr)
 		return false;
+	eyeTexture->handle = (void *)GLRenderer->mBuffers->GetEyeTextureGLHandle((int)eye);
 	vr::VRCompositor()->Submit(eye, eyeTexture);
 	return true;
 }
@@ -317,8 +314,8 @@ void OpenVRMode::AdjustViewports() const
 
 /* virtual */
 void OpenVRMode::Present() const {
+	// TODO: For performance, don't render to the desktop screen here
 	const bool renderToDesktop = true;
-	// TODO: stub implementation draws to screen instead of to HMD
 	if (renderToDesktop) {
 		GLRenderer->mBuffers->BindOutputFB();
 		GLRenderer->ClearBorders();
@@ -337,8 +334,12 @@ void OpenVRMode::Present() const {
 		GLRenderer->mBuffers->BindEyeTexture(1, 0);
 		GLRenderer->DrawPresentTexture(rightHalfScreen, true);
 	}
-	else {
-		// TODO:
+
+	const bool renderToHmd = true;
+	if (renderToHmd) 
+	{
+		leftEyeView.submitFrame();
+		rightEyeView.submitFrame();
 	}
 }
 

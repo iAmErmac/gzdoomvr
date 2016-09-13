@@ -313,7 +313,7 @@ void FGLRenderBuffers::CreateEyeBuffers(int eye)
 
 	while (mEyeFBs.Size() <= eye)
 	{
-		GLuint texture = Create2DTexture("EyeTexture", GL_RGBA16F, mWidth, mHeight);
+		GLuint texture = Create2DTexture("EyeTexture", GL_RGBA8, mWidth, mHeight);
 		mEyeTextures.Push(texture);
 		mEyeFBs.Push(CreateFrameBuffer("EyeFB", texture));
 	}
@@ -550,6 +550,18 @@ void FGLRenderBuffers::BindEyeFB(int eye, bool readBuffer)
 {
 	CreateEyeBuffers(eye);
 	glBindFramebuffer(readBuffer ? GL_READ_FRAMEBUFFER : GL_FRAMEBUFFER, mEyeFBs[eye]);
+}
+
+//==========================================================================
+//
+// Returns the OpenGL integer texture handle for an eye texture (needed by OpenVR API)
+//
+//==========================================================================
+
+GLuint FGLRenderBuffers::GetEyeTextureGLHandle(int eye)
+{
+	CreateEyeBuffers(eye);
+	return mEyeTextures[eye];
 }
 
 //==========================================================================

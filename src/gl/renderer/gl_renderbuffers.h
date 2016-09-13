@@ -35,6 +35,7 @@ public:
 	void BlitToEyeTexture(int eye);
 	void BindEyeTexture(int eye, int texunit);
 	void BindEyeFB(int eye, bool readBuffer = false);
+	GLuint GetEyeTextureGLHandle(int eye); // Needed for OpenVR API
 
 	enum { NumBloomLevels = 4 };
 	FGLBloomTextureLevel BloomLevels[NumBloomLevels];
