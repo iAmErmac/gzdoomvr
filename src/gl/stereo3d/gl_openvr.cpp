@@ -305,8 +305,11 @@ OpenVRMode::OpenVRMode()
 // AdjustViewports() is called from within FLGRenderer::SetOutputViewport(...)
 void OpenVRMode::AdjustViewports() const
 {
+	// Draw the 3D scene into the entire framebuffer
 	GLRenderer->mSceneViewport.width = sceneWidth;
 	GLRenderer->mSceneViewport.height = sceneHeight;
+	GLRenderer->mSceneViewport.left = 0;
+	GLRenderer->mSceneViewport.top = 0;
 
 	GLRenderer->mScreenViewport.width = sceneWidth;
 	GLRenderer->mScreenViewport.height = sceneHeight;
