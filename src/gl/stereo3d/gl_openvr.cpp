@@ -189,6 +189,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 	LSMatrix44 hmdLs(hmdPose);
 	LSMatrix44 hmdRot = hmdLs.getWithoutTranslation(); // .transpose();
 
+
 	/// In these eye methods, just get local inter-eye stereoscopic shift, not full position shift ///
 
 	// compute local eye shift
@@ -196,6 +197,21 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 	eyeShift2.loadIdentity();
 	eyeShift2 = eyeShift2 * eyeToHeadTransform; // eye to head
 	eyeShift2 = eyeShift2 * hmdRot; // head to openvr
+
+	if (eye == vr::Eye_Left) { // debugging here...
+		LSVec3 eye_EyePos = LSVec3(0, 0, 0); // eye position in eye frame
+		// Printf("Eye position in eye = %.2f, %.2f, %.2f\n", eye_EyePos.x, eye_EyePos.y, eye_EyePos.z);
+		LSVec3 hmd_EyePos = LSMatrix44(eyeToHeadTransform) * eye_EyePos;
+		// Printf("Eye position in hmd = %.3f, %.3f, %.3f\n", hmd_EyePos.x, hmd_EyePos.y, hmd_EyePos.z);
+		LSVec3 openvr_EyePos = hmdLs * hmd_EyePos;
+		// Printf("Eye position in office = %.3f, %.3f, %.3f\n", openvr_EyePos.x, openvr_EyePos.y, openvr_EyePos.z);
+		LSVec3 hmd_OtherEyePos = LSMatrix44(otherEyeToHeadTransform) * eye_EyePos;
+		// Printf("Eye position in office = %.3f, %.3f, %.3f\n", hmd_OtherEyePos.x, hmd_OtherEyePos.y, hmd_OtherEyePos.z);
+		LSVec3 openvr_OtherEyePos = hmdLs * hmd_OtherEyePos;
+		// Printf("Eye position in office = %.3f, %.3f, %.3f\n", openvr_OtherEyePos.x, openvr_OtherEyePos.y, openvr_OtherEyePos.z);
+		LSVec3 openvr_EyeOffset = 0.5 * (openvr_EyePos - openvr_OtherEyePos);
+		Printf("Relative eye position in office = %.3f, %.3f, %.3f\n", openvr_EyeOffset.x, openvr_EyeOffset.y, openvr_EyeOffset.z);
+	}
 
 	// OpenVR knows exactly where the floor is, so...
 	// ...set viewz to exact absolute height above the floor
@@ -240,6 +256,8 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 
 	vr::HmdMatrix34_t eyeToHead = vrsystem.GetEyeToHeadTransform(eye);
 	vSMatrixFromHmdMatrix34(eyeToHeadTransform, eyeToHead);
+	vr::HmdMatrix34_t otherEyeToHead = vrsystem.GetEyeToHeadTransform(eye == Eye_Left ? Eye_Right : Eye_Left);
+	vSMatrixFromHmdMatrix34(otherEyeToHeadTransform, otherEyeToHead);
 
 	if (eyeTexture == nullptr)
 		eyeTexture = new vr::Texture_t();

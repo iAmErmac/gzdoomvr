@@ -67,6 +67,7 @@ public:
 protected:
 	VSMatrix projectionMatrix;
 	VSMatrix eyeToHeadTransform;
+	VSMatrix otherEyeToHeadTransform;
 	vr::Texture_t* eyeTexture;
 	vr::EVREye eye;
 

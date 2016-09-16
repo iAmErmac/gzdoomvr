@@ -44,6 +44,56 @@ namespace vr {
 	HmdMatrix34_t;
 }
 
+class LSVec3
+{
+public:
+	LSVec3(FLOATTYPE x, FLOATTYPE y, FLOATTYPE z, FLOATTYPE w=1.0f) 
+		: x(mVec[0]), y(mVec[1]), z(mVec[2]), w(mVec[3])
+	{
+		mVec[0] = x;
+		mVec[1] = y;
+		mVec[2] = z;
+		mVec[3] = w;
+	}
+
+	LSVec3(const LSVec3& rhs) 
+		: x(mVec[0]), y(mVec[1]), z(mVec[2]), w(mVec[3])
+	{
+		*this = rhs;
+	}
+
+	LSVec3& operator=(const LSVec3& rhs) {
+		LSVec3& lhs = *this;
+		for (int i = 0; i < 4; ++i)
+			lhs[i] = rhs[i];
+		return *this;
+	}
+
+	const FLOATTYPE& operator[](int i) const {return mVec[i];}
+	FLOATTYPE& operator[](int i) { return mVec[i]; }
+
+	LSVec3 operator-(const LSVec3& rhs) const {
+		const LSVec3& lhs = *this;
+		LSVec3 result = *this;
+		for (int i = 0; i < 4; ++i)
+			result[i] -= rhs[i];
+		return result;
+	}
+
+	FLOATTYPE mVec[4];
+	FLOATTYPE& x;
+	FLOATTYPE& y;
+	FLOATTYPE& z;
+	FLOATTYPE& w;
+};
+
+LSVec3 operator*(FLOATTYPE s, const LSVec3& rhs) {
+	LSVec3 result = rhs;
+	for (int i = 0; i < 4; ++i)
+		result[i] *= s;
+	return result;
+}
+
 class LSMatrix44 : public VSMatrix
 {
 public:
@@ -61,6 +111,10 @@ public:
 		}
 	}
 
+	LSMatrix44(const VSMatrix& m) {
+		m.copy(mMatrix);
+	}
+
 	// overload bracket operator to return one row of the matrix, so you can invoke, say, m[2][3]
 	FLOATTYPE* operator[](int i) {return &mMatrix[i*4];}
 	const FLOATTYPE* operator[](int i) const { return &mMatrix[i * 4]; }
@@ -68,6 +122,17 @@ public:
 	LSMatrix44 operator*(const VSMatrix& rhs) const {
 		LSMatrix44 result(*this);
 		result.multMatrix(rhs);
+		return result;
+	}
+
+	LSVec3 operator*(const LSVec3& rhs) const {
+		const LSMatrix44& lhs = *this;
+		LSVec3 result(0, 0, 0, 0);
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				result[i] += lhs[i][j] * rhs[j];
+			}
+		}
 		return result;
 	}
 
