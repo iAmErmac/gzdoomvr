@@ -186,8 +186,8 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 	// Printf("delta yaw = %.0f; yaw = %.0f\n", deltaYawDegrees, openVrYawDegrees);
 
 	// extract rotation component from hmd transform
-	LSMatrix44 hmdLs(hmdPose);
-	LSMatrix44 hmdRot = hmdLs.getWithoutTranslation(); // .transpose();
+	LSMatrix44 openvr_X_hmd(hmdPose);
+	LSMatrix44 hmdRot = openvr_X_hmd.getWithoutTranslation(); // .transpose();
 
 
 	/// In these eye methods, just get local inter-eye stereoscopic shift, not full position shift ///
@@ -202,14 +202,17 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 		LSVec3 eye_EyePos = LSVec3(0, 0, 0); // eye position in eye frame
 		// Printf("Left eye position in left eye = %.2f, %.2f, %.2f\n", eye_EyePos.x, eye_EyePos.y, eye_EyePos.z);
 		LSVec3 hmd_EyePos = LSMatrix44(eyeToHeadTransform) * eye_EyePos;
+		LSVec3 hmd_HmdPos = LSVec3(0, 0, 0); // hmd position in hmd frame
 		// Printf("Left eye position in hmd = %.3f, %.3f, %.3f\n", hmd_EyePos.x, hmd_EyePos.y, hmd_EyePos.z);
-		LSVec3 openvr_EyePos = hmdLs * hmd_EyePos;
+		LSVec3 openvr_EyePos = openvr_X_hmd * hmd_EyePos;
+		LSVec3 openvr_HmdPos = openvr_X_hmd * hmd_HmdPos;
 		// Printf("Left eye position in office = %.3f, %.3f, %.3f\n", openvr_EyePos.x, openvr_EyePos.y, openvr_EyePos.z);
 		LSVec3 hmd_OtherEyePos = LSMatrix44(otherEyeToHeadTransform) * eye_EyePos;
 		// Printf("Right eye position in hmd = %.3f, %.3f, %.3f\n", hmd_OtherEyePos.x, hmd_OtherEyePos.y, hmd_OtherEyePos.z);
-		LSVec3 openvr_OtherEyePos = hmdLs * hmd_OtherEyePos;
+		LSVec3 openvr_OtherEyePos = openvr_X_hmd * hmd_OtherEyePos;
 		// Printf("Right eye position in office = %.3f, %.3f, %.3f\n", openvr_OtherEyePos.x, openvr_OtherEyePos.y, openvr_OtherEyePos.z);
-		LSVec3 openvr_EyeOffset = 0.5 * (openvr_EyePos - openvr_OtherEyePos);
+		// LSVec3 openvr_EyeOffset = 0.5 * (openvr_EyePos - openvr_OtherEyePos);
+		LSVec3 openvr_EyeOffset = openvr_EyePos - openvr_HmdPos;
 		// Printf("Relative left eye position in office = %.3f, %.3f, %.3f\n", openvr_EyeOffset.x, openvr_EyeOffset.y, openvr_EyeOffset.z);
 
 		// Printf("Doom Yaw = %.1f degrees, X = %.1f, Y = %.1f, Z = %.1f\n", doomYawDegrees, ViewPos.X, ViewPos.Y, ViewPos.Z);
@@ -227,18 +230,24 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 		doomInOpenVR.scale(glset.pixelstretch, glset.pixelstretch, 1.0); // Doom universe is scaled by 1990s pixel aspect ratio
 		doomInOpenVR.rotate(deltaYawDegrees, 0, 0, 1);
 
+		// VSMatrix openvr_X_hmd = VSMatrix(LSMatrix44(hmdPose));
+		VSMatrix doom_X_openvr(doomInOpenVR);
+		VSMatrix doom_X_hmd = VSMatrix(doom_X_openvr);
+		// doom_X_hmd.multMatrix(openvr_X_hmd);
+
+		// LSVec3 doom_EyeOffset = LSMatrix44(doom_X_hmd) * hmd_EyeShift;
 		LSVec3 doom_EyeOffset = LSMatrix44(doomInOpenVR) * openvr_EyeOffset;
 		outViewShift[0] = doom_EyeOffset[0];
 		outViewShift[1] = doom_EyeOffset[1];
 		outViewShift[2] = doom_EyeOffset[2];
 		if (eye == vr::Eye_Left) {
-			Printf("Doom Yaw = %.1f, Delta Yaw = %.1f degrees, Relative left eye position in doom = %.3f, %.3f, %.3f\n", doomYawDegrees, deltaYawDegrees, doom_EyeOffset.x, doom_EyeOffset.y, doom_EyeOffset.z);
+			// Printf("Doom Yaw = %.1f, Delta Yaw = %.1f degrees, Relative left eye position in doom = %.3f, %.3f, %.3f\n", doomYawDegrees, deltaYawDegrees, doom_EyeOffset.x, doom_EyeOffset.y, doom_EyeOffset.z);
 		}
 	// }
 
 	// OpenVR knows exactly where the floor is, so...
 	// ...set viewz to exact absolute height above the floor
-	// float openvrHeightMeters = hmdLs[1][3] + eyeShift2[1][3];
+	// float openvrHeightMeters = openvr_X_hmd[1][3] + eyeShift2[1][3];
 	// float doomFloorZ = FIXED2FLOAT(viewsector->floorplane.ZatPoint(viewx, viewy));
 	// float doomViewZDoomUnits = verticalDoomUnitsPerMeter * openvrHeightMeters + doomFloorZ;
 	// float deltaViewZ = doomViewZDoomUnits - FIXED2FLOAT(viewz);
