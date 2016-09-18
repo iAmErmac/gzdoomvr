@@ -175,7 +175,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 
 	// Pitch and Roll are identical between OpenVR and Doom worlds.
 	// But yaw can differ, depending on starting state, and controller movement.
-	float doomYawDegrees = GLRenderer->mAngles.Yaw.Degrees;
+	float doomYawDegrees = yaw;
 	float openVrYawDegrees = RAD2DEG(-eulerAnglesFromMatrix(hmdPose).v[0]);
 	float deltaYawDegrees = doomYawDegrees - openVrYawDegrees;
 	while (deltaYawDegrees > 180)
@@ -198,20 +198,43 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 	eyeShift2 = eyeShift2 * eyeToHeadTransform; // eye to head
 	eyeShift2 = eyeShift2 * hmdRot; // head to openvr
 
-	if (eye == vr::Eye_Left) { // debugging here...
+	// if (eye == vr::Eye_Left) { // debugging here...
 		LSVec3 eye_EyePos = LSVec3(0, 0, 0); // eye position in eye frame
-		// Printf("Eye position in eye = %.2f, %.2f, %.2f\n", eye_EyePos.x, eye_EyePos.y, eye_EyePos.z);
+		// Printf("Left eye position in left eye = %.2f, %.2f, %.2f\n", eye_EyePos.x, eye_EyePos.y, eye_EyePos.z);
 		LSVec3 hmd_EyePos = LSMatrix44(eyeToHeadTransform) * eye_EyePos;
-		// Printf("Eye position in hmd = %.3f, %.3f, %.3f\n", hmd_EyePos.x, hmd_EyePos.y, hmd_EyePos.z);
+		// Printf("Left eye position in hmd = %.3f, %.3f, %.3f\n", hmd_EyePos.x, hmd_EyePos.y, hmd_EyePos.z);
 		LSVec3 openvr_EyePos = hmdLs * hmd_EyePos;
-		// Printf("Eye position in office = %.3f, %.3f, %.3f\n", openvr_EyePos.x, openvr_EyePos.y, openvr_EyePos.z);
+		// Printf("Left eye position in office = %.3f, %.3f, %.3f\n", openvr_EyePos.x, openvr_EyePos.y, openvr_EyePos.z);
 		LSVec3 hmd_OtherEyePos = LSMatrix44(otherEyeToHeadTransform) * eye_EyePos;
-		// Printf("Eye position in office = %.3f, %.3f, %.3f\n", hmd_OtherEyePos.x, hmd_OtherEyePos.y, hmd_OtherEyePos.z);
+		// Printf("Right eye position in hmd = %.3f, %.3f, %.3f\n", hmd_OtherEyePos.x, hmd_OtherEyePos.y, hmd_OtherEyePos.z);
 		LSVec3 openvr_OtherEyePos = hmdLs * hmd_OtherEyePos;
-		// Printf("Eye position in office = %.3f, %.3f, %.3f\n", openvr_OtherEyePos.x, openvr_OtherEyePos.y, openvr_OtherEyePos.z);
+		// Printf("Right eye position in office = %.3f, %.3f, %.3f\n", openvr_OtherEyePos.x, openvr_OtherEyePos.y, openvr_OtherEyePos.z);
 		LSVec3 openvr_EyeOffset = 0.5 * (openvr_EyePos - openvr_OtherEyePos);
-		Printf("Relative eye position in office = %.3f, %.3f, %.3f\n", openvr_EyeOffset.x, openvr_EyeOffset.y, openvr_EyeOffset.z);
-	}
+		// Printf("Relative left eye position in office = %.3f, %.3f, %.3f\n", openvr_EyeOffset.x, openvr_EyeOffset.y, openvr_EyeOffset.z);
+
+		// Printf("Doom Yaw = %.1f degrees, X = %.1f, Y = %.1f, Z = %.1f\n", doomYawDegrees, ViewPos.X, ViewPos.Y, ViewPos.Z);
+
+		VSMatrix doomInOpenVR = VSMatrix();
+		doomInOpenVR.loadIdentity();
+		// permute axes
+		float permute[] = { // Convert from OpenVR to Doom axis convention, including mirror inversion
+		    -1,  0,  0,  0, // X-right in OpenVR -> X-left in Doom
+			 0,  0,  1,  0, // Z-backward in OpenVR -> Y-backward in Doom
+			 0,  1,  0,  0, // Y-up in OpenVR -> Z-up in Doom
+			 0,  0,  0,  1};
+		doomInOpenVR.multMatrix(permute);
+		doomInOpenVR.scale(verticalDoomUnitsPerMeter, verticalDoomUnitsPerMeter, verticalDoomUnitsPerMeter); // Doom units are not meters
+		doomInOpenVR.scale(glset.pixelstretch, glset.pixelstretch, 1.0); // Doom universe is scaled by 1990s pixel aspect ratio
+		doomInOpenVR.rotate(deltaYawDegrees, 0, 0, 1);
+
+		LSVec3 doom_EyeOffset = LSMatrix44(doomInOpenVR) * openvr_EyeOffset;
+		outViewShift[0] = doom_EyeOffset[0];
+		outViewShift[1] = doom_EyeOffset[1];
+		outViewShift[2] = doom_EyeOffset[2];
+		if (eye == vr::Eye_Left) {
+			Printf("Doom Yaw = %.1f, Delta Yaw = %.1f degrees, Relative left eye position in doom = %.3f, %.3f, %.3f\n", doomYawDegrees, deltaYawDegrees, doom_EyeOffset.x, doom_EyeOffset.y, doom_EyeOffset.z);
+		}
+	// }
 
 	// OpenVR knows exactly where the floor is, so...
 	// ...set viewz to exact absolute height above the floor
@@ -223,10 +246,10 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 	float horizontalDoomUnitsPerMeter = verticalDoomUnitsPerMeter * glset.pixelstretch;
 
 	// output per-eye shifts, for stereoscopic rendering by caller of this method
-	outViewShift[0] = eyeShift2[0][3] * horizontalDoomUnitsPerMeter;
-	outViewShift[1] = eyeShift2[2][3] * horizontalDoomUnitsPerMeter; // "viewy" is horizontal direction in doom
+	// outViewShift[0] = eyeShift2[0][3] * horizontalDoomUnitsPerMeter;
+	// outViewShift[1] = eyeShift2[2][3] * horizontalDoomUnitsPerMeter; // "viewy" is horizontal direction in doom
 	// outViewShift[2] = deltaViewZ; // Set absolute height above; "viewz" is height in doom
-	outViewShift[2] = eyeShift2[1][3] * verticalDoomUnitsPerMeter;
+	// outViewShift[2] = eyeShift2[1][3] * verticalDoomUnitsPerMeter;
 
 	// Printf("viewshift = %2.1f, %2.1f\n", outViewShift[0], outViewShift[1]);
 }
