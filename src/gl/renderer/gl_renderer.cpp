@@ -56,7 +56,9 @@
 #include "gl/shaders/gl_tonemapshader.h"
 #include "gl/shaders/gl_colormapshader.h"
 #include "gl/shaders/gl_lensshader.h"
+#include "gl/shaders/gl_fxaashader.h"
 #include "gl/shaders/gl_presentshader.h"
+#include "gl/shaders/gl_present3dRowshader.h"
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/textures/gl_texture.h"
 #include "gl/textures/gl_translate.h"
@@ -103,13 +105,21 @@ FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb)
 	mTonemapPalette = nullptr;
 	mBuffers = nullptr;
 	mPresentShader = nullptr;
+	mPresent3dCheckerShader = nullptr;
+	mPresent3dColumnShader = nullptr;
+	mPresent3dRowShader = nullptr;
 	mBloomExtractShader = nullptr;
 	mBloomCombineShader = nullptr;
+	mExposureExtractShader = nullptr;
+	mExposureAverageShader = nullptr;
+	mExposureCombineShader = nullptr;
 	mBlurShader = nullptr;
 	mTonemapShader = nullptr;
 	mTonemapPalette = nullptr;
 	mColormapShader = nullptr;
 	mLensShader = nullptr;
+	mFXAAShader = nullptr;
+	mFXAALumaShader = nullptr;
 }
 
 void gl_LoadModels();
@@ -120,12 +130,20 @@ void FGLRenderer::Initialize(int width, int height)
 	mBuffers = new FGLRenderBuffers();
 	mBloomExtractShader = new FBloomExtractShader();
 	mBloomCombineShader = new FBloomCombineShader();
+	mExposureExtractShader = new FExposureExtractShader();
+	mExposureAverageShader = new FExposureAverageShader();
+	mExposureCombineShader = new FExposureCombineShader();
 	mBlurShader = new FBlurShader();
 	mTonemapShader = new FTonemapShader();
 	mColormapShader = new FColormapShader();
 	mTonemapPalette = nullptr;
 	mLensShader = new FLensShader();
+	mFXAAShader = new FFXAAShader;
+	mFXAALumaShader = new FFXAALumaShader;
 	mPresentShader = new FPresentShader();
+	mPresent3dCheckerShader = new FPresent3DCheckerShader();
+	mPresent3dColumnShader = new FPresent3DColumnShader();
+	mPresent3dRowShader = new FPresent3DRowShader();
 	m2DDrawer = new F2DDrawer;
 
 	// needed for the core profile, because someone decided it was a good idea to remove the default VAO.
@@ -178,13 +196,21 @@ FGLRenderer::~FGLRenderer()
 	}
 	if (mBuffers) delete mBuffers;
 	if (mPresentShader) delete mPresentShader;
+	if (mPresent3dCheckerShader) delete mPresent3dCheckerShader;
+	if (mPresent3dColumnShader) delete mPresent3dColumnShader;
+	if (mPresent3dRowShader) delete mPresent3dRowShader;
 	if (mBloomExtractShader) delete mBloomExtractShader;
 	if (mBloomCombineShader) delete mBloomCombineShader;
+	if (mExposureExtractShader) delete mExposureExtractShader;
+	if (mExposureAverageShader) delete mExposureAverageShader;
+	if (mExposureCombineShader) delete mExposureCombineShader;
 	if (mBlurShader) delete mBlurShader;
 	if (mTonemapShader) delete mTonemapShader;
 	if (mTonemapPalette) delete mTonemapPalette;
 	if (mColormapShader) delete mColormapShader;
 	if (mLensShader) delete mLensShader;
+	delete mFXAAShader;
+	delete mFXAALumaShader;
 }
 
 //==========================================================================

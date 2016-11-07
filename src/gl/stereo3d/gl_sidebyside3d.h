@@ -88,6 +88,14 @@ private:
 	SBSFRightEyePose rightEye;
 };
 
+class TopBottom3D : public SideBySideSquished
+{
+public:
+	static const TopBottom3D& getInstance(float ipd);
+	TopBottom3D(double ipdMeters) : SideBySideSquished(ipdMeters) {}
+	void Present() const override;
+	virtual void AdjustViewports() const override;
+};
 
 } /* namespace s3d */
 

@@ -138,10 +138,10 @@ void GLSprite::CalculateVertices(FVector3 *v)
 			mat.Rotate(0, 1, 0, - actor->Angles.Roll.Degrees);
 			mat.Translate(-x, -z, -y);
 		}
-		v[0] = mat * FVector3(x1, z, y2);
-		v[1] = mat * FVector3(x2, z, y2);
-		v[2] = mat * FVector3(x1, z, y1);
-		v[3] = mat * FVector3(x2, z, y1);
+		v[0] = mat * FVector3(x2, z, y2);
+		v[1] = mat * FVector3(x1, z, y2);
+		v[2] = mat * FVector3(x2, z, y1);
+		v[3] = mat * FVector3(x1, z, y1);
 		return;
 	}
 	
@@ -310,6 +310,11 @@ void GLSprite::Draw(int pass)
 			additivefog = true;
 		}
 	}
+	else if (modelframe == nullptr)
+	{
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(-1.0f, -128.0f);
+	}
 	if (RenderStyle.BlendOp!=STYLEOP_Shadow)
 	{
 		if (gl_lights && GLRenderer->mLightCount && !gl_fixedcolormap && !fullbright)
@@ -401,6 +406,7 @@ void GLSprite::Draw(int pass)
 			gl_RenderState.Apply();
 
 			FVector3 v[4];
+			gl_RenderState.SetNormal(0, 0, 0);
 			CalculateVertices(v);
 			
 			FQuadDrawer qd;
@@ -439,6 +445,11 @@ void GLSprite::Draw(int pass)
 		gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		gl_RenderState.BlendEquation(GL_FUNC_ADD);
 		gl_RenderState.SetTextureMode(TM_MODULATE);
+	}
+	else if (modelframe == nullptr)
+	{
+		glPolygonOffset(0.0f, 0.0f);
+		glDisable(GL_POLYGON_OFFSET_FILL);
 	}
 
 	gl_RenderState.SetObjectColor(0xffffffff);
@@ -626,7 +637,7 @@ void GLSprite::Process(AActor* thing, sector_t * sector, int thruportal)
 	sector_t * rendersector;
 
 	// Don't waste time projecting sprites that are definitely not visible.
-	if (thing == nullptr || thing->sprite == 0 || !thing->IsVisibleToPlayer())
+	if (thing == nullptr || thing->sprite == 0 || !thing->IsVisibleToPlayer() || !thing->IsInsideVisibleAngles())
 	{
 		return;
 	}

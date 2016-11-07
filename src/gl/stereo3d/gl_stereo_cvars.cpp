@@ -31,6 +31,8 @@
 #include "gl_openvr.h"
 #include "gl_quadstereo.h"
 #include "gl_sidebyside3d.h"
+#include "gl/stereo3d/gl_sidebyside3d.h"
+#include "gl/stereo3d/gl_interleaved3d.h"
 #include "gl/system/gl_cvars.h"
 
 // Set up 3D-specific console variables:
@@ -105,6 +107,20 @@ const Stereo3DMode& Stereo3DMode::getCurrentMode()
 		setCurrentMode(OpenVRMode::getInstance());
 		break;
 #endif
+	case 11:
+		setCurrentMode(TopBottom3D::getInstance(vr_ipd));
+		break;
+	case 12:
+		setCurrentMode(RowInterleaved3D::getInstance(vr_ipd));
+		break;
+	case 13:
+		setCurrentMode(ColumnInterleaved3D::getInstance(vr_ipd));
+		break;
+	case 14:
+		setCurrentMode(CheckerInterleaved3D::getInstance(vr_ipd));
+		break;
+	case 0:
+		break;
 	case 0:
 	default:
 		setCurrentMode(MonoView::getInstance());

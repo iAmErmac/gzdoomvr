@@ -36,7 +36,6 @@
 #include "vectors.h"
 #include "v_palette.h"
 #include "templates.h"
-#include "farchive.h"
 
 #include "gl/system/gl_interface.h"
 #include "gl/system/gl_framebuffer.h"
@@ -190,7 +189,9 @@ void OpenGLFrameBuffer::Update()
 		int clientHeight = GetClientHeight();
 		if (clientWidth > 0 && clientHeight > 0 && (Width != clientWidth || Height != clientHeight))
 		{
-			Resize(clientWidth, clientHeight);
+			// Do not call Resize here because it's only for software canvases
+			Pitch = Width = clientWidth;
+			Height = clientHeight;
 			V_OutputResized(Width, Height);
 			GLRenderer->mVBO->OutputResized(Width, Height);
 		}
@@ -210,13 +211,13 @@ void OpenGLFrameBuffer::Swap()
 {
 	Finish.Reset();
 	Finish.Clock();
-	glFinish();
 	if (needsetgamma) 
 	{
 		//DoSetGamma();
 		needsetgamma = false;
 	}
 	SwapBuffers();
+	glFinish();
 	Finish.Unclock();
 	swapped = true;
 	FHardwareTexture::UnbindAll();
@@ -250,8 +251,8 @@ void OpenGLFrameBuffer::DoSetGamma()
 		for (int i = 0; i < 256; i++)
 		{
 			double val = i * contrast - (contrast - 1) * 127;
-			if(gamma != 1) val = pow(val, invgamma) / norm;
 			val += bright * 128;
+			if(gamma != 1) val = pow(val, invgamma) / norm;
 
 			gammaTable[i] = gammaTable[i + 256] = gammaTable[i + 512] = (WORD)clamp<double>(val*256, 0, 0xffff);
 		}

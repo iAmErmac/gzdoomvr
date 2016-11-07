@@ -2439,6 +2439,7 @@ void D_DoomMain (void)
 		if (!batchrun) Printf ("ParseTeamInfo: Load team definitions.\n");
 		TeamLibrary.ParseTeamInfo ();
 
+		R_ParseTrnslate();
 		PClassActor::StaticInit ();
 
 		// [GRB] Initialize player class list
@@ -2580,7 +2581,7 @@ void D_DoomMain (void)
 			{
 				FString file(v);
 				FixPathSeperator (file);
-				DefaultExtension (file, ".zds");
+				DefaultExtension (file, "." SAVEGAME_EXT);
 				G_LoadGame (file);
 			}
 

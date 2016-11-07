@@ -187,21 +187,18 @@ void GLFlat::DrawSubsector(subsector_t * sub)
 		unsigned int vi[4];
 
 		vi[0] = 0;
-		for (unsigned int i = 1; i < sub->numlines-1; i += 2)
+		for (unsigned int i = 0; i < sub->numlines - 2; i += 2)
 		{
-			if (i < sub->numlines - 3)
+			for (unsigned int j = 1; j < 4; j++)
 			{
-				for (unsigned int j = 1; j < 4; j++)
-				{
-					vi[j] = MIN(i + j, sub->numlines - 1);
-				}
-				for (unsigned int x = 0; x < 4; x++)
-				{
-					vertex_t *vt = sub->firstline[vi[x]].v1;
-					qd.Set(x, vt->fX(), plane.plane.ZatPoint(vt) + dz, vt->fY(), vt->fX() / 64.f, -vt->fY() / 64.f);
-				}
-				qd.Render(GL_TRIANGLE_FAN);
+				vi[j] = MIN(i + j, sub->numlines - 1);
 			}
+			for (unsigned int x = 0; x < 4; x++)
+			{
+				vertex_t *vt = sub->firstline[vi[x]].v1;
+				qd.Set(x, vt->fX(), plane.plane.ZatPoint(vt) + dz, vt->fY(), vt->fX() / 64.f, -vt->fY() / 64.f);
+			}
+			qd.Render(GL_TRIANGLE_FAN);
 		}
 	}
 
@@ -374,6 +371,7 @@ void GLFlat::Draw(int pass, bool trans)	// trans only has meaning for GLPASS_LIG
 	}
 #endif
 
+	gl_RenderState.SetNormal(plane.plane.Normal().X, plane.plane.Normal().Z, plane.plane.Normal().Y);
 
 	switch (pass)
 	{
@@ -502,6 +500,11 @@ inline void GLFlat::PutFlat(bool fog)
 void GLFlat::Process(sector_t * model, int whichplane, bool fog)
 {
 	plane.GetFromSector(model, whichplane);
+	if (whichplane != int(ceiling))
+	{
+		// Flip the normal if the source plane has a different orientation than what we are about to render.
+		plane.plane.FlipVert();
+	}
 
 	if (!fog)
 	{
@@ -641,7 +644,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 				Colormap.CopyFrom3DLight(light);
 			}
 			renderstyle = STYLE_Translucent;
-			Process(frontsector, false, false);
+			Process(frontsector, sector_t::floor, false);
 		}
 	}
 
@@ -700,7 +703,7 @@ void GLFlat::ProcessSector(sector_t * frontsector)
 				Colormap.CopyFrom3DLight(light);
 			}
 			renderstyle = STYLE_Translucent;
-			Process(frontsector, true, false);
+			Process(frontsector, sector_t::ceiling, false);
 		}
 	}
 

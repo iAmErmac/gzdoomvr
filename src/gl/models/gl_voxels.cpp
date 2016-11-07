@@ -248,6 +248,7 @@ void FVoxelModel::AddFace(int x1, int y1, int z1, int x2, int y2, int z2, int x3
 	FModelVertex vert;
 	unsigned int indx[4];
 
+	vert.packedNormal = 0;	// currently this is not being used for voxels.
 	vert.u = (((col & 15) * 255 / 16) + 7) / 255.f;
 	vert.v = (((col / 16) * 255 / 16) + 7) / 255.f;
 
@@ -271,12 +272,13 @@ void FVoxelModel::AddFace(int x1, int y1, int z1, int x2, int y2, int z2, int x3
 	vert.y = -z3 + PivotZ;
 	indx[3] = AddVertex(vert, check);
 
+
 	mIndices.Push(indx[0]);
 	mIndices.Push(indx[1]);
 	mIndices.Push(indx[3]);
 	mIndices.Push(indx[1]);
-	mIndices.Push(indx[3]);
 	mIndices.Push(indx[2]);
+	mIndices.Push(indx[3]);
 }
 
 //===========================================================================
@@ -312,12 +314,12 @@ void FVoxelModel::MakeSlabPolys(int x, int y, kvxslab_t *voxptr, FVoxelMap &chec
 		}
 		if (cull & 4)
 		{
-			AddFace(x, y, z, x+1, y, z, x, y, z+c, x+1, y, z+c, *col, check);
+			AddFace(x+1, y, z, x, y, z, x+1, y, z+c, x, y, z+c, *col, check);
 		}
 		if (cull & 8)
 		{
-			AddFace(x+1, y+1, z, x, y+1, z, x+1, y+1, z+c, x, y+1, z+c, *col, check);
-		}
+			AddFace(x, y+1, z, x+1, y+1, z, x, y+1, z+c, x+1, y+1, z+c, *col, check);
+		}	
 		z+=c;
 		col+=c;
 	}

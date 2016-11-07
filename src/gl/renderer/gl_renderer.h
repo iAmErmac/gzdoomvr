@@ -21,11 +21,19 @@ class DPSprite;
 class FGLRenderBuffers;
 class FBloomExtractShader;
 class FBloomCombineShader;
+class FExposureExtractShader;
+class FExposureAverageShader;
+class FExposureCombineShader;
 class FBlurShader;
 class FTonemapShader;
 class FColormapShader;
 class FLensShader;
+class FFXAALumaShader;
+class FFXAAShader;
 class FPresentShader;
+class FPresent3DCheckerShader;
+class FPresent3DColumnShader; 
+class FPresent3DRowShader;
 class F2DDrawer;
 class FHardwareTexture;
 
@@ -92,12 +100,20 @@ public:
 	FGLRenderBuffers *mBuffers;
 	FBloomExtractShader *mBloomExtractShader;
 	FBloomCombineShader *mBloomCombineShader;
+	FExposureExtractShader *mExposureExtractShader;
+	FExposureAverageShader *mExposureAverageShader;
+	FExposureCombineShader *mExposureCombineShader;
 	FBlurShader *mBlurShader;
 	FTonemapShader *mTonemapShader;
 	FColormapShader *mColormapShader;
 	FHardwareTexture *mTonemapPalette;
 	FLensShader *mLensShader;
+	FFXAALumaShader *mFXAALumaShader;
+	FFXAAShader *mFXAAShader;
 	FPresentShader *mPresentShader;
+	FPresent3DCheckerShader *mPresent3dCheckerShader;
+	FPresent3DColumnShader *mPresent3dColumnShader;
+	FPresent3DRowShader *mPresent3dRowShader;
 
 	FTexture *gllight;
 	FTexture *glpart2;
@@ -118,7 +134,6 @@ public:
 	GL_IRECT mSceneViewport;
 	GL_IRECT mOutputLetterbox;
 	bool mDrawingScene2D = false;
-	float mCameraExposure = 1.0f;
 
 	float mSceneClearColor[3];
 
@@ -164,14 +179,16 @@ public:
 
 	void RenderScreenQuad();
 	void SetFixedColormap (player_t *player);
-	void WriteSavePic (player_t *player, FILE *file, int width, int height);
+	void WriteSavePic (player_t *player, FileWriter *file, int width, int height);
 	void EndDrawScene(sector_t * viewsector);
+	void UpdateCameraExposure();
 	void BloomScene();
 	void TonemapScene();
 	void ColormapScene();
 	void BindTonemapPalette(int texunit);
 	void ClearTonemapPalette();
 	void LensDistortScene();
+	void ApplyFXAA();
 	void CopyToBackbuffer(const GL_IRECT *bounds, bool applyGamma);
 	void DrawPresentTexture(const GL_IRECT &box, bool applyGamma);
 	void Flush();

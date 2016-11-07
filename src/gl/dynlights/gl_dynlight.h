@@ -32,7 +32,7 @@ EXTERN_CVAR(Bool, gl_lights)
 EXTERN_CVAR(Bool, gl_attachedlights)
 
 class ADynamicLight;
-class FArchive;
+class FSerializer;
 
 
 
@@ -50,6 +50,7 @@ enum
 #define MF4_SUBTRACTIVE MF4_MISSILEEVENMORE
 #define MF4_ADDITIVE MF4_MISSILEMORE
 #define MF4_DONTLIGHTSELF MF4_SEESDAGGERS
+#define MF4_ATTENUATE MF4_INCOMBAT
 
 enum ELightType
 {
@@ -93,7 +94,8 @@ class ADynamicLight : public AActor
 	DECLARE_CLASS (ADynamicLight, AActor)
 public:
 	virtual void Tick();
-	void Serialize(FArchive &arc);
+	void Serialize(FSerializer &arc);
+	void PostSerialize();
 	BYTE GetRed() const { return args[LIGHT_RED]; }
 	BYTE GetGreen() const { return args[LIGHT_GREEN]; }
 	BYTE GetBlue() const { return args[LIGHT_BLUE]; }

@@ -91,7 +91,7 @@ static const FLOP FxFlops[] =
 //
 //==========================================================================
 
-FCompileContext::FCompileContext(PClassActor *cls, PPrototype *ret) : Class(cls), ReturnProto(ret)
+FCompileContext::FCompileContext(PClassActor *cls, PPrototype *ret) : ReturnProto(ret), Class(cls)
 {
 }
 
@@ -959,7 +959,7 @@ ExpEmit FxUnaryNotBoolean::Emit(VMFunctionBuilder *build)
 //==========================================================================
 
 FxPreIncrDecr::FxPreIncrDecr(FxExpression *base, int token)
-: FxExpression(base->ScriptPosition), Base(base), Token(token)
+: FxExpression(base->ScriptPosition), Token(token), Base(base)
 {
 	AddressRequested = false;
 	AddressWritable = false;
@@ -1045,7 +1045,7 @@ ExpEmit FxPreIncrDecr::Emit(VMFunctionBuilder *build)
 //==========================================================================
 
 FxPostIncrDecr::FxPostIncrDecr(FxExpression *base, int token)
-: FxExpression(base->ScriptPosition), Base(base), Token(token)
+: FxExpression(base->ScriptPosition), Token(token), Base(base)
 {
 }
 
@@ -3373,6 +3373,19 @@ FxExpression *FxClassMember::Resolve(FCompileContext &ctx)
 
 ExpEmit FxClassMember::Emit(VMFunctionBuilder *build)
 {
+	if (build->IsActionFunc && ~membervar->Flags & VARF_Native)
+	{	// Check if this is a user-defined variable.
+		// As of right now, FxClassMember is only ever used with FxSelf.
+		// This very user variable was defined in stateowner so if
+		// self (a0) != stateowner (a1) then the offset is most likely
+		// going to end up being totally wrong even if the variable was
+		// redefined in self which means we have to abort to avoid reading
+		// or writing to a random address and possibly crash.
+		build->Emit(OP_EQA_R, 1, 0, 1);
+		build->Emit(OP_JMP, 1);
+		build->Emit(OP_THROW, 2, X_BAD_SELF);
+	}
+
 	ExpEmit obj = classx->Emit(build);
 	assert(obj.RegType == REGT_POINTER);
 
@@ -3935,15 +3948,16 @@ FxExpression *FxVMFunctionCall::Resolve(FCompileContext& ctx)
 
 //==========================================================================
 //
-// Assumption: This call is being made to generate code inside an action
-// method, so the first three address registers are all set up for such a
-// function. (self, stateowner, callingstate)
+// Assumption: This call is being generated inside a function whose a0
+// register is a self pointer. For action functions, a1 maps to stateowner
+// and a2 maps to callingstate. (self, stateowner, callingstate)
 //
 //==========================================================================
 
 ExpEmit FxVMFunctionCall::Emit(VMFunctionBuilder *build)
 {
-	assert(build->Registers[REGT_POINTER].GetMostUsed() >= 3);
+	assert((build->IsActionFunc && build->Registers[REGT_POINTER].GetMostUsed() >= NAP) ||
+		   (!build->IsActionFunc && build->Registers[REGT_POINTER].GetMostUsed() >= 1));
 	int count = (ArgList ? ArgList->Size() : 0);
 
 	if (count == 1)
@@ -3962,8 +3976,18 @@ ExpEmit FxVMFunctionCall::Emit(VMFunctionBuilder *build)
 	}
 	if (Function->Flags & VARF_Action)
 	{
-		build->Emit(OP_PARAM, 0, REGT_POINTER, 1);
-		build->Emit(OP_PARAM, 0, REGT_POINTER, 2);
+		static_assert(NAP == 3, "This code needs to be updated if NAP changes");
+		if (build->IsActionFunc)
+		{
+			build->Emit(OP_PARAM, 0, REGT_POINTER, 1);
+			build->Emit(OP_PARAM, 0, REGT_POINTER, 2);
+		}
+		else
+		{
+			int null = build->GetConstantAddress(nullptr, ATAG_GENERIC);
+			build->Emit(OP_PARAM, 0, REGT_POINTER | REGT_KONST, null);
+			build->Emit(OP_PARAM, 0, REGT_POINTER | REGT_KONST, null);
+		}
 		count += 2;
 	}
 	// Emit code to pass explicit parameters
@@ -4932,6 +4956,25 @@ FxExpression *FxRuntimeStateIndex::Resolve(FCompileContext &ctx)
 	return this;
 }
 
+static bool VerifyJumpTarget(AActor *stateowner, FStateParamInfo *stateinfo, int index)
+{
+	PClassActor *cls = stateowner->GetClass();
+
+	while (cls != RUNTIME_CLASS(AActor))
+	{
+		// both calling and target state need to belong to the same class.
+		if (cls->OwnsState(stateinfo->mCallingState))
+		{
+			return cls->OwnsState(stateinfo->mCallingState + index);
+		}
+
+		// We can safely assume the ParentClass is of type PClassActor
+		// since we stop when we see the Actor base class.
+		cls = static_cast<PClassActor *>(cls->ParentClass);
+	}
+	return false;
+}
+
 static int DecoHandleRuntimeState(VMFrameStack *stack, VMValue *param, int numparam, VMReturn *ret, int numret)
 {
 	PARAM_PROLOGUE;
@@ -4939,7 +4982,7 @@ static int DecoHandleRuntimeState(VMFrameStack *stack, VMValue *param, int numpa
 	PARAM_POINTER(stateinfo, FStateParamInfo);
 	PARAM_INT(index);
 
-	if (index == 0 || !stateowner->GetClass()->OwnsState(stateinfo->mCallingState + index))
+	if (index == 0 || !VerifyJumpTarget(stateowner, stateinfo, index))
 	{
 		// Null is returned if the location was invalid which means that no jump will be performed
 		// if used as return value
@@ -4954,7 +4997,8 @@ static int DecoHandleRuntimeState(VMFrameStack *stack, VMValue *param, int numpa
 
 ExpEmit FxRuntimeStateIndex::Emit(VMFunctionBuilder *build)
 {
-	assert(build->Registers[REGT_POINTER].GetMostUsed() >= 3);
+	assert(build->IsActionFunc && build->Registers[REGT_POINTER].GetMostUsed() >= 3 &&
+		"FxRuntimeStateIndex is only valid inside action functions");
 
 	ExpEmit out(build, REGT_POINTER);
 
@@ -5126,7 +5170,14 @@ int DecoFindSingleNameState(VMFrameStack *stack, VMValue *param, int numparam, V
 ExpEmit FxMultiNameState::Emit(VMFunctionBuilder *build)
 {
 	ExpEmit dest(build, REGT_POINTER);
-	build->Emit(OP_PARAM, 0, REGT_POINTER, 1);		// pass stateowner
+	if (build->IsActionFunc)
+	{
+		build->Emit(OP_PARAM, 0, REGT_POINTER, 1);		// pass stateowner
+	}
+	else
+	{
+		build->Emit(OP_PARAM, 0, REGT_POINTER, 0);		// pass self
+	}
 	for (unsigned i = 0; i < names.Size(); ++i)
 	{
 		build->EmitParamInt(names[i]);

@@ -43,6 +43,7 @@
 #include "a_hexenglobal.h"
 #include "p_local.h"
 #include "gl/gl_functions.h"
+#include "serializer.h"
 
 #include "gl/dynlights/gl_lightbuffer.h"
 #include "gl/system/gl_interface.h"
@@ -622,6 +623,7 @@ void FGLRenderer::DrawBlend(sector_t * viewsector)
 		V_AddBlend (player->BlendR, player->BlendG, player->BlendB, player->BlendA, blend);
 	}
 
+	gl_RenderState.SetTextureMode(TM_MODULATE);
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	if (blend[3]>0.0f)
 	{
@@ -791,20 +793,6 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		mViewActor=camera;
 	}
 
-	if (toscreen)
-	{
-		if (gl_exposure == 0.0f)
-		{
-			float light = viewsector->lightlevel / 255.0f;
-			float exposure = MAX(1.0f + (1.0f - light * light) * 0.9f, 0.5f);
-			mCameraExposure = mCameraExposure * 0.995f + exposure * 0.005f;
-		}
-		else
-		{
-			mCameraExposure = gl_exposure;
-		}
-	}
-
 	// 'viewsector' will not survive the rendering so it cannot be used anymore below.
 	lviewsector = viewsector;
 
@@ -839,10 +827,12 @@ sector_t * FGLRenderer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, flo
 		if (mainview && FGLRenderBuffers::IsEnabled())
 		{
 			mBuffers->BlitSceneToTexture();
+			UpdateCameraExposure();
 			BloomScene();
 			TonemapScene();
 			ColormapScene();
 			LensDistortScene();
+			ApplyFXAA();
 
 			// This should be done after postprocessing, not before.
 			mBuffers->BindCurrentFB();
@@ -933,7 +923,7 @@ void FGLRenderer::RenderView (player_t* player)
 //
 //===========================================================================
 
-void FGLRenderer::WriteSavePic (player_t *player, FILE *file, int width, int height)
+void FGLRenderer::WriteSavePic (player_t *player, FileWriter *file, int width, int height)
 {
 	GL_IRECT bounds;
 
@@ -979,25 +969,25 @@ void FGLRenderer::WriteSavePic (player_t *player, FILE *file, int width, int hei
 
 struct FGLInterface : public FRenderer
 {
-	bool UsesColormap() const;
+	bool UsesColormap() const override;
 	void PrecacheTexture(FTexture *tex, int cache);
 	void PrecacheSprite(FTexture *tex, SpriteHits &hits);
-	void Precache(BYTE *texhitlist, TMap<PClassActor*, bool> &actorhitlist);
-	void RenderView(player_t *player);
-	void WriteSavePic (player_t *player, FILE *file, int width, int height);
-	void StateChanged(AActor *actor);
-	void StartSerialize(FArchive &arc);
-	void EndSerialize(FArchive &arc);
-	void RenderTextureView (FCanvasTexture *self, AActor *viewpoint, int fov);
-	sector_t *FakeFlat(sector_t *sec, sector_t *tempsec, int *floorlightlevel, int *ceilinglightlevel, bool back);
-	void SetFogParams(int _fogdensity, PalEntry _outsidefogcolor, int _outsidefogdensity, int _skyfog);
-	void PreprocessLevel();
-	void CleanLevelData();
-	bool RequireGLNodes();
+	void Precache(BYTE *texhitlist, TMap<PClassActor*, bool> &actorhitlist) override;
+	void RenderView(player_t *player) override;
+	void WriteSavePic (player_t *player, FileWriter *file, int width, int height) override;
+	void StateChanged(AActor *actor) override;
+	void StartSerialize(FSerializer &arc) override;
+	void EndSerialize(FSerializer &arc) override;
+	void RenderTextureView (FCanvasTexture *self, AActor *viewpoint, int fov) override;
+	sector_t *FakeFlat(sector_t *sec, sector_t *tempsec, int *floorlightlevel, int *ceilinglightlevel, bool back) override;
+	void SetFogParams(int _fogdensity, PalEntry _outsidefogcolor, int _outsidefogdensity, int _skyfog) override;
+	void PreprocessLevel() override;
+	void CleanLevelData() override;
+	bool RequireGLNodes() override;
 
-	int GetMaxViewPitch(bool down);
-	void ClearBuffer(int color);
-	void Init();
+	int GetMaxViewPitch(bool down) override;
+	void ClearBuffer(int color) override;
+	void Init() override;
 };
 
 //===========================================================================
@@ -1207,20 +1197,24 @@ void FGLInterface::StateChanged(AActor *actor)
 //
 //===========================================================================
 
-void FGLInterface::StartSerialize(FArchive &arc)
+void FGLInterface::StartSerialize(FSerializer &arc)
 {
-	gl_DeleteAllAttachedLights();
+	if (arc.BeginObject("glinfo"))
+	{
+		arc("fogdensity", fogdensity)
+			("outsidefogdensity", outsidefogdensity)
+			("skyfog", skyfog)
+			.EndObject();
+	}
 }
 
-void gl_SerializeGlobals(FArchive &arc)
+void FGLInterface::EndSerialize(FSerializer &arc)
 {
-	arc << fogdensity << outsidefogdensity << skyfog;
-}
-
-void FGLInterface::EndSerialize(FArchive &arc)
-{
-	gl_RecreateAllAttachedLights();
-	if (arc.IsLoading()) gl_InitPortals();
+	if (arc.isReading())
+	{
+		gl_RecreateAllAttachedLights();
+		gl_InitPortals();
+	}
 }
 
 //===========================================================================
@@ -1256,7 +1250,7 @@ void FGLInterface::ClearBuffer(int color)
 //
 //===========================================================================
 
-void FGLInterface::WriteSavePic (player_t *player, FILE *file, int width, int height)
+void FGLInterface::WriteSavePic (player_t *player, FileWriter *file, int width, int height)
 {
 	GLRenderer->WriteSavePic(player, file, width, height);
 }

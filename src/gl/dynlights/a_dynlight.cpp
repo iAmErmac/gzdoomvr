@@ -69,6 +69,7 @@
 #include "r_utility.h"
 #include "portal.h"
 #include "doomstat.h"
+#include "serializer.h"
 
 
 #include "gl/renderer/gl_renderer.h"
@@ -154,23 +155,30 @@ static FRandom randLight;
 //
 //
 //==========================================================================
-void ADynamicLight::Serialize(FArchive &arc)
+void ADynamicLight::Serialize(FSerializer &arc)
 {
 	Super::Serialize (arc);
-	arc << lightflags << lighttype;
-	arc << m_tickCount << m_currentRadius;
-	arc << m_Radius[0] << m_Radius[1];
+	auto def = static_cast<ADynamicLight*>(GetDefault());
+	arc("lightflags", lightflags, def->lightflags)
+		("lighttype", lighttype, def->lighttype)
+		("tickcount", m_tickCount, def->m_tickCount)
+		("currentradius", m_currentRadius, def->m_currentRadius)
+		.Array("lightradius", m_Radius, def->m_Radius, 2);
 
-	if (lighttype == PulseLight) arc << m_lastUpdate << m_cycler;
-	if (arc.IsLoading())
-	{
-		// The default constructor which is used for creating objects before deserialization will not set this variable.
-		// It needs to be true for all placed lights.
-		visibletoplayer = true;
-		LinkLight();
-	}
+	if (lighttype == PulseLight)
+		arc("lastupdate", m_lastUpdate, def->m_lastUpdate)
+			("cycler", m_cycler, def->m_cycler);
 }
 
+
+void ADynamicLight::PostSerialize()
+{
+	Super::PostSerialize();
+	// The default constructor which is used for creating objects before deserialization will not set this variable.
+	// It needs to be true for all placed lights.
+	visibletoplayer = true;
+	LinkLight();
+}
 
 //==========================================================================
 //
@@ -383,6 +391,16 @@ void ADynamicLight::UpdateLocation()
 			Prev = target->Pos();
 			subsector = R_PointInSubsector(Prev);
 			Sector = subsector->sector;
+
+			// Some z-coordinate fudging to prevent the light from getting too close to the floor or ceiling planes. With proper attenuation this would render them invisible.
+			// A distance of 5 is needed so that the light's effect doesn't become too small.
+			if (Z() < target->floorz + 5.) 	SetZ(target->floorz + 5.);
+			else if (Z() > target->ceilingz - 5.) 	SetZ(target->ceilingz - 5.);
+		}
+		else
+		{
+			if (Z() < floorz + 5.) 	SetZ(floorz + 5.);
+			else if (Z() > ceilingz - 5.) 	SetZ(ceilingz - 5.);
 		}
 
 
