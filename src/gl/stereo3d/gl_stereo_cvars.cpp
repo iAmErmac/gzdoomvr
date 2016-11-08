@@ -120,8 +120,6 @@ const Stereo3DMode& Stereo3DMode::getCurrentMode()
 		setCurrentMode(CheckerInterleaved3D::getInstance(vr_ipd));
 		break;
 	case 0:
-		break;
-	case 0:
 	default:
 		setCurrentMode(MonoView::getInstance());
 		break;
