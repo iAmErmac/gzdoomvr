@@ -91,7 +91,7 @@
 
 // TYPES -------------------------------------------------------------------
 
-IMPLEMENT_CLASS(D3DFB)
+IMPLEMENT_CLASS(D3DFB, false, false)
 
 struct D3DFB::PackedTexture
 {
@@ -1375,17 +1375,16 @@ void D3DFB::Draw3DPart(bool copy3d)
 		D3DCOLOR color0, color1;
 		if (Accel2D)
 		{
-			if (realfixedcolormap == NULL)
+			auto &map = swrenderer::realfixedcolormap;
+			if (map == NULL)
 			{
 				color0 = 0;
 				color1 = 0xFFFFFFF;
 			}
 			else
 			{
-				color0 = D3DCOLOR_COLORVALUE(realfixedcolormap->ColorizeStart[0]/2,
-					realfixedcolormap->ColorizeStart[1]/2, realfixedcolormap->ColorizeStart[2]/2, 0);
-				color1 = D3DCOLOR_COLORVALUE(realfixedcolormap->ColorizeEnd[0]/2,
-					realfixedcolormap->ColorizeEnd[1]/2, realfixedcolormap->ColorizeEnd[2]/2, 1);
+				color0 = D3DCOLOR_COLORVALUE(map->ColorizeStart[0] / 2, map->ColorizeStart[1] / 2, map->ColorizeStart[2] / 2, 0);
+				color1 = D3DCOLOR_COLORVALUE(map->ColorizeEnd[0] / 2, map->ColorizeEnd[1] / 2, map->ColorizeEnd[2] / 2, 1);
 				SetPixelShader(Shaders[SHADER_SpecialColormapPal]);
 			}
 		}
@@ -3084,11 +3083,16 @@ void D3DFB::FlatFill(int left, int top, int right, int bottom, FTexture *src, bo
 //
 // Here, "simple" means that a simple triangle fan can draw it.
 //
+// Bottomclip is ignored by this implementation, since the hardware renderer
+// will unconditionally draw the status bar border every frame on top of the
+// polygons, so there's no need to waste time setting up a special scissor
+// rectangle here and needlessly forcing separate batches.
+//
 //==========================================================================
 
 void D3DFB::FillSimplePoly(FTexture *texture, FVector2 *points, int npoints,
 	double originx, double originy, double scalex, double scaley,
-	DAngle rotation, FDynamicColormap *colormap, int lightlevel)
+	DAngle rotation, FDynamicColormap *colormap, int lightlevel, int bottomclip)
 {
 	// Use an equation similar to player sprites to determine shade
 	double fadelevel = clamp((LIGHT2SHADE(lightlevel)/65536. - 12) / NUMCOLORMAPS, 0.0, 1.0);
@@ -3109,7 +3113,7 @@ void D3DFB::FillSimplePoly(FTexture *texture, FVector2 *points, int npoints,
 	}
 	if (In2D < 2)
 	{
-		Super::FillSimplePoly(texture, points, npoints, originx, originy, scalex, scaley, rotation, colormap, lightlevel);
+		Super::FillSimplePoly(texture, points, npoints, originx, originy, scalex, scaley, rotation, colormap, lightlevel, bottomclip);
 		return;
 	}
 	if (!InScene)

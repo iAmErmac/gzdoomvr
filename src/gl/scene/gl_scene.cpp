@@ -40,7 +40,6 @@
 #include "sbar.h"
 #include "po_man.h"
 #include "r_utility.h"
-#include "a_hexenglobal.h"
 #include "p_local.h"
 #include "gl/gl_functions.h"
 #include "serializer.h"
@@ -82,6 +81,7 @@ CVAR(Bool, gl_sort_textures, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 EXTERN_CVAR (Bool, cl_capfps)
 EXTERN_CVAR (Bool, r_deathcamera)
+EXTERN_CVAR (Float, underwater_fade_scalar)
 
 
 extern int viewpitch;
@@ -602,7 +602,11 @@ void FGLRenderer::DrawBlend(sector_t * viewsector)
 		}
 		else if (blendv.a)
 		{
-			V_AddBlend(blendv.r / 255.f, blendv.g / 255.f, blendv.b / 255.f, blendv.a / 255.0f, blend);
+			// [Nash] allow user to set blend intensity
+			int cnt = blendv.a;
+			cnt = (int)(cnt * underwater_fade_scalar);
+
+			V_AddBlend(blendv.r / 255.f, blendv.g / 255.f, blendv.b / 255.f, cnt / 255.0f, blend);
 		}
 	}
 

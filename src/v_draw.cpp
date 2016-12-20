@@ -132,6 +132,9 @@ void DCanvas::DrawTexture (FTexture *img, double x, double y, int tags_first, ..
 void DCanvas::DrawTextureParms(FTexture *img, DrawParms &parms)
 {
 #ifndef NO_SWRENDER
+	using namespace swrenderer;
+	using namespace drawerargs;
+
 	FTexture::Span unmaskedSpan[2];
 	const FTexture::Span **spanptr, *spans;
 	static short bottomclipper[MAXWIDTH], topclipper[MAXWIDTH];
@@ -232,13 +235,13 @@ void DCanvas::DrawTextureParms(FTexture *img, DrawParms &parms)
 
 		if (bottomclipper[0] != parms.dclip)
 		{
-			clearbufshort(bottomclipper, screen->GetWidth(), (short)parms.dclip);
+			fillshort(bottomclipper, screen->GetWidth(), (short)parms.dclip);
 		}
 		if (parms.uclip != 0)
 		{
 			if (topclipper[0] != parms.uclip)
 			{
-				clearbufshort(topclipper, screen->GetWidth(), (short)parms.uclip);
+				fillshort(topclipper, screen->GetWidth(), (short)parms.uclip);
 			}
 			mceilingclip = topclipper;
 		}
@@ -1282,9 +1285,12 @@ void DCanvas::FinishSimplePolys()
 
 void DCanvas::FillSimplePoly(FTexture *tex, FVector2 *points, int npoints,
 	double originx, double originy, double scalex, double scaley, DAngle rotation,
-	FDynamicColormap *colormap, int lightlevel)
+	FDynamicColormap *colormap, int lightlevel, int bottomclip)
 {
 #ifndef NO_SWRENDER
+	using namespace swrenderer;
+	using namespace drawerargs;
+
 	// Use an equation similar to player sprites to determine shade
 	fixed_t shade = LIGHT2SHADE(lightlevel) - 12*FRACUNIT;
 	float topy, boty, leftx, rightx;
@@ -1298,6 +1304,11 @@ void DCanvas::FillSimplePoly(FTexture *tex, FVector2 *points, int npoints,
 	if (--npoints < 2 || Buffer == NULL)
 	{ // not a polygon or we're not locked
 		return;
+	}
+
+	if (bottomclip <= 0)
+	{
+		bottomclip = Height;
 	}
 
 	// Find the extents of the polygon, in particular the highest and lowest points.
@@ -1322,7 +1333,7 @@ void DCanvas::FillSimplePoly(FTexture *tex, FVector2 *points, int npoints,
 			rightx = points[i].X;
 		}
 	}
-	if (topy >= Height ||		// off the bottom of the screen
+	if (topy >= bottomclip ||	// off the bottom of the screen
 		boty <= 0 ||			// off the top of the screen
 		leftx >= Width ||		// off the right of the screen
 		rightx <= 0)			// off the left of the screen
@@ -1347,11 +1358,27 @@ void DCanvas::FillSimplePoly(FTexture *tex, FVector2 *points, int npoints,
 	// Setup constant texture mapping parameters.
 	R_SetupSpanBits(tex);
 	R_SetSpanColormap(colormap != NULL ? &colormap->Maps[clamp(shade >> FRACBITS, 0, NUMCOLORMAPS-1) * 256] : identitymap);
-	R_SetSpanSource(tex->GetPixels());
-	scalex = double(1u << (32 - ds_xbits)) / scalex;
-	scaley = double(1u << (32 - ds_ybits)) / scaley;
-	ds_xstep = xs_RoundToInt(cosrot * scalex);
-	ds_ystep = xs_RoundToInt(sinrot * scaley);
+	R_SetSpanSource(tex);
+	if (ds_xbits != 0)
+	{
+		scalex = double(1u << (32 - ds_xbits)) / scalex;
+		ds_xstep = xs_RoundToInt(cosrot * scalex);
+	}
+	else
+	{ // Texture is one pixel wide.
+		scalex = 0;
+		ds_xstep = 0;
+	}
+	if (ds_ybits != 0)
+	{
+		scaley = double(1u << (32 - ds_ybits)) / scaley;
+		ds_ystep = xs_RoundToInt(sinrot * scaley);
+	}
+	else
+	{ // Texture is one pixel tall.
+		scaley = 0;
+		ds_ystep = 0;
+	}
 
 	// Travel down the right edge and create an outline of that edge.
 	pt1 = toppt;
@@ -1361,13 +1388,13 @@ void DCanvas::FillSimplePoly(FTexture *tex, FVector2 *points, int npoints,
 	{
 		x = FLOAT2FIXED(points[pt1].X + 0.5f);
 		y2 = xs_RoundToInt(points[pt2].Y + 0.5f);
-		if (y1 >= y2 || (y1 < 0 && y2 < 0) || (y1 >= Height && y2 >= Height))
+		if (y1 >= y2 || (y1 < 0 && y2 < 0) || (y1 >= bottomclip && y2 >= bottomclip))
 		{
 		}
 		else
 		{
 			fixed_t xinc = FLOAT2FIXED((points[pt2].X - points[pt1].X) / (points[pt2].Y - points[pt1].Y));
-			int y3 = MIN(y2, Height);
+			int y3 = MIN(y2, bottomclip);
 			if (y1 < 0)
 			{
 				x += xinc * -y1;
@@ -1392,13 +1419,13 @@ void DCanvas::FillSimplePoly(FTexture *tex, FVector2 *points, int npoints,
 	{
 		x = FLOAT2FIXED(points[pt1].X + 0.5f);
 		y2 = xs_RoundToInt(points[pt2].Y + 0.5f);
-		if (y1 >= y2 || (y1 < 0 && y2 < 0) || (y1 >= Height && y2 >= Height))
+		if (y1 >= y2 || (y1 < 0 && y2 < 0) || (y1 >= bottomclip && y2 >= bottomclip))
 		{
 		}
 		else
 		{
 			fixed_t xinc = FLOAT2FIXED((points[pt2].X - points[pt1].X) / (points[pt2].Y - points[pt1].Y));
-			int y3 = MIN(y2, Height);
+			int y3 = MIN(y2, bottomclip);
 			if (y1 < 0)
 			{
 				x += xinc * -y1;

@@ -1098,7 +1098,7 @@ void FMultiPatchTexture::ParsePatch(FScanner &sc, TexPart & part, TexInit &init)
 				if (!sc.CheckNumber())
 				{
 					sc.MustGetString();
-					part.Blend = V_GetColor(NULL, sc.String);
+					part.Blend = V_GetColor(NULL, sc);
 				}
 				else
 				{
@@ -1335,6 +1335,7 @@ void FMultiPatchTexture::ResolvePatches()
 				{
 					if (Inits[i].HasLine) Inits[i].sc.Message(MSG_WARNING, "Texture '%s' references itself as patch\n", Inits[i].TexName.GetChars());
 					else Printf(TEXTCOLOR_YELLOW  "Texture '%s' references itself as patch\n", Inits[i].TexName.GetChars());
+					continue;
 				}
 				else
 				{

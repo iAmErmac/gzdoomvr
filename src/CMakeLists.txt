@@ -15,12 +15,6 @@ include( CheckLibraryExists )
 include( FindPkgConfig )
 include( FindOpenGL )
 
-if( NOT APPLE )
-	option( NO_ASM "Disable assembly code" OFF )
-else()
-	# At the moment asm code doesn't work with OS X, so disable by default
-	option( NO_ASM "Disable assembly code" ON )
-endif()
 if( ZD_CMAKE_COMPILER_IS_GNUCXX_COMPATIBLE )
 	option( NO_STRIP "Do not strip Release or MinSizeRel builds" )
 	# At least some versions of Xcode fail if you strip with the linker
@@ -115,7 +109,6 @@ if( WIN32 )
 		)
 	set( FMOD_INC_PATH_SUFFIXES PATH_SUFFIXES inc )
 	set( FMOD_LIB_PATH_SUFFIXES PATH_SUFFIXES lib )
-	set( NASM_NAMES nasmw nasm )
 	
 	find_path( D3D_INCLUDE_DIR d3d9.h
 		PATHS ENV DXSDK_DIR
@@ -179,8 +172,12 @@ if( WIN32 )
 		comdlg32
 		ws2_32
 		setupapi
-		oleaut32 
-		DelayImp )
+		oleaut32 )
+
+	if( NOT ZD_CMAKE_COMPILER_IS_GNUCXX_COMPATIBLE )
+		set( ZDOOM_LIBS ${ZDOOM_LIBS} DelayImp )
+	endif()
+
 	if( DX_dxguid_LIBRARY )
 		list( APPEND ZDOOM_LIBS "${DX_dxguid_LIBRARY}" )
 	endif()
@@ -190,6 +187,7 @@ else()
 		set( FMOD_INC_PATH_SUFFIXES PATH_SUFFIXES inc )
 		set( FMOD_LIB_PATH_SUFFIXES PATH_SUFFIXES lib )
 		set( NO_GTK ON )
+		set( DYN_GTK OFF )
 
 		# Prevent inclusion of fp.h and FixMath.h from Carbon framework
 		# Declarations from these files are not used but cause the following conflicts:
@@ -198,7 +196,7 @@ else()
 		add_definitions( -D__FP__ -D__FIXMATH__ )
 	else()
 		option( NO_GTK "Disable GTK+ dialogs (Not applicable to Windows)" )
-		option( VALGRIND "Add special Valgrind sequences to self-modifying code" )
+		option( DYN_GTK "Load GTK+ at runtime instead of compile time" ON )
 
 		set( FMOD_SEARCH_PATHS
 			/usr/local/include
@@ -213,22 +211,36 @@ else()
 
 		# Use GTK+ for the IWAD picker, if available.
 		if( NOT NO_GTK )
-			pkg_check_modules( GTK2 gtk+-2.0 )
-			if( GTK2_FOUND )
-				set( ZDOOM_LIBS ${ZDOOM_LIBS} ${GTK2_LIBRARIES} )
-				include_directories( ${GTK2_INCLUDE_DIRS} )
-				link_directories( ${GTK2_LIBRARY_DIRS} )
+			pkg_check_modules( GTK3 gtk+-3.0 )
+			if( GTK3_FOUND )
+				if( NOT DYN_GTK )
+					set( ZDOOM_LIBS ${ZDOOM_LIBS} ${GTK3_LIBRARIES} )
+				endif()
+				include_directories( ${GTK3_INCLUDE_DIRS} )
+				link_directories( ${GTK3_LIBRARY_DIRS} )
 			else()
-				set( NO_GTK ON )
+				pkg_check_modules( GTK2 gtk+-2.0 )
+				if( GTK2_FOUND )
+					if( NOT DYN_GTK )
+						set( ZDOOM_LIBS ${ZDOOM_LIBS} ${GTK2_LIBRARIES} )
+					endif()
+					include_directories( ${GTK2_INCLUDE_DIRS} )
+					link_directories( ${GTK2_LIBRARY_DIRS} )
+				else()
+					set( NO_GTK ON )
+				endif()
 			endif()
 		endif()
 	endif()
-	set( NASM_NAMES nasm )
 	
 	if( NO_GTK )
-		add_definitions( -DNO_GTK=1 )
+		add_definitions( -DNO_GTK )
+	elseif( DYN_GTK )
+		add_definitions( -DDYN_GTK=1 )
+	else()
+		add_definitions( -DDYN_GTK=0 )
 	endif()
-	
+
 	# Non-Windows version also needs SDL except native OS X backend
 	if( NOT APPLE OR NOT OSX_COCOA_BACKEND )
 		find_package( SDL2 REQUIRED )
@@ -291,6 +303,19 @@ if( NOT NO_FMOD )
 		
 		if( EXISTS "${FMOD_INCLUDE_DIR}/fmod_common.h" )
 			set( FMOD_STUDIO YES )
+			set( FMOD_VERSION_FILE "fmod_common.h" )
+		else()
+			set( FMOD_STUDIO NO )
+			set( FMOD_VERSION_FILE "fmod.h" )
+		endif()
+
+		file( STRINGS "${FMOD_INCLUDE_DIR}/${FMOD_VERSION_FILE}" FMOD_VERSION_LINE REGEX "^#define[ \t]+FMOD_VERSION[ \t]+0x[0-9]+$" )
+		string( REGEX REPLACE "^#define[ \t]+FMOD_VERSION[ \t]+0x([0-9][0-9][0-9][0-9])([0-9][0-9])([0-9][0-9])$" "\\1.\\2.\\3" FMOD_VERSION "${FMOD_VERSION_LINE}" )
+		message( STATUS "FMOD version: ${FMOD_VERSION}" )
+
+		# FMOD Ex didn't hide xiph symbols in the past (not applicable to Win32 since symbols are hidden by default there).
+		if( NOT WIN32 AND NOT FMOD_STUDIO AND NOT NO_OPENAL AND "${FMOD_VERSION}" VERSION_LESS "4.36.00")
+			message( SEND_ERROR "Use of FMOD Ex ${FMOD_VERSION} with OpenAL will result in crashes. Either update FMOD to 4.36 or later or set NO_OPENAL." )
 		endif()
 	else()
 		message( STATUS "Could not find FMOD include files" )
@@ -353,105 +378,6 @@ endif()
 # Search for FluidSynth
 
 find_package( FluidSynth )
-
-# Search for NASM
-
-if( NOT NO_ASM )
-	if( UNIX AND X64 )
-		find_program( GAS_PATH as )
-		
-		if( GAS_PATH )
-			set( ASSEMBLER ${GAS_PATH} )
-		else()
-			message( STATUS "Could not find as. Disabling assembly code." )
-			set( NO_ASM ON )
-		endif()
-	else()
-		find_program( NASM_PATH NAMES ${NASM_NAMES} )
-		find_program( YASM_PATH yasm )
-
-		if( X64 )
-			if( YASM_PATH )
-				set( ASSEMBLER ${YASM_PATH} )
-			else()
-				message( STATUS "Could not find YASM. Disabling assembly code." )
-				set( NO_ASM ON )
-			endif()
-		else()
-			if( NASM_PATH )
-				set( ASSEMBLER ${NASM_PATH} )
-			else()
-				message( STATUS "Could not find NASM. Disabling assembly code." )
-				set( NO_ASM ON )
-			endif()
-		endif()
-	endif()
-
-	# I think the only reason there was a version requirement was because the
-	# executable name for Windows changed from 0.x to 2.0, right? This is
-	# how to do it in case I need to do something similar later.
-	
-	#	execute_process( COMMAND ${NASM_PATH} -v
-	#		OUTPUT_VARIABLE NASM_VER_STRING )
-	#	string( REGEX REPLACE ".*version ([0-9]+[.][0-9]+).*" "\\1" NASM_VER "${NASM_VER_STRING}" )
-	#	if( NOT NASM_VER LESS 2 )
-	#		message( SEND_ERROR "NASM version should be 2 or later. (Installed version is ${NASM_VER}.)" )
-	#	endif()
-endif()
-
-if( NOT NO_ASM )
-	# Valgrind support is meaningless without assembly code.
-	if( VALGRIND )
-		add_definitions( -DVALGRIND_AWARE=1 )
-		# If you're Valgrinding, you probably want to keep symbols around.
-		set( NO_STRIP ON )
-	endif()
-
-	# Tell CMake how to assemble our files
-	if( UNIX )
-		set( ASM_OUTPUT_EXTENSION .o )
-		if( X64 )
-			set( ASM_FLAGS )
-			set( ASM_SOURCE_EXTENSION .s )
-		else()
-			if( APPLE )
-				set( ASM_FLAGS -fmacho -DM_TARGET_MACHO )
-			else()
-				set( ASM_FLAGS -felf -DM_TARGET_LINUX )
-			endif()
-			set( ASM_FLAGS "${ASM_FLAGS}" -i${CMAKE_CURRENT_SOURCE_DIR}/ )
-			set( ASM_SOURCE_EXTENSION .asm )
-		endif()
-	else()
-		set( ASM_OUTPUT_EXTENSION .obj )
-		set( ASM_SOURCE_EXTENSION .asm )
-		if( X64 )
-			set( ASM_FLAGS -f win64 -DWIN32 -DWIN64 )
-		else()
-			set( ASM_FLAGS -f win32 -DWIN32 -i${CMAKE_CURRENT_SOURCE_DIR}/ )
-		endif()
-	endif()
-	if( WIN32 AND NOT X64 )
-		set( FIXRTEXT fixrtext )
-	else()
-		set( FIXRTEXT "" )
-	endif()
-	message( STATUS "Selected assembler: ${ASSEMBLER}" )
-	MACRO( ADD_ASM_FILE indir infile )
-		set( ASM_OUTPUT_${infile} "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/zdoom.dir/${indir}/${infile}${ASM_OUTPUT_EXTENSION}" )
-		if( WIN32 AND NOT X64 )
-			set( FIXRTEXT_${infile} COMMAND ${FIXRTEXT} "${ASM_OUTPUT_${infile}}" )
-		else()
-			set( FIXRTEXT_${infile} COMMAND "" )
-		endif()
-		add_custom_command( OUTPUT ${ASM_OUTPUT_${infile}}
-			COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/zdoom.dir/${indir}
-			COMMAND ${ASSEMBLER} ${ASM_FLAGS} -o"${ASM_OUTPUT_${infile}}" "${CMAKE_CURRENT_SOURCE_DIR}/${indir}/${infile}${ASM_SOURCE_EXTENSION}"
-			${FIXRTEXT_${infile}}
-			DEPENDS ${indir}/${infile}.asm ${FIXRTEXT} )
-		set( ASM_SOURCES ${ASM_SOURCES} "${ASM_OUTPUT_${infile}}" )
-	ENDMACRO()
-endif()
 
 # Decide on SSE setup
 
@@ -725,7 +651,8 @@ set( PLAT_SDL_SOURCES
 	posix/sdl/sdlglvideo.cpp
 	posix/sdl/st_start.cpp )
 set( PLAT_UNIX_SOURCES
-	posix/unix/i_specialpaths.cpp )
+	posix/unix/i_specialpaths.cpp
+	posix/unix/iwadpicker_gtk.cpp )
 set( PLAT_OSX_SOURCES
 	posix/osx/iwadpicker_cocoa.mm
 	posix/osx/i_specialpaths.mm
@@ -747,15 +674,7 @@ if( WIN32 )
 	set( SYSTEM_SOURCES ${PLAT_WIN32_SOURCES} )
 	set( OTHER_SYSTEM_SOURCES ${PLAT_POSIX_SOURCES} ${PLAT_SDL_SOURCES} ${PLAT_OSX_SOURCES} ${PLAT_COCOA_SOURCES} ${PLAT_UNIX_SOURCES} )
 	
-	if( ZD_CMAKE_COMPILER_IS_GNUCXX_COMPATIBLE )
-		# CMake is not set up to compile and link rc files with GCC. :(
-		add_custom_command( OUTPUT zdoom-rc.o
-			COMMAND windres -o zdoom-rc.o -i ${CMAKE_CURRENT_SOURCE_DIR}/win32/zdoom.rc
-			DEPENDS win32/zdoom.rc )
-		set( SYSTEM_SOURCES ${SYSTEM_SOURCES} zdoom-rc.o )
-	else()
-		set( SYSTEM_SOURCES ${SYSTEM_SOURCES} win32/zdoom.rc )
-	endif()
+	set( SYSTEM_SOURCES ${SYSTEM_SOURCES} win32/zdoom.rc )
 elseif( APPLE )
 	if( OSX_COCOA_BACKEND )
 		set( SYSTEM_SOURCES_DIR posix posix/cocoa )
@@ -797,32 +716,13 @@ if( HAVE_MMX )
 			PROPERTIES COMPILE_FLAGS "-mmmx" )
 	endif( ZD_CMAKE_COMPILER_IS_GNUCXX_COMPATIBLE )
 endif( HAVE_MMX )
-
-if( NOT ASM_SOURCES )
-	set( ASM_SOURCES "" )
-endif()
-
-if( NO_ASM )
-	add_definitions( -DNOASM )
-else()
-	if( X64 )
-		ADD_ASM_FILE( asm_x86_64 tmap3 )
-	else()
-		ADD_ASM_FILE( asm_ia32 a )
-		ADD_ASM_FILE( asm_ia32 misc )
-		ADD_ASM_FILE( asm_ia32 tmap )
-		ADD_ASM_FILE( asm_ia32 tmap2 )
-		ADD_ASM_FILE( asm_ia32 tmap3 )
-	endif()
-endif()
-
 add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.h
 	COMMAND lemon -C${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/xlat/xlat_parser.y
 	DEPENDS lemon ${CMAKE_CURRENT_SOURCE_DIR}/xlat/xlat_parser.y )
 
 add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/zcc-parse.c ${CMAKE_CURRENT_BINARY_DIR}/zcc-parse.h
-	COMMAND lemon -C${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/zscript/zcc-parse.lemon
-	DEPENDS lemon ${CMAKE_CURRENT_SOURCE_DIR}/zscript/zcc-parse.lemon )
+	COMMAND lemon -C${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/scripting/zscript/zcc-parse.lemon
+	DEPENDS lemon ${CMAKE_CURRENT_SOURCE_DIR}/scripting/zscript/zcc-parse.lemon )
 
 add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sc_man_scanner.h
 	COMMAND re2c --no-generation-date -s -o ${CMAKE_CURRENT_BINARY_DIR}/sc_man_scanner.h ${CMAKE_CURRENT_SOURCE_DIR}/sc_man_scanner.re
@@ -870,11 +770,8 @@ endif()
 file( GLOB HEADER_FILES
 	${EXTRA_HEADER_DIRS}
 	fragglescript/*.h
-	g_doom/*.h
-	g_heretic/*.h
-	g_hexen/*.h
-	g_raven/*.h
 	g_shared/*.h
+	g_inventory/*.h
 	g_strife/*.h
 	intermission/*.h
 	menu/*.h
@@ -884,13 +781,17 @@ file( GLOB HEADER_FILES
 	posix/cocoa/*.h
 	posix/sdl/*.h
 	r_data/*.h
+	rapidjson/*.h
 	resourcefiles/*.h
 	sfmt/*.h
 	sound/*.h
 	textures/*.h
-	thingdef/*.h
+	scripting/*.h
+	scripting/codegeneration/*.h
+	scripting/decorate/*.h
+	scripting/zscript/*.h
+	scripting/vm/*.h
 	xlat/*.h
-	zscript/*.h
 	gl/*.h
 	gl/api/*.h
 	gl/data/*.h
@@ -915,98 +816,13 @@ set( NOT_COMPILED_SOURCE_FILES
 	${OTHER_SYSTEM_SOURCES}
 	sc_man_scanner.h
 	sc_man_scanner.re
-	g_doom/a_arachnotron.cpp
-	g_doom/a_archvile.cpp
-	g_doom/a_bossbrain.cpp
-	g_doom/a_bruiser.cpp
-	g_doom/a_cacodemon.cpp
-	g_doom/a_cyberdemon.cpp
-	g_doom/a_demon.cpp
-	g_doom/a_doomimp.cpp
-	g_doom/a_doomweaps.cpp
-	g_doom/a_fatso.cpp
-	g_doom/a_keen.cpp
-	g_doom/a_lostsoul.cpp
-	g_doom/a_painelemental.cpp
-	g_doom/a_possessed.cpp
-	g_doom/a_revenant.cpp
-	g_doom/a_scriptedmarine.cpp
-	g_doom/a_spidermaster.cpp
-	g_heretic/a_chicken.cpp
-	g_heretic/a_dsparil.cpp
-	g_heretic/a_hereticartifacts.cpp
-	g_heretic/a_hereticimp.cpp
-	g_heretic/a_hereticweaps.cpp
-	g_heretic/a_ironlich.cpp
-	g_heretic/a_knight.cpp
-	g_heretic/a_wizard.cpp
-	g_hexen/a_bats.cpp
-	g_hexen/a_bishop.cpp
-	g_hexen/a_blastradius.cpp
-	g_hexen/a_boostarmor.cpp
-	g_hexen/a_centaur.cpp
-	g_hexen/a_clericflame.cpp
-	g_hexen/a_clericholy.cpp
-	g_hexen/a_clericmace.cpp
-	g_hexen/a_clericstaff.cpp
-	g_hexen/a_dragon.cpp
-	g_hexen/a_fighteraxe.cpp
-	g_hexen/a_fighterhammer.cpp
-	g_hexen/a_fighterplayer.cpp
-	g_hexen/a_fighterquietus.cpp
-	g_hexen/a_firedemon.cpp
-	g_hexen/a_flechette.cpp
-	g_hexen/a_flies.cpp
-	g_hexen/a_fog.cpp
-	g_hexen/a_healingradius.cpp
-	g_hexen/a_heresiarch.cpp
-	g_hexen/a_hexenspecialdecs.cpp
-	g_hexen/a_iceguy.cpp
-	g_hexen/a_korax.cpp
-	g_hexen/a_magecone.cpp
-	g_hexen/a_magelightning.cpp
-	g_hexen/a_magestaff.cpp
-	g_hexen/a_pig.cpp
-	g_hexen/a_serpent.cpp
-	g_hexen/a_spike.cpp
-	g_hexen/a_summon.cpp
-	g_hexen/a_teleportother.cpp
-	g_hexen/a_wraith.cpp
-	g_strife/a_acolyte.cpp
-	g_strife/a_alienspectres.cpp
-	g_strife/a_coin.cpp
-	g_strife/a_crusader.cpp
-	g_strife/a_entityboss.cpp
-	g_strife/a_inquisitor.cpp
-	g_strife/a_loremaster.cpp
-	g_strife/a_oracle.cpp
-	g_strife/a_programmer.cpp
-	g_strife/a_reaver.cpp
-	g_strife/a_rebels.cpp
-	g_strife/a_sentinel.cpp
-	g_strife/a_spectral.cpp
-	g_strife/a_stalker.cpp
-	g_strife/a_strifeitems.cpp
-	g_strife/a_strifeweapons.cpp
-	g_strife/a_templar.cpp
-	g_strife/a_thingstoblowup.cpp
 	g_shared/sbarinfo_commands.cpp
 	xlat/xlat_parser.y
 	xlat_parser.c
 	xlat_parser.h
-	zscript/zcc-parse.lemon
+	scripting/zscript/zcc-parse.lemon
 	zcc-parse.c
 	zcc-parse.h
-
-	# We could have the ASM macro add these files, but it wouldn't add all
-	# platforms.
-	asm_ia32/a.asm
-	asm_ia32/misc.asm
-	asm_ia32/tmap.asm
-	asm_ia32/tmap2.asm
-	asm_ia32/tmap3.asm
-	asm_x86_64/tmap3.asm
-	asm_x86_64/tmap3.s
 )
 
 set( FASTMATH_PCH_SOURCES
@@ -1014,12 +830,15 @@ set( FASTMATH_PCH_SOURCES
 	r_3dfloors.cpp
 	r_bsp.cpp
 	r_draw.cpp
-	r_drawt.cpp
+	r_draw_pal.cpp
+	r_drawt_pal.cpp
+	r_thread.cpp
 	r_main.cpp
 	r_plane.cpp
 	r_segs.cpp
 	r_sky.cpp
 	r_things.cpp
+	r_walldraw.cpp
 	s_advsound.cpp
 	s_environment.cpp
 	s_playlist.cpp
@@ -1233,6 +1052,7 @@ set (PCH_SOURCES
 	gi.cpp
 	gitinfo.cpp
 	hu_scores.cpp
+	i_module.cpp
 	i_net.cpp
 	info.cpp
 	keysections.cpp
@@ -1322,44 +1142,32 @@ set (PCH_SOURCES
 	w_wad.cpp
 	wi_stuff.cpp
 	zstrformat.cpp
-	g_doom/a_doommisc.cpp
-	g_heretic/a_hereticmisc.cpp
-	g_hexen/a_hexenmisc.cpp
-	g_raven/a_artitele.cpp
-	g_raven/a_minotaur.cpp
-	g_strife/a_strifestuff.cpp
+	g_inventory/a_ammo.cpp
+	g_inventory/a_armor.cpp
+	g_inventory/a_artifacts.cpp
+	g_inventory/a_health.cpp
+	g_inventory/a_keys.cpp
+	g_inventory/a_pickups.cpp
+	g_inventory/a_puzzleitems.cpp
+	g_inventory/a_weaponpiece.cpp
+	g_inventory/a_weapons.cpp
 	g_strife/strife_sbar.cpp
 	g_shared/a_action.cpp
-	g_shared/a_armor.cpp
-	g_shared/a_artifacts.cpp
 	g_shared/a_bridge.cpp
-	g_shared/a_camera.cpp
-	g_shared/a_debris.cpp
 	g_shared/a_decals.cpp
 	g_shared/a_fastprojectile.cpp
 	g_shared/a_flashfader.cpp
 	g_shared/a_fountain.cpp
-	g_shared/a_hatetarget.cpp
-	g_shared/a_keys.cpp
 	g_shared/a_lightning.cpp
-	g_shared/a_mapmarker.cpp
 	g_shared/a_morph.cpp
 	g_shared/a_movingcamera.cpp
-	g_shared/a_pickups.cpp
-	g_shared/a_puzzleitems.cpp
 	g_shared/a_quake.cpp
 	g_shared/a_randomspawner.cpp
-	g_shared/a_secrettrigger.cpp
 	g_shared/a_sectoraction.cpp
-	g_shared/a_setcolor.cpp
 	g_shared/a_skies.cpp
 	g_shared/a_soundenvironment.cpp
 	g_shared/a_soundsequence.cpp
-	g_shared/a_spark.cpp
 	g_shared/a_specialspot.cpp
-	g_shared/a_waterzone.cpp
-	g_shared/a_weaponpiece.cpp
-	g_shared/a_weapons.cpp
 	g_shared/hudmessages.cpp
 	g_shared/sbarinfo.cpp
 	g_shared/sbar_mugshot.cpp
@@ -1395,14 +1203,6 @@ set (PCH_SOURCES
 	textures/texturemanager.cpp
 	textures/tgatexture.cpp
 	textures/warptexture.cpp
-	thingdef/olddecorations.cpp
-	thingdef/thingdef.cpp
-	thingdef/thingdef_data.cpp
-	thingdef/thingdef_exp.cpp
-	thingdef/thingdef_expression.cpp
-	thingdef/thingdef_parse.cpp
-	thingdef/thingdef_properties.cpp
-	thingdef/thingdef_states.cpp
 	xlat/parse_xlat.cpp
 	fragglescript/t_func.cpp
 	fragglescript/t_load.cpp
@@ -1417,15 +1217,23 @@ set (PCH_SOURCES
 	r_data/voxels.cpp
 	r_data/renderstyle.cpp
 	r_data/r_interpolate.cpp
+	scripting/thingdef.cpp
+	scripting/thingdef_data.cpp
+	scripting/thingdef_properties.cpp
+	scripting/codegeneration/codegen.cpp
+	scripting/decorate/olddecorations.cpp
+	scripting/decorate/thingdef_exp.cpp
+	scripting/decorate/thingdef_parse.cpp
+	scripting/decorate/thingdef_states.cpp
+	scripting/vm/vmbuilder.cpp
+	scripting/vm/vmdisasm.cpp
+	scripting/vm/vmexec.cpp
+	scripting/vm/vmframe.cpp
+	scripting/zscript/ast.cpp
+	scripting/zscript/zcc_compile.cpp
+	scripting/zscript/zcc_expr.cpp
+	scripting/zscript/zcc_parser.cpp
 	sfmt/SFMT.cpp
-	zscript/ast.cpp
-	zscript/vmbuilder.cpp
-	zscript/vmdisasm.cpp
-	zscript/vmexec.cpp
-	zscript/vmframe.cpp
-	zscript/zcc_compile.cpp
-	zscript/zcc_expr.cpp
-	zscript/zcc_parser.cpp
 )
 enable_precompiled_headers( g_pch.h PCH_SOURCES )
 
@@ -1433,7 +1241,6 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	${HEADER_FILES}
 	${NOT_COMPILED_SOURCE_FILES}
 	__autostart.cpp
-	${ASM_SOURCES}
 	${SYSTEM_SOURCES}
 	${X86_SOURCES}
 	${FASTMATH_SOURCES}
@@ -1451,6 +1258,8 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	math/log10.c
 	math/mtherr.c
 	math/polevl.c
+	math/pow.c
+	math/powi.c
 	math/sin.c
 	math/sinh.c
 	math/sqrt.c
@@ -1476,20 +1285,17 @@ endif()
 
 target_link_libraries( zdoom ${ZDOOM_LIBS} gdtoa dumb lzma )
 include_directories( .
-	g_doom
-	g_heretic
-	g_hexen
-	g_raven
 	g_strife
 	g_shared
+	g_inventory
 	oplsynth
 	sound
 	textures
-	thingdef
 	timidity
 	wildmidi
 	xlat
-	zscript
+	scripting
+	scripting/vm
 	../gdtoa
 	../dumb/include
 	${CMAKE_BINARY_DIR}/gdtoa
@@ -1597,8 +1403,6 @@ install(TARGETS zdoom
 		DESTINATION ${INSTALL_PATH}
 		COMPONENT "Game executable")
 
-source_group("Assembly Files\\ia32" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/asm_ia32/.+")
-source_group("Assembly Files\\x86_64" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/asm_x86_64/.+")
 source_group("Audio Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/sound/.+")
 source_group("Audio Files\\OPL Synth" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/oplsynth/.+")
 source_group("Audio Files\\OPL Synth\\DOSBox" FILES oplsynth/dosbox/opl.cpp oplsynth/dosbox/opl.h)
@@ -1606,17 +1410,14 @@ source_group("Audio Files\\Timidity\\Headers" REGULAR_EXPRESSION "^${CMAKE_CURRE
 source_group("Audio Files\\Timidity\\Source" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/timidity/.+\\.cpp$")
 source_group("Audio Files\\WildMidi\\Headers" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/wildmidi/.+\\.h$")
 source_group("Audio Files\\WildMidi\\Source" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/wildmidi/.+\\.cpp$")
-source_group("Decorate++" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/thingdef/.+")
+source_group("External\\Math" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/math/.+")
+source_group("External\\RapidJSON" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/.+")
+source_group("Externak\\SFMT" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/sfmt/.+")
 source_group("FraggleScript" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/fragglescript/.+")
-source_group("Games\\Doom Game" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_doom/.+")
-source_group("Games\\Heretic Game" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_heretic/.+")
-source_group("Games\\Hexen Game" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_hexen/.+")
-source_group("Games\\Raven Shared" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_raven/.+")
 source_group("Games\\Strife Game" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_strife/.+")
 source_group("Intermission" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/intermission/.+")
-source_group("Math" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/math/.+")
+source_group("Inventory" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_inventory/.+")
 source_group("Menu" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/menu/.+")
-source_group("RapidJSON" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rapidjson/.+")
 source_group("OpenGL Renderer" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/.+")
 source_group("OpenGL Renderer\\Data" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/data/.+")
 source_group("OpenGL Renderer\\Dynamic Lights" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gl/dynlights/.+")
@@ -1638,15 +1439,18 @@ source_group("Render Data\\Resource Sources" REGULAR_EXPRESSION "^${CMAKE_CURREN
 source_group("Render Data\\Textures" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/textures/.+")
 source_group("Render Interface" FILES r_defs.h r_renderer.h r_sky.cpp r_sky.h r_state.h r_utility.cpp r_utility.h)
 source_group("Resource Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/resourcefiles/.+")
-source_group("POSIX Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/.+")
-source_group("Cocoa Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/cocoa/.+")
-source_group("OS X Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/osx/.+")
-source_group("Unix Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/unix/.+")
-source_group("SDL Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/sdl/.+")
-source_group("SFMT" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/sfmt/.+")
+source_group("Platforms\\POSIX Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/.+")
+source_group("Platforms\\Cocoa Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/cocoa/.+")
+source_group("Platforms\\OS X Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/osx/.+")
+source_group("Platforms\\Unix Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/unix/.+")
+source_group("Platforms\\SDL Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/posix/sdl/.+")
+source_group("Platforms\\Win32 Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/win32/.+")
+source_group("Scripting\\Decorate" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/scripting/decorate/.+")
+source_group("Scripting\\ZScript" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/scripting/zscript/.+" FILES ${CMAKE_CURRENT_BINARY_DIR}/zcc-parse.c ${CMAKE_CURRENT_BINARY_DIR}/zcc-parse.h)
+source_group("Scripting\\Code Generation" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/scripting/codegeneration/.+")
+source_group("Scripting\\VM" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/scripting/vm/.+")
+source_group("Scripting" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/scripting/.+")
 source_group("Shared Game" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_shared/.+")
 source_group("Versioning" FILES version.h win32/zdoom.rc)
-source_group("Win32 Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/win32/.+")
 source_group("Xlat" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/xlat/.+" FILES ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.h)
-source_group("ZScript" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/zscript/.+" FILES ${CMAKE_CURRENT_BINARY_DIR}/zcc-parse.c ${CMAKE_CURRENT_BINARY_DIR}/zcc-parse.h)
 source_group("Source Files" FILES ${CMAKE_CURRENT_BINARY_DIR}/sc_man_scanner.h sc_man_scanner.re)

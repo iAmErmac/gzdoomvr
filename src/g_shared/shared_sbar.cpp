@@ -54,6 +54,7 @@
 #include "serializer.h"
 #include "gstrings.h"
 #include "r_utility.h"
+#include "cmdlib.h"
 
 #include "../version.h"
 
@@ -61,11 +62,13 @@
 #define XHAIRPICKUPSIZE		(2+XHAIRSHRINKSIZE)
 #define POWERUPICONSIZE		32
 
-IMPLEMENT_POINTY_CLASS(DBaseStatusBar)
-	DECLARE_POINTER(Messages[0])
-	DECLARE_POINTER(Messages[1])
-	DECLARE_POINTER(Messages[2])
-END_POINTERS
+IMPLEMENT_CLASS(DBaseStatusBar, false, true)
+
+IMPLEMENT_POINTERS_START(DBaseStatusBar)
+	IMPLEMENT_POINTER(Messages[0])
+	IMPLEMENT_POINTER(Messages[1])
+	IMPLEMENT_POINTER(Messages[2])
+IMPLEMENT_POINTERS_END
 
 EXTERN_CVAR (Bool, am_showmonsters)
 EXTERN_CVAR (Bool, am_showsecrets)
@@ -119,6 +122,7 @@ CUSTOM_CVAR(Int, am_showmaplabel, 2, CVAR_ARCHIVE)
 }
 
 CVAR (Bool, idmypos, false, 0);
+CVAR(Float, underwater_fade_scalar, 1.0f, CVAR_ARCHIVE) // [Nash] user-settable underwater blend intensity
 
 //---------------------------------------------------------------------------
 //
@@ -1544,7 +1548,10 @@ void DBaseStatusBar::DrawPowerups ()
 
 void DBaseStatusBar::BlendView (float blend[4])
 {
-	V_AddBlend (BaseBlendR / 255.f, BaseBlendG / 255.f, BaseBlendB / 255.f, BaseBlendA, blend);
+	// [Nash] Allow user to set blend intensity
+	float cnt = (BaseBlendA * underwater_fade_scalar);
+
+	V_AddBlend (BaseBlendR / 255.f, BaseBlendG / 255.f, BaseBlendB / 255.f, cnt, blend);
 	V_AddPlayerBlend(CPlayer, blend, 1.0f, 228);
 
 	if (screen->Accel2D || (CPlayer->camera != NULL && menuactive == MENU_Off && ConsoleState == c_up))

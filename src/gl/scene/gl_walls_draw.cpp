@@ -56,7 +56,7 @@ FDynLightData lightdata;
 
 void GLWall::SetupLights()
 {
-	if (RenderStyle == STYLE_Add) return;	// no lights on additively blended surfaces.
+	if (RenderStyle == STYLE_Add && !glset.lightadditivesurfaces) return;	// no lights on additively blended surfaces.
 
 	// check for wall types which cannot have dynamic lights on them (portal types never get here so they don't need to be checked.)
 	switch (type)
@@ -102,9 +102,10 @@ void GLWall::SetupLights()
 
 			Vector fn, pos;
 
-			float x = node->lightsource->X();
-			float y = node->lightsource->Y();
-			float z = node->lightsource->Z();
+			DVector3 posrel = node->lightsource->PosRelative(seg->frontsector);
+			float x = posrel.X;
+			float y = posrel.Y;
+			float z = posrel.Z;
 			float dist = fabsf(p.DistToPoint(x, z, y));
 			float radius = node->lightsource->GetRadius();
 			float scale = 1.0f / ((2.f * radius) - dist);

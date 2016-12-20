@@ -64,6 +64,21 @@
 #include "r_data/voxels.h"
 #include "p_local.h"
 #include "p_maputl.h"
+#include "r_thread.h"
+
+EXTERN_CVAR(Bool, st_scale)
+EXTERN_CVAR(Bool, r_shadercolormaps)
+EXTERN_CVAR(Int, r_drawfuzz)
+EXTERN_CVAR(Bool, r_deathcamera);
+EXTERN_CVAR(Bool, r_drawplayersprites)
+EXTERN_CVAR(Bool, r_drawvoxels)
+
+CVAR(Bool, r_fullbrightignoresectorcolor, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG);
+//CVAR(Bool, r_splitsprites, true, CVAR_ARCHIVE)
+
+namespace swrenderer
+{
+	using namespace drawerargs;
 
 // [RH] A c-buffer. Used for keeping track of offscreen voxel spans.
 
@@ -95,12 +110,6 @@ extern float MaskedScaleY;
 #define BASEXCENTER		(160)
 #define BASEYCENTER 	(100)
 
-EXTERN_CVAR (Bool, st_scale)
-EXTERN_CVAR(Bool, r_shadercolormaps)
-EXTERN_CVAR(Int, r_drawfuzz)
-EXTERN_CVAR(Bool, r_deathcamera);
-CVAR(Bool, r_fullbrightignoresectorcolor, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG);
-
 //
 // Sprite rotation 0 is facing the viewer,
 //	rotation 1 is one angle turn CLOCKWISE around the axis.
@@ -131,9 +140,6 @@ FTexture		*WallSpriteTile;
 //	used for psprite clipping and initializing clipping
 short			zeroarray[MAXWIDTH];
 short			screenheightarray[MAXWIDTH];
-
-EXTERN_CVAR (Bool, r_drawplayersprites)
-EXTERN_CVAR (Bool, r_drawvoxels)
 
 //
 // INITIALIZATION FUNCTIONS
@@ -281,6 +287,15 @@ void R_DrawMaskedColumn (const BYTE *column, const FTexture::Span *span, bool us
 			dc_source = column;
 			dc_dest = (ylookup[dc_yl] + dc_x) + dc_destorg;
 			dc_count = dc_yh - dc_yl + 1;
+
+			fixed_t maxfrac = ((top + length) << FRACBITS) - 1;
+			dc_texturefrac = MAX(dc_texturefrac, 0);
+			dc_texturefrac = MIN(dc_texturefrac, maxfrac);
+			if (dc_iscale > 0)
+				dc_count = MIN(dc_count, (maxfrac - dc_texturefrac + dc_iscale - 1) / dc_iscale);
+			else if (dc_iscale < 0)
+				dc_count = MIN(dc_count, (dc_texturefrac - dc_iscale) / (-dc_iscale));
+
 			if (useRt)
 				hcolfunc_pre();
 			else
@@ -630,7 +645,7 @@ void R_DrawVisVoxel(vissprite_t *spr, int minslabz, int maxslabz, short *cliptop
 	{
 		return;
 	}
-	if (colfunc == fuzzcolfunc || colfunc == R_FillColumnP)
+	if (colfunc == fuzzcolfunc || colfunc == R_FillColumn)
 	{
 		flags = DVF_OFFSCREEN | DVF_SPANSONLY;
 	}
@@ -954,15 +969,14 @@ void R_ProjectSprite (AActor *thing, int fakeside, F3DFloor *fakefloor, F3DFloor
 			return;
 
 		tx += tex->GetWidth() * thingxscalemul;
-		double dtx2 = tx * xscale;
-		x2 = centerx + xs_RoundToInt(dtx2);
+		x2 = centerx + xs_RoundToInt(tx * xscale);
 
 		// off the left side or too small?
 		if ((x2 < WindowLeft || x2 <= x1))
 			return;
 
 		xscale = spriteScale.X * xscale / tex->Scale.X;
-		iscale = (fixed_t)(tex->GetWidth() / (dtx2 - dtx1) * FRACUNIT);
+		iscale = (fixed_t)(FRACUNIT / xscale); // Round towards zero to avoid wrapping in edge cases
 
 		double yscale = spriteScale.Y / tex->Scale.Y;
 
@@ -990,7 +1004,7 @@ void R_ProjectSprite (AActor *thing, int fakeside, F3DFloor *fakefloor, F3DFloor
 			vis->xiscale = iscale;
 		}
 
-		vis->startfrac += (fixed_t)(vis->xiscale * (vis->x1 - centerx - dtx1 + 0.5 * thingxscalemul));
+		vis->startfrac += (fixed_t)(vis->xiscale * (vis->x1 - centerx + 0.5 - dtx1));
 	}
 	else
 	{
@@ -1750,8 +1764,6 @@ static int sd_comparex (const void *arg1, const void *arg2)
 	return (*(drawseg_t **)arg2)->x2 - (*(drawseg_t **)arg1)->x2;
 }
 
-CVAR (Bool, r_splitsprites, true, CVAR_ARCHIVE)
-
 // Split up vissprites that intersect drawsegs
 void R_SplitVisSprites ()
 {
@@ -2319,11 +2331,11 @@ void R_DrawSprite (vissprite_t *spr)
 		// for R_DrawVisVoxel().
 		if (x1 > 0)
 		{
-			clearbufshort(cliptop, x1, viewheight);
+			fillshort(cliptop, x1, viewheight);
 		}
 		if (x2 < viewwidth - 1)
 		{
-			clearbufshort(cliptop + x2, viewwidth - x2, viewheight);
+			fillshort(cliptop + x2, viewwidth - x2, viewheight);
 		}
 		int minvoxely = spr->gzt <= hzt ? 0 : xs_RoundToInt((spr->gzt - hzt) / spr->yscale);
 		int maxvoxely = spr->gzb > hzb ? INT_MAX : xs_RoundToInt((spr->gzt - hzb) / spr->yscale);
@@ -2620,7 +2632,7 @@ static void R_DrawMaskedSegsBehindParticle (const vissprite_t *vis)
 	}
 }
 
-void R_DrawParticle (vissprite_t *vis)
+void R_DrawParticle_C (vissprite_t *vis)
 {
 	DWORD *bg2rgb;
 	int spacing;
@@ -2633,6 +2645,8 @@ void R_DrawParticle (vissprite_t *vis)
 	int countbase = vis->x2 - x1;
 
 	R_DrawMaskedSegsBehindParticle (vis);
+
+	DrawerCommandQueue::WaitForWorkers();
 
 	// vis->renderflags holds translucency level (0-255)
 	{
@@ -2686,6 +2700,11 @@ void R_DrawParticle (vissprite_t *vis)
 }
 
 extern double BaseYaspectMul;;
+
+inline int sgn(int v)
+{
+	return v < 0 ? -1 : v > 0 ? 1 : 0;
+}
 
 void R_DrawVoxel(const FVector3 &globalpos, FAngle viewangle,
 	const FVector3 &dasprpos, DAngle dasprang,
@@ -2826,7 +2845,7 @@ void R_DrawVoxel(const FVector3 &globalpos, FAngle viewangle,
 			xe += xi; ye += yi;
 		}
 
-		i = ksgn(ys-backy)+ksgn(xs-backx)*3+4;
+		i = sgn(ys - backy) + sgn(xs - backx) * 3 + 4;
 		switch(i)
 		{
 			case 6: case 7: x1 = 0;				y1 = 0;				break;
@@ -3228,4 +3247,6 @@ void R_CheckOffscreenBuffer(int width, int height, bool spansonly)
 	}
 	OffscreenBufferWidth = width;
 	OffscreenBufferHeight = height;
+}
+
 }

@@ -68,6 +68,7 @@
 #include "doomtype.h"
 #include "m_argv.h"
 #include "d_main.h"
+#include "i_module.h"
 #include "i_system.h"
 #include "c_console.h"
 #include "version.h"
@@ -83,6 +84,8 @@
 
 #include "stats.h"
 #include "st_start.h"
+
+#include "optwin32.h"
 
 #include <assert.h>
 
@@ -142,6 +145,21 @@ HFONT			GameTitleFont;
 LONG			GameTitleFontHeight;
 LONG			DefaultGUIFontHeight;
 LONG			ErrorIconChar;
+
+FModule Kernel32Module{"Kernel32"};
+FModule Shell32Module{"Shell32"};
+FModule User32Module{"User32"};
+
+namespace OptWin32 {
+#define DYN_WIN32_SYM(x) decltype(x) x{#x}
+
+DYN_WIN32_SYM(SHGetFolderPathA);
+DYN_WIN32_SYM(SHGetKnownFolderPath);
+DYN_WIN32_SYM(GetLongPathNameA);
+DYN_WIN32_SYM(GetMonitorInfoA);
+
+#undef DYN_WIN32_SYM
+} // namespace OptWin32
 
 // PRIVATE DATA DEFINITIONS ------------------------------------------------
 
@@ -818,6 +836,11 @@ void DoMain (HINSTANCE hInstance)
 
 		Args = new DArgs(__argc, __argv);
 
+		// Load Win32 modules
+		Kernel32Module.Load({"kernel32.dll"});
+		Shell32Module.Load({"shell32.dll"});
+		User32Module.Load({"user32.dll"});
+
 		// Under XP, get our session ID so we can know when the user changes/locks sessions.
 		// Since we need to remain binary compatible with older versions of Windows, we
 		// need to extract the ProcessIdToSessionId function from kernel32.dll manually.
@@ -1161,6 +1184,11 @@ void CALLBACK ExitFatally (ULONG_PTR dummy)
 //
 //==========================================================================
 
+namespace
+{
+	CONTEXT MainThreadContext;
+}
+
 LONG WINAPI CatchAllExceptions (LPEXCEPTION_POINTERS info)
 {
 #ifdef _DEBUG
@@ -1185,11 +1213,7 @@ LONG WINAPI CatchAllExceptions (LPEXCEPTION_POINTERS info)
 	// Otherwise, put the crashing thread to sleep and signal the main thread to clean up.
 	if (GetCurrentThreadId() == MainThreadID)
 	{
-#ifndef _M_X64
-		info->ContextRecord->Eip = (DWORD_PTR)ExitFatally;
-#else
-		info->ContextRecord->Rip = (DWORD_PTR)ExitFatally;
-#endif
+		*info->ContextRecord = MainThreadContext;
 	}
 	else
 	{
@@ -1281,6 +1305,15 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE nothing, LPSTR cmdline, int n
 	if (MainThread != INVALID_HANDLE_VALUE)
 	{
 		SetUnhandledExceptionFilter (CatchAllExceptions);
+
+		static bool setJumpResult = false;
+		RtlCaptureContext(&MainThreadContext);
+		if (setJumpResult)
+		{
+			ExitFatally(0);
+			return 0;
+		}
+		setJumpResult = true;
 	}
 #endif
 

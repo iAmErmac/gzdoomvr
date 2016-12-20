@@ -17,12 +17,6 @@
 // DESCRIPTION:
 //		BSP traversal, handling of LineSegs for rendering.
 //
-// This file contains some code from the Build Engine.
-//
-// "Build Engine & Tools" Copyright (c) 1993-1997 Ken Silverman
-// Ken Silverman's official web site: "http://www.advsys.net/ken"
-// See the included license file "BUILDLIC.TXT" for license info.
-//
 //-----------------------------------------------------------------------------
 
 
@@ -57,6 +51,13 @@
 #include "r_sky.h"
 #include "po_man.h"
 #include "r_data/colormaps.h"
+
+CVAR (Bool, r_drawflat, false, 0)		// [RH] Don't texture segs?
+EXTERN_CVAR(Bool, r_fullbrightignoresectorcolor);
+
+namespace swrenderer
+{
+	using namespace drawerargs;
 
 seg_t*			curline;
 side_t* 		sidedef;
@@ -104,8 +105,6 @@ TArray<PortalDrawseg> WallPortals(1000);	// note: this array needs to go away as
 
 subsector_t *InSubsector;
 
-CVAR (Bool, r_drawflat, false, 0)		// [RH] Don't texture segs?
-EXTERN_CVAR(Bool, r_fullbrightignoresectorcolor);
 
 
 void R_StoreWallRange (int start, int stop);
@@ -741,8 +740,8 @@ void R_AddLine (seg_t *line)
 	if (line->linedef->special == Line_Horizon)
 	{
 		// Be aware: Line_Horizon does not work properly with sloped planes
-		clearbufshort (walltop+WallC.sx1, WallC.sx2 - WallC.sx1, centery);
-		clearbufshort (wallbottom+WallC.sx1, WallC.sx2 - WallC.sx1, centery);
+		fillshort (walltop+WallC.sx1, WallC.sx2 - WallC.sx1, centery);
+		fillshort (wallbottom+WallC.sx1, WallC.sx2 - WallC.sx1, centery);
 	}
 	else
 	{
@@ -1395,4 +1394,6 @@ void R_RenderBSPNode (void *node)
 		node = bsp->children[side];
 	}
 	R_Subsector ((subsector_t *)((BYTE *)node - 1));
+}
+
 }
