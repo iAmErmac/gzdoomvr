@@ -276,7 +276,7 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 	float zNear = 5.0;
 	float zFar = 65536.0;
 	vr::HmdMatrix44_t projection = vrsystem.GetProjectionMatrix(
-			eye, zNear, zFar, vr::API_OpenGL);
+			eye, zNear, zFar);
 	vr::HmdMatrix44_t proj_transpose;
 	for (int i = 0; i < 4; ++i) {
 		for (int j = 0; j < 4; ++j) {
@@ -294,7 +294,7 @@ void OpenVREyePose::initialize(vr::IVRSystem& vrsystem)
 	if (eyeTexture == nullptr)
 		eyeTexture = new vr::Texture_t();
 	eyeTexture->handle = nullptr; // TODO: populate this at resolve time
-	eyeTexture->eType = vr::API_OpenGL;
+	eyeTexture->eType = vr::TextureType_OpenGL;
 	eyeTexture->eColorSpace = vr::ColorSpace_Linear;
 }
 
