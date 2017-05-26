@@ -43,9 +43,6 @@
 #include "gl/utility/gl_templates.h"
 #include "gl/data/gl_data.h"
 
-class ASkyViewpoint;
-
-
 struct GLHorizonInfo
 {
 	GLSectorPlane plane;
@@ -80,6 +77,7 @@ extern UniqueList<GLHorizonInfo> UniqueHorizons;
 extern UniqueList<secplane_t> UniquePlaneMirrors;
 extern UniqueList<FGLLinePortal> UniqueLineToLines;
 struct GLEEHorizonPortal;
+class GLSceneDrawer;
 
 class GLPortal
 {
@@ -93,6 +91,7 @@ protected:
 	static int renderdepth;
 
 public:
+	static GLSceneDrawer *drawer;
 	static int PlaneMirrorMode;
 	static int inupperstack;
 	static int	instack[2];
@@ -101,15 +100,17 @@ public:
 private:
 	void DrawPortalStencil();
 
+	DVector3 savedviewpath[2];
 	DVector3 savedViewPos;
-	DAngle savedAngle;
+	DVector3 savedViewActorPos;
+	DRotator savedAngles;
+	bool savedshowviewer;
 	AActor * savedviewactor;
 	area_t savedviewarea;
 	ActorRenderFlags savedvisibility;
-	DVector3 savedviewpath[2];
 	GLPortal *PrevPortal;
 	GLPortal *PrevClipPortal;
-	TArray<BYTE> savedmapsection;
+	TArray<uint8_t> savedmapsection;
 	TArray<unsigned int> mPrimIndices;
 
 protected:

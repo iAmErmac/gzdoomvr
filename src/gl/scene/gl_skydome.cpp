@@ -60,7 +60,8 @@
 #include "w_wad.h"
 #include "r_state.h"
 #include "r_utility.h"
-//#include "gl/gl_intern.h"
+#include "g_levellocals.h"
+#include "textures/skyboxtexture.h"
 
 #include "gl/system/gl_interface.h"
 #include "gl/data/gl_data.h"
@@ -68,11 +69,11 @@
 #include "gl/renderer/gl_lightdata.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/scene/gl_drawinfo.h"
+#include "gl/scene/gl_scenedrawer.h"
 #include "gl/scene/gl_portal.h"
 #include "gl/shaders/gl_shader.h"
 #include "gl/textures/gl_bitmap.h"
 #include "gl/textures/gl_texture.h"
-#include "gl/textures/gl_skyboxtexture.h"
 #include "gl/textures/gl_material.h"
 
 
@@ -84,8 +85,6 @@
 //-----------------------------------------------------------------------------
 
 CVAR(Float, skyoffset, 0, 0)	// for testing
-
-extern int skyfog;
 
 //-----------------------------------------------------------------------------
 //
@@ -381,7 +380,13 @@ void RenderDome(FMaterial * tex, float x_offset, float y_offset, bool mirror, in
 
 		float xscale = texw < 1024.f ? floor(1024.f / float(texw)) : 1.f;
 		float yscale = 1.f;
-		if (texh < 128)
+		if (texh <= 128 && (level.flags & LEVEL_FORCETILEDSKY))
+		{
+			gl_RenderState.mModelMatrix.translate(0.f, (-40 + tex->tex->SkyOffset + skyoffset)*skyoffsetfactor, 0.f);
+			gl_RenderState.mModelMatrix.scale(1.f, 1.2f * 1.17f, 1.f);
+			yscale = 240.f / texh;
+		}
+		else if (texh < 128)
 		{
 			// smaller sky textures must be tiled. We restrict it to 128 sky pixels, though
 			gl_RenderState.mModelMatrix.translate(0.f, -1250.f, 0.f);
@@ -513,7 +518,7 @@ void GLSkyPortal::DrawContents()
 	bool oldClamp = gl_RenderState.SetDepthClamp(true);
 
 	gl_MatrixStack.Push(gl_RenderState.mViewMatrix);
-	GLRenderer->SetupView(0, 0, 0, ViewAngle, !!(MirrorFlag & 1), !!(PlaneMirrorFlag & 1));
+	drawer->SetupView(0, 0, 0, r_viewpoint.Angles.Yaw, !!(MirrorFlag & 1), !!(PlaneMirrorFlag & 1));
 
 	gl_RenderState.SetVertexBuffer(GLRenderer->mSkyVBO);
 	if (origin->texture[0] && origin->texture[0]->tex->gl_info.bSkybox)
@@ -538,10 +543,10 @@ void GLSkyPortal::DrawContents()
 			RenderDome(origin->texture[1], origin->x_offset[1], origin->y_offset, false, FSkyVertexBuffer::SKYMODE_SECONDLAYER);
 		}
 
-		if (skyfog>0 && gl_fixedcolormap == CM_DEFAULT && (origin->fadecolor & 0xffffff) != 0)
+		if (::level.skyfog>0 && drawer->FixedColormap == CM_DEFAULT && (origin->fadecolor & 0xffffff) != 0)
 		{
 			PalEntry FadeColor = origin->fadecolor;
-			FadeColor.a = clamp<int>(skyfog, 0, 255);
+			FadeColor.a = clamp<int>(::level.skyfog, 0, 255);
 
 			gl_RenderState.EnableTexture(false);
 			gl_RenderState.SetObjectColor(FadeColor);

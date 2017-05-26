@@ -24,6 +24,10 @@ public:
 	void OpenString(const char *name, FString buffer);
 	void OpenLumpNum(int lump);
 	void Close();
+	void SetParseVersion(VersionInfo ver)
+	{
+		ParseVersion = ver;
+	}
 
 	void SetCMode(bool cmode);
 	void SetEscape(bool esc);
@@ -61,8 +65,8 @@ public:
 	int MustMatchString(const char * const *strings, size_t stride = sizeof(char*));
 	int GetMessageLine();
 
-	void ScriptError(const char *message, ...);
-	void ScriptMessage(const char *message, ...);
+	void ScriptError(const char *message, ...) GCCPRINTF(2,3);
+	void ScriptMessage(const char *message, ...) GCCPRINTF(2,3);
 
 	bool isText();
 
@@ -99,9 +103,10 @@ protected:
 	const char *LastGotPtr;
 	int LastGotLine;
 	bool CMode;
-	BYTE StateMode;
+	uint8_t StateMode;
 	bool StateOptions;
 	bool Escape;
+	VersionInfo ParseVersion = { 0, 0, 0 };	// no ZScript extensions by default
 };
 
 enum
@@ -144,6 +149,7 @@ struct FScriptPosition
 	static int WarnCounter;
 	static int ErrorCounter;
 	static bool StrictErrors;
+	static bool errorout;
 	FString FileName;
 	int ScriptLine;
 
@@ -155,7 +161,7 @@ struct FScriptPosition
 	FScriptPosition(FString fname, int line);
 	FScriptPosition(FScanner &sc);
 	FScriptPosition &operator=(const FScriptPosition &other);
-	void Message(int severity, const char *message,...) const;
+	void Message(int severity, const char *message,...) const GCCPRINTF(3,4);
 	static void ResetErrorCounter()
 	{
 		WarnCounter = 0;

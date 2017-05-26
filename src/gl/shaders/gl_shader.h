@@ -37,6 +37,7 @@ enum
 	VATTR_NORMAL = 4
 };
 
+class FShaderCollection;
 
 //==========================================================================
 //
@@ -248,7 +249,7 @@ public:
 
 class FShader
 {
-	friend class FShaderManager;
+	friend class FShaderCollection;
 	friend class FRenderState;
 
 	unsigned int hShader;
@@ -258,6 +259,7 @@ class FShader
 
 	FBufferedUniform1f muDesaturation;
 	FBufferedUniform1i muFogEnabled;
+	FBufferedUniform1i muPalLightLevels;
 	FBufferedUniform1i muTextureMode;
 	FBufferedUniform4f muCameraPos;
 	FBufferedUniform4f muLightParms;
@@ -269,6 +271,7 @@ class FShader
 	FBufferedUniformPE muFogColor;
 	FBufferedUniform4f muDynLightColor;
 	FBufferedUniformPE muObjectColor;
+	FBufferedUniformPE muObjectColor2;
 	FUniform4f muGlowBottomColor;
 	FUniform4f muGlowTopColor;
 	FUniform4f muGlowBottomPlane;
@@ -324,7 +327,6 @@ public:
 
 };
 
-
 //==========================================================================
 //
 // The global shader manager
@@ -332,26 +334,40 @@ public:
 //==========================================================================
 class FShaderManager
 {
-	TArray<FShader*> mTextureEffects;
-	TArray<FShader*> mTextureEffectsNAT;
-	FShader *mActiveShader;
-	FShader *mEffectShaders[MAX_EFFECTS];
-
-	void Clean();
-	void CompileShaders();
-	
 public:
 	FShaderManager();
 	~FShaderManager();
-	FShader *Compile(const char *ShaderName, const char *ShaderPath, bool usediscard);
+
+	void SetActiveShader(FShader *sh);
+	FShader *GetActiveShader() const { return mActiveShader; }
+
+	FShader *BindEffect(int effect, EPassType passType);
+	FShader *Get(unsigned int eff, bool alphateston, EPassType passType);
+	void ApplyMatrices(VSMatrix *proj, VSMatrix *view, EPassType passType);
+
+	void ResetFixedColormap();
+
+private:
+	FShader *mActiveShader = nullptr;
+	TArray<FShaderCollection*> mPassShaders;
+};
+
+class FShaderCollection
+{
+	TArray<FShader*> mTextureEffects;
+	TArray<FShader*> mTextureEffectsNAT;
+	FShader *mEffectShaders[MAX_EFFECTS];
+
+	void Clean();
+	void CompileShaders(EPassType passType);
+	
+public:
+	FShaderCollection(EPassType passType);
+	~FShaderCollection();
+	FShader *Compile(const char *ShaderName, const char *ShaderPath, bool usediscard, EPassType passType);
 	int Find(const char *mame);
 	FShader *BindEffect(int effect);
-	void SetActiveShader(FShader *sh);
 	void ApplyMatrices(VSMatrix *proj, VSMatrix *view);
-	FShader *GetActiveShader() const
-	{
-		return mActiveShader;
-	}
 
 	void ResetFixedColormap()
 	{

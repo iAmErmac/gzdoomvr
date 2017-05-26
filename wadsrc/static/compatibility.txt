@@ -2,25 +2,25 @@
 {
 	// Slightly squash the pillars in the starting room with "stimpacks"
 	// floating on them so that they can be obtained.
-	sectorflooroffset 62 -8
+	setsectoroffset 62 floor -8
 	setwallyscale 286 front bot 1.090909
 	setwallyscale 287 front bot 1.090909
 	setwallyscale 288 front bot 1.090909
 	setwallyscale 289 front bot 1.090909
 	
-	sectorflooroffset 63 -8
+	setsectoroffset 63 floor -8
 	setwallyscale 290 front bot 1.090909
 	setwallyscale 291 front bot 1.090909
 	setwallyscale 292 front bot 1.090909
 	setwallyscale 293 front bot 1.090909
 	
-	sectorflooroffset 118 -8
+	setsectoroffset 118 floor -8
 	setwallyscale 710 front bot 1.090909
 	setwallyscale 711 front bot 1.090909
 	setwallyscale 712 front bot 1.090909
 	setwallyscale 713 front bot 1.090909
 	
-	sectorflooroffset 119 -8
+	setsectoroffset 119 floor -8
 	setwallyscale 714 front bot 1.090909
 	setwallyscale 715 front bot 1.090909
 	setwallyscale 716 front bot 1.090909
@@ -454,6 +454,62 @@ D7F6E9F08C39A17026349A04F8C0B0BE // Return to Hadron, e1m9
 	pointonline
 }
 
+// Remove unreachable secrets
+F6EE16F770AD309D608EA0B1F1E249FC // Ultimate Doom, e4m3
+{
+	setsectorspecial 124 0
+	setsectorspecial 125 0
+	// clear staircase to secret area
+	setsectorspecial 127 0
+	setsectorspecial 128 0
+	setsectorspecial 129 0
+	setsectorspecial 130 0
+	setsectorspecial 131 0
+	setsectorspecial 132 0
+	setsectorspecial 133 0
+	setsectorspecial 134 0
+	setsectorspecial 136 0
+	setsectorspecial 137 0
+	setsectorspecial 138 0
+	setsectorspecial 147 0
+	setsectorspecial 148 0
+	setsectorspecial 149 0
+	setsectorspecial 150 0
+	setsectorspecial 151 0
+	setsectorspecial 152 0
+	setsectorspecial 155 0
+}
+94D4C869A0C02EF4F7375022B36AAE45 // Ultimate Doom, e4m7
+{
+	setsectorspecial 263 0
+	setsectorspecial 264 0
+}
+1A540BA717BF9EC85F8522594C352F2A // Doom II, map15
+{
+	setsectorspecial 147 0
+}
+EBDAC00E9D25D884B2C8F4B1F0390539 // doom2.wad map21
+{
+	// push ceiling down in glitchy sectors above the stair switches
+	setsectoroffset 50 ceil -56
+	setsectoroffset 54 ceil -56
+}
+110F84DE041052B59307FAF0293E6BC0 // Doom II, map27
+{
+	setsectorspecial 93 0
+	setwalltexture 582 back top ZIMMER3
+}
+ABC4EB5A1535ECCD0061AD14F3547908 // Plutonia Experiment, map26
+{
+	setsectorspecial 156 0
+}
+
+B68EB7CFB4CC481796E2919B9C16DFBD // Moc11.wad e1m6
+{
+	setvertex 1650 -3072 2671
+	setvertex 1642 -2944 2671
+}
+
 712BB4CFBD0753178CA0C6814BE4C288 // map12 BTSX_E1 - patch some rendering glitches that are problematic to detect
 {
 	setsectortag 545 32000
@@ -467,3 +523,123 @@ D7F6E9F08C39A17026349A04F8C0B0BE // Return to Hadron, e1m9
 	setlinespecial 2410 Sector_Set3DFloor 32002 4 1 0 0
 }
 
+1ED329858AB154C55878DA1C11A4F100 // unloved.pk3:unlovedmaps.wad map01
+{
+	clipmidtex
+}
+
+FA23E72FA955E66EC68609F72C0BA71E // unloved.pk3:unlovedmaps.wad map02
+{
+	clipmidtex
+}
+
+41BEC1F643CFEEC997AF98276A05EC88 // unloved.pk3:unlovedmaps.wad map03
+{
+	clipmidtex
+}
+
+AF9A6370BE562584BC11165ECF364713 // unloved.pk3:unlovedmaps.wad map04
+{
+	clipmidtex
+}
+
+DC96228097DD004C40CCB1DB14A91EAA // unloved.pk3:unlovedmaps.wad map05
+{
+	clipmidtex
+}
+
+261E64897A572C8DB8DC041E64BE27AD // unloved2beta1.pk3:u2_new2maps2.wad map06
+{
+	clipmidtex
+}
+
+04800B1F35E8C036EBABC8C616402927 // unloved2beta1.pk3:u2_new2maps2.wad map07
+{
+	clipmidtex
+}
+
+9E54F70648A77BBD090FF78A3AA05367 // unloved2beta1.pk3:u2_new2maps2.wad map08
+{
+	clipmidtex
+}
+
+72E9E0F41F691B7F956E62F35B4A617F // unloved2beta1.pk3:u2_new2maps2.wad map09
+{
+	clipmidtex
+}
+
+3D3FE412E87AD8B2316DAEC9E25F2E5D // unloved2beta1.pk3:u2_new2maps2.wad map10
+{
+	clipmidtex
+}
+
+
+// Cosmetic fixes for Heretic: Shadow of the Serpent Riders
+D94587625BA779644D58151A87897CF1 // e1m2
+{
+	// Missing textures
+	setwalltexture 477 back top MOSSRCK1
+	setwalltexture 478 back top MOSSRCK1
+	setwalltexture 479 back top MOSSRCK1
+	setwalltexture 1057 front top MOSSRCK1
+}
+ADD0FAC41AFB0B3C9B9F3C0006F93805 // e1m3
+{
+	// Broken door between the hallway that leads to a Torch 
+	// and the passage that has a Bag of Holding at its end
+	setsectoroffset 86 floor -128
+	setsectoroffset 86 ceil -128
+}
+916318D8B06DAC2D83424B23E4B66531 // e1m4
+{
+	// Wrong sector offsets
+	setsectoroffset 0 ceil 8
+	setsectoroffset 1 ceil 8
+	setsectoroffset 2 ceil 8
+	setsectoroffset 3 ceil 8
+	setsectoroffset 4 ceil 8
+	setsectoroffset 6 ceil 8
+	setsectoroffset 6 floor 8
+	setsectoroffset 17 ceil 8
+	// Yellow key door
+	setsectoroffset 284 floor -8
+	setsectoroffset 284 ceil -8
+	// Missing textures
+	setwalltexture 490 back bot GRSTNPB
+	setwalltexture 722 front bot WOODWL
+	setwalltexture 911 front bot WOODWL
+	setwalltexture 1296 front bot WOODWL
+}
+397A0E17A39542E4E8294E156FAB0502 // e2m2
+{
+	// Missing green door statues on easy and hard difficulties
+	setthingskills 17 31
+	setthingskills 18 31
+}
+CA3773ED313E8899311F3DD0CA195A68 // e3m6
+{
+	// Quartz flask outside of map
+	setthingskills 373 0
+	// Missing wall torch on hard difficulty
+	setthingskills 448 31
+	// Missing textures
+	setwalltexture 343 front top MOSSRCK1
+	setwalltexture 370 front top MOSSRCK1
+}
+5E3FCFDE78310BB89F92B1626A47D0AD // heretic.wad E4M7
+{
+	// Missing textures
+	setwalltexture 1274 front top CSTLRCK
+	setwalltexture 1277 back top CSTLRCK
+	setwalltexture 1278 front top CSTLRCK
+}
+
+39C594CAC07EE51C80F757DA465FCC94 // strife1.wad map10
+{
+	// fix the shooting range by matching sector 138 and 145 properties together
+	setsectoroffset 145 floor -32
+	setsectoroffset 145 ceil 40
+	setsectortexture 145 floor F_CONCRP
+	setsectorlight 138 192
+	setwalltexture 3431 back top BRKGRY01
+}

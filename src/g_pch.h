@@ -12,6 +12,7 @@
 #include <zlib.h>
 #include <new>
 #include <algorithm>
+#include <forward_list>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cassert>
@@ -19,3 +20,11 @@
 #include <io.h>
 #include <limits>
 #include <memory>
+#include <tuple>
+#include <vector>
+#include <utility>
+
+// These two headers get included nearly everywhere so it doesn't matter if changing them forces a few more recompiles.
+// The overall savings from PCHing them are more significant.
+#include "tarray.h"
+#include "zstring.h"

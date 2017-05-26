@@ -62,7 +62,7 @@ void gl_SetDynSpriteLight(AActor *self, float x, float y, float z, subsector_t *
 	while (node)
 	{
 		light=node->lightsource;
-		if (light->visibletoplayer && !(light->flags2&MF2_DORMANT) && (!(light->flags4&MF4_DONTLIGHTSELF) || light->target != self))
+		if (light->visibletoplayer && !(light->flags2&MF2_DORMANT) && (!(light->flags4&MF4_DONTLIGHTSELF) || light->target != self) && !(light->flags4&MF4_DONTLIGHTACTORS))
 		{
 			float dist;
 
@@ -91,7 +91,7 @@ void gl_SetDynSpriteLight(AActor *self, float x, float y, float z, subsector_t *
 
 				frac = 1.0f - (dist / radius);
 
-				if (frac > 0)
+				if (frac > 0 && GLRenderer->mShadowMap.ShadowTest(light, { x, y, z }))
 				{
 					lr = light->GetRed() / 255.0f;
 					lg = light->GetGreen() / 255.0f;

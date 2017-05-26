@@ -38,19 +38,10 @@
 #include "p_local.h"
 #include "g_level.h"
 #include "r_sky.h"
+#include "g_levellocals.h"
 
 // externally settable lighting properties
 static float distfogtable[2][256];	// light to fog conversion table for black fog
-static PalEntry outsidefogcolor;
-int fogdensity;
-int outsidefogdensity;
-int skyfog;
-
-CUSTOM_CVAR (Int, gl_light_ambient, 20, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
-{
-	// ambient of 0 does not work correctly because light level 0 is special.
-	if (self < 1) self = 1;
-}
 
 CVAR(Int, gl_weaponlight, 8, CVAR_ARCHIVE);
 CUSTOM_CVAR(Bool, gl_enhanced_nightvision, true, CVAR_ARCHIVE|CVAR_NOINITCALL)
@@ -64,7 +55,6 @@ CUSTOM_CVAR(Bool, gl_enhanced_nightvision, true, CVAR_ARCHIVE|CVAR_NOINITCALL)
 }
 CVAR(Bool, gl_brightfog, false, CVAR_ARCHIVE);
 CVAR(Bool, gl_lightadditivesurfaces, false, CVAR_ARCHIVE);
-CVAR(Bool, gl_attenuate, false, CVAR_ARCHIVE);
 
 
 
@@ -173,23 +163,6 @@ void gl_GetRenderStyle(FRenderStyle style, bool drawopaque, bool allowcolorblend
 
 //==========================================================================
 //
-// Set fog parameters for the level
-//
-//==========================================================================
-void gl_SetFogParams(int _fogdensity, PalEntry _outsidefogcolor, int _outsidefogdensity, int _skyfog)
-{
-	fogdensity=_fogdensity;
-	outsidefogcolor=_outsidefogcolor;
-	outsidefogdensity=_outsidefogdensity;
-	skyfog=_skyfog;
-
-	outsidefogdensity>>=1;
-	fogdensity>>=1;
-}
-
-
-//==========================================================================
-//
 // Get current light level
 //
 //==========================================================================
@@ -202,19 +175,30 @@ int gl_CalcLightLevel(int lightlevel, int rellight, bool weapon)
 
 	if ((glset.lightmode & 2) && lightlevel < 192 && !weapon) 
 	{
-		light = xs_CRoundToInt(192.f - (192-lightlevel)* 1.95f);
+		if (lightlevel > 100)
+		{
+			light = xs_CRoundToInt(192.f - (192 - lightlevel)* 1.87f);
+			if (light + rellight < 20)
+			{
+				light = 20 + (light + rellight - 20) / 5;
+			}
+			else
+			{
+				light += rellight;
+			}
+		}
+		else
+		{
+			light = (lightlevel + rellight) / 5;
+		}
+
 	}
 	else
 	{
-		light=lightlevel;
+		light=lightlevel+rellight;
 	}
 
-	if (light<gl_light_ambient && glset.lightmode != 8)		// ambient clipping only if not using software lighting model.
-	{
-		light = gl_light_ambient;
-		if (rellight<0) rellight>>=1;
-	}
-	return clamp(light+rellight, 0, 255);
+	return clamp(light, 0, 255);
 }
 
 //==========================================================================
@@ -247,7 +231,7 @@ static PalEntry gl_CalcLightColor(int light, PalEntry pe, int blendfactor)
 		g = (mixlight + pe.g * blendfactor) / 255;
 		b = (mixlight + pe.b * blendfactor) / 255;
 	}
-	return PalEntry(255, BYTE(r), BYTE(g), BYTE(b));
+	return PalEntry(255, uint8_t(r), uint8_t(g), uint8_t(b));
 }
 
 //==========================================================================
@@ -255,9 +239,9 @@ static PalEntry gl_CalcLightColor(int light, PalEntry pe, int blendfactor)
 // set current light color
 //
 //==========================================================================
-void gl_SetColor(int sectorlightlevel, int rellight, const FColormap &cm, float alpha, bool weapon)
+void gl_SetColor(int sectorlightlevel, int rellight, bool fullbright, const FColormap &cm, float alpha, bool weapon)
 { 
-	if (gl_fixedcolormap != CM_DEFAULT)
+	if (fullbright)
 	{
 		gl_RenderState.SetColorAlpha(0xffffff, alpha, 0);
 		gl_RenderState.SetSoftLightLevel(255);
@@ -265,8 +249,8 @@ void gl_SetColor(int sectorlightlevel, int rellight, const FColormap &cm, float 
 	else
 	{
 		int hwlightlevel = gl_CalcLightLevel(sectorlightlevel, rellight, weapon);
-		PalEntry pe = gl_CalcLightColor(hwlightlevel, cm.LightColor, cm.blendfactor);
-		gl_RenderState.SetColorAlpha(pe, alpha, cm.desaturation);
+		PalEntry pe = gl_CalcLightColor(hwlightlevel, cm.LightColor, cm.BlendFactor);
+		gl_RenderState.SetColorAlpha(pe, alpha, cm.Desaturation);
 		gl_RenderState.SetSoftLightLevel(gl_ClampLight(sectorlightlevel + rellight));
 	}
 }
@@ -289,83 +273,54 @@ void gl_SetColor(int sectorlightlevel, int rellight, const FColormap &cm, float 
 //
 //==========================================================================
 
-float gl_GetFogDensity(int lightlevel, PalEntry fogcolor)
+float gl_GetFogDensity(int lightlevel, PalEntry fogcolor, int sectorfogdensity)
 {
 	float density;
 
-	if (glset.lightmode&4)
+	if (glset.lightmode & 4)
 	{
 		// uses approximations of Legacy's default settings.
-		density = fogdensity? fogdensity : 18;
+		density = level.fogdensity ? level.fogdensity : 18;
+	}
+	else if (sectorfogdensity != 0)
+	{
+		// case 1: Sector has an explicit fog density set.
+		density = sectorfogdensity;
 	}
 	else if ((fogcolor.d & 0xffffff) == 0)
 	{
-		// case 1: black fog
-		if (glset.lightmode != 8)
+		// case 2: black fog
+		if (glset.lightmode != 8 && !(level.flags3 & LEVEL3_NOLIGHTFADE))
 		{
-			density=distfogtable[glset.lightmode!=0][gl_ClampLight(lightlevel)];
+			density = distfogtable[glset.lightmode != 0][gl_ClampLight(lightlevel)];
 		}
 		else
 		{
 			density = 0;
 		}
 	}
-	else if (outsidefogdensity != 0 && outsidefogcolor.a!=0xff && (fogcolor.d & 0xffffff) == (outsidefogcolor.d & 0xffffff))
+	else if (level.outsidefogdensity != 0 && APART(level.info->outsidefog) != 0xff && (fogcolor.d & 0xffffff) == (level.info->outsidefog & 0xffffff))
 	{
-		// case 2. outsidefogdensity has already been set as needed
-		density=outsidefogdensity;
+		// case 3. outsidefogdensity has already been set as needed
+		density = level.outsidefogdensity;
 	}
-	else  if (fogdensity!=0)
+	else  if (level.fogdensity != 0)
 	{
-		// case 3: level has fog density set
-		density=fogdensity;
+		// case 4: level has fog density set
+		density = level.fogdensity;
 	}
 	else if (lightlevel < 248)
 	{
-		// case 4: use light level
-		density=clamp<int>(255-lightlevel,30,255);
+		// case 5: use light level
+		density = clamp<int>(255 - lightlevel, 30, 255);
 	}
-	else 
+	else
 	{
 		density = 0.f;
 	}
 	return density;
 }
 
-
-//==========================================================================
-//
-// Check fog by current lighting info
-//
-//==========================================================================
-
-bool gl_CheckFog(FColormap *cm, int lightlevel)
-{
-	// Check for fog boundaries. This needs a few more checks for the sectors
-	bool frontfog;
-
-	PalEntry fogcolor = cm->FadeColor;
-
-	if ((fogcolor.d & 0xffffff) == 0)
-	{
-		frontfog = false;
-	}
-	else if (outsidefogdensity != 0 && outsidefogcolor.a!=0xff && (fogcolor.d & 0xffffff) == (outsidefogcolor.d & 0xffffff))
-	{
-		frontfog = true;
-	}
-	else  if (fogdensity!=0 || (glset.lightmode & 4))
-	{
-		// case 3: level has fog density set
-		frontfog = true;
-	}
-	else 
-	{
-		// case 4: use light level
-		frontfog = lightlevel < 248;
-	}
-	return frontfog;
-}
 
 //==========================================================================
 //
@@ -380,21 +335,23 @@ bool gl_CheckFog(FColormap *cm, int lightlevel)
 
 bool gl_CheckFog(sector_t *frontsector, sector_t *backsector)
 {
-	if (gl_fixedcolormap) return false;
 	if (frontsector == backsector) return false;	// there can't be a boundary if both sides are in the same sector.
 
 	// Check for fog boundaries. This needs a few more checks for the sectors
 
-	PalEntry fogcolor = frontsector->ColorMap->Fade;
+	PalEntry fogcolor = frontsector->Colormap.FadeColor;
 
 	if ((fogcolor.d & 0xffffff) == 0)
 	{
 		return false;
 	}
-	else if (outsidefogdensity != 0 && outsidefogcolor.a!=0xff && (fogcolor.d & 0xffffff) == (outsidefogcolor.d & 0xffffff))
+	else if (fogcolor.a != 0)
 	{
 	}
-	else  if (fogdensity!=0 || (glset.lightmode & 4))
+	else if (level.outsidefogdensity != 0 && APART(level.info->outsidefog) != 0xff && (fogcolor.d & 0xffffff) == (level.info->outsidefog & 0xffffff))
+	{
+	}
+	else  if (level.fogdensity!=0 || (glset.lightmode & 4))
 	{
 		// case 3: level has fog density set
 	}
@@ -404,16 +361,16 @@ bool gl_CheckFog(sector_t *frontsector, sector_t *backsector)
 		if (frontsector->lightlevel >= 248) return false;
 	}
 
-	fogcolor = backsector->ColorMap->Fade;
+	fogcolor = backsector->Colormap.FadeColor;
 
 	if ((fogcolor.d & 0xffffff) == 0)
 	{
 	}
-	else if (outsidefogdensity != 0 && outsidefogcolor.a!=0xff && (fogcolor.d & 0xffffff) == (outsidefogcolor.d & 0xffffff))
+	else if (level.outsidefogdensity != 0 && APART(level.info->outsidefog) != 0xff && (fogcolor.d & 0xffffff) == (level.info->outsidefog & 0xffffff))
 	{
 		return false;
 	}
-	else  if (fogdensity!=0 || (glset.lightmode & 4))
+	else  if (level.fogdensity!=0 || (glset.lightmode & 4))
 	{
 		// case 3: level has fog density set
 		return false;
@@ -469,7 +426,7 @@ void gl_SetShaderLight(float level, float olight)
 //
 //==========================================================================
 
-void gl_SetFog(int lightlevel, int rellight, const FColormap *cmap, bool isadditive)
+void gl_SetFog(int lightlevel, int rellight, bool fullbright, const FColormap *cmap, bool isadditive)
 {
 	PalEntry fogcolor;
 	float fogdensity;
@@ -479,10 +436,10 @@ void gl_SetFog(int lightlevel, int rellight, const FColormap *cmap, bool isaddit
 		fogdensity=70;
 		fogcolor=0x808080;
 	}
-	else if (cmap != NULL && gl_fixedcolormap == 0)
+	else if (cmap != NULL && !fullbright)
 	{
 		fogcolor = cmap->FadeColor;
-		fogdensity = gl_GetFogDensity(lightlevel, fogcolor);
+		fogdensity = gl_GetFogDensity(lightlevel, fogcolor, cmap->FogDensity);
 		fogcolor.a=0;
 	}
 	else
@@ -530,18 +487,3 @@ void gl_SetFog(int lightlevel, int rellight, const FColormap *cmap, bool isaddit
 		}
 	}
 }
-
-
-//==========================================================================
-//
-// For testing sky fog sheets
-//
-//==========================================================================
-CCMD(skyfog)
-{
-	if (argv.argc()>1)
-	{
-		skyfog=strtol(argv[1],NULL,0);
-	}
-}
-

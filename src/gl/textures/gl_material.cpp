@@ -130,7 +130,7 @@ unsigned char *FGLTexture::LoadHiresTexture(FTexture *tex, int *width, int *heig
 		{
 			// This is a crappy Doomsday color keyed image
 			// We have to remove the key manually. :(
-			DWORD * dwdata=(DWORD*)buffer;
+			uint32_t * dwdata=(uint32_t*)buffer;
 			for (int i=(w*h);i>0;i--)
 			{
 				if (dwdata[i]==0xffffff00 || dwdata[i]==0xffff00ff) dwdata[i]=0;
@@ -187,6 +187,7 @@ unsigned char * FGLTexture::CreateTexBuffer(int translation, int & w, int & h, F
 {
 	unsigned char * buffer;
 	int W, H;
+	int isTransparent = -1;
 
 
 	// Textures that are already scaled in the texture lump will not get replaced
@@ -224,14 +225,16 @@ unsigned char * FGLTexture::CreateTexBuffer(int translation, int & w, int & h, F
 			int trans = tex->CopyTrueColorPixels(&imgCreate, exx, exx);
 			bmp.CopyPixelDataRGB(0, 0, imgCreate.GetPixels(), W, H, 4, W * 4, 0, CF_BGRA);
 			tex->CheckTrans(buffer, W*H, trans);
-			bIsTransparent = tex->gl_info.mIsTransparent;
+			isTransparent = tex->gl_info.mIsTransparent;
+			if (bIsTransparent == -1) bIsTransparent = isTransparent;
 		}
 	}
 	else if (translation<=0)
 	{
 		int trans = tex->CopyTrueColorPixels(&bmp, exx, exx);
 		tex->CheckTrans(buffer, W*H, trans);
-		bIsTransparent = tex->gl_info.mIsTransparent;
+		isTransparent = tex->gl_info.mIsTransparent;
+		if (bIsTransparent == -1) bIsTransparent = isTransparent;
 	}
 	else
 	{
@@ -239,7 +242,8 @@ unsigned char * FGLTexture::CreateTexBuffer(int translation, int & w, int & h, F
 		// Since FTexture's method is doing exactly that by calling GetPixels let's use that here
 		// to do all the dirty work for us. ;)
 		tex->FTexture::CopyTrueColorPixels(&bmp, exx, exx);
-		bIsTransparent = 0;
+		isTransparent = 0;
+		// This is not conclusive for setting the texture's transparency info.
 	}
 
 	// if we just want the texture for some checks there's no need for upsampling.
@@ -247,7 +251,7 @@ unsigned char * FGLTexture::CreateTexBuffer(int translation, int & w, int & h, F
 
 	// [BB] The hqnx upsampling (not the scaleN one) destroys partial transparency, don't upsamle textures using it.
 	// [BB] Potentially upsample the buffer.
-	return gl_CreateUpsampledTextureBuffer ( tex, buffer, W, H, w, h, !!bIsTransparent);
+	return gl_CreateUpsampledTextureBuffer ( tex, buffer, W, H, w, h, !!isTransparent);
 }
 
 
@@ -281,7 +285,7 @@ const FHardwareTexture *FGLTexture::Bind(int texunit, int clampmode, int transla
 	if (translation <= 0) translation = -translation;
 	else
 	{
-		alphatrans = (gl.legacyMode && translation == TRANSLATION(TRANSLATION_Standard, 8));
+		alphatrans = (gl.legacyMode && uint32_t(translation) == TRANSLATION(TRANSLATION_Standard, 8));
 		translation = GLTranslationPalette::GetInternalTranslation(translation);
 	}
 
@@ -315,10 +319,10 @@ const FHardwareTexture *FGLTexture::Bind(int texunit, int clampmode, int transla
 					// need to do software warping
 					FWarpTexture *wt = static_cast<FWarpTexture*>(tex);
 					unsigned char *warpbuffer = new unsigned char[w*h*4];
-					WarpBuffer((DWORD*)warpbuffer, (const DWORD*)buffer, w, h, wt->WidthOffsetMultiplier, wt->HeightOffsetMultiplier, r_FrameTime, wt->Speed, tex->bWarped);
+					WarpBuffer((uint32_t*)warpbuffer, (const uint32_t*)buffer, w, h, wt->WidthOffsetMultiplier, wt->HeightOffsetMultiplier, r_viewpoint.FrameTime, wt->Speed, tex->bWarped);
 					delete[] buffer;
 					buffer = warpbuffer;
-					wt->GenTime = r_FrameTime;
+					wt->GenTime = r_viewpoint.FrameTime;
 				}
 				tex->ProcessData(buffer, w, h, false);
 			}
@@ -348,15 +352,18 @@ const FHardwareTexture *FGLTexture::Bind(int texunit, int clampmode, int transla
 
 float FTexCoordInfo::RowOffset(float rowoffset) const
 {
-	if (mTempScale.Y == 1.f)
+	float tscale = fabs(mTempScale.Y);
+	float scale = fabs(mScale.Y);
+
+	if (tscale == 1.f)
 	{
-		if (mScale.Y == 1.f || mWorldPanning) return rowoffset;
-		else return rowoffset / mScale.Y;
+		if (scale == 1.f || mWorldPanning) return rowoffset;
+		else return rowoffset / scale;
 	}
 	else
 	{
-		if (mWorldPanning) return rowoffset / mTempScale.Y;
-		else return rowoffset / mScale.Y;
+		if (mWorldPanning) return rowoffset / tscale;
+		else return rowoffset / scale;
 	}
 }
 
@@ -368,15 +375,17 @@ float FTexCoordInfo::RowOffset(float rowoffset) const
 
 float FTexCoordInfo::TextureOffset(float textureoffset) const
 {
-	if (mTempScale.X == 1.f)
+	float tscale = fabs(mTempScale.X);
+	float scale = fabs(mScale.X);
+	if (tscale == 1.f)
 	{
-		if (mScale.X == 1.f || mWorldPanning) return textureoffset;
-		else return textureoffset / mScale.X;
+		if (scale == 1.f || mWorldPanning) return textureoffset;
+		else return textureoffset / scale;
 	}
 	else
 	{
-		if (mWorldPanning) return textureoffset / mTempScale.X;
-		else return textureoffset / mScale.X;
+		if (mWorldPanning) return textureoffset / tscale;
+		else return textureoffset / scale;
 	}
 }
 
@@ -390,8 +399,9 @@ float FTexCoordInfo::TextureAdjustWidth() const
 {
 	if (mWorldPanning) 
 	{
-		if (mTempScale.X == 1.f) return mRenderWidth;
-		else return mWidth / mTempScale.X;
+		float tscale = fabs(mTempScale.X);
+		if (tscale == 1.f) return mRenderWidth;
+		else return mWidth / fabs(tscale);
 	}
 	else return mWidth;
 }
@@ -443,6 +453,11 @@ FMaterial::FMaterial(FTexture * tx, bool expanded)
 	}
 	else if (tx->bHasCanvas)
 	{
+		if (tx->gl_info.shaderindex >= FIRST_USER_SHADER)
+		{
+			mShaderIndex = tx->gl_info.shaderindex;
+		}
+		// no brightmap for cameratexture
 	}
 	else
 	{
@@ -475,7 +490,7 @@ FMaterial::FMaterial(FTexture * tx, bool expanded)
 	mSpriteU[1] = mSpriteV[1] = 1.f;
 
 	FTexture *basetex = (tx->bWarped && gl.legacyMode)? tx : tx->GetRedirect(false);
-	// allow the redirect only if the textute is not expanded or the scale matches.
+	// allow the redirect only if the texture is not expanded or the scale matches.
 	if (!expanded || (tx->Scale.X == basetex->Scale.X && tx->Scale.Y == basetex->Scale.Y))
 	{
 		mBaseLayer = ValidateSysTexture(basetex, expanded);
@@ -583,8 +598,16 @@ bool FMaterial::TrimBorders(int *rect)
 	}
 
 	int size = w*h;
-	if (size == 1) return false;
-
+	if (size == 1)
+	{
+		// nothing to be done here.
+		rect[0] = 0;
+		rect[1] = 0;
+		rect[2] = 1;
+		rect[3] = 1;
+		delete[] buffer;
+		return true;
+	}
 	int first, last;
 
 	for(first = 0; first < size; first++)

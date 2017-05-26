@@ -531,7 +531,7 @@ class Scanner : PowerupGiver
 		{
 			if (Owner.CheckLocalView (consoleplayer))
 			{
-				C_MidPrint("SmallFont", "$TXT_NEEDMAP");
+				Console.MidPrint("SmallFont", "$TXT_NEEDMAP");
 			}
 			return false;
 		}
@@ -610,7 +610,7 @@ class RaiseAlarm : DummyStrifeItem
 	
 	override bool TryPickup (in out Actor toucher)
 	{
-		toucher.NoiseAlert (toucher);
+		toucher.SoundAlert (toucher);
 
 		ThinkerIterator it = ThinkerIterator.Create("AlienSpectre3");
 		Actor spectre = Actor(it.Next());
@@ -629,10 +629,10 @@ class RaiseAlarm : DummyStrifeItem
 	{
 		if (dropper.target != null)
 		{
-			dropper.target.NoiseAlert(dropper.target);
+			dropper.target.SoundAlert(dropper.target);
 			if (dropper.target.CheckLocalView(consoleplayer))
 			{
-				A_Log("You Fool!  You've set off the alarm.");
+				Console.MidPrint(SmallFont, "$TXT_YOUFOOL");
 			}
 		}
 		Destroy ();
@@ -672,9 +672,9 @@ class CloseDoor222 : DummyStrifeItem
 		{
 			if (dropper.target.CheckLocalView(consoleplayer))
 			{
-				A_Log("You're dead!  You set off the alarm.");
+				Console.MidPrint(SmallFont, "$TXT_YOUREDEAD");
 			}
-			dropper.target.NoiseAlert(dropper.target);
+			dropper.target.SoundAlert(dropper.target);
 		}
 		Destroy ();
 		return true;
@@ -807,7 +807,7 @@ class SlideshowStarter : DummyStrifeItem
 {
 	override bool TryPickup (in out Actor toucher)
 	{
-		gameaction = ga_slideshow;
+		Level.StartSlideshow();
 		if (level.levelnum == 10)
 		{
 			toucher.GiveInventoryType ("QuestItem17");

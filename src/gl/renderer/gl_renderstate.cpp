@@ -43,6 +43,7 @@ void gl_SetTextureMode(int type);
 FRenderState gl_RenderState;
 
 CVAR(Bool, gl_direct_state_change, true, 0)
+CVAR(Bool, gl_bandedswlight, false, CVAR_ARCHIVE)
 
 
 static VSMatrix identityMatrix(1);
@@ -71,6 +72,7 @@ void FRenderState::Reset()
 	mModelMatrixEnabled = false;
 	mTextureMatrixEnabled = false;
 	mObjectColor = 0xffffffff;
+	mObjectColor2 = 0;
 	mVertexBuffer = mCurrentVertexBuffer = NULL;
 	mColormapState = CM_DEFAULT;
 	mSoftLight = 0;
@@ -105,6 +107,7 @@ void FRenderState::Reset()
 	mViewMatrix.loadIdentity();
 	mModelMatrix.loadIdentity();
 	mTextureMatrix.loadIdentity();
+	mPassType = NORMAL_PASS;
 }
 
 //==========================================================================
@@ -118,11 +121,11 @@ bool FRenderState::ApplyShader()
 	static const float nulvec[] = { 0.f, 0.f, 0.f, 0.f };
 	if (mSpecialEffect > EFF_NONE)
 	{
-		activeShader = GLRenderer->mShaderManager->BindEffect(mSpecialEffect);
+		activeShader = GLRenderer->mShaderManager->BindEffect(mSpecialEffect, mPassType);
 	}
 	else
 	{
-		activeShader = GLRenderer->mShaderManager->Get(mTextureEnabled ? mEffectState : 4, mAlphaThreshold >= 0.f);
+		activeShader = GLRenderer->mShaderManager->Get(mTextureEnabled ? mEffectState : 4, mAlphaThreshold >= 0.f, mPassType);
 		activeShader->Bind();
 	}
 
@@ -142,9 +145,12 @@ bool FRenderState::ApplyShader()
 
 	glVertexAttrib4fv(VATTR_COLOR, mColor.vec);
 	glVertexAttrib4fv(VATTR_NORMAL, mNormal.vec);
+	//activeShader->muObjectColor2.Set(mObjectColor2);
+	activeShader->muObjectColor2.Set(mObjectColor2);
 
 	activeShader->muDesaturation.Set(mDesaturation / 255.f);
 	activeShader->muFogEnabled.Set(fogset);
+	activeShader->muPalLightLevels.Set(gl_bandedswlight);
 	activeShader->muTextureMode.Set(mTextureMode);
 	activeShader->muCameraPos.Set(mCameraPos.vec);
 	activeShader->muLightParms.Set(mLightParms);
@@ -163,8 +169,6 @@ bool FRenderState::ApplyShader()
 	{
 		activeShader->muGlowTopColor.Set(mGlowTop.vec);
 		activeShader->muGlowBottomColor.Set(mGlowBottom.vec);
-		activeShader->muGlowTopPlane.Set(mGlowTopPlane.vec);
-		activeShader->muGlowBottomPlane.Set(mGlowBottomPlane.vec);
 		activeShader->currentglowstate = 1;
 	}
 	else if (activeShader->currentglowstate)
@@ -172,9 +176,12 @@ bool FRenderState::ApplyShader()
 		// if glowing is on, disable it.
 		activeShader->muGlowTopColor.Set(nulvec);
 		activeShader->muGlowBottomColor.Set(nulvec);
-		activeShader->muGlowTopPlane.Set(nulvec);
-		activeShader->muGlowBottomPlane.Set(nulvec);
 		activeShader->currentglowstate = 0;
+	}
+	if (mGlowEnabled || mObjectColor2.a != 0)
+	{
+		activeShader->muGlowTopPlane.Set(mGlowTopPlane.vec);
+		activeShader->muGlowBottomPlane.Set(mGlowBottomPlane.vec);
 	}
 
 	if (mSplitEnabled)
@@ -219,7 +226,7 @@ bool FRenderState::ApplyShader()
 			}
 			else
 			{
-				FSpecialColormap *scm = &SpecialColormaps[gl_fixedcolormap - CM_FIRSTSPECIALCOLORMAP];
+				FSpecialColormap *scm = &SpecialColormaps[mColormapState - CM_FIRSTSPECIALCOLORMAP];
 				float m[] = { scm->ColorizeEnd[0] - scm->ColorizeStart[0],
 					scm->ColorizeEnd[1] - scm->ColorizeStart[1], scm->ColorizeEnd[2] - scm->ColorizeStart[2], 0.f };
 
@@ -347,7 +354,7 @@ void FRenderState::ApplyMatrices()
 {
 	if (GLRenderer->mShaderManager != NULL)
 	{
-		GLRenderer->mShaderManager->ApplyMatrices(&mProjectionMatrix, &mViewMatrix);
+		GLRenderer->mShaderManager->ApplyMatrices(&mProjectionMatrix, &mViewMatrix, mPassType);
 	}
 }
 

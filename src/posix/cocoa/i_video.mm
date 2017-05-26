@@ -48,7 +48,7 @@
 #include "m_argv.h"
 #include "m_png.h"
 #include "r_renderer.h"
-#include "r_swrenderer.h"
+#include "swrenderer/r_swrenderer.h"
 #include "st_console.h"
 #include "stats.h"
 #include "textures.h"
@@ -68,6 +68,19 @@
 
 #undef Class
 
+
+#if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
+
+@implementation NSView(Compatibility)
+
+- (NSRect)convertRectToBacking:(NSRect)aRect
+{
+	return [self convertRect:aRect toView:[self superview]];
+}
+
+@end
+
+#endif // prior to 10.7
 
 @implementation NSWindow(ExitAppOnClose)
 
@@ -101,10 +114,38 @@
 
 @end
 
+DFrameBuffer *CreateGLSWFrameBuffer(int width, int height, bool bgra, bool fullscreen);
+
+int currentrenderer;
+
+CUSTOM_CVAR(Bool, vid_glswfb, true, CVAR_NOINITCALL | CVAR_GLOBALCONFIG | CVAR_NOINITCALL)
+{
+	Printf("This won't take effect until " GAMENAME " is restarted.\n");
+}
 
 EXTERN_CVAR(Bool, ticker   )
 EXTERN_CVAR(Bool, vid_vsync)
 EXTERN_CVAR(Bool, vid_hidpi)
+
+#if defined __ppc__ || defined __ppc64__
+static const bool TRUECOLOR_DEFAULT = false;
+#else // other than PowerPC
+static const bool TRUECOLOR_DEFAULT = true;
+#endif // PowerPC
+
+CUSTOM_CVAR(Bool, swtruecolor, TRUECOLOR_DEFAULT, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_NOINITCALL)
+{
+	// Strictly speaking this doesn't require a mode switch, but it is the easiest
+	// way to force a CreateFramebuffer call without a lot of refactoring.
+	if (currentrenderer == 0)
+	{
+		extern int NewWidth, NewHeight, NewBits, DisplayBits;
+		NewWidth      = screen->GetWidth();
+		NewHeight     = screen->GetHeight();
+		NewBits       = DisplayBits;
+		setmodeneeded = true;
+	}
+}
 
 CUSTOM_CVAR(Bool, fullscreen, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 {
@@ -121,14 +162,12 @@ CUSTOM_CVAR(Bool, vid_autoswitch, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_
 	Printf("You must restart " GAMENAME " to apply graphics switching mode\n");
 }
 
-static int s_currentRenderer;
-
 CUSTOM_CVAR(Int, vid_renderer, 1, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_NOINITCALL)
 {
 	// 0: Software renderer
 	// 1: OpenGL renderer
 
-	if (self != s_currentRenderer)
+	if (self != currentrenderer)
 	{
 		switch (self)
 		{
@@ -238,7 +277,7 @@ public:
 	virtual EDisplayType GetDisplayType() { return DISPLAY_Both; }
 	virtual void SetWindowedScale(float scale);
 
-	virtual DFrameBuffer* CreateFrameBuffer(int width, int height, bool fs, DFrameBuffer* old);
+	virtual DFrameBuffer* CreateFrameBuffer(int width, int height, bool bgra, bool fs, DFrameBuffer* old);
 
 	virtual void StartModeIterator(int bits, bool fullscreen);
 	virtual bool NextMode(int* width, int* height, bool* letterbox);
@@ -280,7 +319,7 @@ private:
 class CocoaFrameBuffer : public DFrameBuffer
 {
 public:
-	CocoaFrameBuffer(int width, int height, bool fullscreen);
+	CocoaFrameBuffer(int width, int height, bool bgra, bool fullscreen);
 	~CocoaFrameBuffer();
 
 	virtual bool Lock(bool buffer);
@@ -307,14 +346,14 @@ private:
 	PalEntry m_palette[256];
 	bool     m_needPaletteUpdate;
 
-	BYTE     m_gammaTable[3][256];
+	uint8_t     m_gammaTable[3][256];
 	float    m_gamma;
 	bool     m_needGammaUpdate;
 
 	PalEntry m_flashColor;
 	int      m_flashAmount;
 
-	bool     m_isUpdatePending;
+	bool     UpdatePending;
 
 	uint8_t* m_pixelBuffer;
 	GLuint   m_texture;
@@ -483,7 +522,7 @@ NSOpenGLPixelFormat* CreatePixelFormat(const OpenGLProfile profile)
 		attributes[i++] = NSOpenGLPFAAllowOfflineRenderers;
 	}
 
-	if (NSAppKitVersionNumber >= AppKit10_7 && OpenGLProfile::Core == profile && 1 == vid_renderer)
+	if (NSAppKitVersionNumber >= AppKit10_7 && OpenGLProfile::Core == profile)
 	{
 		NSOpenGLPixelFormatAttribute profile = NSOpenGLProfileVersion3_2Core;
 		const char* const glversion = Args->CheckValue("-glversion");
@@ -521,11 +560,17 @@ CocoaVideo::CocoaVideo()
 {
 	memset(&m_modeIterator, 0, sizeof m_modeIterator);
 
+	extern void gl_CalculateCPUSpeed();
+	gl_CalculateCPUSpeed();
+
 	// Create OpenGL pixel format
 
-	NSOpenGLPixelFormat* pixelFormat = CreatePixelFormat(OpenGLProfile::Core);
+	const OpenGLProfile defaultProfile = (1 == vid_renderer || vid_glswfb)
+		? OpenGLProfile::Core
+		: OpenGLProfile::Legacy;
+	NSOpenGLPixelFormat* pixelFormat = CreatePixelFormat(defaultProfile);
 
-	if (nil == pixelFormat)
+	if (nil == pixelFormat && OpenGLProfile::Core == defaultProfile)
 	{
 		pixelFormat = CreatePixelFormat(OpenGLProfile::Legacy);
 
@@ -590,21 +635,20 @@ bool CocoaVideo::NextMode(int* const width, int* const height, bool* const lette
 	return false;
 }
 
-DFrameBuffer* CocoaVideo::CreateFrameBuffer(const int width, const int height, const bool fullscreen, DFrameBuffer* const old)
+DFrameBuffer* CocoaVideo::CreateFrameBuffer(const int width, const int height, const bool bgra, const bool fullscreen, DFrameBuffer* const old)
 {
 	PalEntry flashColor  = 0;
 	int      flashAmount = 0;
 
 	if (NULL != old)
 	{
-		if (width == m_width && height == m_height)
+		if (width == m_width && height == m_height && bgra == old->IsBgra())
 		{
 			SetMode(width, height, fullscreen, vid_hidpi);
 			return old;
 		}
 
 		old->GetFlash(flashColor, flashAmount);
-		old->ObjectFlags |= OF_YesReallyDelete;
 
 		if (old == screen)
 		{
@@ -616,13 +660,24 @@ DFrameBuffer* CocoaVideo::CreateFrameBuffer(const int width, const int height, c
 
 	DFrameBuffer* fb = NULL;
 
-	if (1 == s_currentRenderer)
+	if (1 == currentrenderer)
  	{
 		fb = new OpenGLFrameBuffer(NULL, width, height, 32, 60, fullscreen);
 	}
+	else if (vid_glswfb)
+	{
+		fb = CreateGLSWFrameBuffer(width, height, bgra, fullscreen);
+
+		if (!fb->IsValid())
+		{
+			delete fb;
+
+			fb = new CocoaFrameBuffer(width, height, bgra, fullscreen);
+		}
+	}
 	else
 	{
-		fb = new CocoaFrameBuffer(width, height, fullscreen);
+		fb = new CocoaFrameBuffer(width, height, bgra, fullscreen);
 	}
 
 	fb->SetFlash(flashColor, flashAmount);
@@ -846,13 +901,13 @@ CocoaVideo* CocoaVideo::GetInstance()
 // ---------------------------------------------------------------------------
 
 
-CocoaFrameBuffer::CocoaFrameBuffer(int width, int height, bool fullscreen)
-: DFrameBuffer(width, height)
+CocoaFrameBuffer::CocoaFrameBuffer(int width, int height, bool bgra, bool fullscreen)
+: DFrameBuffer(width, height, bgra)
 , m_needPaletteUpdate(false)
 , m_gamma(0.0f)
 , m_needGammaUpdate(false)
 , m_flashAmount(0)
-, m_isUpdatePending(false)
+, UpdatePending(false)
 , m_pixelBuffer(new uint8_t[width * height * BYTES_PER_PIXEL])
 , m_texture(0)
 {
@@ -860,7 +915,10 @@ CocoaFrameBuffer::CocoaFrameBuffer(int width, int height, bool fullscreen)
 
 	if (!isOpenGLInitialized)
 	{
-		ogl_LoadFunctions();
+		if (ogl_LoadFunctions() == ogl_LOAD_FAILED)
+		{
+			I_FatalError("Failed to load OpenGL functions.");
+		}
 		isOpenGLInitialized = true;
 	}
 
@@ -916,7 +974,7 @@ bool CocoaFrameBuffer::Lock(bool buffered)
 
 void CocoaFrameBuffer::Unlock()
 {
-	if (m_isUpdatePending && LockCount == 1)
+	if (UpdatePending && LockCount == 1)
 	{
 		Update();
 	}
@@ -933,7 +991,7 @@ void CocoaFrameBuffer::Update()
 	{
 		if (LockCount > 0)
 		{
-			m_isUpdatePending = true;
+			UpdatePending = true;
 			--LockCount;
 		}
 		return;
@@ -943,14 +1001,21 @@ void CocoaFrameBuffer::Update()
 
 	Buffer = NULL;
 	LockCount = 0;
-	m_isUpdatePending = false;
+	UpdatePending = false;
 
 	BlitCycles.Reset();
 	FlipCycles.Reset();
 	BlitCycles.Clock();
 
-	GPfx.Convert(MemBuffer, Pitch, m_pixelBuffer, Width * BYTES_PER_PIXEL,
-		Width, Height, FRACUNIT, FRACUNIT, 0, 0);
+	if (IsBgra())
+	{
+		CopyWithGammaBgra(m_pixelBuffer, Width * BYTES_PER_PIXEL, m_gammaTable[0], m_gammaTable[1], m_gammaTable[2], m_flashColor, m_flashAmount);
+	}
+	else
+	{
+		GPfx.Convert(MemBuffer, Pitch, m_pixelBuffer, Width * BYTES_PER_PIXEL,
+			Width, Height, FRACUNIT, FRACUNIT, 0, 0);
+	}
 
 	FlipCycles.Clock();
 	Flip();
@@ -1082,8 +1147,10 @@ void CocoaFrameBuffer::Flip()
 	static const GLenum format = GL_ABGR_EXT;
 #endif // __LITTLE_ENDIAN__
 
-	glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA8,
-		Width, Height, 0, format, GL_UNSIGNED_BYTE, m_pixelBuffer);
+	if (IsBgra())
+		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA8, Width, Height, 0, GL_BGRA, GL_UNSIGNED_BYTE, m_pixelBuffer);
+	else
+		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA8, Width, Height, 0, format, GL_UNSIGNED_BYTE, m_pixelBuffer);
 
 	glBegin(GL_QUADS);
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1106,10 +1173,10 @@ void CocoaFrameBuffer::Flip()
 // ---------------------------------------------------------------------------
 
 
-SDLGLFB::SDLGLFB(void*, const int width, const int height, int, int, const bool fullscreen)
-: DFrameBuffer(width, height)
-, m_lock(-1)
-, m_isUpdatePending(false)
+SDLGLFB::SDLGLFB(void*, const int width, const int height, int, int, const bool fullscreen, bool bgra)
+: DFrameBuffer(width, height, bgra)
+, m_Lock(0)
+, UpdatePending(false)
 {
 	CGGammaValue gammaTable[GAMMA_TABLE_SIZE];
 	uint32_t actualChannelSize;
@@ -1122,7 +1189,7 @@ SDLGLFB::SDLGLFB(void*, const int width, const int height, int, int, const bool 
 	{
 		for (uint32_t i = 0; i < GAMMA_TABLE_SIZE; ++i)
 		{
-			m_originalGamma[i] = static_cast<WORD>(gammaTable[i] * 65535.0f);
+			m_originalGamma[i] = static_cast<uint16_t>(gammaTable[i] * 65535.0f);
 		}
 	}
 }
@@ -1138,7 +1205,7 @@ SDLGLFB::~SDLGLFB()
 
 bool SDLGLFB::Lock(bool buffered)
 {
-	m_lock++;
+	m_Lock++;
 
 	Buffer = MemBuffer;
 
@@ -1147,19 +1214,19 @@ bool SDLGLFB::Lock(bool buffered)
 
 void SDLGLFB::Unlock()
 {
-	if (m_isUpdatePending && 1 == m_lock)
+	if (UpdatePending && 1 == m_Lock)
 	{
 		Update();
 	}
-	else if (--m_lock <= 0)
+	else if (--m_Lock <= 0)
 	{
-		m_lock = 0;
+		m_Lock = 0;
 	}
 }
 
 bool SDLGLFB::IsLocked()
 {
-	return m_lock > 0;
+	return m_Lock > 0;
 }
 
 
@@ -1187,12 +1254,12 @@ void SDLGLFB::InitializeState()
 
 bool SDLGLFB::CanUpdate()
 {
-	if (m_lock != 1)
+	if (m_Lock != 1)
 	{
-		if (m_lock > 0)
+		if (m_Lock > 0)
 		{
-			m_isUpdatePending = true;
-			--m_lock;
+			UpdatePending = true;
+			--m_Lock;
 		}
 
 		return false;
@@ -1206,7 +1273,7 @@ void SDLGLFB::SwapBuffers()
 	[[NSOpenGLContext currentContext] flushBuffer];
 }
 
-void SDLGLFB::SetGammaTable(WORD* table)
+void SDLGLFB::SetGammaTable(uint16_t* table)
 {
 	if (m_supportsGamma)
 	{
@@ -1268,7 +1335,6 @@ void I_ShutdownGraphics()
 {
 	if (NULL != screen)
 	{
-		screen->ObjectFlags |= OF_YesReallyDelete;
 		delete screen;
 		screen = NULL;
 	}
@@ -1297,13 +1363,13 @@ static void I_DeleteRenderer()
 
 void I_CreateRenderer()
 {
-	s_currentRenderer = vid_renderer;
+	currentrenderer = vid_renderer;
 
 	if (NULL == Renderer)
 	{
 		extern FRenderer* gl_CreateInterface();
 
-		Renderer = 1 == s_currentRenderer
+		Renderer = 1 == currentrenderer
 			? gl_CreateInterface()
 			: new FSoftwareRenderer;
 		atterm(I_DeleteRenderer);
@@ -1313,7 +1379,7 @@ void I_CreateRenderer()
 
 DFrameBuffer* I_SetMode(int &width, int &height, DFrameBuffer* old)
 {
-	return Video->CreateFrameBuffer(width, height, fullscreen, old);
+	return Video->CreateFrameBuffer(width, height, swtruecolor, fullscreen, old);
 }
 
 bool I_CheckResolution(const int width, const int height, const int bits)
@@ -1338,7 +1404,7 @@ void I_ClosestResolution(int *width, int *height, int bits)
 	int twidth, theight;
 	int cwidth = 0, cheight = 0;
 	int iteration;
-	DWORD closest = DWORD(-1);
+	uint32_t closest = uint32_t(-1);
 
 	for (iteration = 0; iteration < 2; ++iteration)
 	{
@@ -1356,7 +1422,7 @@ void I_ClosestResolution(int *width, int *height, int bits)
 				continue;
 			}
 
-			const DWORD dist = (twidth - *width) * (twidth - *width)
+			const uint32_t dist = (twidth - *width) * (twidth - *width)
 				+ (theight - *height) * (theight - *height);
 
 			if (dist < closest)
@@ -1367,7 +1433,7 @@ void I_ClosestResolution(int *width, int *height, int bits)
 			}
 		}
 
-		if (closest != DWORD(-1))
+		if (closest != uint32_t(-1))
 		{
 			*width = cwidth;
 			*height = cheight;
@@ -1482,7 +1548,7 @@ bool I_SetCursor(FTexture* cursorpic)
 
 		// Load bitmap data to representation
 
-		BYTE* buffer = [bitmapImageRep bitmapData];
+		uint8_t* buffer = [bitmapImageRep bitmapData];
 		memset(buffer, 0, imagePitch * imageHeight);
 
 		FBitmap bitmap(buffer, imagePitch, imageWidth, imageHeight);
@@ -1494,7 +1560,7 @@ bool I_SetCursor(FTexture* cursorpic)
 		{
 			const size_t offset = i * 4;
 
-			const BYTE temp    = buffer[offset    ];
+			const uint8_t temp    = buffer[offset    ];
 			buffer[offset    ] = buffer[offset + 2];
 			buffer[offset + 2] = temp;
 		}

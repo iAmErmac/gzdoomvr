@@ -133,7 +133,10 @@ extend class Actor
 	void A_DropFire()
 	{
 		Actor drop = Spawn("FireDroplet", pos + (0,0,24), ALLOW_REPLACE);
-		drop.Vel.Z = -1.;
+		if (drop != null)
+		{
+			drop.Vel.Z = -1.;
+		}
 		A_Explode(64, 64, XF_NOSPLASH, damagetype: 'Fire');
 	}	
 
@@ -164,7 +167,7 @@ extend class Actor
 		{
 			target = self;
 		}
-		else if (target != null && (self.target.player != null || (Flags & AMF_TARGETNONPLAYER)))
+		else if (self.target != null && (self.target.player != null || (Flags & AMF_TARGETNONPLAYER)))
 		{
 			target = self.target;
 		}
@@ -173,7 +176,7 @@ extend class Actor
 
 		if (target != null && emitter != null)
 		{
-			emitter.NoiseAlert(target, false, maxdist);
+			emitter.SoundAlert(target, false, maxdist);
 		}
 	}
 

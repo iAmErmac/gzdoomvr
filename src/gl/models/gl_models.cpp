@@ -37,6 +37,8 @@
 #include "g_level.h"
 #include "r_state.h"
 #include "d_player.h"
+#include "g_levellocals.h"
+#include "r_utility.h"
 //#include "resources/voxels.h"
 //#include "gl/gl_intern.h"
 
@@ -519,7 +521,7 @@ void gl_InitModels()
 				path = "";
 				sc.MustGetString();
 				memset(&smf, 0, sizeof(smf));
-				smf.modelIDs[1] = smf.modelIDs[2] = smf.modelIDs[3] = -1;
+				smf.modelIDs[0] = smf.modelIDs[1] = smf.modelIDs[2] = smf.modelIDs[3] = -1;
 				smf.xscale=smf.yscale=smf.zscale=1.f;
 
 				smf.type = PClass::FindClass(sc.String);
@@ -785,6 +787,10 @@ void gl_InitModels()
 							map[c]=1;
 						}
 					}
+					else if (sc.Compare("dontcullbackfaces"))
+					{
+						smf.flags |= MDL_DONTCULLBACKFACES;
+					}
 					else
 					{
 						sc.ScriptMessage("Unrecognized string \"%s\"", sc.String);
@@ -947,8 +953,9 @@ void gl_RenderModel(GLSprite * spr)
 	gl_RenderState.EnableTexture(true);
 	// [BB] In case the model should be rendered translucent, do back face culling.
 	// This solves a few of the problems caused by the lack of depth sorting.
+	// [Nash] Don't do back face culling if explicitly specified in MODELDEF
 	// TO-DO: Implement proper depth sorting.
-	if (!( spr->actor->RenderStyle == LegacyRenderStyles[STYLE_Normal] ))
+	if (!(spr->actor->RenderStyle == LegacyRenderStyles[STYLE_Normal]) && !(smf->flags & MDL_DONTCULLBACKFACES))
 	{
 		glEnable(GL_CULL_FACE);
 		glFrontFace(GL_CW);
@@ -996,12 +1003,12 @@ void gl_RenderModel(GLSprite * spr)
 	}
 
 	// Added MDL_USEACTORPITCH and MDL_USEACTORROLL flags processing.
-	// If both flags MDL_USEACTORPITCH and MDL_PITCHFROMMOMENTUM are set, the pitch sums up the actor pitch and the momentum vector pitch.
+	// If both flags MDL_USEACTORPITCH and MDL_PITCHFROMMOMENTUM are set, the pitch sums up the actor pitch and the velocity vector pitch.
 	if (smf->flags & MDL_USEACTORPITCH)
 	{
 		double d = spr->actor->Angles.Pitch.Degrees;
-		if (smf->flags & MDL_BADROTATION) pitch -= d;
-		else pitch += d;
+		if (smf->flags & MDL_BADROTATION) pitch += d;
+		else pitch -= d;
 	}
 	if(smf->flags & MDL_USEACTORROLL) roll += spr->actor->Angles.Roll.Degrees;
 
@@ -1009,6 +1016,16 @@ void gl_RenderModel(GLSprite * spr)
 
 	// Model space => World space
 	gl_RenderState.mModelMatrix.translate(spr->x, spr->z, spr->y );	
+
+	// [Nash] take SpriteRotation into account
+	angle += spr->actor->SpriteRotation.Degrees;
+
+	if (spr->actor->renderflags & RF_INTERPOLATEANGLES)
+	{
+		// [Nash] use interpolated angles
+		DRotator Angles = spr->actor->InterpolatedAngles(r_viewpoint.TicFrac);
+		angle = Angles.Yaw.Degrees;
+	}
 	
 	// Applying model transformations:
 	// 1) Applying actor angle, pitch and roll to the model
@@ -1038,7 +1055,7 @@ void gl_RenderModel(GLSprite * spr)
 	gl_RenderState.mModelMatrix.rotate(-smf->rolloffset, 1, 0, 0);
 
 	// consider the pixel stretching. For non-voxels this must be factored out here
-	float stretch = (smf->modelIDs[0] != -1 ? Models[smf->modelIDs[0]]->getAspectFactor() : 1.f) / glset.pixelstretch;
+	float stretch = (smf->modelIDs[0] != -1 ? Models[smf->modelIDs[0]]->getAspectFactor() : 1.f) / level.info->pixelstretch;
 	gl_RenderState.mModelMatrix.scale(1, stretch, 1);
 
 

@@ -34,12 +34,13 @@
 **
 */
 
-#ifdef WIN32
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <intrin.h>
 
-#define USE_WINDOWS_DWORD
+#elif defined __APPLE__
+#include <sys/sysctl.h>
 #endif
 
 #include "i_system.h"
@@ -48,6 +49,7 @@
 #include "c_dispatch.h"
 #include "r_utility.h"
 #include "v_video.h"
+#include "g_levellocals.h"
 #include "gl/utility/gl_clock.h"
 #include "gl/utility/gl_convert.h"
 
@@ -73,7 +75,7 @@ double		gl_MillisecPerCycle = 1e-5;		// 100 MHz
 
 void gl_CalculateCPUSpeed ()
 {
-	#ifdef WIN32
+	#ifdef _WIN32
 		LARGE_INTEGER freq;
 
 		QueryPerformanceFrequency (&freq);
@@ -82,7 +84,7 @@ void gl_CalculateCPUSpeed ()
 		{
 			LARGE_INTEGER count1, count2;
 			unsigned minDiff;
-			long long ClockCalibration = 0;
+			int64_t ClockCalibration = 0;
 
 			// Count cycles for at least 55 milliseconds.
 			// The performance counter is very low resolution compared to CPU
@@ -101,7 +103,7 @@ void gl_CalculateCPUSpeed ()
 			do
 			{
 				QueryPerformanceCounter (&count2);
-			} while ((DWORD)((unsigned __int64)count2.QuadPart - (unsigned __int64)count1.QuadPart) < minDiff);
+			} while ((uint32_t)((uint64_t)count2.QuadPart - (uint64_t)count1.QuadPart) < minDiff);
 			ClockCalibration = __rdtsc() - ClockCalibration;
 			QueryPerformanceCounter (&count2);
 			SetPriorityClass (GetCurrentProcess (), NORMAL_PRIORITY_CLASS);
@@ -112,6 +114,15 @@ void gl_CalculateCPUSpeed ()
 				(double)((__int64)count2.QuadPart - (__int64)count1.QuadPart);
 			gl_SecondsPerCycle = 1.0 / CyclesPerSecond;
 			gl_MillisecPerCycle = 1000.0 / CyclesPerSecond;
+		}
+	#elif defined __APPLE__
+		long long frequency;
+		size_t size = sizeof frequency;
+
+		if (0 == sysctlbyname("machdep.tsc.frequency", &frequency, &size, nullptr, 0) && 0 != frequency)
+		{
+			gl_SecondsPerCycle = 1.0 / frequency;
+			gl_MillisecPerCycle = 1000.0 / frequency;
 		}
 	#endif
 }
@@ -220,7 +231,7 @@ void CheckBench()
 		FString compose;
 
 		compose.Format("Map %s: \"%s\",\nx = %1.4f, y = %1.4f, z = %1.4f, angle = %1.4f, pitch = %1.4f\n",
-			level.MapName.GetChars(), level.LevelName.GetChars(), ViewPos.X, ViewPos.Y, ViewPos.Z, ViewAngle.Degrees, ViewPitch.Degrees);
+			level.MapName.GetChars(), level.LevelName.GetChars(), r_viewpoint.Pos.X, r_viewpoint.Pos.Y, r_viewpoint.Pos.Z, r_viewpoint.Angles.Yaw.Degrees, r_viewpoint.Angles.Pitch.Degrees);
 		
 		AppendRenderStats(compose);
 		AppendRenderTimes(compose);

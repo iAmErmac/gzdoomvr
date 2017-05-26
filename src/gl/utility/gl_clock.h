@@ -7,30 +7,30 @@
 
 extern bool gl_benching;
 
-#ifdef _MSC_VER
-
 extern double gl_SecondsPerCycle;
 extern double gl_MillisecPerCycle;
 
-__forceinline long long GetClockCycle ()
+#ifdef _MSC_VER
+
+__forceinline int64_t GetClockCycle ()
 {
-#if _M_X64
 	return __rdtsc();
-#else
-	return CPU.bRDTSC ? __rdtsc() : 0;
-#endif
+}
+
+#elif defined __APPLE__ && (defined __i386__ || defined __x86_64__)
+
+inline int64_t GetClockCycle()
+{
+	return __builtin_ia32_rdtsc();
 }
 
 #elif defined(__GNUG__) && defined(__i386__)
 
-extern double gl_SecondsPerCycle;
-extern double gl_MillisecPerCycle;
-
-inline long long GetClockCycle()
+inline int64_t GetClockCycle()
 {
 	if (CPU.bRDTSC)
 	{
-		long long res;
+		int64_t res;
 		asm volatile ("rdtsc" : "=A" (res));
 		return res;
 	}
@@ -42,20 +42,11 @@ inline long long GetClockCycle()
 
 #else
 
-extern double gl_SecondsPerCycle;
-extern double gl_MillisecPerCycle;
-
-inline long long GetClockCycle ()
+inline int64_t GetClockCycle ()
 {
 	return 0;
 }
 #endif
-
-#if defined (__APPLE__)
-
-typedef cycle_t glcycle_t;
-
-#else // !__APPLE__
 
 class glcycle_t
 {
@@ -76,13 +67,13 @@ public:
 		// Not using QueryPerformanceCounter directly, so we don't need
 		// to pull in the Windows headers for every single file that
 		// wants to do some profiling.
-		long long time = (gl_benching? GetClockCycle() : 0);
+		int64_t time = (gl_benching? GetClockCycle() : 0);
 		Counter -= time;
 	}
 	
 	__forceinline void Unclock()
 	{
-		long long time = (gl_benching? GetClockCycle() : 0);
+		int64_t time = (gl_benching? GetClockCycle() : 0);
 		Counter += time;
 	}
 	
@@ -97,10 +88,8 @@ public:
 	}
 
 private:
-	long long Counter;
+	int64_t Counter;
 };
-
-#endif // __APPLE__
 
 extern glcycle_t RenderWall,SetupWall,ClipWall;
 extern glcycle_t RenderFlat,SetupFlat;

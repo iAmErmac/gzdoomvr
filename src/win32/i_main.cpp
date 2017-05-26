@@ -61,7 +61,6 @@
 #include <stdarg.h>
 #include <math.h>
 
-#define USE_WINDOWS_DWORD
 #include "doomerrors.h"
 #include "hardware.h"
 
@@ -81,6 +80,8 @@
 #include "g_level.h"
 #include "doomstat.h"
 #include "r_utility.h"
+#include "g_levellocals.h"
+#include "s_sound.h"
 
 #include "stats.h"
 #include "st_start.h"
@@ -108,7 +109,7 @@
 LRESULT CALLBACK WndProc (HWND, UINT, WPARAM, LPARAM);
 void CreateCrashLog (char *custominfo, DWORD customsize, HWND richedit);
 void DisplayCrashLog ();
-extern BYTE *ST_Util_BitsForBitmap (BITMAPINFO *bitmap_info);
+extern uint8_t *ST_Util_BitsForBitmap (BITMAPINFO *bitmap_info);
 void I_FlushBufferedConsoleStuff();
 
 // PUBLIC FUNCTION PROTOTYPES ----------------------------------------------
@@ -124,7 +125,7 @@ extern UINT TimerPeriod;
 // PUBLIC DATA DEFINITIONS -------------------------------------------------
 
 // The command line arguments.
-DArgs *Args;
+FArgs *Args;
 
 HINSTANCE		g_hInst;
 DWORD			SessionID;
@@ -680,17 +681,23 @@ void I_SetWndProc()
 
 void RestoreConView()
 {
+	HDC screenDC = GetDC(0);
+	int dpi = GetDeviceCaps(screenDC, LOGPIXELSX);
+	ReleaseDC(0, screenDC);
+	int width = (512 * dpi + 96 / 2) / 96;
+	int height = (384 * dpi + 96 / 2) / 96;
+
 	// Make sure the window has a frame in case it was fullscreened.
 	SetWindowLongPtr (Window, GWL_STYLE, WS_VISIBLE|WS_OVERLAPPEDWINDOW);
 	if (GetWindowLong (Window, GWL_EXSTYLE) & WS_EX_TOPMOST)
 	{
-		SetWindowPos (Window, HWND_BOTTOM, 0, 0, 512, 384,
+		SetWindowPos (Window, HWND_BOTTOM, 0, 0, width, height,
 			SWP_DRAWFRAME | SWP_NOCOPYBITS | SWP_NOMOVE);
 		SetWindowPos (Window, HWND_TOP, 0, 0, 0, 0, SWP_NOCOPYBITS | SWP_NOMOVE | SWP_NOSIZE);
 	}
 	else
 	{
-		SetWindowPos (Window, NULL, 0, 0, 512, 384,
+		SetWindowPos (Window, NULL, 0, 0, width, height,
 			SWP_DRAWFRAME | SWP_NOCOPYBITS | SWP_NOMOVE | SWP_NOZORDER);
 	}
 
@@ -814,6 +821,13 @@ void ShowErrorPane(const char *text)
 	}
 }
 
+void PeekThreadedErrorPane()
+{
+	// Allow SendMessage from another thread to call its message handler so that it can display the crash dialog
+	MSG msg;
+	PeekMessage(&msg, 0, 0, 0, PM_NOREMOVE);
+}
+
 //==========================================================================
 //
 // DoMain
@@ -834,7 +848,7 @@ void DoMain (HINSTANCE hInstance)
 		_set_new_handler (NewFailure);
 #endif
 
-		Args = new DArgs(__argc, __argv);
+		Args = new FArgs(__argc, __argv);
 
 		// Load Win32 modules
 		Kernel32Module.Load({"kernel32.dll"});
@@ -935,8 +949,11 @@ void DoMain (HINSTANCE hInstance)
 		progdir.Truncate((long)strlen(program));
 		progdir.UnlockBuffer();
 
-		width = 512;
-		height = 384;
+		HDC screenDC = GetDC(0);
+		int dpi = GetDeviceCaps(screenDC, LOGPIXELSX);
+		ReleaseDC(0, screenDC);
+		width = (512 * dpi + 96 / 2) / 96;
+		height = (384 * dpi + 96 / 2) / 96;
 
 		// Many Windows structures that specify their size do so with the first
 		// element. DEVMODE is not one of those structures.
@@ -1051,6 +1068,7 @@ void DoMain (HINSTANCE hInstance)
 	{
 		I_ShutdownGraphics ();
 		RestoreConView ();
+		S_StopMusic(true);
 		I_FlushBufferedConsoleStuff();
 		if (error.GetMessage ())
 		{
@@ -1103,10 +1121,10 @@ void DoomSpecificInfo (char *buffer, size_t bufflen)
 		}
 		else
 		{
-			buffer += mysnprintf (buffer, buffend - buffer, "\r\n\r\nviewx = %f", ViewPos.X);
-			buffer += mysnprintf (buffer, buffend - buffer, "\r\nviewy = %f", ViewPos.Y);
-			buffer += mysnprintf (buffer, buffend - buffer, "\r\nviewz = %f", ViewPos.Z);
-			buffer += mysnprintf (buffer, buffend - buffer, "\r\nviewangle = %f", ViewAngle);
+			buffer += mysnprintf (buffer, buffend - buffer, "\r\n\r\nviewx = %f", r_viewpoint.Pos.X);
+			buffer += mysnprintf (buffer, buffend - buffer, "\r\nviewy = %f", r_viewpoint.Pos.Y);
+			buffer += mysnprintf (buffer, buffend - buffer, "\r\nviewz = %f", r_viewpoint.Pos.Z);
+			buffer += mysnprintf (buffer, buffend - buffer, "\r\nviewangle = %f", r_viewpoint.Angles.Yaw);
 		}
 	}
 	*buffer++ = '\r';
@@ -1213,7 +1231,11 @@ LONG WINAPI CatchAllExceptions (LPEXCEPTION_POINTERS info)
 	// Otherwise, put the crashing thread to sleep and signal the main thread to clean up.
 	if (GetCurrentThreadId() == MainThreadID)
 	{
+#ifdef _M_X64
 		*info->ContextRecord = MainThreadContext;
+#else
+		info->ContextRecord->Eip = (DWORD_PTR)ExitFatally;
+#endif // _M_X64
 	}
 	else
 	{
@@ -1306,6 +1328,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE nothing, LPSTR cmdline, int n
 	{
 		SetUnhandledExceptionFilter (CatchAllExceptions);
 
+#ifdef _M_X64
 		static bool setJumpResult = false;
 		RtlCaptureContext(&MainThreadContext);
 		if (setJumpResult)
@@ -1314,6 +1337,7 @@ int WINAPI WinMain (HINSTANCE hInstance, HINSTANCE nothing, LPSTR cmdline, int n
 			return 0;
 		}
 		setJumpResult = true;
+#endif // _M_X64
 	}
 #endif
 

@@ -139,7 +139,8 @@ void F2DDrawer::AddTexture(FTexture *img, DrawParms &parms)
 	{
 		color = PalEntry(light, light, light);
 	}
-	color.a = (BYTE)(parms.Alpha * 255);
+	color.a = (uint8_t)(parms.Alpha * 255);
+	color = PalEntry((color.a * parms.color.a) / 255, (color.r * parms.color.r) / 255, (color.g * parms.color.g) / 255, (color.b * parms.color.b) / 255);
 
 	// scissor test doesn't use the current viewport for the coordinates, so use real screen coordinates
 	dg.mScissor[0] = GLRenderer->ScreenToWindowX(parms.lclip);
@@ -174,7 +175,7 @@ void F2DDrawer::AddTexture(FTexture *img, DrawParms &parms)
 
 void F2DDrawer::AddPoly(FTexture *texture, FVector2 *points, int npoints,
 		double originx, double originy, double scalex, double scaley,
-		DAngle rotation, FDynamicColormap *colormap, int lightlevel)
+		DAngle rotation, const FColormap &colormap, PalEntry flatcolor, int lightlevel)
 {
 	FMaterial *gltexture = FMaterial::ValidateTexture(texture, false);
 
@@ -191,6 +192,7 @@ void F2DDrawer::AddPoly(FTexture *texture, FVector2 *points, int npoints,
 	poly.mLightLevel = lightlevel;
 	poly.mVertCount = npoints;
 	poly.mVertIndex = (int)mVertices.Reserve(npoints);
+	poly.mFlatColor = flatcolor;
 
 	bool dorotate = rotation != 0;
 
@@ -252,7 +254,7 @@ void F2DDrawer::AddDim(PalEntry color, float damount, int x1, int y1, int w, int
 //
 //==========================================================================
 
-void F2DDrawer::AddClear(int left, int top, int right, int bottom, int palcolor, uint32 color)
+void F2DDrawer::AddClear(int left, int top, int right, int bottom, int palcolor, uint32_t color)
 {
 	PalEntry p = palcolor == -1 || color != 0 ? (PalEntry)color : GPalette.BaseColors[palcolor];
 	AddDim(p, 1.f, left, top, right - left, bottom - top);
@@ -310,7 +312,7 @@ void F2DDrawer::AddFlatFill(int left, int top, int right, int bottom, FTexture *
 //
 //==========================================================================
 
-void F2DDrawer::AddLine(int x1, int y1, int x2, int y2, int palcolor, uint32 color)
+void F2DDrawer::AddLine(int x1, int y1, int x2, int y2, int palcolor, uint32_t color)
 {
 	PalEntry p = color ? (PalEntry)color : GPalette.BaseColors[palcolor];
 	p.a = 255;
@@ -343,7 +345,7 @@ void F2DDrawer::AddLine(int x1, int y1, int x2, int y2, int palcolor, uint32 col
 //
 //==========================================================================
 
-void F2DDrawer::AddPixel(int x1, int y1, int palcolor, uint32 color)
+void F2DDrawer::AddPixel(int x1, int y1, int palcolor, uint32_t color)
 {
 	PalEntry p = color ? (PalEntry)color : GPalette.BaseColors[palcolor];
 	p.a = 255;
@@ -371,7 +373,7 @@ void F2DDrawer::Draw()
 	F2DDrawer::EDrawType lasttype = DrawTypeTexture;
 
 	if (mData.Size() == 0) return;
-	SBYTE savedlightmode = glset.lightmode;
+	int8_t savedlightmode = glset.lightmode;
 	// lightmode is only relevant for automap subsectors,
 	// but We cannot use the software light mode here because it doesn't properly calculate the light for 2D rendering.
 	if (glset.lightmode == 8) glset.lightmode = 0;
@@ -434,12 +436,12 @@ void F2DDrawer::Draw()
 		{
 			DataSimplePoly *dsp = static_cast<DataSimplePoly*>(dg);
 
-			FColormap cm;
-			cm = dsp->mColormap;
-			gl_SetColor(dsp->mLightLevel, 0, cm, 1.f);
+			gl_SetColor(dsp->mLightLevel, 0, false, dsp->mColormap, 1.f);
 			gl_RenderState.SetMaterial(dsp->mTexture, CLAMP_NONE, 0, -1, false);
+			gl_RenderState.SetObjectColor(dsp->mFlatColor|0xff000000);
 			gl_RenderState.Apply();
 			glDrawArrays(GL_TRIANGLE_FAN, dsp->mVertIndex, dsp->mVertCount);
+			gl_RenderState.SetObjectColor(0xffffffff);
 			break;
 		}
 
@@ -486,4 +488,5 @@ void F2DDrawer::Clear()
 {
 	mVertices.Clear();
 	mData.Clear();
+	mLastLineCmd = -1;
 }

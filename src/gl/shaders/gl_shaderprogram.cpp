@@ -26,7 +26,6 @@
 */
 
 #include "gl/system/gl_system.h"
-#include "files.h"
 #include "m_swap.h"
 #include "v_video.h"
 #include "gl/gl_functions.h"
@@ -89,7 +88,7 @@ void FShaderProgram::CreateShader(ShaderType type)
 
 void FShaderProgram::Compile(ShaderType type, const char *lumpName, const char *defines, int maxGlslVersion)
 {
-	int lump = Wads.CheckNumForFullName(lumpName);
+	int lump = Wads.CheckNumForFullName(lumpName, 0);
 	if (lump == -1) I_FatalError("Unable to load '%s'", lumpName);
 	FString code = Wads.ReadLump(lump).GetString().GetChars();
 	Compile(type, lumpName, code, defines, maxGlslVersion);
@@ -217,7 +216,10 @@ FString FShaderProgram::PatchShader(ShaderType type, const FString &code, const 
 	FString patchedCode;
 
 	int shaderVersion = MIN((int)round(gl.glslversion * 10) * 10, maxGlslVersion);
-	patchedCode.AppendFormat("#version %d\n", shaderVersion);
+	if (gl.es)
+		patchedCode.AppendFormat("#version %d es\n", shaderVersion);
+	else
+		patchedCode.AppendFormat("#version %d\n", shaderVersion);
 
 	// TODO: Find some way to add extension requirements to the patching
 	//

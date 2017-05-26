@@ -51,6 +51,7 @@
 #include "gl/data/gl_vertexbuffer.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/shaders/gl_shader.h"
+#include "gl/shaders/gl_ambientshader.h"
 #include "gl/shaders/gl_bloomshader.h"
 #include "gl/shaders/gl_blurshader.h"
 #include "gl/shaders/gl_tonemapshader.h"
@@ -59,6 +60,7 @@
 #include "gl/shaders/gl_fxaashader.h"
 #include "gl/shaders/gl_presentshader.h"
 #include "gl/shaders/gl_present3dRowshader.h"
+#include "gl/shaders/gl_shadowmapshader.h"
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/textures/gl_texture.h"
 #include "gl/textures/gl_translate.h"
@@ -71,7 +73,7 @@
 
 EXTERN_CVAR(Int, screenblocks)
 
-CVAR(Bool, gl_scale_viewport, true, 0);
+CVAR(Bool, gl_scale_viewport, true, CVAR_ARCHIVE);
 
 //===========================================================================
 // 
@@ -118,8 +120,13 @@ FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb)
 	mTonemapPalette = nullptr;
 	mColormapShader = nullptr;
 	mLensShader = nullptr;
+	mLinearDepthShader = nullptr;
+	mDepthBlurShader = nullptr;
+	mSSAOShader = nullptr;
+	mSSAOCombineShader = nullptr;
 	mFXAAShader = nullptr;
 	mFXAALumaShader = nullptr;
+	mShadowMapShader = nullptr;
 }
 
 void gl_LoadModels();
@@ -128,6 +135,10 @@ void gl_FlushModels();
 void FGLRenderer::Initialize(int width, int height)
 {
 	mBuffers = new FGLRenderBuffers();
+	mLinearDepthShader = new FLinearDepthShader();
+	mDepthBlurShader = new FDepthBlurShader();
+	mSSAOShader = new FSSAOShader();
+	mSSAOCombineShader = new FSSAOCombineShader();
 	mBloomExtractShader = new FBloomExtractShader();
 	mBloomCombineShader = new FBloomCombineShader();
 	mExposureExtractShader = new FExposureExtractShader();
@@ -144,6 +155,7 @@ void FGLRenderer::Initialize(int width, int height)
 	mPresent3dCheckerShader = new FPresent3DCheckerShader();
 	mPresent3dColumnShader = new FPresent3DColumnShader();
 	mPresent3dRowShader = new FPresent3DRowShader();
+	mShadowMapShader = new FShadowMapShader();
 	m2DDrawer = new F2DDrawer;
 
 	// needed for the core profile, because someone decided it was a good idea to remove the default VAO.
@@ -155,7 +167,7 @@ void FGLRenderer::Initialize(int width, int height)
 	}
 	else mVAOID = 0;
 
-	gllight = FTexture::CreateTexture(Wads.GetNumForFullName("glstuff/gllight.png"), FTexture::TEX_MiscPatch);
+	if (gl.legacyMode) gllight = FTexture::CreateTexture(Wads.GetNumForFullName("glstuff/gllight.png"), FTexture::TEX_MiscPatch);
 	glpart2 = FTexture::CreateTexture(Wads.GetNumForFullName("glstuff/glpart2.png"), FTexture::TEX_MiscPatch);
 	glpart = FTexture::CreateTexture(Wads.GetNumForFullName("glstuff/glpart.png"), FTexture::TEX_MiscPatch);
 	mirrortexture = FTexture::CreateTexture(Wads.GetNumForFullName("glstuff/mirror.png"), FTexture::TEX_MiscPatch);
@@ -177,7 +189,7 @@ void FGLRenderer::Initialize(int width, int height)
 FGLRenderer::~FGLRenderer() 
 {
 	gl_FlushModels();
-	gl_DeleteAllAttachedLights();
+	AActor::DeleteAllAttachedLights();
 	FMaterial::FlushAll();
 	if (m2DDrawer != nullptr) delete m2DDrawer;
 	if (mShaderManager != NULL) delete mShaderManager;
@@ -187,6 +199,7 @@ FGLRenderer::~FGLRenderer()
 	if (mLights != NULL) delete mLights;
 	if (glpart2) delete glpart2;
 	if (glpart) delete glpart;
+	if (gllight) delete gllight;
 	if (mirrortexture) delete mirrortexture;
 	if (mFBID != 0) glDeleteFramebuffers(1, &mFBID);
 	if (mVAOID != 0)
@@ -196,6 +209,10 @@ FGLRenderer::~FGLRenderer()
 	}
 	if (mBuffers) delete mBuffers;
 	if (mPresentShader) delete mPresentShader;
+	if (mLinearDepthShader) delete mLinearDepthShader;
+	if (mDepthBlurShader) delete mDepthBlurShader;
+	if (mSSAOShader) delete mSSAOShader;
+	if (mSSAOCombineShader) delete mSSAOCombineShader;
 	if (mPresent3dCheckerShader) delete mPresent3dCheckerShader;
 	if (mPresent3dColumnShader) delete mPresent3dColumnShader;
 	if (mPresent3dRowShader) delete mPresent3dRowShader;
@@ -209,6 +226,7 @@ FGLRenderer::~FGLRenderer()
 	if (mTonemapPalette) delete mTonemapPalette;
 	if (mColormapShader) delete mColormapShader;
 	if (mLensShader) delete mLensShader;
+	if (mShadowMapShader) delete mShadowMapShader;
 	delete mFXAAShader;
 	delete mFXAALumaShader;
 }
@@ -273,7 +291,7 @@ void FGLRenderer::SetOutputViewport(GL_IRECT *bounds)
 	mSceneViewport.height = height;
 
 	// Scale viewports to fit letterbox
-	if (gl_scale_viewport || !FGLRenderBuffers::IsEnabled())
+	if ((gl_scale_viewport && !framebuffer->IsFullscreen()) || !FGLRenderBuffers::IsEnabled())
 	{
 		mScreenViewport.width = mOutputLetterbox.width;
 		mScreenViewport.height = mOutputLetterbox.height;
@@ -327,7 +345,7 @@ void FGLRenderer::Begin2D()
 	if (mBuffers->Setup(mScreenViewport.width, mScreenViewport.height, mSceneViewport.width, mSceneViewport.height))
 	{
 		if (mDrawingScene2D)
-			mBuffers->BindSceneFB();
+			mBuffers->BindSceneFB(false);
 		else
 			mBuffers->BindCurrentFB();
 	}
@@ -335,55 +353,6 @@ void FGLRenderer::Begin2D()
 	glScissor(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
 
 	gl_RenderState.EnableFog(false);
-}
-
-//===========================================================================
-// 
-//
-//
-//===========================================================================
-
-void FGLRenderer::ProcessLowerMiniseg(seg_t *seg, sector_t * frontsector, sector_t * backsector)
-{
-	GLWall wall;
-	wall.ProcessLowerMiniseg(seg, frontsector, backsector);
-	rendered_lines++;
-}
-
-//===========================================================================
-// 
-//
-//
-//===========================================================================
-
-void FGLRenderer::ProcessSprite(AActor *thing, sector_t *sector, bool thruportal)
-{
-	GLSprite glsprite;
-	glsprite.Process(thing, sector, thruportal);
-}
-
-//===========================================================================
-// 
-//
-//
-//===========================================================================
-
-void FGLRenderer::ProcessParticle(particle_t *part, sector_t *sector)
-{
-	GLSprite glsprite;
-	glsprite.ProcessParticle(part, sector);//, 0, 0);
-}
-
-//===========================================================================
-// 
-//
-//
-//===========================================================================
-
-void FGLRenderer::ProcessSector(sector_t *fakesector)
-{
-	GLFlat glflat;
-	glflat.ProcessSector(fakesector);
 }
 
 //===========================================================================

@@ -143,7 +143,7 @@ void FGLDebug::SetupBreakpointMode()
 
 void FGLDebug::UpdateLoggingLevel()
 {
-	int level = gl_debug_level;
+	const GLenum level = gl_debug_level;
 	if (level != mCurrentLevel)
 	{
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0, nullptr, level > 0);
@@ -271,15 +271,7 @@ void FGLDebug::DebugCallback(GLenum source, GLenum type, GLuint id, GLenum sever
 		return;
 
 	PrintMessage(source, type, id, severity, length, message);
-
-	if (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
-	{
-#ifdef _MSC_VER
-		DebugBreak();
-#else
-		raise(SIGTRAP);
-#endif
-	}
+	assert(severity == GL_DEBUG_SEVERITY_NOTIFICATION);
 }
 
 //-----------------------------------------------------------------------------

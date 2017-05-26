@@ -60,15 +60,15 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 	static char buffer[10000];
 	FString error;
 
-	int i_lump = Wads.CheckNumForFullName("shaders/glsl/shaderdefs.i");
+	int i_lump = Wads.CheckNumForFullName("shaders/glsl/shaderdefs.i", 0);
 	if (i_lump == -1) I_Error("Unable to load 'shaders/glsl/shaderdefs.i'");
 	FMemLump i_data = Wads.ReadLump(i_lump);
 
-	int vp_lump = Wads.CheckNumForFullName(vert_prog_lump);
+	int vp_lump = Wads.CheckNumForFullName(vert_prog_lump, 0);
 	if (vp_lump == -1) I_Error("Unable to load '%s'", vert_prog_lump);
 	FMemLump vp_data = Wads.ReadLump(vp_lump);
 
-	int fp_lump = Wads.CheckNumForFullName(frag_prog_lump);
+	int fp_lump = Wads.CheckNumForFullName(frag_prog_lump, 0);
 	if (fp_lump == -1) I_Error("Unable to load '%s'", frag_prog_lump);
 	FMemLump fp_data = Wads.ReadLump(fp_lump);
 
@@ -85,8 +85,11 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 	unsigned int lightbuffersize = GLRenderer->mLights->GetBlockSize();
 	if (lightbuffertype == GL_UNIFORM_BUFFER)
 	{
-		// This differentiation is for some Intel drivers which fail on #extension, so use of #version 140 is necessary
-		if (gl.glslversion < 1.4f)
+		if (gl.es)
+		{
+			vp_comb.Format("#version 300 es\n#define NUM_UBO_LIGHTS %d\n", lightbuffersize);
+		}
+		else if (gl.glslversion < 1.4f) // This differentiation is for some Intel drivers which fail on #extension, so use of #version 140 is necessary
 		{
 			vp_comb.Format("#version 130\n#extension GL_ARB_uniform_buffer_object : require\n#define NUM_UBO_LIGHTS %d\n", lightbuffersize);
 		}
@@ -97,12 +100,21 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 	}
 	else
 	{
-		vp_comb = "#version 400 core\n#extension GL_ARB_shader_storage_buffer_object : require\n#define SHADER_STORAGE_LIGHTS\n";
+		// This differentiation is for Intel which do not seem to expose the full extension, even if marked as required.
+		if (gl.glslversion < 4.3f)
+			vp_comb = "#version 400 core\n#extension GL_ARB_shader_storage_buffer_object : require\n#define SHADER_STORAGE_LIGHTS\n";
+		else
+			vp_comb = "#version 430 core\n#define SHADER_STORAGE_LIGHTS\n";
 	}
 
 	if (gl.buffermethod == BM_DEFERRED)
 	{
 		vp_comb << "#define USE_QUAD_DRAWER\n";
+	}
+
+	if (!!(gl.flags & RFL_SHADER_STORAGE_BUFFER))
+	{
+		vp_comb << "#define SUPPORTS_SHADOWMAPS\n";
 	}
 
 	vp_comb << defines << i_data.GetString().GetChars();
@@ -181,6 +193,10 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 	glBindAttribLocation(hShader, VATTR_VERTEX2, "aVertex2");
 	glBindAttribLocation(hShader, VATTR_NORMAL, "aNormal");
 
+	glBindFragDataLocation(hShader, 0, "FragColor");
+	glBindFragDataLocation(hShader, 1, "FragFog");
+	glBindFragDataLocation(hShader, 2, "FragNormal");
+
 	glLinkProgram(hShader);
 
 	glGetShaderInfoLog(hVertProg, 10000, NULL, buffer);
@@ -210,6 +226,7 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 
 	muDesaturation.Init(hShader, "uDesaturationFactor");
 	muFogEnabled.Init(hShader, "uFogEnabled");
+	muPalLightLevels.Init(hShader, "uPalLightLevels");
 	muTextureMode.Init(hShader, "uTextureMode");
 	muCameraPos.Init(hShader, "uCameraPos");
 	muLightParms.Init(hShader, "uLightAttr");
@@ -220,6 +237,7 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 	muFogColor.Init(hShader, "uFogColor");
 	muDynLightColor.Init(hShader, "uDynLightColor");
 	muObjectColor.Init(hShader, "uObjectColor");
+	muObjectColor2.Init(hShader, "uObjectColor2");
 	muGlowBottomColor.Init(hShader, "uGlowBottomColor");
 	muGlowTopColor.Init(hShader, "uGlowTopColor");
 	muGlowBottomPlane.Init(hShader, "uGlowBottomPlane");
@@ -264,6 +282,9 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 		if (tempindex > 0) glUniform1i(tempindex, i - 1);
 	}
 
+	int shadowmapindex = glGetUniformLocation(hShader, "ShadowMap");
+	if (shadowmapindex > 0) glUniform1i(shadowmapindex, 16);
+
 	glUseProgram(0);
 	return !!linked;
 }
@@ -300,12 +321,13 @@ bool FShader::Bind()
 //
 //==========================================================================
 
-FShader *FShaderManager::Compile (const char *ShaderName, const char *ShaderPath, bool usediscard)
+FShader *FShaderCollection::Compile (const char *ShaderName, const char *ShaderPath, bool usediscard, EPassType passType)
 {
 	FString defines;
 	// this can't be in the shader code due to ATI strangeness.
 	if (gl.MaxLights() == 128) defines += "#define MAXLIGHTS128\n";
 	if (!usediscard) defines += "#define NO_ALPHATEST\n";
+	if (passType == GBUFFER_PASS) defines += "#define GBUFFER_PASS\n";
 
 	FShader *shader = NULL;
 	try
@@ -388,27 +410,82 @@ static const FEffectShader effectshaders[]=
 	{ "stencil", "shaders/glsl/main.vp", "shaders/glsl/stencil.fp", NULL, "#define SIMPLE\n#define NO_ALPHATEST\n" },
 };
 
-
-//==========================================================================
-//
-//
-//
-//==========================================================================
-
 FShaderManager::FShaderManager()
 {
-	if (!gl.legacyMode) CompileShaders();
+	if (!gl.legacyMode)
+	{
+		if (gl.es) // OpenGL ES does not support multiple fragment shader outputs. As a result, no GBUFFER passes are possible.
+		{
+			mPassShaders.Push(new FShaderCollection(NORMAL_PASS));
+		}
+		else
+		{
+			for (int passType = 0; passType < MAX_PASS_TYPES; passType++)
+				mPassShaders.Push(new FShaderCollection((EPassType)passType));
+		}
+	}
 }
-
-//==========================================================================
-//
-//
-//
-//==========================================================================
 
 FShaderManager::~FShaderManager()
 {
-	if (!gl.legacyMode) Clean();
+	if (!gl.legacyMode)
+	{
+		glUseProgram(0);
+		mActiveShader = NULL;
+
+		for (auto collection : mPassShaders)
+			delete collection;
+	}
+}
+
+void FShaderManager::SetActiveShader(FShader *sh)
+{
+	if (mActiveShader != sh)
+	{
+		glUseProgram(sh!= NULL? sh->GetHandle() : 0);
+		mActiveShader = sh;
+	}
+}
+
+FShader *FShaderManager::BindEffect(int effect, EPassType passType)
+{
+	if (passType < mPassShaders.Size())
+		return mPassShaders[passType]->BindEffect(effect);
+	else
+		return nullptr;
+}
+
+FShader *FShaderManager::Get(unsigned int eff, bool alphateston, EPassType passType)
+{
+	if (passType < mPassShaders.Size())
+		return mPassShaders[passType]->Get(eff, alphateston);
+	else
+		return nullptr;
+}
+
+void FShaderManager::ApplyMatrices(VSMatrix *proj, VSMatrix *view, EPassType passType)
+{
+	if (gl.legacyMode)
+	{
+		glMatrixMode(GL_PROJECTION);
+		glLoadMatrixf(proj->get());
+		glMatrixMode(GL_MODELVIEW);
+		glLoadMatrixf(view->get());
+	}
+	else
+	{
+		if (passType < mPassShaders.Size())
+			mPassShaders[passType]->ApplyMatrices(proj, view);
+
+		if (mActiveShader)
+			mActiveShader->Bind();
+	}
+}
+
+void FShaderManager::ResetFixedColormap()
+{
+	for (auto &collection : mPassShaders)
+		collection->ResetFixedColormap();
 }
 
 //==========================================================================
@@ -417,10 +494,30 @@ FShaderManager::~FShaderManager()
 //
 //==========================================================================
 
-void FShaderManager::CompileShaders()
+FShaderCollection::FShaderCollection(EPassType passType)
 {
-	mActiveShader = NULL;
+	CompileShaders(passType);
+}
 
+//==========================================================================
+//
+//
+//
+//==========================================================================
+
+FShaderCollection::~FShaderCollection()
+{
+	Clean();
+}
+
+//==========================================================================
+//
+//
+//
+//==========================================================================
+
+void FShaderCollection::CompileShaders(EPassType passType)
+{
 	mTextureEffects.Clear();
 	mTextureEffectsNAT.Clear();
 	for (int i = 0; i < MAX_EFFECTS; i++)
@@ -430,11 +527,11 @@ void FShaderManager::CompileShaders()
 
 	for(int i=0;defaultshaders[i].ShaderName != NULL;i++)
 	{
-		FShader *shc = Compile(defaultshaders[i].ShaderName, defaultshaders[i].gettexelfunc, true);
+		FShader *shc = Compile(defaultshaders[i].ShaderName, defaultshaders[i].gettexelfunc, true, passType);
 		mTextureEffects.Push(shc);
 		if (i <= 3)
 		{
-			FShader *shc = Compile(defaultshaders[i].ShaderName, defaultshaders[i].gettexelfunc, false);
+			FShader *shc = Compile(defaultshaders[i].ShaderName, defaultshaders[i].gettexelfunc, false, passType);
 			mTextureEffectsNAT.Push(shc);
 		}
 	}
@@ -444,7 +541,7 @@ void FShaderManager::CompileShaders()
 		FString name = ExtractFileBase(usershaders[i]);
 		FName sfn = name;
 
-		FShader *shc = Compile(sfn, usershaders[i], true);
+		FShader *shc = Compile(sfn, usershaders[i], true, passType);
 		mTextureEffects.Push(shc);
 	}
 
@@ -466,11 +563,8 @@ void FShaderManager::CompileShaders()
 //
 //==========================================================================
 
-void FShaderManager::Clean()
+void FShaderCollection::Clean()
 {
-	glUseProgram(0);
-	mActiveShader = NULL;
-
 	for (unsigned int i = 0; i < mTextureEffectsNAT.Size(); i++)
 	{
 		if (mTextureEffectsNAT[i] != NULL) delete mTextureEffectsNAT[i];
@@ -494,7 +588,7 @@ void FShaderManager::Clean()
 //
 //==========================================================================
 
-int FShaderManager::Find(const char * shn)
+int FShaderCollection::Find(const char * shn)
 {
 	FName sfn = shn;
 
@@ -508,21 +602,6 @@ int FShaderManager::Find(const char * shn)
 	return -1;
 }
 
-//==========================================================================
-//
-//
-//
-//==========================================================================
-
-void FShaderManager::SetActiveShader(FShader *sh)
-{
-	if (mActiveShader != sh)
-	{
-		glUseProgram(sh!= NULL? sh->GetHandle() : 0);
-		mActiveShader = sh;
-	}
-}
-
 
 //==========================================================================
 //
@@ -530,7 +609,7 @@ void FShaderManager::SetActiveShader(FShader *sh)
 //
 //==========================================================================
 
-FShader *FShaderManager::BindEffect(int effect)
+FShader *FShaderCollection::BindEffect(int effect)
 {
 	if (effect >= 0 && effect < MAX_EFFECTS && mEffectShaders[effect] != NULL)
 	{
@@ -548,39 +627,28 @@ FShader *FShaderManager::BindEffect(int effect)
 //==========================================================================
 EXTERN_CVAR(Int, gl_fuzztype)
 
-void FShaderManager::ApplyMatrices(VSMatrix *proj, VSMatrix *view)
+void FShaderCollection::ApplyMatrices(VSMatrix *proj, VSMatrix *view)
 {
-	if (gl.legacyMode)
-	{
-		glMatrixMode(GL_PROJECTION);
-		glLoadMatrixf(proj->get());
-		glMatrixMode(GL_MODELVIEW);
-		glLoadMatrixf(view->get());
-	}
-	else
-	{
-		VSMatrix norm;
-		norm.computeNormalMatrix(*view);
+	VSMatrix norm;
+	norm.computeNormalMatrix(*view);
 
-		for (int i = 0; i < 4; i++)
-		{
-			mTextureEffects[i]->ApplyMatrices(proj, view, &norm);
-			mTextureEffectsNAT[i]->ApplyMatrices(proj, view, &norm);
-		}
-		mTextureEffects[4]->ApplyMatrices(proj, view, &norm);
-		if (gl_fuzztype != 0)
-		{
-			mTextureEffects[4 + gl_fuzztype]->ApplyMatrices(proj, view, &norm);
-		}
-		for (unsigned i = 12; i < mTextureEffects.Size(); i++)
-		{
-			mTextureEffects[i]->ApplyMatrices(proj, view, &norm);
-		}
-		for (int i = 0; i < MAX_EFFECTS; i++)
-		{
-			mEffectShaders[i]->ApplyMatrices(proj, view, &norm);
-		}
-		if (mActiveShader != NULL) mActiveShader->Bind();
+	for (int i = 0; i < 4; i++)
+	{
+		mTextureEffects[i]->ApplyMatrices(proj, view, &norm);
+		mTextureEffectsNAT[i]->ApplyMatrices(proj, view, &norm);
+	}
+	mTextureEffects[4]->ApplyMatrices(proj, view, &norm);
+	if (gl_fuzztype != 0)
+	{
+		mTextureEffects[4 + gl_fuzztype]->ApplyMatrices(proj, view, &norm);
+	}
+	for (unsigned i = 12; i < mTextureEffects.Size(); i++)
+	{
+		mTextureEffects[i]->ApplyMatrices(proj, view, &norm);
+	}
+	for (int i = 0; i < MAX_EFFECTS; i++)
+	{
+		mEffectShaders[i]->ApplyMatrices(proj, view, &norm);
 	}
 }
 

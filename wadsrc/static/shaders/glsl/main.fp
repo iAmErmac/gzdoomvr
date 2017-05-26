@@ -1,5 +1,5 @@
 in vec4 pixelpos;
-in vec2 glowdist;
+in vec3 glowdist;
 
 in vec4 vWorldNormal;
 in vec4 vEyeNormal;
@@ -7,6 +7,10 @@ in vec4 vTexCoord;
 in vec4 vColor;
 
 out vec4 FragColor;
+#ifdef GBUFFER_PASS
+out vec4 FragFog;
+out vec4 FragNormal;
+#endif
 
 #ifdef SHADER_STORAGE_LIGHTS
 	layout(std430, binding = 1) buffer LightBufferSSO
@@ -22,6 +26,7 @@ out vec4 FragColor;
 
 
 uniform sampler2D tex;
+uniform sampler2D ShadowMap;
 
 vec4 Process(vec4 color);
 vec4 ProcessTexel();
@@ -85,7 +90,8 @@ vec4 getTexel(vec2 st)
 			}
 			break;
 	}
-	texel *= uObjectColor;
+	if (uObjectColor2.a == 0.0) texel *= uObjectColor;
+	else texel *= mix(uObjectColor, uObjectColor2, glowdist.z);
 
 	return desaturate(texel);
 }
@@ -117,11 +123,83 @@ float R_DoomLightingEquation(float light)
 	/* The zdoom light equation */
 	float vis = globVis / z;
 	float shade = 64.0 - (L + 12.0) * 32.0/128.0;
-	float lightscale = clamp((shade - min(24.0, vis)) / 32.0, 0.0, 31.0/32.0);
+	float lightscale;
+	if (uPalLightLevels != 0)
+		lightscale = clamp(float(int(shade - min(24.0, vis))) / 32.0, 0.0, 31.0/32.0);
+	else
+		lightscale = clamp((shade - min(24.0, vis)) / 32.0, 0.0, 31.0/32.0);
 
 	// Result is the normalized colormap index (0 bright .. 1 dark)
 	return lightscale;
 }
+
+//===========================================================================
+//
+// Check if light is in shadow according to its 1D shadow map
+//
+//===========================================================================
+
+#ifdef SUPPORTS_SHADOWMAPS
+
+float sampleShadowmap(vec2 dir, float v)
+{
+	float u;
+	if (abs(dir.x) > abs(dir.y))
+	{
+		if (dir.x >= 0.0)
+			u = dir.y / dir.x * 0.125 + (0.25 + 0.125);
+		else
+			u = dir.y / dir.x * 0.125 + (0.75 + 0.125);
+	}
+	else
+	{
+		if (dir.y >= 0.0)
+			u = dir.x / dir.y * 0.125 + 0.125;
+		else
+			u = dir.x / dir.y * 0.125 + (0.50 + 0.125);
+	}
+	float dist2 = dot(dir, dir);
+	return texture(ShadowMap, vec2(u, v)).x > dist2 ? 1.0 : 0.0;
+}
+
+//===========================================================================
+//
+// Check if light is in shadow using Percentage Closer Filtering (PCF)
+//
+//===========================================================================
+
+#define PCF_FILTER_STEP_COUNT 3
+#define PCF_COUNT (PCF_FILTER_STEP_COUNT * 2 + 1)
+
+float shadowmapAttenuation(vec4 lightpos, float shadowIndex)
+{
+	if (shadowIndex >= 1024.0)
+		return 1.0; // No shadowmap available for this light
+
+	float v = (shadowIndex + 0.5) / 1024.0;
+
+	vec2 ray = pixelpos.xz - lightpos.xz;
+	float length = length(ray);
+	if (length < 3.0)
+		return 1.0;
+
+	vec2 dir = ray / length;
+
+	ray -= dir * 2.0; // margin
+	dir = dir * min(length / 50.0, 1.0); // avoid sampling behind light
+
+	vec2 normal = vec2(-dir.y, dir.x);
+	vec2 bias = dir * 10.0;
+
+	float sum = 0.0;
+	for (float x = -PCF_FILTER_STEP_COUNT; x <= PCF_FILTER_STEP_COUNT; x++)
+	{
+		sum += sampleShadowmap(ray + normal * x - bias * abs(x), v);
+	}
+	return sum / PCF_COUNT;
+}
+
+#endif
 
 //===========================================================================
 //
@@ -142,10 +220,14 @@ float diffuseContribution(vec3 lightDirection, vec3 normal)
 //
 //===========================================================================
 
-float pointLightAttenuation(vec4 lightpos, float attenuate)
+float pointLightAttenuation(vec4 lightpos, float lightcolorA)
 {
 	float attenuation = max(lightpos.w - distance(pixelpos.xyz, lightpos.xyz),0.0) / lightpos.w;
-	if (attenuate == 0.0)
+#ifdef SUPPORTS_SHADOWMAPS
+	float shadowIndex = abs(lightcolorA) - 1.0;
+	attenuation *= shadowmapAttenuation(lightpos, shadowIndex);
+#endif
+	if (lightcolorA >= 0.0) // Sign bit is the attenuated light flag
 	{
 		return attenuation;
 	}
@@ -266,6 +348,32 @@ vec4 applyFog(vec4 frag, float fogfactor)
 	return vec4(mix(uFogColor.rgb, frag.rgb, fogfactor), frag.a);
 }
 
+//===========================================================================
+//
+// The color of the fragment if it is fully occluded by ambient lighting
+//
+//===========================================================================
+
+vec3 AmbientOcclusionColor()
+{
+	float fogdist;
+	float fogfactor;
+			
+	//
+	// calculate fog factor
+	//
+	if (uFogEnabled == -1) 
+	{
+		fogdist = pixelpos.w;
+	}
+	else 
+	{
+		fogdist = max(16.0, distance(pixelpos.xyz, uCameraPos.xyz));
+	}
+	fogfactor = exp2 (uFogDensity * fogdist);
+			
+	return mix(uFogColor.rgb, vec3(0.0), fogfactor);
+}
 
 //===========================================================================
 //
@@ -381,5 +489,9 @@ void main()
 		}
 	}
 	FragColor = frag;
+#ifdef GBUFFER_PASS
+	FragFog = vec4(AmbientOcclusionColor(), 1.0);
+	FragNormal = vec4(vEyeNormal.xyz * 0.5 + 0.5, 1.0);
+#endif
 }
 
