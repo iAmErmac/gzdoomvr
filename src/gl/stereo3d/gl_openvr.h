@@ -93,7 +93,7 @@ public:
 protected:
 	OpenVRMode();
 	// void updateDoomViewDirection() const;
-	void updateHmdPose(double hmdYawRadians, double hmdPitchRadians, double hmdRollRadians) const;
+	void updateFromHmdPose(TrackedDevicePose_t * hmdPose) const;
 
 	OpenVREyePose leftEyeView;
 	OpenVREyePose rightEyeView;

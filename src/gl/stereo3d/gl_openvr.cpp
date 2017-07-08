@@ -135,10 +135,14 @@ static const bool doRenderToDesktop = true; // mirroring to the desktop is very 
 static const bool doRenderToHmd = true;
 static const bool doTrackHmdVerticalPosition = true;
 static const bool doTrackHmdHorizontalPosition = true;
+static const bool doLateScheduledPositionTracking = false;
+static const bool doLateScheduledPositionTracking2 = true;
 static const bool doTrackVrControllerPosition = false; // todo:
 
 namespace s3d 
 {
+
+static DVector2 positionalXyError(0, 0);
 
 /* static */
 const Stereo3DMode& OpenVRMode::getInstance()
@@ -267,6 +271,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 		deltaYawDegrees -= 360;
 	while (deltaYawDegrees < -180)
 		deltaYawDegrees += 360;
+	Printf("A: %+.1f\n", deltaYawDegrees);
 
 	// extract rotation component from hmd transform
 	LSMatrix44 openvr_X_hmd(hmdPose);
@@ -316,7 +321,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 		// TODO: optionally allow player to jump and crouch by actually jumping and crouching
 	}
 
-	if (doTrackHmdHorizontalPosition) {
+	if (doLateScheduledPositionTracking) { // TODO: does not play well with P_TryMove approach
 		// shift viewpoint when hmd position shifts
 		static bool is_initial_origin_set = false;
 		static LSVec3 openvr_origin(0, 0, 0);
@@ -340,6 +345,11 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 		doom_EyeOffset[1] += doom_dpos[1];
 
 		// TODO: update player playsim position based on HMD position changes
+	}
+
+	if (doLateScheduledPositionTracking2) {
+		doom_EyeOffset[0] += positionalXyError.X;
+		doom_EyeOffset[1] += positionalXyError.Y;
 	}
 
 	outViewShift[0] = doom_EyeOffset[0];
@@ -700,14 +710,14 @@ static int mAngleFromRadians(double radians)
 	return int(m);
 }
 
-void OpenVRMode::updateHmdPose(
-	double hmdYawRadians, 
-	double hmdPitchRadians, 
-	double hmdRollRadians) const 
+void OpenVRMode::updateFromHmdPose(TrackedDevicePose_t * hmdPose) const
 {
-	hmdYaw = hmdYawRadians;
-	double hmdpitch = hmdPitchRadians;
-	double hmdroll = hmdRollRadians;
+	HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose->mDeviceToAbsoluteTracking);
+	// Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+
+	hmdYaw = eulerAngles.v[0];
+	double hmdpitch = eulerAngles.v[1];
+	double hmdroll = eulerAngles.v[2];
 
 	double hmdYawDelta = 0;
 	if (doTrackHmdYaw) {
@@ -741,6 +751,9 @@ void OpenVRMode::updateHmdPose(
 		GLRenderer->mAngles.Roll = RAD2DEG(-hmdroll);
 
 	// Late-schedule update to renderer angles directly, too
+	double hmdYawRadians = hmdYaw;
+	double gameYawRadians = r_viewpoint.Angles.Yaw.Radians();
+	double exactYawOffset = gameYawRadians - hmdYawRadians;
 	if (doLateScheduledRotationTracking) {
 		if (doTrackHmdPitch)
 			GLRenderer->mAngles.Pitch = RAD2DEG(-hmdpitch);
@@ -756,46 +769,142 @@ void OpenVRMode::updateHmdPose(
 			// which are from the controllers. So here I'm assuming every discrepancy larger
 			// than some cutoff comes from elsewhere. This is how we acheive rock solid
 			// head tracking, at the expense of jerky controller turning.
-			double hmdYawDegrees = RAD2DEG(hmdYaw);
-			double gameYawDegrees = r_viewpoint.Angles.Yaw.Degrees;
-			double currentOffset = gameYawDegrees - hmdYawDegrees;
 			if ((gamestate == GS_LEVEL)
 				&& (menuactive == MENU_Off)
 				&& (! paused))
 			{
 				// Predict current game view direction using hmd yaw change from previous time step
-				static double previousGameYawDegrees = 0;
+				static double previousGameYawRadians = 0;
 				static double previousHmdYawDelta = 0;
-				double predictedGameYawDegrees = previousGameYawDegrees + RAD2DEG(previousHmdYawDelta);
-				double predictionError = predictedGameYawDegrees - gameYawDegrees;
-				while (predictionError > 180.0) predictionError -= 360.0;
-				while (predictionError < -180.0) predictionError += 360.0;
+				double predictedGameYawRadians = previousGameYawRadians + previousHmdYawDelta;
+				double predictionError = predictedGameYawRadians - gameYawRadians;
+				while (predictionError > M_PI) predictionError -= 2.0*M_PI;
+				while (predictionError < -M_PI) predictionError += 2.0*M_PI;
 				predictionError = std::abs(predictionError);
-				if (predictionError > 0.1) {
+				if (predictionError > 0.005) {
 					// looks like someone is turning using the controller, not just the HMD, so reset offset now
-					yawOffset = currentOffset;
+					yawOffset = exactYawOffset;
 				}
 
 				// 
-				double discrepancy = yawOffset - currentOffset;
-				while (discrepancy > 180.0) discrepancy -= 360.0;
-				while (discrepancy < -180.0) discrepancy += 360.0;
+				double discrepancy = yawOffset - exactYawOffset;
+				while (discrepancy > M_PI) discrepancy -= 2.0*M_PI;
+				while (discrepancy < -M_PI) discrepancy += 2.0*M_PI;
 				discrepancy = std::abs(discrepancy);
 				if (discrepancy > 5.0) 
 				{
-					yawOffset = currentOffset;
+					yawOffset = exactYawOffset;
 				}
 
-				previousGameYawDegrees = gameYawDegrees;
+				previousGameYawRadians = gameYawRadians;
 				previousHmdYawDelta = hmdYawDelta;
 			}
-			double viewYaw = hmdYawDegrees + yawOffset;
-			while (viewYaw <= -180.0) 
-				viewYaw += 360.0;
-			while (viewYaw > 180.0) 
-				viewYaw -= 360.0;
-			r_viewpoint.Angles.Yaw = viewYaw;
+			double viewYaw = hmdYawRadians + yawOffset;
+			while (viewYaw <= -M_PI) 
+				viewYaw += 2.0*M_PI;
+			while (viewYaw > M_PI) 
+				viewYaw -= 2.0*M_PI;
+			r_viewpoint.Angles.Yaw = RAD2DEG(viewYaw);
 		}
+	}
+
+	if (doTrackHmdHorizontalPosition) {
+		float newOpenVrX = hmdPose->mDeviceToAbsoluteTracking.m[0][3];
+		float newOpenVrZ = hmdPose->mDeviceToAbsoluteTracking.m[2][3];
+		static float oldOpenVrX = newOpenVrX;
+		static float oldOpenVrZ = newOpenVrZ;
+		float deltaOpenVrX = newOpenVrX - oldOpenVrX;
+		float deltaOpenVrZ = newOpenVrZ - oldOpenVrZ;
+		// Printf("%.2f %.2f\n", newOpenVrX, deltaOpenVrX);
+		double cosYaw = cos(-exactYawOffset);
+		double sinYaw = sin(-exactYawOffset);
+		float pixelstretch = level.info ? level.info->pixelstretch : 1.2;
+		float scale1 = vr_vunits_per_meter * pixelstretch;
+		float deltaHmdXInDoom = -(cosYaw * deltaOpenVrZ + sinYaw * deltaOpenVrX) * scale1;
+		float deltaHmdYInDoom = -(cosYaw * deltaOpenVrX - sinYaw * deltaOpenVrZ) * scale1;
+		auto * player = players[consoleplayer].mo;
+		// player->Vel += DVector3(deltaHmdXInDoom, deltaHmdYInDoom, 0); // horrible experiment
+		// Printf("%+.1f %+.1f\n", deltaHmdYInDoom, player->Y());
+
+		if (true) {
+			// Move in-game player pawn to new position, if possible
+			auto * player = players[consoleplayer].mo;
+			float newPlayerX = player->X();
+			float newPlayerY = player->Y();
+			static float oldPlayerX = newPlayerX; // doom units, float
+			static float oldPlayerY = newPlayerY; // doom units, float
+
+			float newViewX = newPlayerX;
+			float newViewY = newPlayerY;
+			static float oldViewX = newViewX;
+			static float oldViewY = newViewY;
+
+			// TODO: move with controllers too... prediction etc.
+			newViewX += deltaHmdXInDoom;
+			newViewY += deltaHmdYInDoom;
+
+			float deltaPlayerX = 0;
+			float deltaPlayerY = 0;
+
+			if (P_TryMove(player, DVector2(newViewX, newViewY), false, false))
+			{
+				// Let's hope player location updated already...
+				newPlayerX = player->X();
+				newPlayerY = player->Y();
+				deltaPlayerX = newPlayerX - oldPlayerX;
+				deltaPlayerY = newPlayerY - oldPlayerY;
+				// Printf("%.1f %.1f\n", deltaPlayerX, deltaPlayerY);
+
+				deltaPlayerX = deltaHmdXInDoom;
+				deltaPlayerY = deltaHmdYInDoom;
+			}
+			else if (doLateScheduledPositionTracking2) { // TODO: does not play well with P_TryMove approach
+				// shift viewpoint when hmd position shifts
+				LSMatrix44 openvr_X_hmd(hmdPose->mDeviceToAbsoluteTracking);
+				LSVec3 hmd_HmdPos = LSVec3(0, 0, 0); // hmd position in hmd frame
+				LSVec3 openvr_HmdPos = openvr_X_hmd * hmd_HmdPos;
+				static LSVec3 openvr_origin = openvr_HmdPos;
+				LSVec3 openvr_dpos = openvr_HmdPos - openvr_origin;
+				{
+					// Suddenly recenter if deviation gets too large
+					const double max_shift = 0.30; // meters
+					double dx = openvr_dpos[0];
+					double dz = openvr_dpos[1];
+					double deviationSqr = dx*dx + dz*dz;
+					double shiftSqr = max_shift * max_shift;
+					if (deviationSqr > shiftSqr) {
+						openvr_origin += 1.0 * openvr_dpos; // recenter to the new position
+						openvr_dpos = openvr_HmdPos - openvr_origin;
+					}
+				}
+				VSMatrix doomInOpenVR = VSMatrix();
+				doomInOpenVR.loadIdentity();
+				// permute axes
+				float permute[] = { // Convert from OpenVR to Doom axis convention, including mirror inversion
+					-1,  0,  0,  0, // X-right in OpenVR -> X-left in Doom
+					0,  0,  1,  0, // Z-backward in OpenVR -> Y-backward in Doom
+					0,  1,  0,  0, // Y-up in OpenVR -> Z-up in Doom
+					0,  0,  0,  1 };
+				doomInOpenVR.multMatrix(permute);
+				doomInOpenVR.scale(vr_vunits_per_meter, vr_vunits_per_meter, vr_vunits_per_meter); // Doom units are not meters
+				double pixelstretch = level.info ? level.info->pixelstretch : 1.2;
+				doomInOpenVR.scale(pixelstretch, pixelstretch, 1.0); // Doom universe is scaled by 1990s pixel aspect ratio
+				doomInOpenVR.rotate(270.0 - RAD2DEG(exactYawOffset), 0, 0, 1);
+				LSVec3 doom_dpos = LSMatrix44(doomInOpenVR) * openvr_dpos;
+				positionalXyError = {doom_dpos[0], doom_dpos[1]};
+
+				// Printf("B: %+.1f\n", 270 - RAD2DEG(exactYawOffset));
+
+				// TODO: update player playsim position based on HMD position changes
+			}
+
+			oldPlayerX = newPlayerX;
+			oldPlayerY = newPlayerY;
+			oldViewX = newViewX;
+			oldViewY = newViewY;
+		}
+		oldOpenVrX = newOpenVrX;
+		oldOpenVrZ = newOpenVrZ;
 	}
 }
 
@@ -839,12 +948,12 @@ void OpenVRMode::SetUp() const
 
 	if (hmdPose0.bPoseIsValid) {
 		const HmdMatrix34_t& hmdPose = hmdPose0.mDeviceToAbsoluteTracking;
-		HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose);
-		// Printf("%.1f %.1f %.1f\n", eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
-		updateHmdPose(eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+		updateFromHmdPose(&hmdPose0);
 		leftEyeView.setCurrentHmdPose(&hmdPose0);
 		rightEyeView.setCurrentHmdPose(&hmdPose0);
+
 		// TODO: position tracking
+
 	}
 }
 

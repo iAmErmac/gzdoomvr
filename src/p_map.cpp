@@ -2231,6 +2231,10 @@ bool P_TryMove(AActor *thing, const DVector2 &pos,
 	sector_t*	oldsec = thing->Sector;	// [RH] for sector actions
 	sector_t*	newsec;
 
+	if (thing == players[consoleplayer].mo) {
+		int x = 3; // for debugging
+	}
+
 	tm.floatok = false;
 	tm.portalstep = false;
 	oldz = thing->Z();
