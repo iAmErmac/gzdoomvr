@@ -26,7 +26,6 @@
 **
 **/
 
-#include "gl/system/gl_system.h"
 #include "w_wad.h"
 #include "cmdlib.h"
 #include "sc_man.h"
@@ -43,6 +42,10 @@
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "r_data/models/models.h"
+
+#ifdef _MSC_VER
+#pragma warning(disable:4244) // warning C4244: conversion from 'double' to 'float', possible loss of data
+#endif
 
 CVAR(Bool, gl_interpolate_model_frames, true, CVAR_ARCHIVE)
 CVAR(Float, gl_weaponOfsY, 0.0f, CVAR_ARCHIVE)
