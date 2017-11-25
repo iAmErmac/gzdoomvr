@@ -40,9 +40,9 @@
 #include "g_levellocals.h"
 #include "r_utility.h"
 #include "i_time.h"
-#include "models/models.h"
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/renderer/gl_renderstate.h"
+#include "r_data/models/models.h"
 
 CVAR(Bool, gl_interpolate_model_frames, true, CVAR_ARCHIVE)
 CVAR(Float, gl_weaponOfsY, 0.0f, CVAR_ARCHIVE)
