@@ -1237,6 +1237,7 @@ set (PCH_SOURCES
 	events.cpp
 	GuillotineBinPack.cpp
 	SkylineBinPack.cpp
+	tmpfileplus.cpp
 )
 
 enable_precompiled_headers( g_pch.h PCH_SOURCES )
@@ -1252,7 +1253,6 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	${OPENVR_SOURCES}
 	x86.cpp
 	strnatcmp.c
-	tmpfileplus.c
 	zstring.cpp
 	math/asin.c
 	math/atan.c
