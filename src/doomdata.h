@@ -373,6 +373,7 @@ struct FMapThing
 	int			FloatbobPhase;
 	double SpotInnerAngle = 10;
 	double SpotOuterAngle = 25;
+	int			friendlyseeblocks;
 };
 
 
