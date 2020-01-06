@@ -39,9 +39,12 @@
 #include "g_levellocals.h"
 #include "r_utility.h"
 #include "i_time.h"
+#include "r_data/models/models.h"
+
+//TODO Remove gl_system.h
+#include "gl/system/gl_system.h"
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/renderer/gl_renderstate.h"
-#include "r_data/models/models.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable:4244) // warning C4244: conversion from 'double' to 'float', possible loss of data

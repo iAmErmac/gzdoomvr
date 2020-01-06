@@ -238,7 +238,7 @@ public:
 		mVBuf->SetupFrame(renderer, 0, 0, 0);
 		renderer->SetVertexBuffer(mVBuf);
 		renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
-		renderer->DrawElements(GL_TRIANGLES, pModel->unTriangleCount * 3, GL_UNSIGNED_INT, 0);
+		renderer->DrawElements(pModel->unTriangleCount * 3, 0);
 		gl_RenderState.SetVertexBuffer(GLRenderer->mVBO); //this needs to be set back to avoid the level rendering black even though the next draw will be the UI for this eye(???)
 	}
 
