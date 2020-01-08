@@ -268,7 +268,6 @@ void R_SetWindow (FRenderViewpoint &viewpoint, FViewWindow &viewwindow, int wind
 void R_ExecuteSetViewSize (FRenderViewpoint &viewpoint, FViewWindow &viewwindow)
 {
 	setsizeneeded = false;
-	V_SetBorderNeedRefresh();
 
 	R_SetWindow (viewpoint, viewwindow, setblocks, SCREENWIDTH, SCREENHEIGHT, StatusBar->GetTopOfStatusbar());
 
@@ -397,6 +396,15 @@ subsector_t *R_PointInSubsector (fixed_t x, fixed_t y)
 
 //==========================================================================
 //
+//
+//
+//==========================================================================
+
+FRenderer *CreateSWRenderer();
+
+
+//==========================================================================
+//
 // R_Init
 //
 //==========================================================================
@@ -406,13 +414,15 @@ void R_Init ()
 	atterm (R_Shutdown);
 
 	StartScreen->Progress();
-	// Colormap init moved back to InitPalette()
-	//R_InitColormaps ();
-	//StartScreen->Progress();
-
 	R_InitTranslationTables ();
 	R_SetViewSize (screenblocks);
-	Renderer->Init();
+
+	if (SWRenderer == NULL)
+	{
+		SWRenderer = CreateSWRenderer();
+	}
+
+	SWRenderer->Init();
 }
 
 //==========================================================================
@@ -423,6 +433,8 @@ void R_Init ()
 
 static void R_Shutdown ()
 {
+	if (SWRenderer != nullptr) delete SWRenderer;
+	SWRenderer = nullptr;
 	R_DeinitTranslationTables();
 	R_DeinitColormaps ();
 	FCanvasTextureInfo::EmptyList();
@@ -513,7 +525,7 @@ void R_InterpolateView (FRenderViewpoint &viewpoint, player_t *player, double Fr
 		}
 		else
 		{
-			DVector2 disp = Displacements.getOffset(oldgroup, newgroup);
+			DVector2 disp = level.Displacements.getOffset(oldgroup, newgroup);
 			viewpoint.Pos = iview->Old.Pos + (iview->New.Pos - iview->Old.Pos - disp) * Frac;
 			viewpoint.Path[0] = viewpoint.Path[1] = iview->New.Pos;
 		}
@@ -1002,7 +1014,8 @@ void R_SetupFrame (FRenderViewpoint &viewpoint, FViewWindow &viewwindow, AActor 
 		{
 			color = pr_hom();
 		}
-		Renderer->SetClearColor(color);
+		screen->SetClearColor(color);
+		SWRenderer->SetClearColor(color);
 	}
 }
 
@@ -1065,7 +1078,8 @@ DEFINE_ACTION_FUNCTION(_TexMan, SetCameraToTexture)
 	PARAM_STRING(texturename); // [ZZ] there is no point in having this as FTextureID because it's easier to refer to a cameratexture by name and it isn't executed too often to cache it.
 	PARAM_FLOAT(fov);
 	FTextureID textureid = TexMan.CheckForTexture(texturename, ETextureType::Wall, FTextureManager::TEXMAN_Overridable);
-	FCanvasTextureInfo::Add(viewpoint, textureid, fov);
+	if (textureid.isValid())
+		FCanvasTextureInfo::Add(viewpoint, textureid, fov);
 	return 0;
 }
 
@@ -1085,7 +1099,7 @@ void FCanvasTextureInfo::UpdateAll ()
 	{
 		if (probe->Viewpoint != NULL && probe->Texture->bNeedsUpdate)
 		{
-			Renderer->RenderTextureView(probe->Texture, probe->Viewpoint, probe->FOV);
+			screen->RenderTextureView(probe->Texture, probe->Viewpoint, probe->FOV);
 		}
 	}
 }
