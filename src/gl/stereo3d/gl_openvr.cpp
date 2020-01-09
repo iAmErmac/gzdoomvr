@@ -37,7 +37,7 @@
 #include "r_utility.h" // viewpitch
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderbuffers.h"
-#include "gl/renderer/gl_2ddrawer.h" // crosshair
+#include "v_2ddrawer.h" // crosshair
 #include "gl/models/gl_models.h"
 #include "g_levellocals.h" // pixelstretch
 #include "g_statusbar/sbar.h"
@@ -319,7 +319,7 @@ public:
 
 			pFTex = new FControllerTexture(pTexture);
 
-			FGLModelRenderer renderer;
+			FGLModelRenderer renderer(-1);
 			BuildVertexBuffer(&renderer);
 
 			return true;
@@ -713,7 +713,7 @@ void OpenVREyePose::AdjustHud() const
 			false,
 			0.0);
 		gl_RenderState.ApplyMatrices();
-		openVrMode->crossHairDrawer->Draw();
+		GLRenderer->Draw2D(openVrMode->crossHairDrawer);
 	}
 
 	// Update HUD matrix to render on a separate quad
@@ -747,7 +747,6 @@ OpenVRMode::OpenVRMode()
 	, vrRenderModels(nullptr)
 	, vrToken(0)
 	, crossHairDrawer(new F2DDrawer)
-	, cached2DDrawer(nullptr)
 {
 	eye_ptrs.Push(&leftEyeView); // initially default behavior to Mono non-stereo rendering
 
@@ -826,34 +825,24 @@ void OpenVRMode::UnAdjustPlayerSprites() const {
 
 void OpenVRMode::AdjustCrossHair() const
 {
-	cached2DDrawer = GLRenderer->m2DDrawer;
 	// Remove effect of screenblocks setting on crosshair position
 	cachedViewheight = viewheight;
 	cachedViewwindowy = viewwindowy;
 	viewheight = SCREENHEIGHT;
 	viewwindowy = 0;
-
-	if (crossHairDrawer != nullptr) {
-		// Hijack 2D drawing to our local crosshair drawer
-		crossHairDrawer->Clear();
-		GLRenderer->m2DDrawer = crossHairDrawer;
-	}
 }
 
 void OpenVRMode::UnAdjustCrossHair() const
 {
 	viewheight = cachedViewheight;
 	viewwindowy = cachedViewwindowy;
-	if (cached2DDrawer)
-		GLRenderer->m2DDrawer = cached2DDrawer;
-	cached2DDrawer = nullptr;
 }
 
 void OpenVRMode::DrawControllerModels() const
 {
 	if(!openvr_drawControllers)
 		return; 
-	FGLModelRenderer renderer;
+	FGLModelRenderer renderer(-1);
 	for (int i = 0; i < MAX_ROLES; ++i) 
 	{
 		if (GetHandTransform(i, &gl_RenderState.mModelMatrix) && controllers[i].model)

@@ -610,13 +610,10 @@ void GLSceneDrawer::ProcessScene(bool toscreen, sector_t * viewsector)
 	GLPortal::BeginScene();
 
 	int mapsection = R_PointInSubsector(r_viewpoint.Pos)->mapsection;
-	// memset(&currentmapsection[0], 0, currentmapsection.Size());
-	// currentmapsection[mapsection>>3] |= 1 << (mapsection & 7);
-	// DrawScene(toscreen ? DM_MAINVIEW : DM_OFFSCREEN, viewsector);
 	CurrentMapSections.Resize(level.NumMapSections);
 	CurrentMapSections.Zero();
 	CurrentMapSections.Set(mapsection);
-	DrawScene(toscreen ? DM_MAINVIEW : DM_OFFSCREEN);
+	DrawScene(toscreen ? DM_MAINVIEW : DM_OFFSCREEN, viewsector);
 	FDrawInfo::EndDrawInfo();
 
 }
