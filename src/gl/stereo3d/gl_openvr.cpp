@@ -697,6 +697,7 @@ void OpenVREyePose::AdjustHud() const
 	const Stereo3DMode * mode3d = &Stereo3DMode::getCurrentMode();
 	if (mode3d->IsMono())
 		return;
+	gl_RenderState.mViewMatrix.loadIdentity();
 	const OpenVRMode * openVrMode = static_cast<const OpenVRMode *>(mode3d);
 	if (openVrMode 
 		&& openVrMode->crossHairDrawer
