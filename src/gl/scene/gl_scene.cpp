@@ -726,7 +726,7 @@ sector_t * GLSceneDrawer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, f
 		gl_RenderState.ApplyMatrices();
 
 		FDrawInfo::StartDrawInfo(this);
-		ProcessScene(toscreen);
+		ProcessScene(toscreen, lviewsector);
 		if (mainview && toscreen) EndDrawScene(lviewsector); // do not call this for camera textures.
 		FDrawInfo::EndDrawInfo();
 
