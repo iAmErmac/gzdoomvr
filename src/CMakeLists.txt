@@ -1117,7 +1117,6 @@ set (PCH_SOURCES
 	gl/system/gl_interface.cpp
 	gl/system/gl_framebuffer.cpp
 	gl/system/gl_debug.cpp
-	gl/system/gl_menu.cpp
 	gl/system/gl_wipe.cpp
 	gl/textures/gl_hwtexture.cpp
 	gl/textures/gl_texture.cpp
@@ -1127,6 +1126,7 @@ set (PCH_SOURCES
 	hwrenderer/textures/hw_material.cpp
 	hwrenderer/textures/hw_precache.cpp
 	hwrenderer/utility/hw_clock.cpp
+	hwrenderer/utility/hw_cvars.cpp
 	
 	menu/joystickmenu.cpp
 	menu/loadsavemenu.cpp
