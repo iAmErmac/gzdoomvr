@@ -33,7 +33,6 @@
 #include "gl_sidebyside3d.h"
 #include "gl/stereo3d/gl_sidebyside3d.h"
 #include "gl/stereo3d/gl_interleaved3d.h"
-#include "gl/system/gl_cvars.h"
 #include "version.h"
 
 // Set up 3D-specific console variables:

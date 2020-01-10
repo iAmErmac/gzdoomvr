@@ -33,8 +33,6 @@
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderbuffers.h"
-#include "g_levellocals.h" // pixelstretch
-#include <cmath>
 
 EXTERN_CVAR(Float, vr_screendist)
 EXTERN_CVAR(Float, vr_vunits_per_meter)
