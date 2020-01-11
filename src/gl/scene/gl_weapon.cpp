@@ -62,7 +62,6 @@ enum PlayerSprites3DMode
 	FAT_ITEM,
 };
 
-
 //==========================================================================
 //
 // R_DrawPSprite
@@ -71,101 +70,49 @@ enum PlayerSprites3DMode
 
 void GLSceneDrawer::DrawPSprite (player_t * player,DPSprite *psp, float sx, float sy, int OverrideShader, bool alphatexture)
 {
-	float			fU1,fV1;
-	float			fU2,fV2;
-	float			tx;
-	float			x1,y1,x2,y2;
-	float			scale;
-	float			scalex;
-	float			ftexturemid;
+
+	WeaponRect rc;
 	
-	// decide which patch to use
-	bool mirror;
-	FTextureID lump = sprites[psp->GetSprite()].GetSpriteFrame(psp->GetFrame(), 0, 0., &mirror);
-	if (!lump.isValid()) return;
-
-	FMaterial * tex = FMaterial::ValidateTexture(lump, true, false);
-	if (!tex) return;
-
-	gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, OverrideShader, alphatexture);
-
-	float vw = (float)viewwidth;
-	float vh = (float)viewheight;
-
-	FloatRect r;
-	tex->GetSpriteRect(&r);
-
-	// calculate edges of the shape
-	scalex = (320.0f / (240.0f * r_viewwindow.WidescreenRatio)) * vw / 320;
-
-	tx = (psp->Flags & PSPF_MIRROR) ? ((160 - r.width) - (sx + r.left)) : (sx - (160 - r.left));
-	x1 = tx * scalex + vw/2;
-	if (x1 > vw)	return; // off the right side
-	x1 += viewwindowx;
-
-	tx += r.width;
-	x2 = tx * scalex + vw / 2;
-	if (x2 < 0) return; // off the left side
-	x2 += viewwindowx;
-
-	// killough 12/98: fix psprite positioning problem
-	ftexturemid = 100.f - sy - r.top;
-
-	AWeapon * wi=player->ReadyWeapon;
-	if (wi && wi->YAdjust != 0)
-	{
-		float fYAd = wi->YAdjust;
-		if (screenblocks >= 11)
-		{
-			ftexturemid -= fYAd;
-		}
-		else 
-		{
-			ftexturemid -= StatusBar->GetDisplacement () * fYAd;
-		}
-	}
-
-	scale = (SCREENHEIGHT*vw) / (SCREENWIDTH * 200.0f);
-	y1 = viewwindowy + vh / 2 - (ftexturemid * scale);
-	y2 = y1 + (r.height * scale) + 1;
-
-
-	if (!(mirror) != !(psp->Flags & (PSPF_FLIP)))
-	{
-		fU2 = tex->GetSpriteUL();
-		fV1 = tex->GetSpriteVT();
-		fU1 = tex->GetSpriteUR();
-		fV2 = tex->GetSpriteVB();
-	}
-	else
-	{
-		fU1 = tex->GetSpriteUL();
-		fV1 = tex->GetSpriteVT();
-		fU2 = tex->GetSpriteUR();
-		fV2 = tex->GetSpriteVB();
-		
-	}
-
-	if ((tex->tex->GetTranslucency() || OverrideShader != -1) && !s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesCrossed())
+	if (!GetWeaponRect(psp, sx, sy, player, rc)) return;
+	gl_RenderState.SetMaterial(rc.tex, CLAMP_XY_NOMIP, 0, OverrideShader, alphatexture);
+	if ((rc.tex->tex->GetTranslucency() || OverrideShader != -1)  && !s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesCrossed())
 	{
 		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 	}
 	gl_RenderState.Apply();
-	
 	if (r_PlayerSprites3DMode != ITEM_ONLY && r_PlayerSprites3DMode != FAT_ITEM)
 	{
 		FQuadDrawer qd;
-		qd.Set(0, x1, y1, 0, fU1, fV1);
-		qd.Set(1, x1, y2, 0, fU1, fV2);
-		qd.Set(2, x2, y1, 0, fU2, fV1);
-		qd.Set(3, x2, y2, 0, fU2, fV2);
+		qd.Set(0, rc.x1, rc.y1, 0, rc.u1, rc.v1);
+		qd.Set(1, rc.x1, rc.y2, 0, rc.u1, rc.v2);
+		qd.Set(2, rc.x2, rc.y1, 0, rc.u2, rc.v1);
+		qd.Set(3, rc.x2, rc.y2, 0, rc.u2, rc.v2);
 		qd.Render(GL_TRIANGLE_STRIP);
 	}
-	
+
+	//TODO Cleanup code for rendering weapon models from sprites in VR mode
 	if (psp->GetID() == PSP_WEAPON && s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesCrossed())
 	{
 		if (r_PlayerSprites3DMode == BACK_ONLY)
 			return;
+
+		float fU1,fV1;
+		float fU2,fV2;
+
+		AWeapon * wi=player->ReadyWeapon;
+
+		// decide which patch to use
+		bool mirror;
+		FTextureID lump = sprites[psp->GetSprite()].GetSpriteFrame(psp->GetFrame(), 0, 0., &mirror);
+		if (!lump.isValid()) return;
+
+		FMaterial * tex = FMaterial::ValidateTexture(lump, true, false);
+		if (!tex) return;
+
+		gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, OverrideShader, alphatexture);
+
+		float vw = (float)viewwidth;
+		float vh = (float)viewheight;
 
 		FState* spawn = wi->FindState(NAME_Spawn);
 
@@ -178,7 +125,7 @@ void GLSceneDrawer::DrawPSprite (player_t * player,DPSprite *psp, float sx, floa
 		gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, OverrideShader, alphatexture);
 
 		float z1 = 0.0f;
-		float z2 = (y2 - y1) * MIN(3, tex->GetWidth() / tex->GetHeight());
+		float z2 = (rc.y2 - rc.y1) * MIN(3, tex->GetWidth() / tex->GetHeight());
 
 		if (!(mirror) != !(psp->Flags & PSPF_FLIP))
 		{
@@ -197,16 +144,16 @@ void GLSceneDrawer::DrawPSprite (player_t * player,DPSprite *psp, float sx, floa
 
 		if (r_PlayerSprites3DMode == FAT_ITEM)
 		{
-			x1 = vw / 2 + (x1 - vw / 2) * gl_fatItemWidth;
-			x2 = vw / 2 + (x2 - vw / 2) * gl_fatItemWidth;
+			float x1 = vw / 2 + (rc.x1 - vw / 2) * gl_fatItemWidth;
+			float x2 = vw / 2 + (rc.x2 - vw / 2) * gl_fatItemWidth;
 
 			for (float x = x1; x < x2; x += 1)
 			{
 				FQuadDrawer qd2;
-				qd2.Set(0, x, y1, -z1, fU1, fV1);
-				qd2.Set(1, x, y2, -z1, fU1, fV2);
-				qd2.Set(2, x, y1, -z2, fU2, fV1);
-				qd2.Set(3, x, y2, -z2, fU2, fV2);
+				qd2.Set(0, x, rc.y1, -z1, fU1, fV1);
+				qd2.Set(1, x, rc.y2, -z1, fU1, fV2);
+				qd2.Set(2, x, rc.y1, -z2, fU2, fV1);
+				qd2.Set(3, x, rc.y2, -z2, fU2, fV2);
 				qd2.Render(GL_TRIANGLE_STRIP);
 			}
 		}
@@ -220,12 +167,12 @@ void GLSceneDrawer::DrawPSprite (player_t * player,DPSprite *psp, float sx, floa
 			}
 			else
 			{
-				sy = y2 - y1;
+				sy = rc.y2 - rc.y1;
 				crossAt = sy * 0.25f;
 			}
 
-			y1 -= crossAt;
-			y2 -= crossAt;
+			float y1 = rc.y1 - crossAt;
+			float y2 = rc.y2 - crossAt;
 
 			FQuadDrawer qd2;
 			qd2.Set(0, vw / 2 - crossAt, y1, -z1, fU1, fV1);
