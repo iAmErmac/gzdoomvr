@@ -734,7 +734,6 @@ sector_t * GLSceneDrawer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, f
 		FDrawInfo::StartDrawInfo(this);
 		ProcessScene(toscreen, lviewsector);
 		if (mainview && toscreen) EndDrawScene(lviewsector); // do not call this for camera textures.
-		FDrawInfo::EndDrawInfo();
 
 		if (mainview && FGLRenderBuffers::IsEnabled())
 		{
@@ -754,6 +753,7 @@ sector_t * GLSceneDrawer::RenderViewpoint (AActor * camera, GL_IRECT * bounds, f
 			eye->AdjustBlend();
 			DrawBlend(lviewsector);
 		}
+		FDrawInfo::EndDrawInfo();
 		GLRenderer->mDrawingScene2D = false;
 		if (!stereo3dMode.IsMono() && FGLRenderBuffers::IsEnabled())
 			GLRenderer->mBuffers->BlitToEyeTexture(eye_ix);
