@@ -515,3 +515,19 @@ void F2DDrawer::Clear()
 	mIndices.Clear();
 	mData.Clear();
 }
+
+
+//==========================================================================
+//
+//
+//
+//==========================================================================
+
+void F2DDrawer::SwapColors()
+{
+	for (auto& v : mVertices)
+	{
+		// Change from BGRA to RGBA
+		std::swap(v.color0.r, v.color0.b);
+	}
+}

@@ -382,6 +382,7 @@ public:
 	virtual void TextureFilterChanged() {}
 	virtual void ResetFixedColormap() {}
 	virtual void BeginFrame() {}
+	virtual void SwapColors() { m2DDrawer.SwapColors(); }
 
 	// Begin 2D drawing operations.
 	// Returns true if hardware-accelerated 2D has been entered, false if not.

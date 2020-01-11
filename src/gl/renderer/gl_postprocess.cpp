@@ -779,6 +779,8 @@ void FGLRenderer::Flush()
 	{
 		const bool is2D = (gamestate != GS_LEVEL);
 		if (is2D) stereo3dMode.SetUp();
+		// Change from BGRA to RGBA
+		screen->SwapColors();
 		// Render 2D to eye textures
 		for (int eye_ix = 0; eye_ix < stereo3dMode.eye_count(); ++eye_ix)
 		{
