@@ -39,6 +39,7 @@
 #include "g_levellocals.h"
 #include "r_utility.h"
 #include "r_data/models/models.h"
+#include "i_time.h"
 
 //TODO Remove gl_system.h
 #include "gl/system/gl_system.h"
@@ -333,6 +334,11 @@ void FModelRenderer::RenderFrameModels(const FSpriteModelFrame *smf,
 			ResetVertexBuffer();
 		}
 	}
+}
+
+double FModelRenderer::GetTimeFloat()
+{
+	return (double)I_msTime() * (double)TICRATE / 1000.;
 }
 
 /////////////////////////////////////////////////////////////////////////////
