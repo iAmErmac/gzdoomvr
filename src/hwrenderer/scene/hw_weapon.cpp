@@ -535,9 +535,10 @@ void HWDrawInfo::PrepareTargeterSprites()
 		{
 			hudsprite.player = player;
 			hudsprite.weapon = psp;
-			hudsprite.GetWeaponRect(this, psp, psp->x, psp->y, player);
-
-			AddHUDSprite(&hudsprite);
+			if (hudsprite.GetWeaponRect(this, psp, psp->x, psp->y, player))
+			{
+				AddHUDSprite(&hudsprite);
+			}
 		}
 	}
 }
