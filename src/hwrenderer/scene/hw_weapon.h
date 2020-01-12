@@ -41,6 +41,9 @@ struct HUDSprite
 	float alpha;
 	int OverrideShader;
 
+	//TODO Remove added for VR weapon sprites fields
+	float x1, y1, x2, y2, u1, v1, u2, v2;
+	
 	float mx, my;
 	float dynrgb[3];
 

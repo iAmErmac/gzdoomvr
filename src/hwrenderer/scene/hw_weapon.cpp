@@ -352,8 +352,6 @@ bool HUDSprite::GetWeaponRect(HWDrawInfo *di, DPSprite *psp, float sx, float sy,
 	// calculate edges of the shape
 	scalex = (320.0f / (240.0f * r_viewwindow.WidescreenRatio)) * vw / 320;
 
-	float x1, y1, x2, y2, u1, v1, u2, v2;
-
 	tx = (psp->Flags & PSPF_MIRROR) ? ((160 - r.width) - (sx + r.left)) : (sx - (160 - r.left));
 	x1 = tx * scalex + vw / 2;
 	if (x1 > vw)	return false; // off the right side
@@ -478,7 +476,7 @@ void HWDrawInfo::PreparePlayerSprites(sector_t * viewsector, area_t in_area)
 				hudsprite.lightindex = UploadLights(lightdata);
 			}
 		}
-
+		
 		// [BB] In the HUD model step we just render the model and break out. 
 		if (hudModelStep)
 		{

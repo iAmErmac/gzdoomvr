@@ -64,7 +64,7 @@ enum PlayerSprites3DMode
 //
 //==========================================================================
 
-void FDrawInfo::DrawPSprite (HUDSprite *huds)
+void FDrawInfo::DrawPSprite(HUDSprite* huds)
 {
 	if (huds->RenderStyle.BlendOp == STYLEOP_Shadow)
 	{
@@ -79,7 +79,7 @@ void FDrawInfo::DrawPSprite (HUDSprite *huds)
 	gl_RenderState.SetDynLight(huds->dynrgb[0], huds->dynrgb[1], huds->dynrgb[2]);
 	gl_RenderState.EnableBrightmap(!(huds->RenderStyle.Flags & STYLEF_ColorIsFixed));
 
-	
+
 	if (huds->mframe)
 	{
 		gl_RenderState.AlphaFunc(GL_GEQUAL, 0);
@@ -87,118 +87,120 @@ void FDrawInfo::DrawPSprite (HUDSprite *huds)
 	}
 	else
 	{
+		float thresh = (huds->tex->tex->GetTranslucency() || huds->OverrideShader != -1) ? 0.f : gl_mask_sprite_threshold;
+		gl_RenderState.AlphaFunc(GL_GEQUAL, thresh);
+		gl_RenderState.SetMaterial(huds->tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, !!(huds->RenderStyle.Flags & STYLEF_RedIsAlpha));
+		gl_RenderState.Apply();
+
 		if (r_PlayerSprites3DMode != ITEM_ONLY && r_PlayerSprites3DMode != FAT_ITEM)
 		{
-			float thresh = (huds->tex->tex->GetTranslucency() || huds->OverrideShader != -1) ? 0.f : gl_mask_sprite_threshold;
-			gl_RenderState.AlphaFunc(GL_GEQUAL, thresh);
-			gl_RenderState.SetMaterial(huds->tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, !!(huds->RenderStyle.Flags & STYLEF_RedIsAlpha));
-			gl_RenderState.Apply();
 			GLRenderer->mVBO->RenderArray(GL_TRIANGLE_STRIP, huds->mx, 4);
 		}
-	}
 
-	player_t* player = huds->player;
-	DPSprite* psp = huds->weapon;
-	bool alphatexture = huds->RenderStyle.Flags & STYLEF_RedIsAlpha;
-	float sy;
 
-	//TODO Cleanup code for rendering weapon models from sprites in VR mode
-	if (psp->GetID() == PSP_WEAPON && s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesCrossed())
-	{
-		if (r_PlayerSprites3DMode == BACK_ONLY)
-			return;
+		player_t* player = huds->player;
+		DPSprite* psp = huds->weapon;
+		bool alphatexture = huds->RenderStyle.Flags & STYLEF_RedIsAlpha;
+		float sy;
 
-		float fU1,fV1;
-		float fU2,fV2;
-
-		AWeapon * wi=player->ReadyWeapon;
-
-		// decide which patch to use
-		bool mirror;
-		FTextureID lump = sprites[psp->GetSprite()].GetSpriteFrame(psp->GetFrame(), 0, 0., &mirror);
-		if (!lump.isValid()) return;
-
-		FMaterial * tex = FMaterial::ValidateTexture(lump, true, false);
-		if (!tex) return;
-
-		gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, alphatexture);
-
-		float vw = (float)viewwidth;
-		float vh = (float)viewheight;
-
-		FState* spawn = wi->FindState(NAME_Spawn);
-
-		lump = sprites[spawn->sprite].GetSpriteFrame(0, 0, 0., &mirror);
-		if (!lump.isValid()) return;
-
-		tex = FMaterial::ValidateTexture(lump, true, false);
-		if (!tex) return;
-
-		gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, alphatexture);
-
-		float z1 = 0.0f;
-		float z2 = (0 - huds->my) * MIN(3, tex->GetWidth() / tex->GetHeight());
-
-		if (!(mirror) != !(psp->Flags & PSPF_FLIP))
+		//TODO Cleanup code for rendering weapon models from sprites in VR mode
+		if (psp->GetID() == PSP_WEAPON && s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesCrossed())
 		{
-			fU2 = tex->GetSpriteUL();
-			fV1 = tex->GetSpriteVT();
-			fU1 = tex->GetSpriteUR();
-			fV2 = tex->GetSpriteVB();
-		}
-		else
-		{
-			fU1 = tex->GetSpriteUL();
-			fV1 = tex->GetSpriteVT();
-			fU2 = tex->GetSpriteUR();
-			fV2 = tex->GetSpriteVB();
-		}
+			if (r_PlayerSprites3DMode == BACK_ONLY)
+				return;
 
-		if (r_PlayerSprites3DMode == FAT_ITEM)
-		{
-			float x1 = vw / 2 + (huds->mx - vw / 2) * gl_fatItemWidth;
-			float x2 = vw / 2 + (0 - vw / 2) * gl_fatItemWidth;
+			float fU1, fV1;
+			float fU2, fV2;
 
-			for (float x = x1; x < x2; x += 1)
+			AWeapon* wi = player->ReadyWeapon;
+
+			// decide which patch to use
+			bool mirror;
+			FTextureID lump = sprites[psp->GetSprite()].GetSpriteFrame(psp->GetFrame(), 0, 0., &mirror);
+			if (!lump.isValid()) return;
+
+			FMaterial* tex = FMaterial::ValidateTexture(lump, true, false);
+			if (!tex) return;
+
+			gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, alphatexture);
+
+			float vw = (float)viewwidth;
+			float vh = (float)viewheight;
+
+			FState* spawn = wi->FindState(NAME_Spawn);
+
+			lump = sprites[spawn->sprite].GetSpriteFrame(0, 0, 0., &mirror);
+			if (!lump.isValid()) return;
+
+			tex = FMaterial::ValidateTexture(lump, true, false);
+			if (!tex) return;
+
+			gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, alphatexture);
+
+			float z1 = 0.0f;
+			float z2 = (huds->y2 - huds->y1) * MIN(3, tex->GetWidth() / tex->GetHeight());
+
+			if (!(mirror) != !(psp->Flags & PSPF_FLIP))
 			{
-				FQuadDrawer qd2;
-				qd2.Set(0, x, huds->my, -z1, fU1, fV1);
-				qd2.Set(1, x, 0, -z1, fU1, fV2);
-				qd2.Set(2, x, huds->my, -z2, fU2, fV1);
-				qd2.Set(3, x, 0, -z2, fU2, fV2);
-				qd2.Render(GL_TRIANGLE_STRIP);
-			}
-		}
-		else
-		{
-			float crossAt;
-			if (r_PlayerSprites3DMode == ITEM_ONLY)
-			{
-				crossAt = 0.0f;
-				sy = 0.0f;
+				fU2 = tex->GetSpriteUL();
+				fV1 = tex->GetSpriteVT();
+				fU1 = tex->GetSpriteUR();
+				fV2 = tex->GetSpriteVB();
 			}
 			else
 			{
-				sy = 0 - huds->my;
-				crossAt = sy * 0.25f;
+				fU1 = tex->GetSpriteUL();
+				fV1 = tex->GetSpriteVT();
+				fU2 = tex->GetSpriteUR();
+				fV2 = tex->GetSpriteVB();
 			}
 
-			float y1 = huds->my - crossAt;
-			float y2 = 0 - crossAt;
+			if (r_PlayerSprites3DMode == FAT_ITEM)
+			{
+				float x1 = vw / 2 + (huds->x1 - vw / 2) * gl_fatItemWidth;
+				float x2 = vw / 2 + (huds->x2 - vw / 2) * gl_fatItemWidth;
 
-			FQuadDrawer qd2;
-			qd2.Set(0, vw / 2 - crossAt, y1, -z1, fU1, fV1);
-			qd2.Set(1, vw / 2 + sy / 2, y2, -z1, fU1, fV2);
-			qd2.Set(2, vw / 2 - crossAt, y1, -z2, fU2, fV1);
-			qd2.Set(3, vw / 2 + sy / 2, y2, -z2, fU2, fV2);
-			qd2.Render(GL_TRIANGLE_STRIP);
+				for (float x = x1; x < x2; x += 1)
+				{
+					FQuadDrawer qd2;
+					qd2.Set(0, x, huds->y1, -z1, fU1, fV1);
+					qd2.Set(1, x, huds->y2, -z1, fU1, fV2);
+					qd2.Set(2, x, huds->y1, -z2, fU2, fV1);
+					qd2.Set(3, x, huds->y2, -z2, fU2, fV2);
+					qd2.Render(GL_TRIANGLE_STRIP);
+				}
+			}
+			else
+			{
+				float crossAt;
+				if (r_PlayerSprites3DMode == ITEM_ONLY)
+				{
+					crossAt = 0.0f;
+					sy = 0.0f;
+				}
+				else
+				{
+					sy = huds->y2 - huds->y1;
+					crossAt = sy * 0.25f;
+				}
 
-			FQuadDrawer qd3;
-			qd3.Set(0, vw / 2 + crossAt, y1, -z1, fU1, fV1);
-			qd3.Set(1, vw / 2 - sy / 2, y2, -z1, fU1, fV2);
-			qd3.Set(2, vw / 2 + crossAt, y1, -z2, fU2, fV1);
-			qd3.Set(3, vw / 2 - sy / 2, y2, -z2, fU2, fV2);
-			qd3.Render(GL_TRIANGLE_STRIP);
+				float y1 = huds->y1 - crossAt;
+				float y2 = huds->y2 - crossAt;
+
+				FQuadDrawer qd2;
+				qd2.Set(0, vw / 2 - crossAt, y1, -z1, fU1, fV1);
+				qd2.Set(1, vw / 2 + sy / 2, y2, -z1, fU1, fV2);
+				qd2.Set(2, vw / 2 - crossAt, y1, -z2, fU2, fV1);
+				qd2.Set(3, vw / 2 + sy / 2, y2, -z2, fU2, fV2);
+				qd2.Render(GL_TRIANGLE_STRIP);
+
+				FQuadDrawer qd3;
+				qd3.Set(0, vw / 2 + crossAt, y1, -z1, fU1, fV1);
+				qd3.Set(1, vw / 2 - sy / 2, y2, -z1, fU1, fV2);
+				qd3.Set(2, vw / 2 + crossAt, y1, -z2, fU2, fV1);
+				qd3.Set(3, vw / 2 - sy / 2, y2, -z2, fU2, fV2);
+				qd3.Render(GL_TRIANGLE_STRIP);
+			}
 		}
 	}
 
@@ -220,7 +222,7 @@ void FDrawInfo::DrawPlayerSprites(bool hudModelStep)
 
 	int oldlightmode = level.lightmode;
 	if (!hudModelStep && level.lightmode == 8) level.lightmode = 2;	// Software lighting cannot handle 2D content so revert to lightmode 2 for that.
-	for(auto &hudsprite : hudsprites)
+	for (auto& hudsprite : hudsprites)
 	{
 		if ((!!hudsprite.mframe) == hudModelStep)
 			DrawPSprite(&hudsprite);
@@ -231,7 +233,7 @@ void FDrawInfo::DrawPlayerSprites(bool hudModelStep)
 	gl_RenderState.SetObjectColor(0xffffffff);
 	gl_RenderState.SetDynLight(0, 0, 0);
 	gl_RenderState.EnableBrightmap(false);
-	
+
 	level.lightmode = oldlightmode;
 	if (!hudModelStep)
 	{
@@ -239,7 +241,7 @@ void FDrawInfo::DrawPlayerSprites(bool hudModelStep)
 	}
 }
 
-void FDrawInfo::AddHUDSprite(HUDSprite *huds)
+void FDrawInfo::AddHUDSprite(HUDSprite* huds)
 {
 	hudsprites.Push(*huds);
 }
