@@ -44,6 +44,7 @@
 #include "gl/system/gl_system.h"
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/renderer/gl_renderstate.h"
+#include "hwrenderer/utility/hw_cvars.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable:4244) // warning C4244: conversion from 'double' to 'float', possible loss of data
@@ -186,6 +187,7 @@ void FModelRenderer::RenderHUDModel(DPSprite *psp, float ofsX, float ofsY)
 	if (!s3d::Stereo3DMode::getCurrentMode().IsMono())
 	{
 		//TODO Remove gl_RenderState
+		gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
 		// [BB] Render the weapon in worldspace to confirm transforms are all correct
 		gl_RenderState.mModelMatrix.loadIdentity();
 		// Need to reset the normal matrix too
