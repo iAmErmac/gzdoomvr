@@ -190,8 +190,8 @@ public:
 	void Draw2D(F2DDrawer *data);
 	void RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV);
 	void WriteSavePic(player_t *player, FileWriter *file, int width, int height);
-	void RenderView(player_t *player);
-	void DrawBlend(sector_t * viewsector, bool FixedColormap, bool docolormap, bool in2d = false);
+	sector_t *RenderView(player_t *player);
+	void DrawBlend(float* blend);
 	void BeginFrame();
 
 	bool StartOffscreen();
@@ -203,6 +203,8 @@ public:
 
 	static float GetZNear() { return 5.f; }
 	static float GetZFar() { return 65536.f; }
+
+	private: void FGLRenderer::gl_FillScreen();
 };
 
 #include "hwrenderer/scene/hw_fakeflat.h"
