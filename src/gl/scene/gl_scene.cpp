@@ -261,6 +261,8 @@ void GLSceneDrawer::CreateScene()
 	gl_drawinfo->mShadowMap = &GLRenderer->mShadowMap;
 
 	RenderBSPNode (level.HeadNode());
+	gl_drawinfo->PreparePlayerSprites(r_viewpoint.sector, in_area);
+
 	// Process all the sprites on the current portal's back side which touch the portal.
 	if (GLRenderer->mCurrentPortal != NULL) GLRenderer->mCurrentPortal->RenderAttached();
 	Bsp.Unclock();
@@ -272,7 +274,6 @@ void GLSceneDrawer::CreateScene()
 	gl_drawinfo->HandleMissingTextures(in_area);	// Missing upper/lower textures
 	gl_drawinfo->HandleHackedSubsectors();	// open sector hacks for deep water
 	gl_drawinfo->ProcessSectorStacks(in_area);		// merge visplanes of sector stacks
-	SetupWeaponLight();
 	GLRenderer->mLights->Finish();
 	GLRenderer->mVBO->Unmap();
 
@@ -481,7 +482,7 @@ void GLSceneDrawer::DrawScene(int drawmode, sector_t * viewsector)
 
 	if (s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesInScene())
 	{
-		DrawPlayerSprites(viewsector, gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player));
+		gl_drawinfo->DrawPlayerSprites(gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player));
 	}
 
 	if (applySSAO && gl_RenderState.GetPassType() == GBUFFER_PASS)
@@ -513,18 +514,13 @@ void GLSceneDrawer::EndDrawScene(sector_t * viewsector)
 {
 	gl_RenderState.EnableFog(false);
 
-	const bool renderHUDModel = gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player);
-	if (!s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesInScene())
+	// [BB] HUD models need to be rendered here. 
+	const bool renderHUDModel = gl_IsHUDModelForPlayerAvailable( players[consoleplayer].camera->player );
+	if ( renderHUDModel )
 	{
-		// [BB] HUD models need to be rendered here. Make sure that
-		// DrawPlayerSprites is only called once. Either to draw
-		// HUD models or to draw the weapon sprites.
-		if (renderHUDModel)
-		{
-			// [BB] The HUD model should be drawn over everything else already drawn.
-			glClear(GL_DEPTH_BUFFER_BIT);
-			DrawPlayerSprites(viewsector, true);
-		}
+		// [BB] The HUD model should be drawn over everything else already drawn.
+		glClear(GL_DEPTH_BUFFER_BIT);
+		gl_drawinfo->DrawPlayerSprites(true);
 	}
 
 	glDisable(GL_STENCIL_TEST);
@@ -563,10 +559,12 @@ void GLSceneDrawer::DrawEndScene2D(sector_t * viewsector)
 		// [BB] Only draw the sprites if we didn't render a HUD model before.
 		if ( renderHUDModel == false )
 		{
-			DrawPlayerSprites (viewsector, false);
+			gl_drawinfo->DrawPlayerSprites(true);
 		}
 	}
 	
+ 	gl_drawinfo->DrawPlayerSprites(false);
+
 	if (gl.legacyMode)
 	{
 		gl_RenderState.DrawColormapOverlay();
@@ -574,7 +572,6 @@ void GLSceneDrawer::DrawEndScene2D(sector_t * viewsector)
 
 	gl_RenderState.SetFixedColormap(CM_DEFAULT);
 	gl_RenderState.SetSoftLightLevel(-1);
-	DrawTargeterSprites();
 	if (!FGLRenderBuffers::IsEnabled())
 	{
 		DrawBlend(viewsector);
