@@ -36,6 +36,7 @@
 #include "d_player.h"
 #include "a_dynlight.h"
 #include "swrenderer/r_swscene.h"
+#include "hwrenderer/utility/hw_clock.h"
 
 #include "gl/system/gl_interface.h"
 #include "gl/system/gl_framebuffer.h"
@@ -495,6 +496,8 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	//In stereo mode vievport setting is already done in FGLRenderer::Flush()
 	if (s3d::Stereo3DMode::getCurrentMode().IsMono())
 	{
+		twoD.Clock();
+	
 		if (buffersActive)
 		{
 			mBuffers->BindCurrentFB();
@@ -526,7 +529,11 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	auto &indices = drawer->mIndices;
 	auto &commands = drawer->mData;
 
-	if (commands.Size() == 0) return;
+	if (commands.Size() == 0)
+	{
+		twoD.Unclock();
+		return;
+	}
 
 	auto vb = new F2DVertexBuffer;
 	vb->UploadData(&vertices[0], vertices.Size(), &indices[0], indices.Size());
@@ -663,4 +670,5 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	gl_RenderState.ResetColor();
 	gl_RenderState.Apply();
 	delete vb;
+	twoD.Unclock();
 }
