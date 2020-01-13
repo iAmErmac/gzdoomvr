@@ -611,8 +611,8 @@ bool OpenVREyePose::submitFrame(VR_IVRCompositor_FnTable * vrCompositor) const
 		glBindTexture(GL_TEXTURE_2D, texture);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, GLRenderer->mSceneViewport.width,
-			GLRenderer->mSceneViewport.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screen->mSceneViewport.width,
+			screen->mSceneViewport.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
 		GLenum drawBuffers[1] = {GL_COLOR_ATTACHMENT0};
@@ -622,7 +622,7 @@ bool OpenVREyePose::submitFrame(VR_IVRCompositor_FnTable * vrCompositor) const
 	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		return false;
 	GLRenderer->mBuffers->BindEyeTexture(eye, 0);
-	GL_IRECT box = {0, 0, GLRenderer->mSceneViewport.width, GLRenderer->mSceneViewport.height};
+	IntRect box = {0, 0, screen->mSceneViewport.width, screen->mSceneViewport.height};
 	GLRenderer->DrawPresentTexture(box, true);
 
 	// Maybe this would help with AMD boards?
@@ -798,14 +798,16 @@ OpenVRMode::OpenVRMode()
 // AdjustViewports() is called from within FLGRenderer::SetOutputViewport(...)
 void OpenVRMode::AdjustViewports() const
 {
+	if (screen == nullptr)
+		return;
 	// Draw the 3D scene into the entire framebuffer
-	GLRenderer->mSceneViewport.width = sceneWidth;
-	GLRenderer->mSceneViewport.height = sceneHeight;
-	GLRenderer->mSceneViewport.left = 0;
-	GLRenderer->mSceneViewport.top = 0;
+	screen->mSceneViewport.width = sceneWidth;
+	screen->mSceneViewport.height = sceneHeight;
+	screen->mSceneViewport.left = 0;
+	screen->mSceneViewport.top = 0;
 
-	GLRenderer->mScreenViewport.width = sceneWidth;
-	GLRenderer->mScreenViewport.height = sceneHeight;
+	screen->mScreenViewport.width = sceneWidth;
+	screen->mScreenViewport.height = sceneHeight;
 }
 
 void OpenVRMode::AdjustPlayerSprites() const
@@ -940,11 +942,11 @@ void OpenVRMode::Present() const {
 		GLRenderer->ClearBorders();
 
 		// Compute screen regions to use for left and right eye views
-		int leftWidth = GLRenderer->mOutputLetterbox.width / 2;
-		int rightWidth = GLRenderer->mOutputLetterbox.width - leftWidth;
-		GL_IRECT leftHalfScreen = GLRenderer->mOutputLetterbox;
+		int leftWidth = screen->mOutputLetterbox.width / 2;
+		int rightWidth = screen->mOutputLetterbox.width - leftWidth;
+		IntRect leftHalfScreen = screen->mOutputLetterbox;
 		leftHalfScreen.width = leftWidth;
-		GL_IRECT rightHalfScreen = GLRenderer->mOutputLetterbox;
+		IntRect rightHalfScreen = screen->mOutputLetterbox;
 		rightHalfScreen.width = rightWidth;
 		rightHalfScreen.left += leftWidth;
 

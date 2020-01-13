@@ -724,8 +724,6 @@ void FGLRenderer::ApplyFXAA()
 void FGLRenderer::Flush()
 {
 	const s3d::Stereo3DMode& stereo3dMode = s3d::Stereo3DMode::getCurrentMode();
-	const auto &mSceneViewport = screen->mSceneViewport;
-	const auto &mScreenViewport = screen->mScreenViewport;
 
 	if (stereo3dMode.IsMono() || !FGLRenderBuffers::IsEnabled())
 	{
@@ -733,6 +731,10 @@ void FGLRenderer::Flush()
 	}
 	else
 	{
+		stereo3dMode.AdjustViewports();
+		const auto& mSceneViewport = screen->mSceneViewport;
+		const auto& mScreenViewport = screen->mScreenViewport;
+
 		const bool is2D = (gamestate != GS_LEVEL);
 		if (is2D) stereo3dMode.SetUp();
 		// Change from BGRA to RGBA
