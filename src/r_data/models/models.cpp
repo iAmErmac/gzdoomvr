@@ -228,7 +228,7 @@ void FModelRenderer::RenderHUDModel(DPSprite *psp, float ofsX, float ofsY)
 		gl_RenderState.mModelMatrix.rotate(smf->pitchoffset, 0, 0, 1);
 		gl_RenderState.mModelMatrix.rotate(-smf->rolloffset, 1, 0, 0);
 		gl_RenderState.EnableModelMatrix(true);
-		this->RenderFrameModels(smf, psp->GetState(), psp->GetTics(), playermo->player->ReadyWeapon->GetClass(), nullptr, 0);
+		this->RenderFrameModels(smf, psp->GetState(), psp->GetTics(), playermo->player->ReadyWeapon->GetClass(), 0);
 		gl_RenderState.EnableModelMatrix(false);
 		objectToWorldMatrix = gl_RenderState.mModelMatrix;
 	}

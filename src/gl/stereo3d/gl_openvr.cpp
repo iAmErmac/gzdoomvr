@@ -241,8 +241,9 @@ public:
 		if (!isLoaded())
 			return;
 		FMaterial * tex = FMaterial::ValidateTexture(pFTex, false);
-		mVBuf->SetupFrame(renderer, 0, 0, 0);
-		renderer->SetVertexBuffer(mVBuf);
+		auto vbuf = GetVertexBuffer(renderer);
+		vbuf->SetupFrame(renderer, 0, 0, 0);
+		renderer->SetVertexBuffer(vbuf);
 		renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
 		renderer->DrawElements(pModel->unTriangleCount * 3, 0);
 		gl_RenderState.SetVertexBuffer(GLRenderer->mVBO); //this needs to be set back to avoid the level rendering black even though the next draw will be the UI for this eye(???)
@@ -252,12 +253,14 @@ public:
 	{
 		if (loadState != LOADSTATE_LOADED)
 			return;
-		if (mVBuf != NULL)
+
+		auto vbuf = GetVertexBuffer(renderer);
+		if (vbuf != NULL)
 			return;
 
-		mVBuf = new FModelVertexBuffer(true, true);
-		FModelVertex *vertptr = mVBuf->LockVertexBuffer(pModel->unVertexCount);
-		unsigned int *indxptr = mVBuf->LockIndexBuffer(pModel->unTriangleCount * 3);
+		vbuf = new FModelVertexBuffer(true, true);
+		FModelVertex *vertptr = vbuf->LockVertexBuffer(pModel->unVertexCount);
+		unsigned int *indxptr = vbuf->LockIndexBuffer(pModel->unTriangleCount * 3);
 
 		for (int v = 0; v < pModel->unVertexCount; ++v)
 		{
@@ -277,8 +280,8 @@ public:
 			indxptr[i] = pModel->rIndexData[i];
 		}
 
-		mVBuf->UnlockVertexBuffer();
-		mVBuf->UnlockIndexBuffer();
+		vbuf->UnlockVertexBuffer();
+		vbuf->UnlockIndexBuffer();
 	}
 
 	virtual void AddSkins(uint8_t *hitlist) override 

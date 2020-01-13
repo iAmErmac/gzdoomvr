@@ -460,7 +460,7 @@ void GLSceneDrawer::DrawScene(FDrawInfo *di, int drawmode, sector_t * viewsector
 
 	if (s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesInScene())
 	{
-		di->DrawPlayerSprites(gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player));
+		di->DrawPlayerSprites(IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player));
 	}
 
 	if (applySSAO && gl_RenderState.GetPassType() == GBUFFER_PASS)
