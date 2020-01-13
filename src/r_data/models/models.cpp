@@ -43,7 +43,7 @@
 #include "i_time.h"
 
 //TODO Remove gl_system.h
-#include "gl/system/gl_system.h"
+#include "gl_load/gl_system.h"
 #include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "hwrenderer/utility/hw_cvars.h"
