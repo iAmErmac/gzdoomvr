@@ -1124,7 +1124,8 @@ set (PCH_SOURCES
 	hwrenderer/dynlights/hw_aabbtree.cpp
 	hwrenderer/dynlights/hw_shadowmap.cpp
 	hwrenderer/scene/hw_skydome.cpp
-	hwrenderer/shaders/hw_postprocessshader.cpp
+	hwrenderer/postprocessing/hw_postprocess_cvars.cpp
+	hwrenderer/postprocessing/hw_postprocessshader.cpp
 	hwrenderer/textures/hw_material.cpp
 	hwrenderer/textures/hw_precache.cpp
 	hwrenderer/utility/hw_clock.cpp
