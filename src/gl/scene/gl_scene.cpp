@@ -460,7 +460,7 @@ void GLSceneDrawer::DrawScene(FDrawInfo *di, int drawmode, sector_t * viewsector
 
 	if (s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesInScene())
 	{
-		gl_drawinfo->DrawPlayerSprites(gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player));
+		di->DrawPlayerSprites(gl_IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player));
 	}
 
 	if (applySSAO && gl_RenderState.GetPassType() == GBUFFER_PASS)
@@ -571,6 +571,7 @@ void GLSceneDrawer::ProcessScene(FDrawInfo *di, bool toscreen, sector_t * viewse
 
 	int mapsection = R_PointInSubsector(r_viewpoint.Pos)->mapsection;
 	di->CurrentMapSections.Set(mapsection);
+	GLRenderer->mCurrentPortal = nullptr;
 	DrawScene(di, toscreen ? DM_MAINVIEW : DM_OFFSCREEN, viewsector);
 
 }
