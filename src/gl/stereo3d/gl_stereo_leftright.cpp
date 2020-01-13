@@ -94,7 +94,7 @@ void LeftEyeView::Present() const
 	GLRenderer->mBuffers->BindOutputFB();
 	GLRenderer->ClearBorders();
 	GLRenderer->mBuffers->BindEyeTexture(0, 0);
-	GLRenderer->DrawPresentTexture(GLRenderer->mOutputLetterbox, true);
+	GLRenderer->DrawPresentTexture(screen->mOutputLetterbox, true);
 }
 
 /* static */
@@ -110,7 +110,7 @@ void RightEyeView::Present() const
 	GLRenderer->mBuffers->BindOutputFB();
 	GLRenderer->ClearBorders();
 	GLRenderer->mBuffers->BindEyeTexture(0, 0);
-	GLRenderer->DrawPresentTexture(GLRenderer->mOutputLetterbox, true);
+	GLRenderer->DrawPresentTexture(screen->mOutputLetterbox, true);
 }
 
 
