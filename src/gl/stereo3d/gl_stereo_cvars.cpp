@@ -35,8 +35,6 @@
 #include "gl/stereo3d/gl_interleaved3d.h"
 #include "version.h"
 
-EXTERN_CVAR(Bool, vr_enable_quadbuffered)
-
 // Set up 3D-specific console variables:
 CVAR(Int, vr_mode, 10, CVAR_GLOBALCONFIG)
 
