@@ -234,7 +234,7 @@ void GLSceneDrawer::SetupView(float vx, float vy, float vz, DAngle va, bool mirr
 //
 //-----------------------------------------------------------------------------
 
-void GLSceneDrawer::CreateScene()
+void GLSceneDrawer::CreateScene(FDrawInfo *di)
 {
 	angle_t a1 = FrustumAngle();
 	InitClipper(r_viewpoint.Angles.Yaw.BAMs() + a1, r_viewpoint.Angles.Yaw.BAMs() - a1);
@@ -254,26 +254,26 @@ void GLSceneDrawer::CreateScene()
 	SetView();
 	validcount++;	// used for processing sidedefs only once by the renderer.
 	 
-	gl_drawinfo->clipPortal = !!GLRenderer->mClipPortal;
-	gl_drawinfo->mAngles = GLRenderer->mAngles;
-	gl_drawinfo->mViewVector = GLRenderer->mViewVector;
-	gl_drawinfo->mViewActor = GLRenderer->mViewActor;
-	gl_drawinfo->mShadowMap = &GLRenderer->mShadowMap;
+	di->clipPortal = !!GLRenderer->mClipPortal;
+	di->mAngles = GLRenderer->mAngles;
+	di->mViewVector = GLRenderer->mViewVector;
+	di->mViewActor = GLRenderer->mViewActor;
+	di->mShadowMap = &GLRenderer->mShadowMap;
 
 	RenderBSPNode (level.HeadNode());
-	gl_drawinfo->PreparePlayerSprites(r_viewpoint.sector, in_area);
+	di->PreparePlayerSprites(r_viewpoint.sector, in_area);
 
 	// Process all the sprites on the current portal's back side which touch the portal.
-	if (GLRenderer->mCurrentPortal != NULL) GLRenderer->mCurrentPortal->RenderAttached();
+	if (GLRenderer->mCurrentPortal != NULL) GLRenderer->mCurrentPortal->RenderAttached(di);
 	Bsp.Unclock();
 
 	// And now the crappy hacks that have to be done to avoid rendering anomalies.
 	// These cannot be multithreaded when the time comes because all these depend
 	// on the global 'validcount' variable.
 
-	gl_drawinfo->HandleMissingTextures(in_area);	// Missing upper/lower textures
-	gl_drawinfo->HandleHackedSubsectors();	// open sector hacks for deep water
-	gl_drawinfo->ProcessSectorStacks(in_area);		// merge visplanes of sector stacks
+	di->HandleMissingTextures(in_area);	// Missing upper/lower textures
+	di->HandleHackedSubsectors();	// open sector hacks for deep water
+	di->ProcessSectorStacks(in_area);		// merge visplanes of sector stacks
 	GLRenderer->mLights->Finish();
 	GLRenderer->mVBO->Unmap();
 
@@ -412,7 +412,7 @@ void GLSceneDrawer::RenderScene(FDrawInfo *di, int recursion)
 //
 //-----------------------------------------------------------------------------
 
-void GLSceneDrawer::RenderTranslucent()
+void GLSceneDrawer::RenderTranslucent(FDrawInfo *di)
 {
 	RenderAll.Clock();
 
@@ -424,8 +424,8 @@ void GLSceneDrawer::RenderTranslucent()
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	gl_RenderState.EnableBrightmap(true);
-	gl_drawinfo->drawlists[GLDL_TRANSLUCENTBORDER].Draw(gl_drawinfo, GLPASS_TRANSLUCENT);
-	gl_drawinfo->DrawSorted(GLDL_TRANSLUCENT);
+	di->drawlists[GLDL_TRANSLUCENTBORDER].Draw(di, GLPASS_TRANSLUCENT);
+	di->DrawSorted(GLDL_TRANSLUCENT);
 	gl_RenderState.EnableBrightmap(false);
 
 
@@ -445,7 +445,7 @@ void GLSceneDrawer::RenderTranslucent()
 //
 //-----------------------------------------------------------------------------
 
-void GLSceneDrawer::DrawScene(int drawmode, sector_t * viewsector)
+void GLSceneDrawer::DrawScene(FDrawInfo *di, int drawmode, sector_t * viewsector)
 {
 	static int recursion=0;
 	static int ssao_portals_available = 0;
@@ -469,16 +469,16 @@ void GLSceneDrawer::DrawScene(int drawmode, sector_t * viewsector)
 	if (r_viewpoint.camera != nullptr)
 	{
 		ActorRenderFlags savedflags = r_viewpoint.camera->renderflags;
-		CreateScene();
+		CreateScene(di);
 		r_viewpoint.camera->renderflags = savedflags;
 	}
 	else
 	{
-		CreateScene();
+		CreateScene(di);
 	}
 	GLRenderer->mClipPortal = NULL;	// this must be reset before any portal recursion takes place.
 
-	RenderScene(gl_drawinfo, recursion);
+	RenderScene(di, recursion);
 
 	if (s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesInScene())
 	{
@@ -500,7 +500,7 @@ void GLSceneDrawer::DrawScene(int drawmode, sector_t * viewsector)
 	recursion++;
 	GLPortal::EndFrame();
 	recursion--;
-	RenderTranslucent();
+	RenderTranslucent(di);
 }
 
 //-----------------------------------------------------------------------------
@@ -586,7 +586,7 @@ void GLSceneDrawer::DrawEndScene2D(FDrawInfo *di, sector_t * viewsector)
 //
 //-----------------------------------------------------------------------------
 
-void GLSceneDrawer::ProcessScene(bool toscreen, sector_t * viewsector)
+void GLSceneDrawer::ProcessScene(FDrawInfo *di, bool toscreen, sector_t * viewsector)
 {
 	iter_dlightf = iter_dlight = draw_dlight = draw_dlightf = 0;
 	GLPortal::BeginScene();
@@ -595,7 +595,7 @@ void GLSceneDrawer::ProcessScene(bool toscreen, sector_t * viewsector)
 	CurrentMapSections.Resize(level.NumMapSections);
 	CurrentMapSections.Zero();
 	CurrentMapSections.Set(mapsection);
-	DrawScene(toscreen ? DM_MAINVIEW : DM_OFFSCREEN, viewsector);
+	DrawScene(di, toscreen ? DM_MAINVIEW : DM_OFFSCREEN, viewsector);
 
 }
 
@@ -708,13 +708,13 @@ sector_t * GLSceneDrawer::RenderViewpoint (AActor * camera, IntRect * bounds, fl
 		SetViewMatrix(r_viewpoint.Pos.X, r_viewpoint.Pos.Y, r_viewpoint.Pos.Z, false, false);
 		gl_RenderState.ApplyMatrices();
 
-		FDrawInfo::StartDrawInfo(this);
-		ProcessScene(toscreen, lviewsector);
-		if (mainview && toscreen) EndDrawScene(gl_drawinfo, lviewsector); // do not call this for camera textures.
+		FDrawInfo *di = FDrawInfo::StartDrawInfo(this);
+		ProcessScene(di, toscreen, lviewsector);
+		if (mainview && toscreen) EndDrawScene(di, lviewsector); // do not call this for camera textures.
 
 		if (mainview && FGLRenderBuffers::IsEnabled())
 		{
-			GLRenderer->PostProcessScene(FixedColormap, [&]() { if (gl_bloom && FixedColormap == CM_DEFAULT) DrawEndScene2D(gl_drawinfo, lviewsector); });
+			GLRenderer->PostProcessScene(FixedColormap, [&]() { if (gl_bloom && FixedColormap == CM_DEFAULT) DrawEndScene2D(di, lviewsector); });
 
 			// This should be done after postprocessing, not before.
 			GLRenderer->mBuffers->BindCurrentFB();
