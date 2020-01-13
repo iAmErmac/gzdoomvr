@@ -113,6 +113,8 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 			float fU2, fV2;
 
 			AWeapon* wi = player->ReadyWeapon;
+			if (wi == nullptr)
+				return;
 
 			// decide which patch to use
 			bool mirror;

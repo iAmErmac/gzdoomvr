@@ -868,6 +868,10 @@ bool OpenVRMode::GetHandTransform(int hand, VSMatrix* mat) const
 	if (controllers[hand].active)
 	{
 		mat->loadIdentity();
+		if (r_viewpoint.camera->player == nullptr)
+		{
+			return false;
+		}
 
 		APlayerPawn* playermo = r_viewpoint.camera->player->mo;
 		DVector3 pos = playermo->InterpolatedPosition(r_viewpoint.TicFrac);
