@@ -537,11 +537,9 @@ void GLSceneDrawer::DrawEndScene2D(FDrawInfo *di, sector_t * viewsector)
 		// [BB] Only draw the sprites if we didn't render a HUD model before.
 		if ( renderHUDModel == false )
 		{
-			di->DrawPlayerSprites(true);
+			di->DrawPlayerSprites(false);
 		}
 	}
-	
- 	di->DrawPlayerSprites(false);
 
 	if (gl.legacyMode)
 	{
