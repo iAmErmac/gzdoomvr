@@ -1080,6 +1080,7 @@ set (PCH_SOURCES
 	gl/compatibility/gl_20.cpp
 	gl/compatibility/gl_swshader20.cpp
 	gl/data/gl_vertexbuffer.cpp
+	gl/data/gl_uniformbuffer.cpp
 	gl/dynlights/gl_lightbuffer.cpp
 	gl/dynlights/gl_shadowmap.cpp
 	gl/models/gl_models.cpp
@@ -1129,7 +1130,7 @@ set (PCH_SOURCES
 	hwrenderer/utility/hw_clock.cpp
 	hwrenderer/utility/hw_cvars.cpp
 	hwrenderer/utility/hw_lighting.cpp
-	
+
 	menu/joystickmenu.cpp
 	menu/loadsavemenu.cpp
 	menu/menu.cpp
