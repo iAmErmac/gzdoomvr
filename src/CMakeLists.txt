@@ -745,6 +745,7 @@ file( GLOB HEADER_FILES
 	polyrenderer/scene/*.h
 	hwrenderer/data/*.h
 	hwrenderer/dynlights/*.h
+	hwrenderer/postprocessing/*.h
 	hwrenderer/scene/*.h
 	hwrenderer/textures/*.h
 	hwrenderer/utility/*.h
@@ -758,7 +759,6 @@ file( GLOB HEADER_FILES
 	gl/shaders/*.h
 	gl/system/*.h
 	gl/textures/*.h
-	gl/utility/*.h
 	gl_load/*.h
 	*.h
 )
