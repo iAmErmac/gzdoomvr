@@ -416,7 +416,6 @@ public:
 	virtual void UnbindTexUnit(int no) {}
 	virtual void FlushTextures() {}
 	virtual void TextureFilterChanged() {}
-	virtual void ResetFixedColormap() {}
 	virtual void BeginFrame() {}
 	virtual void SwapColors() { m2DDrawer.SwapColors(); }
 
