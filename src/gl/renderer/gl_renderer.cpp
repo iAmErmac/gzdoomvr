@@ -83,7 +83,6 @@ FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb)
 	mCurrentPortal = nullptr;
 	mMirrorCount = 0;
 	mPlaneMirrorCount = 0;
-	mAngles = FRotator(0.f, 0.f, 0.f);
 	mVBO = nullptr;
 	mSkyVBO = nullptr;
 	mShaderManager = nullptr;
@@ -283,7 +282,7 @@ sector_t *FGLRenderer::RenderView(player_t* player)
 		GLSceneDrawer drawer;
 
 		mShadowMap.Update();
-		retsec = drawer.RenderViewpoint(player->camera, NULL, r_viewpoint.FieldOfView.Degrees, ratio, fovratio, true, true);
+		retsec = drawer.RenderViewpoint(r_viewpoint, player->camera, NULL, r_viewpoint.FieldOfView.Degrees, ratio, fovratio, true, true);
 	}
 	All.Unclock();
 	return retsec;
@@ -311,7 +310,8 @@ void FGLRenderer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, doub
 	bounds.height = FHardwareTexture::GetTexDimension(gltex->GetHeight());
 
 	GLSceneDrawer drawer;
-	drawer.RenderViewpoint(Viewpoint, &bounds, FOV, (float)width / height, (float)width / height, false, false);
+	FRenderViewpoint texvp;
+	drawer.RenderViewpoint(texvp, Viewpoint, &bounds, FOV, (float)width / height, (float)width / height, false, false);
 
 	EndOffscreen();
 

@@ -58,7 +58,6 @@ public:
 	GLPortal *mCurrentPortal;
 	int mMirrorCount;
 	int mPlaneMirrorCount;
-	float mCurrentFoV;
 	FShaderManager *mShaderManager;
 	FSamplerManager *mSamplerManager;
 	unsigned int mFBID;
@@ -81,7 +80,7 @@ public:
 
 	FShadowMap mShadowMap;
 
-	FRotator mAngles;
+	//FRotator mAngles;
 
 	FFlatVertexBuffer *mVBO;
 	FSkyVertexBuffer *mSkyVBO;
