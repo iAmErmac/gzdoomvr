@@ -62,7 +62,7 @@ extern TDeletingArray<FVoxelDef *> VoxelDefs;
 
 DeletingModelArray Models;
 
-void FModelRenderer::RenderModel(float x, float y, float z, FSpriteModelFrame *smf, AActor *actor)
+void FModelRenderer::RenderModel(float x, float y, float z, FSpriteModelFrame *smf, AActor *actor, double ticFrac)
 {
 	// Setup transformation.
 
@@ -136,7 +136,7 @@ void FModelRenderer::RenderModel(float x, float y, float z, FSpriteModelFrame *s
 	if (actor->renderflags & RF_INTERPOLATEANGLES)
 	{
 		// [Nash] use interpolated angles
-		DRotator Angles = actor->InterpolatedAngles(r_viewpoint.TicFrac);
+		DRotator Angles = actor->InterpolatedAngles(ticFrac);
 		angle = Angles.Yaw.Degrees;
 	}
 
