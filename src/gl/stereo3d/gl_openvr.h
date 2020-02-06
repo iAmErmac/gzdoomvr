@@ -29,6 +29,7 @@
 
 #include "gl_stereo3d.h"
 #include "gl_stereo_leftright.h"
+#include "r_utility.h" // viewpitch
 
 namespace openvr {
 	// forward declarations
@@ -103,7 +104,7 @@ public:
 protected:
 	OpenVRMode();
 	// void updateDoomViewDirection() const;
-	void updateHmdPose(double hmdYawRadians, double hmdPitchRadians, double hmdRollRadians) const;
+	void updateHmdPose(FRenderViewpoint& vp, double hmdYawRadians, double hmdPitchRadians, double hmdRollRadians) const;
 
 	OpenVREyePose leftEyeView;
 	OpenVREyePose rightEyeView;

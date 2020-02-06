@@ -34,7 +34,6 @@
 #include "d_player.h"
 #include "g_game.h" // G_Add...
 #include "p_local.h" // P_TryMove
-#include "r_utility.h" // viewpitch
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderbuffers.h"
 #include "v_2ddrawer.h" // crosshair
@@ -977,6 +976,8 @@ static int mAngleFromRadians(double radians)
 }
 
 void OpenVRMode::updateHmdPose(
+
+	FRenderViewpoint& vp,
 	double hmdYawRadians, 
 	double hmdPitchRadians, 
 	double hmdRollRadians) const 
@@ -1004,7 +1005,7 @@ void OpenVRMode::updateHmdPose(
 	if (doTrackHmdPitch) {
 		double pixelstretch = level.info ? level.info->pixelstretch : 1.2;
 		double hmdPitchInDoom = -atan(tan(hmdpitch) / pixelstretch);
-		double viewPitchInDoom = GLRenderer->mAngles.Pitch.Radians();
+		double viewPitchInDoom = vp.HWAngles.Pitch.Radians();
 		double dPitch = 
 			// hmdPitchInDoom
 			-hmdpitch
@@ -1014,12 +1015,12 @@ void OpenVRMode::updateHmdPose(
 
 	// Roll can be local, because it doesn't affect gameplay.
 	if (doTrackHmdRoll)
-		GLRenderer->mAngles.Roll = RAD2DEG(-hmdroll);
+		vp.HWAngles.Roll = RAD2DEG(-hmdroll);
 
 	// Late-schedule update to renderer angles directly, too
 	if (doLateScheduledRotationTracking) {
 		if (doTrackHmdPitch)
-			GLRenderer->mAngles.Pitch = RAD2DEG(-hmdpitch);
+			vp.HWAngles.Pitch = RAD2DEG(-hmdpitch);
 		if (doTrackHmdYaw) {
 			double viewYaw = r_viewpoint.Angles.Yaw.Degrees + RAD2DEG(hmdYawDelta);
 			while (viewYaw <= -180.0) 
@@ -1221,7 +1222,7 @@ void OpenVRMode::SetUp() const
 	if (hmdPose0.bPoseIsValid) {
 		const HmdMatrix34_t& hmdPose = hmdPose0.mDeviceToAbsoluteTracking;
 		HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose);
-		updateHmdPose(eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
+		updateHmdPose(r_viewpoint, eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
 		leftEyeView.setCurrentHmdPose(&hmdPose0);
 		rightEyeView.setCurrentHmdPose(&hmdPose0);
 
