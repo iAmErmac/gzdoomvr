@@ -555,7 +555,7 @@ sector_t * GLSceneDrawer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * ca
 		SetViewMatrix(vp.HWAngles, vp.Pos.X, vp.Pos.Y, vp.Pos.Z, false, false);
 		gl_RenderState.ApplyMatrices();
 
-		ProcessScene(di, toscreen, lviewsector);
+		ProcessScene(di, toscreen, mainvp.sector);
 
 		if (mainview)
 		{
@@ -575,7 +575,7 @@ sector_t * GLSceneDrawer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * ca
 
 			eye->AdjustBlend();
 			BlendInfo blendinfo;
-			screen->FillBlend(lviewsector, blendinfo);
+			screen->FillBlend(mainvp.sector, blendinfo);
 			GLRenderer->DrawBlend(blendinfo);
 		}
 		di->EndDrawInfo();
