@@ -563,7 +563,7 @@ sector_t * GLSceneDrawer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * ca
 		GLRenderer->mDrawingScene2D = true;
 
 		FDrawInfo *di = FDrawInfo::StartDrawInfo(this, mainvp);
-		auto vp = di->Viewpoint;
+		auto& vp = di->Viewpoint;
 		di->SetViewArea();
 		auto cm =  di->SetFullbrightFlags(mainview ? vp.camera->player : nullptr);
 		di->Viewpoint.FieldOfView = fov;	// Set the real FOV for the current scene (it's not necessarily the same as the global setting in r_viewpoint)
