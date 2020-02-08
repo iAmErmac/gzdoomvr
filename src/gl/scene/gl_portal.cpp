@@ -595,7 +595,7 @@ void GLSkyboxPortal::DrawContents(FDrawInfo *di)
 
 	di->UpdateCurrentMapSection();
 
-	drawer->DrawScene(di, DM_SKYPORTAL);
+	di->DrawScene(DM_SKYPORTAL);
 	portal->mFlags &= ~PORTSF_INSKYBOX;
 	inskybox = false;
 	gl_RenderState.SetDepthClamp(oldclamp);
@@ -709,7 +709,7 @@ void GLSectorStackPortal::DrawContents(FDrawInfo *di)
 		di->mClipper->SetBlocked(true);
 	}
 
-	drawer->DrawScene(di, DM_PORTAL);
+	di->DrawScene(DM_PORTAL);
 
 	if (origin->plane != -1) screen->instack[origin->plane]--;
 }
@@ -758,7 +758,7 @@ void GLPlaneMirrorPortal::DrawContents(FDrawInfo *di)
 	di->UpdateCurrentMapSection();
 
 	gl_RenderState.SetClipHeight(planez, PlaneMirrorMode < 0 ? -1.f : 1.f);
-	drawer->DrawScene(di, DM_PORTAL);
+	di->DrawScene(DM_PORTAL);
 	gl_RenderState.SetClipHeight(0.f, 0.f);
 	PlaneMirrorFlag--;
 	PlaneMirrorMode = old_pm;
@@ -934,7 +934,7 @@ void GLMirrorPortal::DrawContents(FDrawInfo *di)
 
 	gl_RenderState.SetClipLine(linedef);
 	gl_RenderState.EnableClipLine(true);
-	drawer->DrawScene(di, DM_PORTAL);
+	di->DrawScene(DM_PORTAL);
 	gl_RenderState.EnableClipLine(false);
 
 	MirrorFlag--;
@@ -1005,7 +1005,7 @@ void GLLineToLinePortal::DrawContents(FDrawInfo *di)
 	ClearClipper(di);
 	gl_RenderState.SetClipLine(glport->lines[0]->mDestination);
 	gl_RenderState.EnableClipLine(true);
-	drawer->DrawScene(di, DM_PORTAL);
+	di->DrawScene(DM_PORTAL);
 	gl_RenderState.EnableClipLine(false);
 }
 
