@@ -229,8 +229,8 @@ void FDrawInfo::DrawPlayerSprites(bool hudModelStep)
 		if ((!!hudsprite.mframe) == hudModelStep)
 			DrawPSprite(&hudsprite);
 	}
-
-	s3d::Stereo3DMode::getCurrentMode().DrawControllerModels();
+	
+	s3d::Stereo3DMode::getCurrentMode().DrawControllerModels(this);
 
 	gl_RenderState.SetObjectColor(0xffffffff);
 	gl_RenderState.SetDynLight(0, 0, 0);

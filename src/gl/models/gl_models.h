@@ -34,23 +34,24 @@ struct FDrawInfo;
 class FGLModelRenderer : public FModelRenderer
 {
 	int modellightindex = -1;
-	FDrawInfo *di;
+	FDrawInfo* di;
 public:
-	FGLModelRenderer(FDrawInfo *d, int mli) : modellightindex(mli), di(d)
+	FGLModelRenderer(FDrawInfo* d, int mli) : modellightindex(mli), di(d)
 	{}
-	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix);
+	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 	ModelRendererType GetType() const override { return GLModelRendererType; }
-	void BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
-	void EndDrawModel(AActor *actor, FSpriteModelFrame *smf) override;
-	IModelVertexBuffer *CreateVertexBuffer(bool needindex, bool singleframe) override;
-	void SetVertexBuffer(IModelVertexBuffer *buffer) override;
+	void BeginDrawModel(AActor* actor, FSpriteModelFrame* smf, const VSMatrix& objectToWorldMatrix, bool mirrored) override;
+	void EndDrawModel(AActor* actor, FSpriteModelFrame* smf) override;
+	IModelVertexBuffer* CreateVertexBuffer(bool needindex, bool singleframe) override;
+	void SetVertexBuffer(IModelVertexBuffer* buffer) override;
 	void ResetVertexBuffer() override;
 	VSMatrix GetViewToWorldMatrix() override;
-	void BeginDrawHUDModel(AActor *actor, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
-	void EndDrawHUDModel(AActor *actor) override;
+	void BeginDrawHUDModel(AActor* actor, const VSMatrix& objectToWorldMatrix, bool mirrored) override;
+	void EndDrawHUDModel(AActor* actor) override;
 	void SetInterpolation(double interpolation) override;
-	void SetMaterial(FTexture *skin, bool clampNoFilter, int translation) override;
+	void SetMaterial(FTexture* skin, bool clampNoFilter, int translation) override;
 	void DrawArrays(int start, int count) override;
 	void DrawElements(int numIndices, size_t offset) override;
+	FDrawInfo* GetDrawInfo() { return di; }
 };
 

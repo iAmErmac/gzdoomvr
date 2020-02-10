@@ -53,7 +53,7 @@ public:
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
 	void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const override;
 	virtual void AdjustHud() const override;
-	virtual void AdjustBlend() const override;
+	virtual void AdjustBlend(FDrawInfo* di) const override;
 
 	void initialize(openvr::VR_IVRSystem_FnTable * vrsystem);
 	void dispose();
@@ -89,12 +89,12 @@ public:
 	virtual void TearDown() const override; // called immediately after rendering a scene frame
 	virtual void Present() const override;
 	virtual void AdjustViewports() const override;
-	virtual void AdjustPlayerSprites() const override;
+	virtual void AdjustPlayerSprites(FDrawInfo* di) const override;
 	virtual void UnAdjustPlayerSprites() const override;
 	virtual void AdjustCrossHair() const override;
 	virtual void UnAdjustCrossHair() const override;
 
-	virtual void DrawControllerModels() const override;
+	virtual void DrawControllerModels(FDrawInfo* di) const override;
 	
 	virtual bool GetHandTransform(int hand, VSMatrix* out) const override;
 	virtual bool GetWeaponTransform(VSMatrix* out) const override;

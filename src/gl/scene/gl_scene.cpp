@@ -538,7 +538,7 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 			if (toscreen) di->EndDrawScene(mainvp.sector); // do not call this for camera textures.
 			PostProcessScene(cm, [&]() { di->DrawEndScene2D(mainvp.sector); });
 
-			eye->AdjustBlend();
+			eye->AdjustBlend(di);
 			BlendInfo blendinfo;
 			screen->FillBlend(mainvp.sector, blendinfo);
 			GLRenderer->DrawBlend(blendinfo);

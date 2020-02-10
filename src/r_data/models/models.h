@@ -62,7 +62,7 @@ public:
 
 	void RenderModel(float x, float y, float z, FSpriteModelFrame *modelframe, AActor *actor, double ticFrac);
 	void RenderHUDModel(DPSprite *psp, float ofsx, float ofsy);
-	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
+	virtual void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 
 	virtual ModelRendererType GetType() const = 0;
 

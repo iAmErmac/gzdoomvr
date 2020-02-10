@@ -49,8 +49,8 @@
 #include "hwrenderer/utility/hw_cvars.h"
 
 CVAR(Bool, gl_light_models, true, CVAR_ARCHIVE)
-CVAR(Float, gl_weaponOfsY, 0.0f, CVAR_ARCHIVE)
-CVAR(Float, gl_weaponOfsZ, 0.0f, CVAR_ARCHIVE)
+EXTERN_CVAR(Float, gl_weaponOfsY)
+EXTERN_CVAR(Float, gl_weaponOfsZ)
 
 VSMatrix FGLModelRenderer::GetViewToWorldMatrix()
 {

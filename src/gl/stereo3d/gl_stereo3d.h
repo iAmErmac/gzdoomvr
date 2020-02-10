@@ -60,7 +60,7 @@ public:
 	virtual void SetUp() const {m_isActive = true;}
 	virtual void TearDown() const {m_isActive = false;}
 	virtual void AdjustHud() const {}
-	virtual void AdjustBlend() const {}
+	virtual void AdjustBlend(FDrawInfo* di) const {}
 	bool isActive() const {return m_isActive;}
 
 private:
@@ -91,7 +91,7 @@ public:
 	virtual void UnAdjustPlayerSprites() const {};
 	virtual void AdjustCrossHair() const {}
 	virtual void UnAdjustCrossHair() const {}
-	virtual void DrawControllerModels() const {}
+	virtual void DrawControllerModels(FDrawInfo* di) const {}
 	
 	virtual void Present() const = 0;
 

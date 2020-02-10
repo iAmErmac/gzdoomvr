@@ -49,6 +49,7 @@
 #include "d_gui.h"
 #include "d_event.h"
 #include "i_time.h"
+#include "gl/scene/gl_drawinfo.h"
 
 #include "gl_openvr.h"
 #include "openvr_include.h"
@@ -321,7 +322,8 @@ public:
 
 			pFTex = new FControllerTexture(pTexture);
 
-			FGLModelRenderer renderer(-1);
+			auto* di = FDrawInfo::StartDrawInfo(r_viewpoint, nullptr);
+			FGLModelRenderer renderer(di, -1);
 			BuildVertexBuffer(&renderer);
 
 			return true;
@@ -699,7 +701,9 @@ void OpenVREyePose::AdjustHud() const
 	const Stereo3DMode * mode3d = &Stereo3DMode::getCurrentMode();
 	if (mode3d->IsMono())
 		return;
-	gl_RenderState.mViewMatrix.loadIdentity();
+	auto *di = FDrawInfo::StartDrawInfo(r_viewpoint, nullptr);
+
+	di->VPUniforms.mViewMatrix.loadIdentity();
 	const OpenVRMode * openVrMode = static_cast<const OpenVRMode *>(mode3d);
 	if (openVrMode 
 		&& openVrMode->crossHairDrawer
@@ -710,12 +714,12 @@ void OpenVREyePose::AdjustHud() const
 	{
 		const float crosshair_distance_meters = 10.0f; // meters
 		const float crosshair_width_meters = 0.2f * crosshair_distance_meters;
-		gl_RenderState.mProjectionMatrix = getQuadInWorld(
+		di->VPUniforms.mProjectionMatrix = getQuadInWorld(
 			crosshair_distance_meters,
 			crosshair_width_meters,
 			false,
 			0.0);
-		gl_RenderState.ApplyMatrices();
+		di->ApplyVPUniforms();
 		GLRenderer->Draw2D(openVrMode->crossHairDrawer);
 	}
 
@@ -723,21 +727,21 @@ void OpenVREyePose::AdjustHud() const
 	const float menu_distance_meters = 1.0f;
 	const float menu_width_meters = 0.4f * menu_distance_meters;
 	const float pitch_offset = -8.0;
-	gl_RenderState.mProjectionMatrix = getQuadInWorld(
+	di->VPUniforms.mProjectionMatrix = getQuadInWorld(
 		menu_distance_meters, 
 		menu_width_meters, 
 		true,
 		pitch_offset);
-	gl_RenderState.ApplyMatrices();
+	di->ApplyVPUniforms();
 }
 
-void OpenVREyePose::AdjustBlend() const
+void OpenVREyePose::AdjustBlend(FDrawInfo *di) const
 {
-	VSMatrix& proj = gl_RenderState.mProjectionMatrix;
+	VSMatrix& proj = di->VPUniforms.mProjectionMatrix;
 	proj.loadIdentity();
 	proj.translate(-1, 1, 0);
 	proj.scale(2.0 / SCREENWIDTH, -2.0 / SCREENHEIGHT, -1.0);
-	gl_RenderState.ApplyMatrices();
+	di->ApplyVPUniforms();
 }
 
 OpenVRMode::OpenVRMode() 
@@ -812,7 +816,7 @@ void OpenVRMode::AdjustViewports() const
 	screen->mScreenViewport.height = sceneHeight;
 }
 
-void OpenVRMode::AdjustPlayerSprites() const
+void OpenVRMode::AdjustPlayerSprites(FDrawInfo* di) const
 {
 	GetWeaponTransform(&gl_RenderState.mModelMatrix);
 
@@ -843,11 +847,11 @@ void OpenVRMode::UnAdjustCrossHair() const
 	viewwindowy = cachedViewwindowy;
 }
 
-void OpenVRMode::DrawControllerModels() const
+void OpenVRMode::DrawControllerModels(FDrawInfo *di) const
 {
 	if(!openvr_drawControllers)
 		return; 
-	FGLModelRenderer renderer(-1);
+	FGLModelRenderer renderer(di, -1);
 	for (int i = 0; i < MAX_ROLES; ++i) 
 	{
 		if (GetHandTransform(i, &gl_RenderState.mModelMatrix) && controllers[i].model)
