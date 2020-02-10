@@ -239,7 +239,7 @@ void FGLRenderBuffers::RenderEffect(const FString &name)
 //
 //-----------------------------------------------------------------------------
 
-void FGLRenderer::AmbientOccludeScene()
+void FGLRenderer::AmbientOccludeScene(float m5)
 {
 	FGLDebug::PushGroup("AmbientOccludeScene");
 
@@ -252,7 +252,7 @@ void FGLRenderer::AmbientOccludeScene()
 	float aoStrength = gl_ssao_strength;
 
 	//float tanHalfFovy = tan(fovy * (M_PI / 360.0f));
-	float tanHalfFovy = 1.0f / gl_RenderState.mProjectionMatrix.get()[5];
+	float tanHalfFovy = 1.0f / m5;
 	float invFocalLenX = tanHalfFovy * (mBuffers->GetSceneWidth() / (float)mBuffers->GetSceneHeight());
 	float invFocalLenY = tanHalfFovy;
 	float nDotVBias = clamp(bias, 0.0f, 1.0f);

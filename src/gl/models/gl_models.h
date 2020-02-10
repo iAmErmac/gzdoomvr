@@ -29,13 +29,16 @@
 #include "r_data/models/models.h"
 
 class GLSprite;
+struct FDrawInfo;
 
 class FGLModelRenderer : public FModelRenderer
 {
 	int modellightindex = -1;
+	FDrawInfo *di;
 public:
-	FGLModelRenderer(int mli) : modellightindex(mli)
+	FGLModelRenderer(FDrawInfo *d, int mli) : modellightindex(mli), di(d)
 	{}
+	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix);
 	ModelRendererType GetType() const override { return GLModelRendererType; }
 	void BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
 	void EndDrawModel(AActor *actor, FSpriteModelFrame *smf) override;

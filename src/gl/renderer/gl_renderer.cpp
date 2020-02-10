@@ -1,4 +1,4 @@
-// 
+//
 //---------------------------------------------------------------------------
 //
 // Copyright(C) 2005-2016 Christoph Oelckers
@@ -66,7 +66,7 @@ EXTERN_CVAR(Bool, cl_capfps)
 extern bool NoInterpolateView;
 
 //===========================================================================
-// 
+//
 // Renderer interface
 //
 //===========================================================================
@@ -77,7 +77,7 @@ extern bool NoInterpolateView;
 //
 //-----------------------------------------------------------------------------
 
-FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb) 
+FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb)
 {
 	framebuffer = fb;
 	mCurrentPortal = nullptr;
@@ -137,40 +137,57 @@ void FGLRenderer::Initialize(int width, int height)
 	GLPortal::Initialize();
 }
 
-FGLRenderer::~FGLRenderer() 
+FGLRenderer::~FGLRenderer()
 {
 	GLPortal::Shutdown();
 
 	FlushModels();
 	AActor::DeleteAllAttachedLights();
 	FMaterial::FlushAll();
-	if (mShaderManager != NULL) delete mShaderManager;
-	if (mSamplerManager != NULL) delete mSamplerManager;
-	if (mVBO != NULL) delete mVBO;
-	if (mSkyVBO != NULL) delete mSkyVBO;
-	if (mLights != NULL) delete mLights;
-	if (mFBID != 0) glDeleteFramebuffers(1, &mFBID);
+	if (mShaderManager != NULL)
+		delete mShaderManager;
+	if (mSamplerManager != NULL)
+		delete mSamplerManager;
+	if (mVBO != NULL)
+		delete mVBO;
+	if (mSkyVBO != NULL)
+		delete mSkyVBO;
+	if (mLights != NULL)
+		delete mLights;
+	if (mFBID != 0)
+		glDeleteFramebuffers(1, &mFBID);
 	if (mVAOID != 0)
 	{
 		glBindVertexArray(0);
 		glDeleteVertexArrays(1, &mVAOID);
 	}
-	if (swdrawer) delete swdrawer;
-	if (mBuffers) delete mBuffers;
-	if (mPresentShader) delete mPresentShader;
-	if (mLinearDepthShader) delete mLinearDepthShader;
-	if (mDepthBlurShader) delete mDepthBlurShader;
-	if (mSSAOShader) delete mSSAOShader;
-	if (mSSAOCombineShader) delete mSSAOCombineShader;
-	if (mPresent3dCheckerShader) delete mPresent3dCheckerShader;
-	if (mPresent3dColumnShader) delete mPresent3dColumnShader;
-	if (mPresent3dRowShader) delete mPresent3dRowShader;
-	if (mShadowMapShader) delete mShadowMapShader;
+	if (swdrawer)
+		delete swdrawer;
+	if (mBuffers)
+		delete mBuffers;
+	if (mPresentShader)
+		delete mPresentShader;
+	if (mLinearDepthShader)
+		delete mLinearDepthShader;
+	if (mDepthBlurShader)
+		delete mDepthBlurShader;
+	if (mSSAOShader)
+		delete mSSAOShader;
+	if (mSSAOCombineShader)
+		delete mSSAOCombineShader;
+	if (mPresent3dCheckerShader)
+		delete mPresent3dCheckerShader;
+	if (mPresent3dColumnShader)
+		delete mPresent3dColumnShader;
+	if (mPresent3dRowShader)
+		delete mPresent3dRowShader;
+	if (mShadowMapShader)
+		delete mShadowMapShader;
 	delete mCustomPostProcessShaders;
 }
 
 //===========================================================================
-// 
+//
 //
 //
 //===========================================================================
@@ -178,7 +195,8 @@ FGLRenderer::~FGLRenderer()
 void FGLRenderer::ResetSWScene()
 {
 	// force recreation of the SW scene drawer to ensure it gets a new set of resources.
-	if (swdrawer != nullptr) delete swdrawer;
+	if (swdrawer != nullptr)
+		delete swdrawer;
 	swdrawer = nullptr;
 }
 
@@ -188,7 +206,7 @@ void FGLRenderer::SetupLevel()
 }
 
 //===========================================================================
-// 
+//
 //
 //
 //===========================================================================
@@ -206,14 +224,14 @@ bool FGLRenderer::StartOffscreen()
 }
 
 //===========================================================================
-// 
+//
 //
 //
 //===========================================================================
 
 void FGLRenderer::EndOffscreen()
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, mOldFBID); 
+	glBindFramebuffer(GL_FRAMEBUFFER, mOldFBID);
 }
 
 //-----------------------------------------------------------------------------
@@ -222,7 +240,7 @@ void FGLRenderer::EndOffscreen()
 //
 //-----------------------------------------------------------------------------
 
-sector_t *FGLRenderer::RenderView(player_t* player)
+sector_t *FGLRenderer::RenderView(player_t *player)
 {
 	gl_RenderState.SetVertexBuffer(mVBO);
 	mVBO->Reset();
@@ -230,7 +248,8 @@ sector_t *FGLRenderer::RenderView(player_t* player)
 
 	if (!V_IsHardwareRenderer())
 	{
-		if (swdrawer == nullptr) swdrawer = new SWSceneDrawer;
+		if (swdrawer == nullptr)
+			swdrawer = new SWSceneDrawer;
 		retsec = swdrawer->RenderView(player);
 	}
 	else
@@ -241,8 +260,10 @@ sector_t *FGLRenderer::RenderView(player_t* player)
 		ResetProfilingData();
 
 		// Get this before everything else
-		if (cl_capfps || r_NoInterpolate) r_viewpoint.TicFrac = 1.;
-		else r_viewpoint.TicFrac = I_GetTimeFrac();
+		if (cl_capfps || r_NoInterpolate)
+			r_viewpoint.TicFrac = 1.;
+		else
+			r_viewpoint.TicFrac = I_GetTimeFrac();
 
 		P_FindParticleSubsectors();
 
@@ -254,7 +275,6 @@ sector_t *FGLRenderer::RenderView(player_t* player)
 		// prepare all camera textures that have been used in the last frame
 		FCanvasTextureInfo::UpdateAll();
 		NoInterpolateView = saved_niv;
-
 
 		// now render the main view
 		float fovratio;
@@ -283,7 +303,7 @@ sector_t *FGLRenderer::RenderView(player_t* player)
 
 void FGLRenderer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV)
 {
-	FMaterial * gltex = FMaterial::ValidateTexture(tex, false);
+	FMaterial *gltex = FMaterial::ValidateTexture(tex, false);
 
 	int width = gltex->TextureWidth();
 	int height = gltex->TextureHeight();
@@ -310,43 +330,43 @@ void FGLRenderer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, doub
 //
 //===========================================================================
 
-void FGLRenderer::WriteSavePic (player_t *player, FileWriter *file, int width, int height)
+void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, int height)
 {
-    IntRect bounds;
-    bounds.left = 0;
-    bounds.top = 0;
-    bounds.width = width;
-    bounds.height = height;
-    
-    // if mVBO is persistently mapped we must be sure the GPU finished reading from it before we fill it with new data.
-    glFinish();
-    
-    // Switch to render buffers dimensioned for the savepic
-    mBuffers = mSaveBuffers;
-    
-    P_FindParticleSubsectors();    // make sure that all recently spawned particles have a valid subsector.
-    gl_RenderState.SetVertexBuffer(mVBO);
-    mVBO->Reset();
-    mLights->Clear();
-    
-    // This shouldn't overwrite the global viewpoint even for a short time.
-    FRenderViewpoint savevp;
-    sector_t *viewsector = RenderViewpoint(savevp, players[consoleplayer].camera, &bounds, r_viewpoint.FieldOfView.Degrees, 1.6f, 1.6f, true, false);
-    glDisable(GL_STENCIL_TEST);
-    gl_RenderState.SetSoftLightLevel(-1);
-    CopyToBackbuffer(&bounds, false);
-    
-    // strictly speaking not needed as the glReadPixels should block until the scene is rendered, but this is to safeguard against shitty drivers
-    glFinish();
-    
-    uint8_t * scr = (uint8_t *)M_Malloc(width * height * 3);
-    glReadPixels(0,0,width, height,GL_RGB,GL_UNSIGNED_BYTE,scr);
-    M_CreatePNG (file, scr + ((height-1) * width * 3), NULL, SS_RGB, width, height, -width * 3, Gamma);
-    M_Free(scr);
-    
-    // Switch back the screen render buffers
-    screen->SetViewportRects(nullptr);
-    mBuffers = mScreenBuffers;
+	IntRect bounds;
+	bounds.left = 0;
+	bounds.top = 0;
+	bounds.width = width;
+	bounds.height = height;
+
+	// if mVBO is persistently mapped we must be sure the GPU finished reading from it before we fill it with new data.
+	glFinish();
+
+	// Switch to render buffers dimensioned for the savepic
+	mBuffers = mSaveBuffers;
+
+	P_FindParticleSubsectors(); // make sure that all recently spawned particles have a valid subsector.
+	gl_RenderState.SetVertexBuffer(mVBO);
+	mVBO->Reset();
+	mLights->Clear();
+
+	// This shouldn't overwrite the global viewpoint even for a short time.
+	FRenderViewpoint savevp;
+	sector_t *viewsector = RenderViewpoint(savevp, players[consoleplayer].camera, &bounds, r_viewpoint.FieldOfView.Degrees, 1.6f, 1.6f, true, false);
+	glDisable(GL_STENCIL_TEST);
+	gl_RenderState.SetSoftLightLevel(-1);
+	CopyToBackbuffer(&bounds, false);
+
+	// strictly speaking not needed as the glReadPixels should block until the scene is rendered, but this is to safeguard against shitty drivers
+	glFinish();
+
+	uint8_t *scr = (uint8_t *)M_Malloc(width * height * 3);
+	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, scr);
+	M_CreatePNG(file, scr + ((height - 1) * width * 3), NULL, SS_RGB, width, height, -width * 3, Gamma);
+	M_Free(scr);
+
+	// Switch back the screen render buffers
+	screen->SetViewportRects(nullptr);
+	mBuffers = mScreenBuffers;
 }
 
 //===========================================================================
@@ -371,8 +391,6 @@ void FGLRenderer::gl_FillScreen()
 	GLRenderer->mVBO->RenderArray(GL_TRIANGLE_STRIP, FFlatVertexBuffer::FULLSCREEN_INDEX, 4);
 }
 
-
-
 //==========================================================================
 //
 // Draws a blend over the entire view
@@ -380,7 +398,7 @@ void FGLRenderer::gl_FillScreen()
 //==========================================================================
 void FGLRenderer::DrawBlend(BlendInfo blendinfo)
 {
-	float* blend = blendinfo.blend;
+	float *blend = blendinfo.blend;
 	float extra_red = blendinfo.extra_red;
 	float extra_green = blendinfo.extra_green;
 	float extra_blue = blendinfo.extra_blue;
@@ -404,7 +422,7 @@ void FGLRenderer::DrawBlend(BlendInfo blendinfo)
 }
 
 //===========================================================================
-// 
+//
 // Vertex buffer for 2D drawer
 //
 //===========================================================================
@@ -419,7 +437,6 @@ class F2DVertexBuffer : public FSimpleVertexBuffer
 	static_assert(offsetof(FSimpleVertex, color) == offsetof(F2DDrawer::TwoDVertex, color0), "color not aligned");
 
 public:
-
 	F2DVertexBuffer()
 	{
 		glGenBuffers(1, &ibo_id);
@@ -448,7 +465,7 @@ public:
 };
 
 //===========================================================================
-// 
+//
 // Draws the 2D stuff. This is the version for OpenGL 3 and later.
 //
 //===========================================================================
@@ -461,7 +478,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	if (s3d::Stereo3DMode::getCurrentMode().IsMono())
 	{
 		twoD.Clock();
-	
+
 		if (buffersActive)
 		{
 			mBuffers->BindCurrentFB();
@@ -469,9 +486,11 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 		const auto &mScreenViewport = screen->mScreenViewport;
 		glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
 
-		gl_RenderState.mViewMatrix.loadIdentity();
-		gl_RenderState.mProjectionMatrix.ortho(0, screen->GetWidth(), screen->GetHeight(), 0, -1.0f, 1.0f);
-		gl_RenderState.ApplyMatrices();
+		HWViewpointUniforms matrices;
+		matrices.mProjectionMatrix.ortho(0, screen->GetWidth(), screen->GetHeight(), 0, -1.0f, 1.0f);
+		matrices.mViewMatrix.loadIdentity();
+		matrices.CalcDependencies();
+		GLRenderer->mShaderManager->ApplyMatrices(&matrices.mProjectionMatrix, &matrices.mViewMatrix, &matrices.mNormalViewMatrix, NORMAL_PASS);
 
 		drawer->SwapColors();
 	}
@@ -488,7 +507,6 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 		glLineWidth(1.0);
 	}
 
-
 	auto &vertices = drawer->mVertices;
 	auto &indices = drawer->mIndices;
 	auto &commands = drawer->mData;
@@ -504,19 +522,19 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	gl_RenderState.SetVertexBuffer(vb);
 	gl_RenderState.EnableFog(false);
 
-	for(auto &cmd : commands)
+	for (auto &cmd : commands)
 	{
 
 		int gltrans = -1;
 		int tm, sb, db, be;
-		// The texture mode being returned here cannot be used, because the higher level code 
+		// The texture mode being returned here cannot be used, because the higher level code
 		// already manipulated the data so that some cases will not be handled correctly.
 		// Since we already get a proper mode from the calling code this doesn't really matter.
 		gl_GetRenderStyle(cmd.mRenderStyle, false, false, &tm, &sb, &db, &be);
-		gl_RenderState.BlendEquation(be); 
+		gl_RenderState.BlendEquation(be);
 		gl_RenderState.BlendFunc(sb, db);
 		gl_RenderState.EnableBrightmap(!(cmd.mRenderStyle.Flags & STYLEF_ColorIsFixed));
-		gl_RenderState.EnableFog(2);	// Special 2D mode 'fog'.
+		gl_RenderState.EnableFog(2); // Special 2D mode 'fog'.
 
 		// Rather than adding remapping code, let's enforce that the constants here are equal.
 		static_assert(int(F2DDrawer::DTM_Normal) == int(TM_MODULATE), "DTM_Normal != TM_MODULATE");
@@ -537,7 +555,8 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 			auto sciH = screen->ScreenToWindowY(cmd.mScissor[1]) - sciY;
 			glScissor(sciX, sciY, sciW, sciH);
 		}
-		else glDisable(GL_SCISSOR_TEST);
+		else
+			glDisable(GL_SCISSOR_TEST);
 
 		if (cmd.mSpecialColormap[0].a != 0)
 		{
@@ -546,16 +565,18 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 			gl_RenderState.SetObjectColor2(cmd.mSpecialColormap[1]);
 		}
 		gl_RenderState.SetFog(cmd.mColor1, 0);
-		gl_RenderState.SetColor(1, 1, 1, 1, cmd.mDesaturate); 
+		gl_RenderState.SetColor(1, 1, 1, 1, cmd.mDesaturate);
 
 		gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 
 		if (cmd.mTexture != nullptr)
 		{
 			auto mat = FMaterial::ValidateTexture(cmd.mTexture, false);
-			if (mat == nullptr) continue;
+			if (mat == nullptr)
+				continue;
 
-			if (gltrans == -1 && cmd.mTranslation != nullptr) gltrans = cmd.mTranslation->GetUniqueIndex();
+			if (gltrans == -1 && cmd.mTranslation != nullptr)
+				gltrans = cmd.mTranslation->GetUniqueIndex();
 			gl_RenderState.SetMaterial(mat, cmd.mFlags & F2DDrawer::DTF_Wrap ? CLAMP_NONE : CLAMP_XY_NOMIP, -gltrans, -1, cmd.mDrawMode == F2DDrawer::DTM_AlphaTexture);
 			gl_RenderState.EnableTexture(true);
 
@@ -587,7 +608,6 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 		case F2DDrawer::DrawTypePoints:
 			glDrawArrays(GL_POINTS, cmd.mVertIndex, cmd.mVertCount);
 			break;
-
 		}
 		gl_RenderState.SetObjectColor(0xffffffff);
 		gl_RenderState.SetObjectColor2(0);

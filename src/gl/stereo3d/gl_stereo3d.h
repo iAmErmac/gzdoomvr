@@ -87,7 +87,7 @@ public:
 
 	virtual bool IsMono() const { return false; }
 	virtual void AdjustViewports() const {};
-	virtual void AdjustPlayerSprites() const {};
+	virtual void AdjustPlayerSprites(FDrawInfo *di) const {};
 	virtual void UnAdjustPlayerSprites() const {};
 	virtual void AdjustCrossHair() const {}
 	virtual void UnAdjustCrossHair() const {}

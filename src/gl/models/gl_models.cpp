@@ -45,13 +45,72 @@
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/shaders/gl_shader.h"
 
+#include "gl/stereo3d/gl_stereo3d.h"
+#include "hwrenderer/utility/hw_cvars.h"
+
 CVAR(Bool, gl_light_models, true, CVAR_ARCHIVE)
+CVAR(Float, gl_weaponOfsY, 0.0f, CVAR_ARCHIVE)
+CVAR(Float, gl_weaponOfsZ, 0.0f, CVAR_ARCHIVE)
 
 VSMatrix FGLModelRenderer::GetViewToWorldMatrix()
 {
 	VSMatrix objectToWorldMatrix;
-	gl_RenderState.mViewMatrix.inverseMatrix(objectToWorldMatrix);
+	di->VPUniforms.mViewMatrix.inverseMatrix(objectToWorldMatrix);
 	return objectToWorldMatrix;
+}
+
+
+
+void FGLModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix)
+{
+	if (!s3d::Stereo3DMode::getCurrentMode().IsMono())
+	{
+		//TODO Remove gl_RenderState
+		gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
+		// [BB] Render the weapon in worldspace to confirm transforms are all correct
+		gl_RenderState.mModelMatrix.loadIdentity();
+		// Need to reset the normal matrix too
+		di->VPUniforms.mNormalViewMatrix.loadIdentity();
+
+		if (s3d::Stereo3DMode::getCurrentMode().GetWeaponTransform(&gl_RenderState.mModelMatrix))
+		{
+			float scale = 0.01f;
+			gl_RenderState.mModelMatrix.scale(scale, scale, scale);
+			gl_RenderState.mModelMatrix.translate(0, 5 + gl_weaponOfsZ, 30 + gl_weaponOfsY);
+		}
+		else
+		{
+			DVector3 pos = playermo->InterpolatedPosition(r_viewpoint.TicFrac);
+			gl_RenderState.mModelMatrix.translate(pos.X, pos.Z + 40, pos.Y);
+			gl_RenderState.mModelMatrix.rotate(-playermo->Angles.Yaw.Degrees - 90, 0, 1, 0);
+		}
+
+
+		// Scaling model (y scale for a sprite means height, i.e. z in the world!).
+		gl_RenderState.mModelMatrix.scale(smf->xscale, smf->zscale, smf->yscale);
+
+		// Aplying model offsets (model offsets do not depend on model scalings).
+		gl_RenderState.mModelMatrix.translate(smf->xoffset / smf->xscale, smf->zoffset / smf->zscale, smf->yoffset / smf->yscale);
+
+		// [BB] Weapon bob, very similar to the normal Doom weapon bob.
+		gl_RenderState.mModelMatrix.rotate(ofsX / 4, 0, 1, 0);
+		gl_RenderState.mModelMatrix.rotate((ofsY - WEAPONTOP) / -4., 1, 0, 0);
+
+		// [BB] For some reason the jDoom models need to be rotated.
+		gl_RenderState.mModelMatrix.rotate(90.f, 0, 1, 0);
+
+		// Applying angleoffset, pitchoffset, rolloffset.
+		gl_RenderState.mModelMatrix.rotate(-smf->angleoffset, 0, 1, 0);
+		gl_RenderState.mModelMatrix.rotate(smf->pitchoffset, 0, 0, 1);
+		gl_RenderState.mModelMatrix.rotate(-smf->rolloffset, 1, 0, 0);
+		gl_RenderState.EnableModelMatrix(true);
+		gl_RenderState.EnableModelMatrix(false);
+		objectToWorldMatrix = gl_RenderState.mModelMatrix;
+	}
+	else
+	{
+		FModelRenderer::PrepareRenderHUDModel(playermo, smf, ofsX, ofsY, objectToWorldMatrix);
+	}
 }
 
 void FGLModelRenderer::BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored)
