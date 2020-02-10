@@ -428,7 +428,6 @@ public:
 	virtual IHardwareTexture *CreateHardwareTexture(FTexture *tex) { return nullptr; }
 	virtual FModelRenderer *CreateModelRenderer(int mli) { return nullptr; }
 	virtual void UnbindTexUnit(int no) {}
-	virtual void FlushTextures() {}
 	virtual void TextureFilterChanged() {}
 	virtual void BeginFrame() {}
 	virtual void SwapColors() { m2DDrawer.SwapColors(); }

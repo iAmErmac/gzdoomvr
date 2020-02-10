@@ -100,7 +100,6 @@ public:
 
 	void ClearBorders();
 
-	void FlushTextures();
 	void SetupLevel();
 	void ResetSWScene();
 
