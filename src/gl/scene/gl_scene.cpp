@@ -130,7 +130,7 @@ void FDrawInfo::CreateScene()
 	PreparePlayerSprites(vp.sector, in_area);
 
 	// Process all the sprites on the current portal's back side which touch the portal.
-	if (GLRenderer->mCurrentPortal != NULL) GLRenderer->mCurrentPortal->RenderAttached(this);
+	if (mCurrentPortal != nullptr) mCurrentPortal->RenderAttached(this);
 	Bsp.Unclock();
 
 	// And now the crappy hacks that have to be done to avoid rendering anomalies.
@@ -426,7 +426,6 @@ void FDrawInfo::ProcessScene(bool toscreen, sector_t * viewsector)
 
 	int mapsection = R_PointInSubsector(Viewpoint.Pos)->mapsection;
 	CurrentMapSections.Set(mapsection);
-	GLRenderer->mCurrentPortal = nullptr;
 	DrawScene(toscreen ? DM_MAINVIEW : DM_OFFSCREEN, viewsector);
 
 }

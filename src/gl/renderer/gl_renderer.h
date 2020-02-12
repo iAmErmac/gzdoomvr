@@ -55,8 +55,6 @@ class FGLRenderer
 public:
 
 	OpenGLFrameBuffer *framebuffer;
-	//GLPortal *mClipPortal;
-	GLPortal *mCurrentPortal;
 	int mMirrorCount;
 	int mPlaneMirrorCount;
 	FShaderManager *mShaderManager;
