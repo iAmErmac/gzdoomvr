@@ -424,7 +424,7 @@ static HmdVector3d_t eulerAnglesFromMatrix(HmdMatrix34_t mat) {
 }
 
 OpenVREyePose::OpenVREyePose(int eye)
-	: ShiftedEyePose( 0.0f )
+	: ShiftedEyePose(0.0f, 1.f)
 	, eye(eye)
 	, eyeTexture(nullptr)
 	, currentPose(nullptr)
