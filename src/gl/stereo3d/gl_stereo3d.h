@@ -32,6 +32,7 @@
 #include "tarray.h"
 #include "r_data/matrix.h"
 #include "gl/renderer/gl_renderer.h"
+#include "hwrenderer/stereo3d/hw_eyepose.h"
 
 class LSVec3;
 
@@ -39,43 +40,17 @@ class LSVec3;
 namespace s3d {
 
 
-/* Subregion of current display window */
-class Viewport
-{
-public:
-	int x, y;
-	int width, height;
-};
-
-
-/* Viewpoint of one eye */
-class EyePose 
-{
-public:
-	EyePose() : m_isActive(false) {}
-	virtual ~EyePose() {}
-	virtual VSMatrix GetProjection(float fov, float aspectRatio, float fovRatio) const;
-	virtual Viewport GetViewport(const Viewport& fullViewport) const;
-	virtual void GetViewShift(float yaw, float outViewShift[3]) const;
-	virtual void SetUp() const {m_isActive = true;}
-	virtual void TearDown() const {m_isActive = false;}
-	virtual void AdjustHud() const {}
-	virtual void AdjustBlend(FDrawInfo* di) const {}
-	bool isActive() const {return m_isActive;}
-
-private:
-	mutable bool m_isActive;
-};
 
 
 /* Base class for stereoscopic 3D rendering modes */
 class Stereo3DMode
+	/* static methods for managing the selected stereoscopic view state */
 {
-public:
+	public:
 	/* static methods for managing the selected stereoscopic view state */
 	static const Stereo3DMode& getCurrentMode();
 	static const Stereo3DMode& getMonoMode();
-
+	
 	Stereo3DMode();
 	virtual ~Stereo3DMode();
 	virtual int eye_count() const { return eye_ptrs.Size(); }
