@@ -50,7 +50,7 @@ public:
 	OpenVREyePose(int eye, float shiftFactor, float scaleFactor);
 	virtual ~OpenVREyePose() override;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
-	void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const override;
+	DVector3 GetViewShift(FLOATTYPE yaw) const override;
 	virtual void AdjustHud() const override;
 	virtual void AdjustBlend(FDrawInfo* di) const override;
 

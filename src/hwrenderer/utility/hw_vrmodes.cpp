@@ -203,22 +203,18 @@ VSMatrix VREyeInfo::GetProjection(float fov, float aspectRatio, float fovRatio) 
 
 
 /* virtual */
-void VREyeInfo::GetViewShift(float yaw, float outViewShift[3]) const
+DVector3 VREyeInfo::GetViewShift(float yaw) const
 {
 	if (mShiftFactor == 0)
 	{
 		// pass-through for Mono view
-		outViewShift[0] = 0;
-		outViewShift[1] = 0;
-		outViewShift[2] = 0;
+		return { 0, 0, 0 };
 	}
 	else
 	{
 		double dx = -cos(DEG2RAD(yaw)) * vr_vunits_per_meter * getShift();
 		double dy = sin(DEG2RAD(yaw)) * vr_vunits_per_meter * getShift();
-		outViewShift[0] = dx;
-		outViewShift[1] = dy;
-		outViewShift[2] = 0;
+		return { dx, dy, 0 };
 	}
 }
 

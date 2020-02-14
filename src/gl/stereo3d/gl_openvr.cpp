@@ -456,20 +456,19 @@ static void vSMatrixFromHmdMatrix34(VSMatrix& m1, const HmdMatrix34_t& m2)
 
 
 /* virtual */
-void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
+DVector3 OpenVREyePose::GetViewShift(FLOATTYPE yaw) const
 {
-	outViewShift[0] = outViewShift[1] = outViewShift[2] = 0;
 
 	if (currentPose == nullptr)
-		return;
+		return { 0, 0, 0 };
 	const TrackedDevicePose_t& hmd = *currentPose;
 	if (! hmd.bDeviceIsConnected)
-		return;
+		return { 0, 0, 0 };
 	if (! hmd.bPoseIsValid)
-		return;
+		return { 0, 0, 0 };
 
 	if (! doStereoscopicViewpointOffset)
-		return;
+		return { 0, 0, 0 };
 
 	const HmdMatrix34_t& hmdPose = hmd.mDeviceToAbsoluteTracking;
 
@@ -549,9 +548,7 @@ void OpenVREyePose::GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const
 		doom_EyeOffset[1] += doom_dpos[1];
 	}
 
-	outViewShift[0] = doom_EyeOffset[0];
-	outViewShift[1] = doom_EyeOffset[1];
-	outViewShift[2] = doom_EyeOffset[2];
+	return { doom_EyeOffset[0], doom_EyeOffset[1], doom_EyeOffset[2] };
 }
 
 /* virtual */

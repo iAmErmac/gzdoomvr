@@ -35,7 +35,7 @@ struct VREyeInfo
 	virtual ~VREyeInfo() {}
 
 	virtual VSMatrix GetProjection(float fov, float aspectRatio, float fovRatio) const;
-	virtual void GetViewShift(float yaw, float outViewShift[3]) const;
+	virtual DVector3 GetViewShift(float yaw) const;
 	virtual void SetUp() const { m_isActive = true; }
 	virtual void TearDown() const { m_isActive = false; }
 	virtual void AdjustHud() const {}

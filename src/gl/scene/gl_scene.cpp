@@ -477,7 +477,6 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 	R_SetupFrame (mainvp, r_viewwindow, camera);
 
     // Render (potentially) multiple views for stereo 3d
-	float viewShift[3];
 	// Fixme. The view offsetting should be done with a static table and not require setup of the entire render state for the mode.
 	auto vrmode = VRMode::GetVRMode(mainview && toscreen);
 	vrmode->SetUp();
@@ -497,8 +496,7 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 		// Stereo mode specific perspective projection
 		di->VPUniforms.mProjectionMatrix = eye->GetProjection(fov, ratio, fovratio);
 		// Stereo mode specific viewpoint adjustment
-		eye->GetViewShift(vp.HWAngles.Yaw.Degrees, viewShift);
-		ScopedViewShifter viewShifter(vp.Pos, viewShift);
+		vp.Pos += eye->GetViewShift(vp.HWAngles.Yaw.Degrees);
 		di->SetupView(vp.Pos.X, vp.Pos.Y, vp.Pos.Z, false, false);
 
 
