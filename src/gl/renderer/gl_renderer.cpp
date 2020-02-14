@@ -55,10 +55,10 @@
 #include "hwrenderer/postprocessing/hw_present3dRowshader.h"
 #include "hwrenderer/postprocessing/hw_shadowmapshader.h"
 #include "gl/shaders/gl_postprocessshaderinstance.h"
-#include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/textures/gl_samplers.h"
 #include "gl/dynlights/gl_lightbuffer.h"
 #include "r_videoscale.h"
+#include <hwrenderer\utility\hw_vrmodes.h>
 
 EXTERN_CVAR(Int, screenblocks)
 EXTERN_CVAR(Bool, cl_capfps)
@@ -471,8 +471,9 @@ CVAR(Bool, gl_aalines, false, CVAR_ARCHIVE)
 
 void FGLRenderer::Draw2D(F2DDrawer *drawer)
 {
+	auto vrmode = VRMode::GetVRMode(true);
 	//In stereo mode vievport setting is already done in FGLRenderer::Flush()
-	if (s3d::Stereo3DMode::getCurrentMode().IsMono())
+	if (vrmode->mEyeCount == 1)
 	{
 		twoD.Clock();
 

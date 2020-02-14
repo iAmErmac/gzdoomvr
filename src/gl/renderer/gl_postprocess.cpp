@@ -43,8 +43,8 @@
 #include "hwrenderer/postprocessing/hw_presentshader.h"
 #include "hwrenderer/postprocessing/hw_postprocess.h"
 #include "hwrenderer/postprocessing/hw_postprocess_cvars.h"
+#include "hwrenderer/utility/hw_vrmodes.h"
 #include "gl/shaders/gl_postprocessshaderinstance.h"
-#include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/textures/gl_hwtexture.h"
 #include "r_videoscale.h"
 
@@ -424,30 +424,31 @@ void FGLRenderer::ApplyFXAA()
 
 void FGLRenderer::Flush()
 {
-	const s3d::Stereo3DMode& stereo3dMode = s3d::Stereo3DMode::getCurrentMode();
+	auto vrmode = VRMode::GetVRMode(true);
+	
 
-	if (stereo3dMode.IsMono())
+	if (vrmode->mEyeCount == 1)
 	{
 		CopyToBackbuffer(nullptr, true);
 	}
 	else
 	{
-		stereo3dMode.AdjustViewports();
+		vrmode->AdjustViewport(screen);
 		const auto& mSceneViewport = screen->mSceneViewport;
 		const auto& mScreenViewport = screen->mScreenViewport;
 
 		const bool is2D = (gamestate != GS_LEVEL);
-		if (is2D) stereo3dMode.SetUp();
+		if (is2D) vrmode->SetUp();
 		// Change from BGRA to RGBA
 		screen->SwapColors();
 		// Render 2D to eye textures
-		for (int eye_ix = 0; eye_ix < stereo3dMode.eye_count(); ++eye_ix)
+		for (int eye_ix = 0; eye_ix < vrmode->mEyeCount; ++eye_ix)
 		{
 			FGLDebug::PushGroup("Eye2D");
 			mBuffers->BindEyeFB(eye_ix);
 			glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
 			glScissor(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
-			stereo3dMode.getEyePose(eye_ix)->AdjustHud();
+			vrmode->mEyes[eye_ix]->AdjustHud();
 			screen->Draw2D();
 			FGLDebug::PopGroup();
 		}
@@ -455,9 +456,11 @@ void FGLRenderer::Flush()
 
 		FGLPostProcessState savedState;
 		FGLDebug::PushGroup("PresentEyes");
-		stereo3dMode.Present();
+		// Note: This here is the ONLY place in the entire engine where the OpenGL dependent parts of the Stereo3D code need to be dealt with.
+		// There's absolutely no need to create a overly complex class hierarchy for just this.
+		vrmode->Present();
 		FGLDebug::PopGroup();
-		if (is2D) stereo3dMode.TearDown();
+		if (is2D) vrmode->TearDown();
 	}
 }
 

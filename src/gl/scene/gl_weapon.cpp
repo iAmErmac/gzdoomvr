@@ -40,8 +40,8 @@
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/models/gl_models.h"
 #include "gl/renderer/gl_quaddrawer.h"
-#include "gl/stereo3d/gl_stereo3d.h"
 #include "gl/dynlights/gl_lightbuffer.h"
+#include <hwrenderer\utility\hw_vrmodes.h>
 
 EXTERN_CVAR(Bool, r_drawplayersprites)
 EXTERN_CVAR(Float, transsouls)
@@ -78,6 +78,7 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 	gl_RenderState.SetDynLight(huds->dynrgb[0], huds->dynrgb[1], huds->dynrgb[2]);
 	gl_RenderState.EnableBrightmap(!(huds->RenderStyle.Flags & STYLEF_ColorIsFixed));
 
+	auto vrmode = VRMode::GetVRMode(true);
 
 	if (huds->mframe)
 	{
@@ -92,7 +93,7 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 		gl_RenderState.SetMaterial(huds->tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, !!(huds->RenderStyle.Flags & STYLEF_RedIsAlpha));
 		gl_RenderState.Apply();
 
-		if (s3d::Stereo3DMode::getCurrentMode().IsMono() || (r_PlayerSprites3DMode != ITEM_ONLY && r_PlayerSprites3DMode != FAT_ITEM))
+		if (vrmode->mEyeCount == 1 || (r_PlayerSprites3DMode != ITEM_ONLY && r_PlayerSprites3DMode != FAT_ITEM))
 		{
 			GLRenderer->mVBO->RenderArray(GL_TRIANGLE_STRIP, huds->mx, 4);
 		}
@@ -104,7 +105,7 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 		float sy;
 
 		//TODO Cleanup code for rendering weapon models from sprites in VR mode
-		if (psp->GetID() == PSP_WEAPON && s3d::Stereo3DMode::getCurrentMode().RenderPlayerSpritesCrossed())
+		if (psp->GetID() == PSP_WEAPON && vrmode->RenderPlayerSpritesCrossed())
 		{
 			if (r_PlayerSprites3DMode == BACK_ONLY)
 				return;
@@ -220,7 +221,8 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 
 void FDrawInfo::DrawPlayerSprites(bool hudModelStep)
 {
-	s3d::Stereo3DMode::getCurrentMode().AdjustPlayerSprites(this);
+	auto vrmode = VRMode::GetVRMode(true);
+	vrmode->AdjustPlayerSprites(this);
 
 	int oldlightmode = level.lightmode;
 	if (!hudModelStep && level.lightmode == 8) level.lightmode = 2;	// Software lighting cannot handle 2D content so revert to lightmode 2 for that.
@@ -230,7 +232,7 @@ void FDrawInfo::DrawPlayerSprites(bool hudModelStep)
 			DrawPSprite(&hudsprite);
 	}
 	
-	s3d::Stereo3DMode::getCurrentMode().DrawControllerModels(this);
+	vrmode->DrawControllerModels(this);
 
 	gl_RenderState.SetObjectColor(0xffffffff);
 	gl_RenderState.SetDynLight(0, 0, 0);
@@ -239,7 +241,7 @@ void FDrawInfo::DrawPlayerSprites(bool hudModelStep)
 	level.lightmode = oldlightmode;
 	if (!hudModelStep)
 	{
-		s3d::Stereo3DMode::getCurrentMode().UnAdjustPlayerSprites();
+		vrmode->UnAdjustPlayerSprites();
 	}
 }
 

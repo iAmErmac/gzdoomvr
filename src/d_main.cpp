@@ -101,7 +101,7 @@
 #include "vm.h"
 #include "types.h"
 #include "r_data/r_vanillatrans.h"
-#include "gl/stereo3d/gl_stereo3d.h"
+#include <hwrenderer\utility\hw_vrmodes.h>
 
 EXTERN_CVAR(Bool, hud_althud)
 EXTERN_CVAR(Bool, fullscreen)
@@ -663,7 +663,7 @@ void D_Display ()
 	{
 		players[consoleplayer].camera = players[consoleplayer].mo;
 	}
-
+	auto vrmode = VRMode::GetVRMode(true);
     auto &vp = r_viewpoint;
 	if (viewactive)
 	{
@@ -774,7 +774,7 @@ void D_Display ()
 
 			viewsec = screen->RenderView(&players[consoleplayer]);
 			screen->Begin2D(false);
-			if (s3d::Stereo3DMode::getCurrentMode().IsMono())
+			if (vrmode->mEyeCount == 1)
 			{
 				screen->DrawBlend(viewsec);
 			}

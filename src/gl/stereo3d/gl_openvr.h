@@ -27,9 +27,8 @@
 #ifndef GL_OPENVR_H_
 #define GL_OPENVR_H_
 
-#include "gl_stereo3d.h"
-#include "gl_stereo_leftright.h"
 #include "r_utility.h" // viewpitch
+#include "hwrenderer/utility/hw_vrmodes.h"
 
 namespace openvr {
 	// forward declarations
@@ -43,12 +42,12 @@ namespace openvr {
 /* stereoscopic 3D API */
 namespace s3d {
 
-class OpenVREyePose : public ShiftedEyePose
+class OpenVREyePose : public VREyeInfo
 {
 public:
 	friend class OpenVRMode;
 
-	OpenVREyePose(int eye);
+	OpenVREyePose(int eye, float shiftFactor, float scaleFactor);
 	virtual ~OpenVREyePose() override;
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
 	void GetViewShift(FLOATTYPE yaw, FLOATTYPE outViewShift[3]) const override;
@@ -78,17 +77,18 @@ protected:
 	) const;
 };
 
-class OpenVRMode : public Stereo3DMode
+class OpenVRMode : public VRMode
 {
 public:
 	friend class OpenVREyePose;
-	static const Stereo3DMode& getInstance(); // Might return Mono mode, if no HMD available
+	//static const VRMode& getInstance(); // Might return Mono mode, if no HMD available
 
+	OpenVRMode(OpenVREyePose eyes[2]);
 	virtual ~OpenVRMode() override;
 	virtual void SetUp() const override; // called immediately before rendering a scene frame
 	virtual void TearDown() const override; // called immediately after rendering a scene frame
 	virtual void Present() const override;
-	virtual void AdjustViewports() const override;
+	virtual void AdjustViewport(DFrameBuffer* screen) const override;
 	virtual void AdjustPlayerSprites(FDrawInfo* di) const override;
 	virtual void UnAdjustPlayerSprites() const override;
 	virtual void AdjustCrossHair() const override;
@@ -106,8 +106,8 @@ protected:
 	// void updateDoomViewDirection() const;
 	void updateHmdPose(FRenderViewpoint& vp, double hmdYawRadians, double hmdPitchRadians, double hmdRollRadians) const;
 
-	OpenVREyePose leftEyeView;
-	OpenVREyePose rightEyeView;
+	OpenVREyePose* leftEyeView;
+	OpenVREyePose* rightEyeView;
 
 	openvr::VR_IVRSystem_FnTable * vrSystem;
 	openvr::VR_IVRCompositor_FnTable * vrCompositor;
@@ -120,7 +120,7 @@ protected:
 	mutable F2DDrawer * crossHairDrawer;
 
 private:
-	typedef Stereo3DMode super;
+	typedef VRMode super;
 	bool hmdWasFound;
 	uint32_t sceneWidth, sceneHeight;
 };

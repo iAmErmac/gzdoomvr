@@ -45,8 +45,8 @@
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/shaders/gl_shader.h"
 
-#include "gl/stereo3d/gl_stereo3d.h"
 #include "hwrenderer/utility/hw_cvars.h"
+#include <hwrenderer\utility\hw_vrmodes.h>
 
 CVAR(Bool, gl_light_models, true, CVAR_ARCHIVE)
 EXTERN_CVAR(Float, gl_weaponOfsY)
@@ -63,7 +63,8 @@ VSMatrix FGLModelRenderer::GetViewToWorldMatrix()
 
 void FGLModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix)
 {
-	if (!s3d::Stereo3DMode::getCurrentMode().IsMono())
+	auto vrmode = VRMode::GetVRMode(true);
+	if (vrmode->mEyeCount > 1)
 	{
 		//TODO Remove gl_RenderState
 		gl_RenderState.AlphaFunc(GL_GEQUAL, gl_mask_sprite_threshold);
@@ -72,7 +73,7 @@ void FGLModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame
 		// Need to reset the normal matrix too
 		di->VPUniforms.mNormalViewMatrix.loadIdentity();
 
-		if (s3d::Stereo3DMode::getCurrentMode().GetWeaponTransform(&gl_RenderState.mModelMatrix))
+		if (vrmode->GetWeaponTransform(&gl_RenderState.mModelMatrix))
 		{
 			float scale = 0.01f;
 			gl_RenderState.mModelMatrix.scale(scale, scale, scale);

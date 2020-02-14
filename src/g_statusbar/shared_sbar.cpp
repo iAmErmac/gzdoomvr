@@ -56,9 +56,9 @@
 #include "p_acs.h"
 #include "sbarinfo.h"
 #include "events.h"
-#include "gl/stereo3d/gl_stereo3d.h"
 
 #include "../version.h"
+#include <hwrenderer\utility\hw_vrmodes.h>
 
 #define XHAIRSHRINKSIZE		(1./18)
 #define XHAIRPICKUPSIZE		(2+XHAIRSHRINKSIZE)
@@ -904,8 +904,8 @@ void DBaseStatusBar::DrawCrosshair ()
 	{
 		return;
 	}
-
-	s3d::Stereo3DMode::getCurrentMode().AdjustCrossHair();
+	auto vrmode = VRMode::GetVRMode(true);
+	vrmode->AdjustCrossHair();
 
 	if (crosshairscale > 0.0f)
 	{
@@ -966,7 +966,7 @@ void DBaseStatusBar::DrawCrosshair ()
 		DTA_FillColor, color & 0xFFFFFF,
 		TAG_DONE);
 
-	s3d::Stereo3DMode::getCurrentMode().UnAdjustCrossHair();
+	vrmode->UnAdjustCrossHair();
 }
 
 //---------------------------------------------------------------------------
