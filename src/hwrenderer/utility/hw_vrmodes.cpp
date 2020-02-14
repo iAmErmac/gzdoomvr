@@ -127,7 +127,7 @@ const VRMode *VRMode::GetVRMode(bool toscreen)
 	case VR_CHECKERINTERLEAVED:
 		return &vrmi_checker;
 	case VR_OPENVR:
-		return &vrmi_openvr;
+		return vrmi_openvr.IsInitialized() ? &vrmi_openvr : &vrmi_mono;
 	}
 }
 
