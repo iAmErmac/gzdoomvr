@@ -4,6 +4,7 @@
 #include <gl\scene\gl_drawinfo.h>
 #include <gl\renderer\gl_renderer.h>
 
+class DFrameBuffer;
 
 enum
 {
@@ -60,7 +61,7 @@ struct VRMode
 	virtual ~VRMode() {}
 	
 	static const VRMode *GetVRMode(bool toscreen = true);
-	virtual void AdjustViewport(DFrameBuffer* screen) const;
+	virtual void AdjustViewport(DFrameBuffer *fb) const;
 	VSMatrix GetHUDSpriteProjection() const;
 
 	/* hooks for setup and cleanup operations for each stereo mode */
