@@ -104,7 +104,6 @@
 #include <hwrenderer\utility\hw_vrmodes.h>
 
 EXTERN_CVAR(Bool, hud_althud)
-EXTERN_CVAR(Bool, fullscreen)
 EXTERN_CVAR(Int, vr_mode)
 void DrawHUD();
 void D_DoAnonStats();
