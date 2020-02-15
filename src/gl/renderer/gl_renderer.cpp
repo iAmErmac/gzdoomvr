@@ -50,7 +50,6 @@
 #include "gl/renderer/gl_renderbuffers.h"
 #include "gl/data/gl_vertexbuffer.h"
 #include "gl/scene/gl_drawinfo.h"
-#include "hwrenderer/postprocessing/hw_ambientshader.h"
 #include "hwrenderer/postprocessing/hw_presentshader.h"
 #include "hwrenderer/postprocessing/hw_present3dRowshader.h"
 #include "hwrenderer/postprocessing/hw_shadowmapshader.h"
@@ -93,10 +92,6 @@ FGLRenderer::FGLRenderer(OpenGLFrameBuffer *fb)
 	mPresent3dCheckerShader = nullptr;
 	mPresent3dColumnShader = nullptr;
 	mPresent3dRowShader = nullptr;
-	mLinearDepthShader = nullptr;
-	mDepthBlurShader = nullptr;
-	mSSAOShader = nullptr;
-	mSSAOCombineShader = nullptr;
 	mShadowMapShader = nullptr;
 	mCustomPostProcessShaders = nullptr;
 }
@@ -106,10 +101,6 @@ void FGLRenderer::Initialize(int width, int height)
 	mScreenBuffers = new FGLRenderBuffers();
 	mSaveBuffers = new FGLRenderBuffers();
 	mBuffers = mScreenBuffers;
-	mLinearDepthShader = new FLinearDepthShader();
-	mDepthBlurShader = new FDepthBlurShader();
-	mSSAOShader = new FSSAOShader();
-	mSSAOCombineShader = new FSSAOCombineShader();
 	mPresentShader = new FPresentShader();
 	mPresent3dCheckerShader = new FPresent3DCheckerShader();
 	mPresent3dColumnShader = new FPresent3DColumnShader();
@@ -158,28 +149,15 @@ FGLRenderer::~FGLRenderer()
 		glBindVertexArray(0);
 		glDeleteVertexArrays(1, &mVAOID);
 	}
-	if (swdrawer)
-		delete swdrawer;
-	if (mBuffers)
-		delete mBuffers;
-	if (mPresentShader)
-		delete mPresentShader;
-	if (mLinearDepthShader)
-		delete mLinearDepthShader;
-	if (mDepthBlurShader)
-		delete mDepthBlurShader;
-	if (mSSAOShader)
-		delete mSSAOShader;
-	if (mSSAOCombineShader)
-		delete mSSAOCombineShader;
-	if (mPresent3dCheckerShader)
-		delete mPresent3dCheckerShader;
-	if (mPresent3dColumnShader)
-		delete mPresent3dColumnShader;
-	if (mPresent3dRowShader)
-		delete mPresent3dRowShader;
-	if (mShadowMapShader)
-		delete mShadowMapShader;
+	if (PortalQueryObject != 0) glDeleteQueries(1, &PortalQueryObject);
+
+	if (swdrawer) delete swdrawer;
+	if (mBuffers) delete mBuffers;
+	if (mPresentShader) delete mPresentShader;
+	if (mPresent3dCheckerShader) delete mPresent3dCheckerShader;
+	if (mPresent3dColumnShader) delete mPresent3dColumnShader;
+	if (mPresent3dRowShader) delete mPresent3dRowShader;
+	if (mShadowMapShader) delete mShadowMapShader;
 	delete mCustomPostProcessShaders;
 }
 
@@ -374,9 +352,8 @@ void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, in
 
 void FGLRenderer::BeginFrame()
 {
-	buffersActive = mScreenBuffers->Setup(screen->mScreenViewport.width, screen->mScreenViewport.height, screen->mSceneViewport.width, screen->mSceneViewport.height);
-	if (buffersActive)
-		buffersActive = mSaveBuffers->Setup(SAVEPICWIDTH, SAVEPICHEIGHT, SAVEPICWIDTH, SAVEPICHEIGHT);
+	mScreenBuffers->Setup(screen->mScreenViewport.width, screen->mScreenViewport.height, screen->mSceneViewport.width, screen->mSceneViewport.height);
+	mSaveBuffers->Setup(SAVEPICWIDTH, SAVEPICHEIGHT, SAVEPICWIDTH, SAVEPICHEIGHT);
 }
 
 void FGLRenderer::gl_FillScreen()
@@ -476,11 +453,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	if (vrmode->mEyeCount == 1)
 	{
 		twoD.Clock();
-
-		if (buffersActive)
-		{
-			mBuffers->BindCurrentFB();
-		}
+		mBuffers->BindCurrentFB();
 		const auto &mScreenViewport = screen->mScreenViewport;
 		glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
 
