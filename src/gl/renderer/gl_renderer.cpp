@@ -453,6 +453,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	if (vrmode->mEyeCount == 1)
 	{
 		twoD.Clock();
+		FGLDebug::PushGroup("Draw2D");
 		mBuffers->BindCurrentFB();
 		const auto &mScreenViewport = screen->mScreenViewport;
 		glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
@@ -594,5 +595,6 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 	gl_RenderState.ResetColor();
 	gl_RenderState.Apply();
 	delete vb;
+	FGLDebug::PopGroup();
 	twoD.Unclock();
 }
