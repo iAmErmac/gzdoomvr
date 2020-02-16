@@ -18,16 +18,21 @@ vec4 ApplyGamma(vec4 c)
 	return vec4(val, c.a);
 }
 
-vec4 Dither(vec4 c)
+float DitherMatrix[16] = float[](
+	 0.0 / 16.0 - 0.5,  8.0 / 16.0 - 0.5,  2.0 / 16.0 - 0.5, 10.0 / 16.0 - 0.5,
+	12.0 / 16.0 - 0.5,  4.0 / 16.0 - 0.5, 14.0 / 16.0 - 0.5,  6.0 / 16.0 - 0.5,
+	 3.0 / 16.0 - 0.5, 11.0 / 16.0 - 0.5,  1.0 / 16.0 - 0.5,  9.0 / 16.0 - 0.5,
+	15.0 / 16.0 - 0.5,  7.0 / 16.0 - 0.5, 13.0 / 16.0 - 0.5,  5.0 / 16.0 - 0.5
+);
+
+vec4 Dither(vec4 c, float colorscale)
 {
-	if (ColorScale == 0.0)
-		return c;
-	vec2 texSize = vec2(textureSize(DitherTexture, 0));
-	float threshold = texture(DitherTexture, gl_FragCoord.xy / texSize).r;
-	return vec4(floor(c.rgb * ColorScale + threshold) / ColorScale, c.a);
+	ivec2 pos = ivec2(gl_FragCoord.xy) & 3;
+	float threshold = DitherMatrix[pos.x + (pos.y << 2)];
+	return vec4(floor(c.rgb * colorscale + threshold) / colorscale, c.a);
 }
 
 void main()
 {
-	FragColor = Dither(ApplyGamma(texture(InputTexture, TexCoord)));
+	FragColor = Dither(ApplyGamma(texture(InputTexture, TexCoord)), 255.0);
 }
