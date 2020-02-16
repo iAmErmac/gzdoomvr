@@ -508,6 +508,7 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 
 		if (mainview)
 		{
+			PostProcess.Clock();
 			if (toscreen) di->EndDrawScene(mainvp.sector); // do not call this for camera textures.
 
 			if (gl_RenderState.GetPassType() == GBUFFER_PASS) // Turn off ssao draw buffers
@@ -526,6 +527,7 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 			BlendInfo blendinfo;
 			screen->FillBlend(mainvp.sector, blendinfo);
 			GLRenderer->DrawBlend(blendinfo);
+			PostProcess.Unclock();
 		}
 		di->EndDrawInfo();
 		if (vrmode->mEyeCount > 1)
