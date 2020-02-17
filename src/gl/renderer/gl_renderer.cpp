@@ -364,6 +364,7 @@ void FGLRenderer::BeginFrame()
 
 void FGLRenderer::gl_FillScreen()
 {
+	GLRenderer->mViewpoints->Set2D(SCREENWIDTH, SCREENHEIGHT);
 	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 	gl_RenderState.EnableTexture(false);
 	gl_RenderState.Apply();
