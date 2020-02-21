@@ -111,6 +111,7 @@ void OpenGLFrameBuffer::InitializeState()
 	}
 
 	gl_LoadExtensions();
+	hwcaps = gl.flags;
 
 	if (first)
 	{
