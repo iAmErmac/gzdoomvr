@@ -39,7 +39,6 @@
 #include "gl/data/gl_vertexbuffer.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "gl/models/gl_models.h"
-#include "gl/renderer/gl_quaddrawer.h"
 #include "gl/dynlights/gl_lightbuffer.h"
 #include <hwrenderer\utility\hw_vrmodes.h>
 
@@ -165,12 +164,13 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 
 				for (float x = x1; x < x2; x += 1)
 				{
-					FQuadDrawer qd2;
-					qd2.Set(0, x, huds->y1, -z1, fU1, fV1);
-					qd2.Set(1, x, huds->y2, -z1, fU1, fV2);
-					qd2.Set(2, x, huds->y1, -z2, fU2, fV1);
-					qd2.Set(3, x, huds->y2, -z2, fU2, fV2);
-					qd2.Render(GL_TRIANGLE_STRIP);
+					auto vert = this->AllocVertices(4);
+					auto vp = vert.first;
+					vp[0].Set(x, huds->y1, -z1, fU1, fV1);
+					vp[1].Set(x, huds->y2, -z1, fU1, fV2);
+					vp[2].Set(x, huds->y1, -z2, fU2, fV1);
+					vp[3].Set(x, huds->y2, -z2, fU2, fV2);
+					glDrawArrays(GL_TRIANGLE_STRIP, vert.second, 4);
 				}
 			}
 			else
@@ -190,19 +190,21 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 				float y1 = huds->y1 - crossAt;
 				float y2 = huds->y2 - crossAt;
 
-				FQuadDrawer qd2;
-				qd2.Set(0, vw / 2 - crossAt, y1, -z1, fU1, fV1);
-				qd2.Set(1, vw / 2 + sy / 2, y2, -z1, fU1, fV2);
-				qd2.Set(2, vw / 2 - crossAt, y1, -z2, fU2, fV1);
-				qd2.Set(3, vw / 2 + sy / 2, y2, -z2, fU2, fV2);
-				qd2.Render(GL_TRIANGLE_STRIP);
+				auto vert = this->AllocVertices(4);
+				auto vp = vert.first;
+				vp[0].Set(vw / 2 - crossAt, y1, -z1, fU1, fV1);
+				vp[1].Set(vw / 2 + sy / 2, y2, -z1, fU1, fV2);
+				vp[2].Set(vw / 2 - crossAt, y1, -z2, fU2, fV1);
+				vp[3].Set(vw / 2 + sy / 2, y2, -z2, fU2, fV2);
+				glDrawArrays(GL_TRIANGLE_STRIP, vert.second, 4);
 
-				FQuadDrawer qd3;
-				qd3.Set(0, vw / 2 + crossAt, y1, -z1, fU1, fV1);
-				qd3.Set(1, vw / 2 - sy / 2, y2, -z1, fU1, fV2);
-				qd3.Set(2, vw / 2 + crossAt, y1, -z2, fU2, fV1);
-				qd3.Set(3, vw / 2 - sy / 2, y2, -z2, fU2, fV2);
-				qd3.Render(GL_TRIANGLE_STRIP);
+				auto vert2 = this->AllocVertices(4);
+				auto vp2 = vert2.first;
+				vp2[0].Set(vw / 2 + crossAt, y1, -z1, fU1, fV1);
+				vp2[1].Set(vw / 2 - sy / 2, y2, -z1, fU1, fV2);
+				vp2[2].Set(vw / 2 + crossAt, y1, -z2, fU2, fV1);
+				vp2[3].Set(vw / 2 - sy / 2, y2, -z2, fU2, fV2);
+				glDrawArrays(GL_TRIANGLE_STRIP, vert2.second, 4);
 			}
 		}
 	}
