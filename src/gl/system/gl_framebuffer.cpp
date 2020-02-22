@@ -107,7 +107,6 @@ void OpenGLFrameBuffer::InitializeState()
 	}
 
 	gl_LoadExtensions();
-	hwcaps = gl.flags;
 
 	// Move some state to the framebuffer object for easier access.
 	hwcaps = gl.flags;
