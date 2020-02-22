@@ -385,13 +385,13 @@ void FGLRenderer::DrawBlend(BlendInfo blendinfo)
 
 	if (blendinfo.multiplicativeBlend)
 	{
-		gl_RenderState.BlendFunc(GL_DST_COLOR, GL_ZERO);
+		gl_RenderState.SetRenderStyle(STYLE_Multiply);
 		gl_RenderState.SetColor(extra_red, extra_green, extra_blue, 1.0f);
 		gl_FillScreen();
 	}
 
 	gl_RenderState.SetTextureMode(TM_NORMAL);
-	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	gl_RenderState.SetRenderStyle(STYLE_Translucent);
 	if (blend[3] > 0.0f)
 	{
 		gl_RenderState.SetColor(blend[0], blend[1], blend[2], blend[3]);
