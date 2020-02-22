@@ -391,7 +391,7 @@ void FGLRenderer::DrawBlend(BlendInfo blendinfo)
 		gl_FillScreen();
 	}
 
-	gl_RenderState.SetTextureMode(TM_MODULATE);
+	gl_RenderState.SetTextureMode(TM_NORMAL);
 	gl_RenderState.BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	if (blend[3] > 0.0f)
 	{
