@@ -1116,7 +1116,6 @@ set (PCH_SOURCES
 	gl/renderer/gl_renderer.cpp
 	gl/renderer/gl_renderstate.cpp
 	gl/renderer/gl_renderbuffers.cpp
-	gl/renderer/gl_lightdata.cpp
 	gl/renderer/gl_postprocess.cpp
 	gl/renderer/gl_postprocessstate.cpp
 	gl/shaders/gl_shader.cpp
