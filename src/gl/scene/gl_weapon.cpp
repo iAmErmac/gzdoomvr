@@ -89,7 +89,7 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 	{
 		float thresh = (huds->tex->tex->GetTranslucency() || huds->OverrideShader != -1) ? 0.f : gl_mask_sprite_threshold;
 		gl_RenderState.AlphaFunc(Alpha_GEqual, thresh);
-		gl_RenderState.SetMaterial(huds->tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, !!(huds->RenderStyle.Flags & STYLEF_RedIsAlpha));
+		gl_RenderState.ApplyMaterial(huds->tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader);
 		gl_RenderState.Apply();
 
 		if (vrmode->mEyeCount == 1 || (r_PlayerSprites3DMode != ITEM_ONLY && r_PlayerSprites3DMode != FAT_ITEM))
@@ -124,7 +124,7 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 			FMaterial* tex = FMaterial::ValidateTexture(lump, true, false);
 			if (!tex) return;
 
-			gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, alphatexture);
+			gl_RenderState.ApplyMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader);
 
 			float vw = (float)viewwidth;
 			float vh = (float)viewheight;
@@ -137,7 +137,7 @@ void FDrawInfo::DrawPSprite(HUDSprite* huds)
 			tex = FMaterial::ValidateTexture(lump, true, false);
 			if (!tex) return;
 
-			gl_RenderState.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader, alphatexture);
+			gl_RenderState.ApplyMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader);
 
 			float z1 = 0.0f;
 			float z2 = (huds->y2 - huds->y1) * MIN(3, tex->GetWidth() / tex->GetHeight());
