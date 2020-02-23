@@ -452,10 +452,10 @@ public:
 
 CVAR(Bool, gl_aalines, false, CVAR_ARCHIVE)
 
-void FGLRenderer::Draw2D(F2DDrawer *drawer)
+void FGLRenderer::Draw2D(F2DDrawer *drawer, bool outside2D)
 {
 	auto vrmode = VRMode::GetVRMode(true);
-	//In stereo mode vievport setting is already done in FGLRenderer::Flush()
+	//In vr mode viewport setting is already done in FGLRenderer::Flush()
 	if (vrmode->mEyeCount == 1)
 	{
 		twoD.Clock();
@@ -479,6 +479,15 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 		return;
 	}
 
+	if (vrmode->IsVR())
+	{
+		auto findResult = std::find_if(commands.begin(), commands.end(), [&](F2DDrawer::RenderCommand cmd) { return cmd.mOutside2D == outside2D; });
+		if (findResult == commands.end())
+		{
+			return;
+		}
+	}
+
 	auto vb = new F2DVertexBuffer;
 	vb->UploadData(&vertices[0], vertices.Size(), &indices[0], indices.Size());
 	gl_RenderState.SetVertexBuffer(vb);
@@ -486,6 +495,14 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 
 	for (auto &cmd : commands)
 	{
+		if (vrmode->IsVR())
+		{
+			if (cmd.mOutside2D && !outside2D)
+				continue;
+
+			if (!cmd.mOutside2D && outside2D)
+				continue;
+		}
 
 		int gltrans = -1;
 		gl_RenderState.SetRenderStyle(cmd.mRenderStyle);
@@ -566,7 +583,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer)
 		gl_RenderState.SetObjectColor2(0);
 		gl_RenderState.EnableTextureMatrix(false);
 		gl_RenderState.SetEffect(EFF_NONE);
-
+		
 	}
 	glDisable(GL_SCISSOR_TEST);
 
