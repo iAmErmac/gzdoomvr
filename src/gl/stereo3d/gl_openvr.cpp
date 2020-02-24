@@ -825,8 +825,9 @@ void OpenVRMode::AdjustViewport(DFrameBuffer* screen) const
 	screen->mScreenViewport.height = sceneHeight;
 }
 
-void OpenVRMode::AdjustPlayerSprites(FDrawInfo* di) const
+void OpenVRMode::AdjustPlayerSprites(HWDrawInfo* di) const
 {
+
 	GetWeaponTransform(&gl_RenderState.mModelMatrix);
 
 	float scale = 0.00125f * openvr_weaponScale;
@@ -856,8 +857,9 @@ void OpenVRMode::UnAdjustCrossHair() const
 	viewwindowy = cachedViewwindowy;
 }
 
-void OpenVRMode::DrawControllerModels(FDrawInfo *di) const
+void OpenVRMode::DrawControllerModels(HWDrawInfo *di) const
 {
+	
 	if(!openvr_drawControllers)
 		return; 
 	FGLModelRenderer renderer(di, -1);

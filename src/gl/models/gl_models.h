@@ -34,9 +34,9 @@ struct FDrawInfo;
 class FGLModelRenderer : public FModelRenderer
 {
 	int modellightindex = -1;
-	FDrawInfo* di;
+	HWDrawInfo* di;
 public:
-	FGLModelRenderer(FDrawInfo* d, int mli) : modellightindex(mli), di(d)
+	FGLModelRenderer(HWDrawInfo* d, int mli) : modellightindex(mli), di(d)
 	{}
 	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 	ModelRendererType GetType() const override { return GLModelRendererType; }
@@ -52,6 +52,6 @@ public:
 	void SetMaterial(FTexture* skin, bool clampNoFilter, int translation) override;
 	void DrawArrays(int start, int count) override;
 	void DrawElements(int numIndices, size_t offset) override;
-	FDrawInfo* GetDrawInfo() { return di; }
+	HWDrawInfo* GetDrawInfo() { return di; }
 };
 

@@ -69,11 +69,11 @@ struct VRMode
 	virtual void TearDown() const {};
 
 	virtual bool IsVR() const { return false; }
-	virtual void AdjustPlayerSprites(FDrawInfo *di) const {};
+	virtual void AdjustPlayerSprites(HWDrawInfo *di) const {};
 	virtual void UnAdjustPlayerSprites() const {};
 	virtual void AdjustCrossHair() const {}
 	virtual void UnAdjustCrossHair() const {}
-	virtual void DrawControllerModels(FDrawInfo* di) const {}
+	virtual void DrawControllerModels(HWDrawInfo* di) const {}
 	
 	virtual void Present() const { GLRenderer->PresentStereo(); };
 

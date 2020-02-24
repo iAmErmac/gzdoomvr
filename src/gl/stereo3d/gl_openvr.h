@@ -90,12 +90,12 @@ public:
 	virtual bool IsVR() const override { return true; }
 	virtual void Present() const override;
 	virtual void AdjustViewport(DFrameBuffer* screen) const override;
-	virtual void AdjustPlayerSprites(FDrawInfo* di) const override;
+	virtual void AdjustPlayerSprites(HWDrawInfo* di) const override;
 	virtual void UnAdjustPlayerSprites() const override;
 	virtual void AdjustCrossHair() const override;
 	virtual void UnAdjustCrossHair() const override;
 
-	virtual void DrawControllerModels(FDrawInfo* di) const override;
+	virtual void DrawControllerModels(HWDrawInfo* di) const override;
 	
 	virtual bool GetHandTransform(int hand, VSMatrix* out) const override;
 	virtual bool GetWeaponTransform(VSMatrix* out) const override;

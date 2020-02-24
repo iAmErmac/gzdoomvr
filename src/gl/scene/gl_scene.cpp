@@ -166,7 +166,7 @@ void FDrawInfo::RenderScene(int recursion)
 	// Part 1: solid geometry. This is set up so that there are no transparent parts
 	glDepthFunc(GL_LESS);
 	gl_RenderState.AlphaFunc(Alpha_GEqual, 0.f);
-	glDisable(GL_POLYGON_OFFSET_FILL);
+	gl_RenderState.ClearDepthBias();
 
 	gl_RenderState.EnableTexture(gl_texture);
 	gl_RenderState.EnableBrightmap(true);
@@ -273,7 +273,7 @@ void FDrawInfo::DrawScene(int drawmode, sector_t * viewsector)
 	auto vrmode = VRMode::GetVRMode(true);
 	if (vrmode->RenderPlayerSpritesInScene())
 	{
-		DrawPlayerSprites(IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player));
+		DrawPlayerSprites(IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player), gl_RenderState);
 	}
 
 	if (applySSAO && gl_RenderState.GetPassType() == GBUFFER_PASS)
@@ -312,7 +312,7 @@ void FDrawInfo::EndDrawScene(sector_t * viewsector)
 	{
 		// [BB] The HUD model should be drawn over everything else already drawn.
 		glClear(GL_DEPTH_BUFFER_BIT);
-		DrawPlayerSprites(true);
+		DrawPlayerSprites(true, gl_RenderState);
 	}
 
 	glDisable(GL_STENCIL_TEST);
@@ -342,7 +342,7 @@ void FDrawInfo::DrawEndScene2D(sector_t * viewsector)
 		// [BB] Only draw the sprites if we didn't render a HUD model before.
 		if ( renderHUDModel == false )
 		{
-			DrawPlayerSprites(false);
+			DrawPlayerSprites(false, gl_RenderState);
 		}
 	}
 
