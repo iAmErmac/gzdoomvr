@@ -246,7 +246,7 @@ public:
 		renderer->SetVertexBuffer(vbuf);
 		renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
 		renderer->DrawElements(pModel->unTriangleCount * 3, 0);
-		gl_RenderState.SetVertexBuffer(GLRenderer->mVBO); //this needs to be set back to avoid the level rendering black even though the next draw will be the UI for this eye(???)
+		GLRenderer->mVBO->Bind(gl_RenderState); //this needs to be set back to avoid the level rendering black even though the next draw will be the UI for this eye(???)
 	}
 
 	virtual void BuildVertexBuffer(FModelRenderer* renderer) override

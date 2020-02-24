@@ -367,7 +367,8 @@ void FGLRenderer::gl_FillScreen()
 	gl_RenderState.EnableTexture(false);
 	gl_RenderState.Apply();
 	// The fullscreen quad is stored at index 4 in the main vertex buffer.
-	GLRenderer->mVBO->RenderArray(GL_TRIANGLE_STRIP, FFlatVertexBuffer::FULLSCREEN_INDEX, 4);
+	//glDrawArrays(GL_TRIANGLE_STRIP, FFlatVertexBuffer::PRESENT_INDEX, 4);
+	RenderScreenQuad();
 }
 
 //==========================================================================
@@ -386,7 +387,8 @@ void FGLRenderer::DrawBlend(BlendInfo blendinfo)
 	{
 		gl_RenderState.SetRenderStyle(STYLE_Multiply);
 		gl_RenderState.SetColor(extra_red, extra_green, extra_blue, 1.0f);
-		gl_FillScreen();
+		//gl_FillScreen();
+		RenderScreenQuad();
 	}
 
 	gl_RenderState.SetTextureMode(TM_NORMAL);
@@ -394,7 +396,8 @@ void FGLRenderer::DrawBlend(BlendInfo blendinfo)
 	if (blend[3] > 0.0f)
 	{
 		gl_RenderState.SetColor(blend[0], blend[1], blend[2], blend[3]);
-		gl_FillScreen();
+		//gl_FillScreen();
+		RenderScreenQuad();
 	}
 	gl_RenderState.ResetColor();
 	gl_RenderState.EnableTexture(true);
