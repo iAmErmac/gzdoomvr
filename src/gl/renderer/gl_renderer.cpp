@@ -104,7 +104,7 @@ void FGLRenderer::Initialize(int width, int height)
 	mSkyVBO = new FSkyVertexBuffer;
 	mLights = new FLightBuffer();
 	mViewpoints = new GLViewpointBuffer;
-	gl_RenderState.SetVertexBuffer(mVBO);
+	GLRenderer->mVBO->Bind(gl_RenderState);
 	mFBID = 0;
 	mOldFBID = 0;
 
@@ -199,7 +199,7 @@ void FGLRenderer::EndOffscreen()
 
 sector_t *FGLRenderer::RenderView(player_t *player)
 {
-	gl_RenderState.SetVertexBuffer(mVBO);
+	GLRenderer->mVBO->Bind(gl_RenderState);
 	mVBO->Reset();
 	sector_t *retsec;
 
@@ -323,8 +323,8 @@ void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, in
     mBuffers = mSaveBuffers;
     
     P_FindParticleSubsectors();    // make sure that all recently spawned particles have a valid subsector.
-    gl_RenderState.SetVertexBuffer(mVBO);
-    mVBO->Reset();
+	GLRenderer->mVBO->Bind(gl_RenderState);
+	mVBO->Reset();
     mLights->Clear();
 	mViewpoints->Clear();
 
@@ -587,7 +587,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer, bool outside2D)
 	glDisable(GL_SCISSOR_TEST);
 
 	gl_RenderState.SetRenderStyle(STYLE_Translucent);
-	gl_RenderState.SetVertexBuffer(mVBO);
+	GLRenderer->mVBO->Bind(gl_RenderState);
 	gl_RenderState.EnableTexture(true);
 	gl_RenderState.EnableBrightmap(true);
 	gl_RenderState.SetTextureMode(TM_NORMAL);

@@ -178,7 +178,7 @@ void FGLModelRenderer::SetVertexBuffer(IModelVertexBuffer *buffer)
 
 void FGLModelRenderer::ResetVertexBuffer()
 {
-	gl_RenderState.SetVertexBuffer(GLRenderer->mVBO);
+	GLRenderer->mVBO->Bind(gl_RenderState);
 }
 
 void FGLModelRenderer::SetInterpolation(double inter)
@@ -190,9 +190,8 @@ void FGLModelRenderer::SetMaterial(FTexture *skin, bool clampNoFilter, int trans
 {
 	FMaterial * tex = FMaterial::ValidateTexture(skin, false);
 	gl_RenderState.ApplyMaterial(tex, clampNoFilter ? CLAMP_NOFILTER : CLAMP_NONE, translation, -1);
-
+	/*if (modellightindex != -1)*/ gl_RenderState.SetLightIndex(modellightindex);
 	gl_RenderState.Apply();
-	if (modellightindex != -1) gl_RenderState.ApplyLightIndex(modellightindex);
 }
 
 void FGLModelRenderer::DrawArrays(int start, int count)
