@@ -103,15 +103,10 @@ void FGLRenderer::Initialize(int width, int height)
 	glBindVertexArray(mVAOID);
 	FGLDebug::LabelObject(GL_VERTEX_ARRAY, mVAOID, "FGLRenderer.mVAOID");
 
-	mVBO = new FFlatVertexBuffer(width, height);
-	mSkyVBO = new FSkyVertexBuffer;
 	mLights = new FLightBuffer();
-	mViewpoints = new GLViewpointBuffer;
-	GLRenderer->mVBO->Bind(gl_RenderState);
 	mFBID = 0;
 	mOldFBID = 0;
 
-	SetupLevel();
 	mShaderManager = new FShaderManager;
 	mSamplerManager = new FSamplerManager;
 }
@@ -123,10 +118,7 @@ FGLRenderer::~FGLRenderer()
 	FMaterial::FlushAll();
 	if (mShaderManager != nullptr) delete mShaderManager;
 	if (mSamplerManager != nullptr) delete mSamplerManager;
-	if (mVBO != nullptr) delete mVBO;
-	if (mSkyVBO != nullptr) delete mSkyVBO;
 	if (mLights != nullptr) delete mLights;
-	if (mViewpoints != nullptr) delete mViewpoints;
 	if (mFBID != 0) glDeleteFramebuffers(1, &mFBID);
 	if (mVAOID != 0)
 	{
@@ -162,7 +154,7 @@ void FGLRenderer::ResetSWScene()
 
 void FGLRenderer::SetupLevel()
 {
-	mVBO->CreateVBO();
+	screen->mVertexData->CreateVBO();
 }
 
 //===========================================================================
@@ -202,8 +194,8 @@ void FGLRenderer::EndOffscreen()
 
 sector_t *FGLRenderer::RenderView(player_t *player)
 {
-	GLRenderer->mVBO->Bind(gl_RenderState);
-	mVBO->Reset();
+	screen->mVertexData->Bind(gl_RenderState);
+	screen->mVertexData->Reset();
 	sector_t *retsec;
 
 	if (!V_IsHardwareRenderer())
@@ -228,7 +220,7 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 		P_FindParticleSubsectors();
 
 		mLights->Clear();
-		mViewpoints->Clear();
+		screen->mViewpoints->Clear();
 
 		// NoInterpolateView should have no bearing on camera textures, but needs to be preserved for the main view below.
 		bool saved_niv = NoInterpolateView;
@@ -319,17 +311,17 @@ void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, in
     bounds.width = width;
     bounds.height = height;
     
-    // if mVBO is persistently mapped we must be sure the GPU finished reading from it before we fill it with new data.
+    // we must be sure the GPU finished reading from the buffer before we fill it with new data.
     glFinish();
     
     // Switch to render buffers dimensioned for the savepic
     mBuffers = mSaveBuffers;
     
     P_FindParticleSubsectors();    // make sure that all recently spawned particles have a valid subsector.
-	GLRenderer->mVBO->Bind(gl_RenderState);
-	mVBO->Reset();
+	screen->mVertexData->Bind(gl_RenderState);
+	screen->mVertexData->Reset();
     mLights->Clear();
-	mViewpoints->Clear();
+	screen->mViewpoints->Clear();
 
     // This shouldn't overwrite the global viewpoint even for a short time.
     FRenderViewpoint savevp;
@@ -366,7 +358,7 @@ void FGLRenderer::BeginFrame()
 void FGLRenderer::gl_FillScreen()
 {
 	FDrawInfo di;
-	GLRenderer->mViewpoints->Set2D(&di, SCREENWIDTH, SCREENHEIGHT);
+	screen->mViewpoints->Set2D(&di, SCREENWIDTH, SCREENHEIGHT);
 	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 	gl_RenderState.EnableTexture(false);
 	gl_RenderState.Apply();
@@ -469,7 +461,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer, bool outside2D)
 		FDrawInfo di;	// For access to the virtual interface. This should be placed elsewhere...
 		const auto &mScreenViewport = screen->mScreenViewport;
 		glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
-		GLRenderer->mViewpoints->Set2D(&di, screen->GetWidth(), screen->GetHeight());
+		screen->mViewpoints->Set2D(&di, screen->GetWidth(), screen->GetHeight());
 
 		drawer->SwapColors();
 	}
@@ -594,7 +586,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer, bool outside2D)
 	glDisable(GL_SCISSOR_TEST);
 
 	gl_RenderState.SetRenderStyle(STYLE_Translucent);
-	GLRenderer->mVBO->Bind(gl_RenderState);
+	screen->mVertexData->Bind(gl_RenderState);
 	gl_RenderState.EnableTexture(true);
 	gl_RenderState.EnableBrightmap(true);
 	gl_RenderState.SetTextureMode(TM_NORMAL);
