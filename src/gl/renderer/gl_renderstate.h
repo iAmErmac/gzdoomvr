@@ -52,8 +52,6 @@ class FGLRenderState : public FRenderState
 {
 	uint8_t mLastDepthClamp : 1;
 
-	int mSrcBlend, mDstBlend;
-	int mBlendEquation;
 	float mGlossiness, mSpecularLevel;
 	float mShaderTimer;
 
@@ -189,13 +187,6 @@ public:
 	{
 		return mPassType == GBUFFER_PASS ? 3 : 1;
 	}
-
-	// Temporary helper.
-	int GetStencilCounter()
-	{
-		return mStencil.mBaseVal;
-	}
-
 };
 
 extern FGLRenderState gl_RenderState;
