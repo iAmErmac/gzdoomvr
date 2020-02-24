@@ -52,6 +52,7 @@ struct FPortalSceneState;
 class FSkyVertexBuffer;
 class IIndexBuffer;
 class IVertexBuffer;
+class IDataBuffer;
 
 enum EHWCaps
 {
@@ -344,7 +345,6 @@ public:
 class FUniquePalette;
 class IHardwareTexture;
 class FTexture;
-class IUniformBuffer;
 
 // A canvas that represents the actual display. The video code is responsible
 // for actually implementing this. Built on top of SimpleCanvas, because it
@@ -460,10 +460,10 @@ public:
 	virtual void BlurScene(float amount) {}
     
     // Interface to hardware rendering resources
-    virtual IUniformBuffer *CreateUniformBuffer(size_t size, bool staticuse = false) { return nullptr; }
 	virtual IShaderProgram *CreateShaderProgram() { return nullptr; }
 	virtual IVertexBuffer *CreateVertexBuffer() { return nullptr; }
 	virtual IIndexBuffer *CreateIndexBuffer() { return nullptr; }
+	virtual IDataBuffer *CreateDataBuffer(int bindingpoint, bool ssbo) { return nullptr; }
 	bool BuffersArePersistent() { return !!(hwcaps & RFL_BUFFER_STORAGE); }
 
 	// Begin/End 2D drawing operations.
