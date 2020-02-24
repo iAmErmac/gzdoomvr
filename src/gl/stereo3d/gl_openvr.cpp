@@ -325,7 +325,7 @@ public:
 			pFTex = new FControllerTexture(pTexture);
 
 			auto* di = FDrawInfo::StartDrawInfo(r_viewpoint, nullptr);
-			FGLModelRenderer renderer(di, -1);
+			FGLModelRenderer renderer(di, gl_RenderState, -1);
 			BuildVertexBuffer(&renderer);
 
 			return true;
@@ -863,7 +863,7 @@ void OpenVRMode::DrawControllerModels(HWDrawInfo *di) const
 	
 	if(!openvr_drawControllers)
 		return; 
-	FGLModelRenderer renderer(di, -1);
+	FGLModelRenderer renderer(di, gl_RenderState, -1);
 	for (int i = 0; i < MAX_ROLES; ++i) 
 	{
 		if (GetHandTransform(i, &gl_RenderState.mModelMatrix) && controllers[i].model)

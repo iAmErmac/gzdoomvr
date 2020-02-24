@@ -56,8 +56,9 @@ class FGLModelRenderer : public FModelRenderer
 {
 	int modellightindex = -1;
 	HWDrawInfo* di;
+	FRenderState &state;
 public:
-	FGLModelRenderer(HWDrawInfo* d, int mli) : modellightindex(mli), di(d)
+	FGLModelRenderer(HWDrawInfo *d, FRenderState &st, int mli) : modellightindex(mli), di(d), state(st)
 	{}
 	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 	ModelRendererType GetType() const override { return GLModelRendererType; }
