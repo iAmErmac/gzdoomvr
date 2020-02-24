@@ -599,7 +599,6 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer, bool outside2D)
 	gl_RenderState.SetTextureMode(TM_NORMAL);
 	gl_RenderState.EnableFog(false);
 	gl_RenderState.ResetColor();
-	gl_RenderState.Apply();
 	FGLDebug::PopGroup();
 	twoD.Unclock();
 }
