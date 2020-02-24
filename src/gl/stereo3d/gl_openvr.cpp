@@ -244,7 +244,7 @@ public:
 		FMaterial * tex = FMaterial::ValidateTexture(pFTex, false);
 		auto vbuf = GetVertexBuffer(renderer);
 		vbuf->SetupFrame(renderer, 0, 0, 0);
-		renderer->SetVertexBuffer(vbuf);
+		//renderer->SetVertexBuffer(vbuf);
 		renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
 		renderer->DrawElements(pModel->unTriangleCount * 3, 0);
 		GLRenderer->mVBO->Bind(gl_RenderState); //this needs to be set back to avoid the level rendering black even though the next draw will be the UI for this eye(???)

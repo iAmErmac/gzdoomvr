@@ -49,11 +49,11 @@ public:
 	void UnlockIndexBuffer() override;
 
 	void SetupFrame(FModelRenderer *renderer, unsigned int frame1, unsigned int frame2, unsigned int size) override;
-	void Bind(FRenderState &state);
 };
 
 class FGLModelRenderer : public FModelRenderer
 {
+	friend class FModelVertexBuffer;
 	int modellightindex = -1;
 	HWDrawInfo* di;
 	FRenderState &state;
@@ -62,10 +62,9 @@ public:
 	{}
 	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 	ModelRendererType GetType() const override { return GLModelRendererType; }
-	void BeginDrawModel(AActor* actor, FSpriteModelFrame* smf, const VSMatrix& objectToWorldMatrix, bool mirrored) override;
-	void EndDrawModel(AActor* actor, FSpriteModelFrame* smf) override;
-	IModelVertexBuffer* CreateVertexBuffer(bool needindex, bool singleframe) override;
-	void SetVertexBuffer(IModelVertexBuffer* buffer) override;
+	void BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
+	void EndDrawModel(AActor *actor, FSpriteModelFrame *smf) override;
+	IModelVertexBuffer *CreateVertexBuffer(bool needindex, bool singleframe) override;
 	void ResetVertexBuffer() override;
 	VSMatrix GetViewToWorldMatrix() override;
 	void BeginDrawHUDModel(AActor* actor, const VSMatrix& objectToWorldMatrix, bool mirrored) override;
