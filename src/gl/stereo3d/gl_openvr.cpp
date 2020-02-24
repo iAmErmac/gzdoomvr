@@ -50,6 +50,7 @@
 #include "d_event.h"
 #include "i_time.h"
 #include "gl/scene/gl_drawinfo.h"
+#include "hwrenderer/data/flatvertices.h"
 
 #include "gl_openvr.h"
 #include "openvr_include.h"
