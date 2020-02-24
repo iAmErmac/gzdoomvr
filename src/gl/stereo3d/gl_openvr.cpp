@@ -37,7 +37,7 @@
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderbuffers.h"
 #include "v_2ddrawer.h" // crosshair
-#include "gl/models/gl_models.h"
+#include "hwrenderer/models/hw_models.h"
 #include "g_levellocals.h" // pixelstretch
 #include "g_statusbar/sbar.h"
 #include <cmath>

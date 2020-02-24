@@ -106,8 +106,8 @@ public:
 	void ResetVertexBuffer()
 	{
 		// forces rebinding with the next 'apply' call.
-		mVertexBuffer = nullptr;
-		mIndexBuffer = nullptr;
+		mCurrentVertexBuffer = nullptr;
+		mCurrentIndexBuffer = nullptr;
 	}
 
 	void SetSpecular(float glossiness, float specularLevel)
