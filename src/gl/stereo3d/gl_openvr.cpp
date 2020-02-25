@@ -697,7 +697,7 @@ VSMatrix OpenVREyePose::getQuadInWorld(
 void ApplyVPUniforms(HWDrawInfo* di)
 {
 	di->VPUniforms.CalcDependencies();
-	di->vpIndex = screen->mViewpoints->SetViewpoint(di, &di->VPUniforms);
+	di->vpIndex = screen->mViewpoints->SetViewpoint(gl_RenderState, &di->VPUniforms);
 }
 
 void OpenVREyePose::AdjustHud() const

@@ -105,7 +105,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 		if (vrmode->mEyeCount == 1 || (r_PlayerSprites3DMode != ITEM_ONLY && r_PlayerSprites3DMode != FAT_ITEM))
 		{
 			state.SetMaterial(huds->tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader);
-			Draw(DT_TriangleStrip, state, huds->mx, 4);
+			state.Draw(DT_TriangleStrip, huds->mx, 4);
 		}
 
 		player_t* player = huds->player;

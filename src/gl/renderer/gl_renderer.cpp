@@ -383,8 +383,7 @@ void FGLRenderer::BeginFrame()
 
 void FGLRenderer::gl_FillScreen()
 {
-	FDrawInfo di;
-	screen->mViewpoints->Set2D(&di, SCREENWIDTH, SCREENHEIGHT);
+	screen->mViewpoints->Set2D(gl_RenderState, SCREENWIDTH, SCREENHEIGHT);
 	gl_RenderState.AlphaFunc(GL_GEQUAL, 0.f);
 	gl_RenderState.EnableTexture(false);
 	gl_RenderState.Apply();
@@ -487,7 +486,7 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer, bool outside2D)
 		FDrawInfo di;	// For access to the virtual interface. This should be placed elsewhere...
 		const auto &mScreenViewport = screen->mScreenViewport;
 		glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
-		screen->mViewpoints->Set2D(&di, screen->GetWidth(), screen->GetHeight());
+		screen->mViewpoints->Set2D(gl_RenderState, screen->GetWidth(), screen->GetHeight());
 
 		drawer->SwapColors();
 	}
