@@ -73,6 +73,9 @@ EXTERN_CVAR (Float, r_visibility)
 EXTERN_CVAR (Bool, r_drawvoxels)
 
 
+namespace OpenGLRenderer
+{
+
 //-----------------------------------------------------------------------------
 //
 // gl_drawscene - this function renders the scene from the current
@@ -231,3 +234,4 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 	return mainvp.sector;
 }
 
+}

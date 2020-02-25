@@ -4,6 +4,7 @@
 #include <gl\renderer\gl_renderer.h>
 
 class DFrameBuffer;
+using namespace OpenGLRenderer;
 
 enum
 {
