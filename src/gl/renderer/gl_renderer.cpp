@@ -483,7 +483,6 @@ void FGLRenderer::Draw2D(F2DDrawer *drawer, bool outside2D)
 		FGLDebug::PushGroup("Draw2D");
 		mBuffers->BindCurrentFB();
 
-		FDrawInfo di;	// For access to the virtual interface. This should be placed elsewhere...
 		const auto &mScreenViewport = screen->mScreenViewport;
 		glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
 		screen->mViewpoints->Set2D(gl_RenderState, screen->GetWidth(), screen->GetHeight());
