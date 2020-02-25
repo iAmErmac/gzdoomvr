@@ -16,8 +16,6 @@ struct FDrawInfo : public HWDrawInfo
 	void RenderPortal(HWPortal *p, bool stencil) override;
 
     void CreateScene();
-    void RenderScene(int recursion);
-    void RenderTranslucent();
     void DrawScene(int drawmode, sector_t* sector = nullptr) override;
     void ProcessScene(bool toscreen = false,  sector_t* sector = nullptr);
     void EndDrawScene(sector_t * viewsector);
