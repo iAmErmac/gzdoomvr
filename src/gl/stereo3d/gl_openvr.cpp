@@ -49,7 +49,6 @@
 #include "d_gui.h"
 #include "d_event.h"
 #include "i_time.h"
-#include "gl/scene/gl_drawinfo.h"
 #include "hwrenderer/data/flatvertices.h"
 #include "hwrenderer/data/hw_viewpointbuffer.h"
 

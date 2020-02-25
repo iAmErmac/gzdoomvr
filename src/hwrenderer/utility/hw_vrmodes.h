@@ -1,7 +1,6 @@
 #pragma once
 
 #include "r_data/matrix.h"
-#include <gl\scene\gl_drawinfo.h>
 #include <gl\renderer\gl_renderer.h>
 
 class DFrameBuffer;
