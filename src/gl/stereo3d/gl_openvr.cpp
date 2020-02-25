@@ -156,6 +156,8 @@ bool IsOpenVRPresent()
 #endif
 }
 
+void Draw2D(F2DDrawer* drawer, FRenderState& state, bool outside2D);
+
 // feature toggles, for testing and debugging
 static const bool doTrackHmdYaw = true;
 static const bool doTrackHmdPitch = true;
@@ -727,7 +729,7 @@ void OpenVREyePose::AdjustHud() const
 			false,
 			0.0);
 		ApplyVPUniforms(di);
-		GLRenderer->Draw2D(openVrMode->crossHairDrawer, true);
+		::Draw2D(openVrMode->crossHairDrawer, gl_RenderState, true);
 	}
 
 	// Update HUD matrix to render on a separate quad
