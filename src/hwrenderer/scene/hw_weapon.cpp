@@ -43,6 +43,7 @@
 #include "hwrenderer/scene/hw_drawinfo.h"
 #include "hwrenderer/scene/hw_drawstructs.h"
 #include "hwrenderer/data/flatvertices.h"
+#include "hwrenderer/dynlights/hw_lightbuffer.h"
 #include "hw_renderstate.h"
 #include <hwrenderer\utility\hw_vrmodes.h>
 //#include <gl\models\gl_models.h>
@@ -689,7 +690,7 @@ void HWDrawInfo::PreparePlayerSprites(sector_t * viewsector, area_t in_area)
 			else
 			{
 				hw_GetDynModelLight(playermo, lightdata);
-				hudsprite.lightindex = UploadLights(lightdata);
+				hudsprite.lightindex = screen->mLights->UploadLights(lightdata);
 			}
 		}
 		
