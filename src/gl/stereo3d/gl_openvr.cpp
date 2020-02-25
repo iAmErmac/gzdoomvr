@@ -51,6 +51,7 @@
 #include "i_time.h"
 #include "gl/scene/gl_drawinfo.h"
 #include "hwrenderer/data/flatvertices.h"
+#include "hwrenderer/data/hw_viewpointbuffer.h"
 
 #include "gl_openvr.h"
 #include "openvr_include.h"
@@ -693,6 +694,12 @@ VSMatrix OpenVREyePose::getQuadInWorld(
 	return new_projection;
 }
 
+void ApplyVPUniforms(FDrawInfo* di)
+{
+	di->VPUniforms.CalcDependencies();
+	di->vpIndex = screen->mViewpoints->SetViewpoint(di, &di->VPUniforms);
+}
+
 void OpenVREyePose::AdjustHud() const
 {
 	// Draw crosshair on a separate quad, before updating HUD matrix
@@ -719,7 +726,7 @@ void OpenVREyePose::AdjustHud() const
 			crosshair_width_meters,
 			false,
 			0.0);
-		di->ApplyVPUniforms();
+		ApplyVPUniforms(di);
 		GLRenderer->Draw2D(openVrMode->crossHairDrawer, true);
 	}
 
@@ -732,7 +739,7 @@ void OpenVREyePose::AdjustHud() const
 		menu_width_meters, 
 		true,
 		pitch_offset);
-	di->ApplyVPUniforms();
+	ApplyVPUniforms(di);
 }
 
 void OpenVREyePose::AdjustBlend(FDrawInfo *di) const
@@ -745,7 +752,7 @@ void OpenVREyePose::AdjustBlend(FDrawInfo *di) const
 	proj.loadIdentity();
 	proj.translate(-1, 1, 0);
 	proj.scale(2.0 / SCREENWIDTH, -2.0 / SCREENHEIGHT, -1.0);
-	di->ApplyVPUniforms();
+	ApplyVPUniforms(di);
 }
 
 OpenVRMode::OpenVRMode(OpenVREyePose eyes[2])
