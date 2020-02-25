@@ -694,7 +694,7 @@ VSMatrix OpenVREyePose::getQuadInWorld(
 	return new_projection;
 }
 
-void ApplyVPUniforms(FDrawInfo* di)
+void ApplyVPUniforms(HWDrawInfo* di)
 {
 	di->VPUniforms.CalcDependencies();
 	di->vpIndex = screen->mViewpoints->SetViewpoint(di, &di->VPUniforms);
@@ -708,7 +708,7 @@ void OpenVREyePose::AdjustHud() const
 	{
 		return;
 	}
-	auto *di = FDrawInfo::StartDrawInfo(r_viewpoint, nullptr);
+	auto *di = HWDrawInfo::StartDrawInfo(r_viewpoint, nullptr);
 
 	di->VPUniforms.mViewMatrix.loadIdentity();
 	const OpenVRMode * openVrMode = static_cast<const OpenVRMode *>(vrmode);
@@ -742,11 +742,11 @@ void OpenVREyePose::AdjustHud() const
 	ApplyVPUniforms(di);
 }
 
-void OpenVREyePose::AdjustBlend(FDrawInfo *di) const
+void OpenVREyePose::AdjustBlend(HWDrawInfo *di) const
 {
 	if (di == nullptr)
 	{
-		di = FDrawInfo::StartDrawInfo(r_viewpoint, nullptr);
+		di = HWDrawInfo::StartDrawInfo(r_viewpoint, nullptr);
 	}
 	VSMatrix& proj = di->VPUniforms.mProjectionMatrix;
 	proj.loadIdentity();

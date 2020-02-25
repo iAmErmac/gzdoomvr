@@ -52,7 +52,7 @@ public:
 	virtual VSMatrix GetProjection(FLOATTYPE fov, FLOATTYPE aspectRatio, FLOATTYPE fovRatio) const override;
 	DVector3 GetViewShift(FLOATTYPE yaw) const override;
 	virtual void AdjustHud() const override;
-	virtual void AdjustBlend(FDrawInfo* di) const override;
+	virtual void AdjustBlend(HWDrawInfo* di) const override;
 
 	void initialize(openvr::VR_IVRSystem_FnTable * vrsystem);
 	void dispose();

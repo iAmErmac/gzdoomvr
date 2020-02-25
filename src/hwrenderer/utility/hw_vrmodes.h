@@ -39,7 +39,7 @@ struct VREyeInfo
 	virtual void SetUp() const { m_isActive = true; }
 	virtual void TearDown() const { m_isActive = false; }
 	virtual void AdjustHud() const {}
-	virtual void AdjustBlend(FDrawInfo* di) const {}
+	virtual void AdjustBlend(HWDrawInfo* di) const {}
 	bool isActive() const { return m_isActive; }
 
 private:
