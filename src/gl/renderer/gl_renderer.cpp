@@ -152,11 +152,6 @@ void FGLRenderer::ResetSWScene()
 	swdrawer = nullptr;
 }
 
-void FGLRenderer::SetupLevel()
-{
-	screen->mVertexData->CreateVBO();
-}
-
 //===========================================================================
 //
 //
