@@ -366,6 +366,6 @@ public:
 
     GLDecal *AddDecal(bool onmirror);
 
-	virtual void DrawScene(int drawmode, sector_t* sector = nullptr) = 0;
+	virtual void DrawScene(int drawmode) = 0;
 };
 

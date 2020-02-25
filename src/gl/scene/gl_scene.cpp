@@ -138,7 +138,7 @@ void FDrawInfo::CreateScene()
 //
 //-----------------------------------------------------------------------------
 
-void FDrawInfo::DrawScene(int drawmode, sector_t * viewsector)
+void FDrawInfo::DrawScene(int drawmode)
 {
 	static int recursion=0;
 	static int ssao_portals_available = 0;
@@ -267,14 +267,14 @@ void FDrawInfo::DrawEndScene2D(sector_t * viewsector)
 //
 //-----------------------------------------------------------------------------
 
-void FDrawInfo::ProcessScene(bool toscreen, sector_t * viewsector)
+void FDrawInfo::ProcessScene(bool toscreen)
 {
 	iter_dlightf = iter_dlight = draw_dlight = draw_dlightf = 0;
 	screen->mPortalState->BeginScene();
 
 	int mapsection = R_PointInSubsector(Viewpoint.Pos)->mapsection;
 	CurrentMapSections.Set(mapsection);
-	DrawScene(toscreen ? DM_MAINVIEW : DM_OFFSCREEN, viewsector);
+	DrawScene(toscreen ? DM_MAINVIEW : DM_OFFSCREEN);
 
 }
 
@@ -351,7 +351,7 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 		vp.Pos += eye->GetViewShift(vp.HWAngles.Yaw.Degrees);
 		di->SetupView(gl_RenderState, vp.Pos.X, vp.Pos.Y, vp.Pos.Z, false, false);
 
-		di->ProcessScene(toscreen, mainvp.sector);
+		di->ProcessScene(toscreen);
 
 		if (mainview)
 		{
