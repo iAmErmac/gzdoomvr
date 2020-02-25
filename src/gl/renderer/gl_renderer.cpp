@@ -61,6 +61,7 @@
 #include "r_videoscale.h"
 #include <hwrenderer\utility\hw_vrmodes.h>
 #include "r_data/models/models.h"
+#include "gl/renderer/gl_postprocessstate.h"
 
 EXTERN_CVAR(Int, screenblocks)
 EXTERN_CVAR(Bool, cl_capfps)
@@ -179,6 +180,38 @@ void FGLRenderer::EndOffscreen()
 	glBindFramebuffer(GL_FRAMEBUFFER, mOldFBID);
 }
 
+//===========================================================================
+// 
+//
+//
+//===========================================================================
+
+void FGLRenderer::UpdateShadowMap()
+{
+	if (mShadowMap.PerformUpdate())
+	{
+		FGLDebug::PushGroup("ShadowMap");
+
+		FGLPostProcessState savedState;
+
+		mBuffers->BindShadowMapFB();
+
+		mShadowMapShader->Bind(NOQUEUE);
+		mShadowMapShader->Uniforms->ShadowmapQuality = gl_shadowmap_quality;
+		mShadowMapShader->Uniforms.Set();
+
+		glViewport(0, 0, gl_shadowmap_quality, 1024);
+		RenderScreenQuad();
+
+		const auto &viewport = screen->mScreenViewport;
+		glViewport(viewport.left, viewport.top, viewport.width, viewport.height);
+
+		mBuffers->BindShadowMapTexture(16);
+		FGLDebug::PopGroup();
+		mShadowMap.FinishUpdate();
+	}
+}
+
 //-----------------------------------------------------------------------------
 //
 // renders the view
@@ -234,7 +267,7 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 			fovratio = ratio;
 		}
 
-		mShadowMap.Update();
+		UpdateShadowMap();
 		retsec = RenderViewpoint(r_viewpoint, player->camera, NULL, r_viewpoint.FieldOfView.Degrees, ratio, fovratio, true, true);
 	}
 	All.Unclock();

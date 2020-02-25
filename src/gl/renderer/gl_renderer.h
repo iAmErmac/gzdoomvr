@@ -7,7 +7,7 @@
 #include "r_renderer.h"
 #include "r_data/matrix.h"
 #include "hwrenderer/scene/hw_portal.h"
-#include "gl/dynlights/gl_shadowmap.h"
+#include "hwrenderer/dynlights/hw_shadowmap.h"
 #include <functional>
 
 #ifdef _MSC_VER
@@ -65,7 +65,7 @@ public:
 	FShadowMapShader *mShadowMapShader = nullptr;
 	FCustomPostProcessShaders *mCustomPostProcessShaders = nullptr;
 
-	FShadowMap mShadowMap;
+	IShadowMap mShadowMap;
 
 	//FRotator mAngles;
 
@@ -104,6 +104,7 @@ public:
 
 	bool StartOffscreen();
 	void EndOffscreen();
+	void UpdateShadowMap();
 
 	private: void FGLRenderer::gl_FillScreen();
 	void BindToFrameBuffer(FMaterial *mat);
