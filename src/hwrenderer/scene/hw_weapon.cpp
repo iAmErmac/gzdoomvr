@@ -176,7 +176,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 
 				for (float x = x1; x < x2; x += 1)
 				{
-					auto vert = this->AllocVertices(4);
+					auto vert = screen->mVertexData->AllocVertices(4);
 					auto vp = vert.first;
 					vp[0].Set(x, huds->y1, -z1, fU1, fV1);
 					vp[1].Set(x, huds->y2, -z1, fU1, fV2);
@@ -202,7 +202,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 				float y1 = huds->y1 - crossAt;
 				float y2 = huds->y2 - crossAt;
 
-				auto vert = this->AllocVertices(4);
+				auto vert = screen->mVertexData->AllocVertices(4);
 				auto vp = vert.first;
 				vp[0].Set(vw / 2 - crossAt, y1, -z1, fU1, fV1);
 				vp[1].Set(vw / 2 + sy / 2, y2, -z1, fU1, fV2);
@@ -210,7 +210,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 				vp[3].Set(vw / 2 + sy / 2, y2, -z2, fU2, fV2);
 				glDrawArrays(GL_TRIANGLE_STRIP, vert.second, 4);
 
-				auto vert2 = this->AllocVertices(4);
+				auto vert2 = screen->mVertexData->AllocVertices(4);
 				auto vp2 = vert2.first;
 				vp2[0].Set(vw / 2 + crossAt, y1, -z1, fU1, fV1);
 				vp2[1].Set(vw / 2 - sy / 2, y2, -z1, fU1, fV2);
