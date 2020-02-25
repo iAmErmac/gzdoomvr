@@ -150,7 +150,8 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 			state.AlphaFunc(Alpha_GEqual, 1);
 			state.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader);
 			//TODO Remove explicit calling GL renderstate
-			gl_RenderState.Apply();
+			//gl_RenderState.Apply();
+			
 
 			float z1 = 0.0f;
 			float z2 = (huds->y2 - huds->y1) * MIN(3, tex->GetWidth() / tex->GetHeight());
@@ -183,7 +184,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 					vp[1].Set(x, huds->y2, -z1, fU1, fV2);
 					vp[2].Set(x, huds->y1, -z2, fU2, fV1);
 					vp[3].Set(x, huds->y2, -z2, fU2, fV2);
-					glDrawArrays(GL_TRIANGLE_STRIP, vert.second, 4);
+					state.Draw(DT_TriangleStrip, vert.second, 4);
 				}
 			}
 			else
@@ -209,7 +210,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 				vp[1].Set(vw / 2 + sy / 2, y2, -z1, fU1, fV2);
 				vp[2].Set(vw / 2 - crossAt, y1, -z2, fU2, fV1);
 				vp[3].Set(vw / 2 + sy / 2, y2, -z2, fU2, fV2);
-				glDrawArrays(GL_TRIANGLE_STRIP, vert.second, 4);
+				state.Draw(DT_TriangleStrip, vert.second, 4);
 
 				auto vert2 = screen->mVertexData->AllocVertices(4);
 				auto vp2 = vert2.first;
@@ -217,7 +218,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 				vp2[1].Set(vw / 2 - sy / 2, y2, -z1, fU1, fV2);
 				vp2[2].Set(vw / 2 + crossAt, y1, -z2, fU2, fV1);
 				vp2[3].Set(vw / 2 - sy / 2, y2, -z2, fU2, fV2);
-				glDrawArrays(GL_TRIANGLE_STRIP, vert2.second, 4);
+				state.Draw(DT_TriangleStrip, vert2.second, 4);
 			}
 		}
 	}

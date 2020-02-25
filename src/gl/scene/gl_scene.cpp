@@ -124,7 +124,7 @@ void FGLRenderer::DrawScene(HWDrawInfo *di, int drawmode)
 	auto vrmode = VRMode::GetVRMode(true);
 	if (vrmode->RenderPlayerSpritesInScene())
 	{
-		DrawPlayerSprites(IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player), gl_RenderState);
+		di->DrawPlayerSprites(IsHUDModelForPlayerAvailable(players[consoleplayer].camera->player), gl_RenderState);
 	}
 
 	if (applySSAO && gl_RenderState.GetPassType() == GBUFFER_PASS)

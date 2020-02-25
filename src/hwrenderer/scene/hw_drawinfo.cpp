@@ -641,7 +641,7 @@ void HWDrawInfo::DrawEndScene2D(sector_t * viewsector, FRenderState &state)
 		// [BB] Only draw the sprites if we didn't render a HUD model before.
 		if ( renderHUDModel == false )
 		{
-			DrawPlayerSprites(false, gl_RenderState);
+			DrawPlayerSprites(false, state);
 		}
 	}
 

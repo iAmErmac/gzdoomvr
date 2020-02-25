@@ -45,6 +45,7 @@
 
 #include "hwrenderer/utility/hw_cvars.h"
 #include <hwrenderer\utility\hw_vrmodes.h>
+#include "gl/renderer/gl_renderstate.h"
 
 CVAR(Bool, gl_light_models, true, CVAR_ARCHIVE)
 EXTERN_CVAR(Float, gl_weaponOfsY)

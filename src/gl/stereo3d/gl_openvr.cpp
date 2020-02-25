@@ -326,7 +326,7 @@ public:
 
 			pFTex = new FControllerTexture(pTexture);
 
-			auto* di = FDrawInfo::StartDrawInfo(nullptr, r_viewpoint, nullptr);
+			auto* di = HWDrawInfo::StartDrawInfo(nullptr, r_viewpoint, nullptr);
 			FGLModelRenderer renderer(di, gl_RenderState, -1);
 			BuildVertexBuffer(&renderer);
 
