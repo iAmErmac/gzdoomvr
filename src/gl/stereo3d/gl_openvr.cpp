@@ -248,7 +248,7 @@ public:
 		vbuf->SetupFrame(renderer, 0, 0, 0);
 		renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
 		renderer->DrawElements(pModel->unTriangleCount * 3, 0);
-		screen->mVertexData->Bind(gl_RenderState);
+		gl_RenderState.SetVertexBuffer(screen->mVertexData);
 	}
 
 	virtual void BuildVertexBuffer(FModelRenderer* renderer) override
