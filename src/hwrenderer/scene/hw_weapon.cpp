@@ -84,6 +84,14 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 	state.SetRenderStyle(huds->RenderStyle);
 	state.SetTextureMode(huds->RenderStyle);
 	state.SetObjectColor(huds->ObjectColor);
+	if (huds->owner->Sector)
+	{
+		state.SetAddColor(huds->owner->Sector->AdditiveColors[sector_t::sprites] | 0xff000000);
+	}
+	else
+	{
+		state.SetAddColor(0);
+	}
 	state.SetDynLight(huds->dynrgb[0], huds->dynrgb[1], huds->dynrgb[2]);
 	state.EnableBrightmap(!(huds->RenderStyle.Flags & STYLEF_ColorIsFixed));
 
@@ -122,7 +130,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 			float fU1, fV1;
 			float fU2, fV2;
 
-			AWeapon* wi = player->ReadyWeapon;
+			auto *wi = player->ReadyWeapon;
 			if (wi == nullptr)
 				return;
 
@@ -226,6 +234,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 	state.SetTextureMode(TM_NORMAL);
 	state.AlphaFunc(Alpha_GEqual, gl_mask_sprite_threshold);
 	state.SetObjectColor(0xffffffff);
+	state.SetAddColor(0);
 	state.SetDynLight(0, 0, 0);
 	state.EnableBrightmap(false);
 }
@@ -238,13 +247,12 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 
 void HWDrawInfo::DrawPlayerSprites(bool hudModelStep, FRenderState &state)
 {
-	
 	auto vrmode = VRMode::GetVRMode(true);
 	vrmode->AdjustPlayerSprites(this);
-
-	int oldlightmode = level.lightmode;
-	if (!hudModelStep && level.lightmode == 8) level.lightmode = 2;	// Software lighting cannot handle 2D content so revert to lightmode 2 for that.
-	for (auto& hudsprite : hudsprites)
+	
+	auto oldlightmode = level.lightmode;
+	if (!hudModelStep && level.isSoftwareLighting()) level.SetFallbackLightMode();	// Software lighting cannot handle 2D content.
+	for (auto &hudsprite : hudsprites)
 	{
 		if ((!!hudsprite.mframe) == hudModelStep)
 			DrawPSprite(&hudsprite, state);
@@ -279,8 +287,8 @@ static bool isBright(DPSprite *psp)
 		FTextureID lump = sprites[psp->GetSprite()].GetSpriteFrame(psp->GetFrame(), 0, 0., nullptr);
 		if (lump.isValid())
 		{
-			FTexture * tex = TexMan(lump);
-			if (tex) disablefullbright = tex->bDisableFullbright;
+			FTexture * tex = TexMan.GetTexture(lump, true);
+			if (tex) disablefullbright = tex->isFullbrightDisabled();
 		}
 		return psp->GetState()->GetFullbright() && !disablefullbright;
 	}
@@ -370,8 +378,7 @@ static WeaponLighting GetWeaponLighting(sector_t *viewsector, const DVector3 &po
 	}
 	else
 	{
-		sector_t fs;
-		auto fakesec = hw_FakeFlat(viewsector, &fs, in_area, false);
+		auto fakesec = hw_FakeFlat(viewsector, in_area, false);
 
 		// calculate light level for weapon sprites
 		l.lightlevel = hw_ClampLight(fakesec->lightlevel);
@@ -409,7 +416,7 @@ static WeaponLighting GetWeaponLighting(sector_t *viewsector, const DVector3 &po
 
 		l.lightlevel = hw_CalcLightLevel(l.lightlevel, getExtraLight(), true, 0);
 
-		if (level.lightmode == 8 || l.lightlevel < 92)
+		if (level.isSoftwareLighting() || l.lightlevel < 92)
 		{
 			// Korshun: the way based on max possible light level for sector like in software renderer.
 			double min_L = 36.0 / 31.0 - ((l.lightlevel / 255.0) * (63.0 / 31.0)); // Lightlevel in range 0-63
@@ -580,21 +587,7 @@ bool HUDSprite::GetWeaponRect(HWDrawInfo *di, DPSprite *psp, float sx, float sy,
 	x2 += viewwindowx;
 
 	// killough 12/98: fix psprite positioning problem
-	ftexturemid = 100.f - sy - r.top;
-
-	AWeapon * wi = player->ReadyWeapon;
-	if (wi && wi->YAdjust != 0)
-	{
-		float fYAd = wi->YAdjust;
-		if (screenblocks >= 11)
-		{
-			ftexturemid -= fYAd;
-		}
-		else
-		{
-			ftexturemid -= float(StatusBar->GetDisplacement()) * fYAd;
-		}
-	}
+	ftexturemid = 100.f - sy - r.top - psp->GetYAdjust(screenblocks >= 11);
 
 	scale = (SCREENHEIGHT*vw) / (SCREENWIDTH * 200.0f);
 	y1 = viewwindowy + vh / 2 - (ftexturemid * scale);
@@ -659,8 +652,8 @@ void HWDrawInfo::PreparePlayerSprites(sector_t * viewsector, area_t in_area)
 
 	// hack alert! Rather than changing everything in the underlying lighting code let's just temporarily change
 	// light mode here to draw the weapon sprite.
-	int oldlightmode = level.lightmode;
-	if (level.lightmode == 8) level.lightmode = 2;
+	auto oldlightmode = level.lightmode;
+	if (level.isSoftwareLighting()) level.SetFallbackLightMode();
 
 	for (DPSprite *psp = player->psprites; psp != nullptr && psp->GetID() < PSP_TARGETCENTER; psp = psp->GetNext())
 	{

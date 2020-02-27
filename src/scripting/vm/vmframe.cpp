@@ -41,6 +41,22 @@
 #include "vmintern.h"
 #include "types.h"
 #include "jit.h"
+#include "c_cvars.h"
+#include "version.h"
+
+#if (defined(_M_X64  ) || defined(__x86_64) || defined(__x86_64__) || defined(_M_AMD64) || defined(__amd64 ) || defined(__amd64__ ))
+#define ARCH_X64
+#endif
+
+#ifdef ARCH_X64
+CUSTOM_CVAR(Bool, vm_jit, true, CVAR_NOINITCALL)
+{
+	Printf("You must restart " GAMENAME " for this change to take effect.\n");
+	Printf("This cvar is currently not saved. You must specify it on the command line.");
+}
+#else
+CVAR(Bool, vm_jit, false, CVAR_NOINITCALL|CVAR_NOSET)
+#endif
 
 cycle_t VMCycles[10];
 int VMCalls[10];
@@ -51,6 +67,48 @@ IMPLEMENT_CLASS(VMException, false, false)
 
 TArray<VMFunction *> VMFunction::AllFunctions;
 
+// Creates the register type list for a function.
+// Native functions only need this to assert their parameters in debug mode, script functions use this to load their registers from the VMValues.
+void VMFunction::CreateRegUse()
+{
+#ifdef NDEBUG
+	if (VarFlags & VARF_Native) return;	// we do not need this for native functions in release builds.
+#endif
+	int count = 0;
+	if (!Proto)
+	{
+		if (RegTypes) return;
+		Printf(TEXTCOLOR_ORANGE "Function without prototype needs register info manually set: %s\n", PrintableName.GetChars());
+		return;
+	}
+	assert(Proto->isPrototype());
+
+	for (auto arg : Proto->ArgumentTypes)
+	{
+		count += arg? arg->GetRegCount() : 1;
+	}
+	uint8_t *regp;
+	RegTypes = regp = (uint8_t*)ClassDataAllocator.Alloc(count);
+	count = 0;
+	for (unsigned i = 0; i < Proto->ArgumentTypes.Size(); i++)
+	{
+		auto arg = Proto->ArgumentTypes[i];
+		auto flg = ArgFlags.Size() > i ? ArgFlags[i] : 0;
+		if (arg == nullptr)
+		{
+			// Marker for start of varargs.
+			*regp++ = REGT_NIL;
+		}
+		else if ((flg & VARF_Out) && !arg->isPointer())
+		{
+			*regp++ = REGT_POINTER;
+		}
+		else for (int j = 0; j < arg->GetRegCount(); j++)
+		{
+			*regp++ = arg->GetRegType();
+		}
+	}
+}
 
 VMScriptFunction::VMScriptFunction(FName name)
 {
@@ -208,12 +266,36 @@ int VMScriptFunction::PCToLine(const VMOP *pc)
 	return -1;
 }
 
+static bool CanJit(VMScriptFunction *func)
+{
+	// Asmjit has a 256 register limit. Stay safely away from it as the jit compiler uses a few for temporaries as well.
+	// Any function exceeding the limit will use the VM - a fair punishment to someone for writing a function so bloated ;)
+
+	int maxregs = 200;
+	if (func->NumRegA + func->NumRegD + func->NumRegF + func->NumRegS < maxregs)
+		return true;
+
+	Printf(TEXTCOLOR_ORANGE "%s is using too many registers (%d of max %d)! Function will not use native code.\n", func->PrintableName.GetChars(), func->NumRegA + func->NumRegD + func->NumRegF + func->NumRegS, maxregs);
+
+	return false;
+}
+
 int VMScriptFunction::FirstScriptCall(VMFunction *func, VMValue *params, int numparams, VMReturn *ret, int numret)
 {
-	VMScriptFunction *sfunc = static_cast<VMScriptFunction*>(func);
-	sfunc->ScriptCall = JitCompile(sfunc);
-	if (!sfunc->ScriptCall)
-		sfunc->ScriptCall = VMExec;
+#ifdef ARCH_X64
+	if (vm_jit && CanJit(static_cast<VMScriptFunction*>(func)))
+	{
+		func->ScriptCall = JitCompile(static_cast<VMScriptFunction*>(func));
+		if (!func->ScriptCall)
+			func->ScriptCall = VMExec;
+	}
+	else
+	{
+		func->ScriptCall = VMExec;
+	}
+#else
+	func->ScriptCall = VMExec;
+#endif
 
 	return func->ScriptCall(func, params, numparams, ret, numret);
 }
@@ -223,7 +305,7 @@ int VMNativeFunction::NativeScriptCall(VMFunction *func, VMValue *params, int nu
 	try
 	{
 		VMCycles[0].Unclock();
-		numret = static_cast<VMNativeFunction *>(func)->NativeCall(params, func->DefaultArgs, numparams, returns, numret);
+		numret = static_cast<VMNativeFunction *>(func)->NativeCall(VM_INVOKE(params, numparams, returns, numret, func->RegTypes));
 		VMCycles[0].Clock();
 
 		return numret;
@@ -232,13 +314,7 @@ int VMNativeFunction::NativeScriptCall(VMFunction *func, VMValue *params, int nu
 	{
 		err.MaybePrintMessage();
 		err.stacktrace.AppendFormat("Called from %s\n", func->PrintableName.GetChars());
-		VMThrowException(std::current_exception());
-		return 0;
-	}
-	catch (...)
-	{
-		VMThrowException(std::current_exception());
-		return 0;
+		throw;
 	}
 }
 
@@ -454,32 +530,6 @@ VMFrame *VMFrameStack::PopFrame()
 
 //===========================================================================
 //
-// The jitted code does not implement C++ exception handling.
-// Catch them, longjmp out of the jitted functions, perform vmframe cleanup
-// then rethrow the C++ exception
-//
-//===========================================================================
-
-thread_local JitExceptionInfo *CurrentJitExceptInfo;
-
-void VMThrowException(std::exception_ptr cppException)
-{
-	CurrentJitExceptInfo->cppException = cppException;
-	longjmp(CurrentJitExceptInfo->sjljbuf, 1);
-}
-
-static void VMRethrowException(JitExceptionInfo *exceptInfo)
-{
-	int c = exceptInfo->vmframes;
-	VMFrameStack *stack = &GlobalVMStack;
-	for (int i = 0; i < c; i++)
-		stack->PopFrame();
-
-	std::rethrow_exception(exceptInfo->cppException);
-}
-
-//===========================================================================
-//
 // VMFrameStack :: Call
 //
 // Calls a function, either native or scripted. If an exception occurs while
@@ -498,7 +548,7 @@ int VMCall(VMFunction *func, VMValue *params, int numparams, VMReturn *results, 
 	{	
 		if (func->VarFlags & VARF_Native)
 		{
-			return static_cast<VMNativeFunction *>(func)->NativeCall(params, func->DefaultArgs, numparams, results, numresults);
+			return static_cast<VMNativeFunction *>(func)->NativeCall(VM_INVOKE(params, numparams, results, numresults, func->RegTypes));
 		}
 		else
 		{
@@ -519,25 +569,10 @@ int VMCall(VMFunction *func, VMValue *params, int numparams, VMReturn *results, 
 			{
 				VMCycles[0].Clock();
 
-				JitExceptionInfo *prevExceptInfo = CurrentJitExceptInfo;
-				JitExceptionInfo newExceptInfo;
-				CurrentJitExceptInfo = &newExceptInfo;
-				if (setjmp(CurrentJitExceptInfo->sjljbuf) == 0)
-				{
-					auto sfunc = static_cast<VMScriptFunction *>(func);
-					int numret = sfunc->ScriptCall(sfunc, params, numparams, results, numresults);
-					CurrentJitExceptInfo = prevExceptInfo;
-					VMCycles[0].Unclock();
-					return numret;
-				}
-				else
-				{
-					VMCycles[0].Unclock();
-					auto exceptInfo = CurrentJitExceptInfo;
-					CurrentJitExceptInfo = prevExceptInfo;
-					VMRethrowException(exceptInfo);
-					return 0;
-				}
+				auto sfunc = static_cast<VMScriptFunction *>(func);
+				int numret = sfunc->ScriptCall(sfunc, params, numparams, results, numresults);
+				VMCycles[0].Unclock();
+				return numret;
 			}
 		}
 	}
@@ -553,6 +588,21 @@ int VMCall(VMFunction *func, VMValue *params, int numparams, VMReturn *results, 
 	}
 #endif
 }
+
+int VMCallWithDefaults(VMFunction *func, TArray<VMValue> &params, VMReturn *results, int numresults/*, VMException **trap = NULL*/)
+{
+	if (func->DefaultArgs.Size() > params.Size())
+	{
+		auto oldp = params.Size();
+		params.Resize(func->DefaultArgs.Size());
+		for (unsigned i = oldp; i < params.Size(); i++)
+		{
+			params[i] = func->DefaultArgs[i];
+		}
+	}
+	return VMCall(func, params.Data(), params.Size(), results, numresults);
+}
+
 
 // Exception stuff for the VM is intentionally placed there, because having this in vmexec.cpp would subject it to inlining
 // which we do not want because it increases the local stack requirements of Exec which are already too high.
@@ -608,7 +658,11 @@ CVMAbortException::CVMAbortException(EVMAbortException reason, const char *morei
 		size_t len = strlen(m_Message);
 		myvsnprintf(m_Message + len, MAX_ERRORTEXT - len, moreinfo, ap);
 	}
-	stacktrace = "";
+
+	if (vm_jit)
+		stacktrace = JitCaptureStackTrace(1, false);
+	else
+		stacktrace = "";
 }
 
 // Print this only once on the first catch block.
@@ -636,7 +690,9 @@ void ThrowAbortException(VMScriptFunction *sfunc, VMOP *line, EVMAbortException 
 {
 	va_list ap;
 	va_start(ap, moreinfo);
+
 	CVMAbortException err(reason, moreinfo, ap);
+
 	err.stacktrace.AppendFormat("Called from %s at %s, line %d\n", sfunc->PrintableName.GetChars(), sfunc->SourceFileName.GetChars(), sfunc->PCToLine(line));
 	throw err;
 	va_end(ap);
@@ -645,7 +701,7 @@ void ThrowAbortException(VMScriptFunction *sfunc, VMOP *line, EVMAbortException 
 DEFINE_ACTION_FUNCTION(DObject, ThrowAbortException)
 {
 	PARAM_PROLOGUE;
-	FString s = FStringFormat(param, defaultparam, numparam, ret, numret);
+	FString s = FStringFormat(VM_ARGS_NAMES);
 	ThrowAbortException(X_OTHER, s.GetChars());
 	return 0;
 }

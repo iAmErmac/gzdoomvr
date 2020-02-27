@@ -25,23 +25,6 @@ enum
 };
 
 
-
-struct FTexCoordInfo
-{
-	int mRenderWidth;
-	int mRenderHeight;
-	int mWidth;
-	FVector2 mScale;
-	FVector2 mTempScale;
-	bool mWorldPanning;
-
-	float FloatToTexU(float v) const { return v / mRenderWidth; }
-	float FloatToTexV(float v) const { return v / mRenderHeight; }
-	float RowOffset(float ofs) const;
-	float TextureOffset(float ofs) const;
-	float TextureAdjustWidth() const;
-};
-
 //===========================================================================
 // 
 // this is the material class for OpenGL. 
@@ -56,7 +39,6 @@ class FMaterial
 	static TArray<FMaterial *> mMaterials;
 	static int mMaxBound;
 
-	IHardwareTexture *mBaseLayer;	
 	TArray<FTexture*> mTextureLayers;
 	int mShaderIndex;
 
@@ -85,7 +67,6 @@ public:
 	void Precache();
 	void PrecacheList(SpriteHits &translations);
 	int GetShaderIndex() const { return mShaderIndex; }
-	IHardwareTexture * ValidateSysTexture(FTexture * tex, bool expand);
 	void AddTextureLayer(FTexture *tex)
 	{
 		ValidateTexture(tex, false);
@@ -93,7 +74,7 @@ public:
 	}
 	bool isMasked() const
 	{
-		return !!sourcetex->bMasked;
+		return sourcetex->bMasked;
 	}
 	bool isExpanded() const
 	{
@@ -104,24 +85,13 @@ public:
 	{
 		return mTextureLayers.Size() + 1;
 	}
-
-	IHardwareTexture *GetLayer(int i, FTexture **pLayer = nullptr)
+	
+	bool hasCanvas()
 	{
-		if (i == 0)
-		{
-			if (pLayer) *pLayer = tex;
-			return mBaseLayer;
-		}
-		else
-		{
-			i--;
-			FTexture *layer = mTextureLayers[i];
-			if (pLayer) *pLayer = layer;
-			return ValidateSysTexture(layer, isExpanded());
-		}
+		return tex->isHardwareCanvas();
 	}
 
-	void Clean(bool f);
+	IHardwareTexture *GetLayer(int i, int translation, FTexture **pLayer = nullptr);
 
 	// Patch drawing utilities
 
@@ -130,7 +100,10 @@ public:
 		*r = mSpriteRect;
 	}
 
-	void GetTexCoordInfo(FTexCoordInfo *tci, float x, float y) const;
+	void GetTexCoordInfo(FTexCoordInfo *tci, float x, float y) const
+	{
+		tci->GetFromTexture(tex, x, y);
+	}
 
 	void GetTexCoordInfo(FTexCoordInfo *tci, side_t *side, int texpos) const
 	{
@@ -177,10 +150,8 @@ public:
 	float GetSpriteVB() const { return mSpriteV[1]; }
 
 
-	static void DeleteAll();
-	static void FlushAll();
-	static FMaterial *ValidateTexture(FTexture * tex, bool expand);
-	static FMaterial *ValidateTexture(FTextureID no, bool expand, bool trans);
+	static FMaterial *ValidateTexture(FTexture * tex, bool expand, bool create = true);
+	static FMaterial *ValidateTexture(FTextureID no, bool expand, bool trans, bool create = true);
 };
 
 #endif

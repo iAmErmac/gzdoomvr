@@ -115,7 +115,8 @@ if( WIN32 )
 		comdlg32
 		ws2_32
 		setupapi
-		oleaut32 )
+		oleaut32
+		dbghelp )
 
 	if( NOT ZD_CMAKE_COMPILER_IS_GNUCXX_COMPATIBLE )
 		set( ZDOOM_LIBS ${ZDOOM_LIBS} DelayImp )
@@ -748,6 +749,7 @@ file( GLOB HEADER_FILES
 	sound/wildmidi/*.h
 	xlat/*.h
 	swrenderer/*.h
+	swrenderer/textures/*.h
 	swrenderer/drawers/*.h
 	swrenderer/scene/*.h
 	swrenderer/segments/*.h
@@ -1028,6 +1030,7 @@ set (PCH_SOURCES
 	p_map.cpp
 	p_maputl.cpp
 	p_mobj.cpp
+	p_openmap.cpp
 	p_pillar.cpp
 	p_plats.cpp
 	p_pspr.cpp
@@ -1065,6 +1068,7 @@ set (PCH_SOURCES
 	s_sound.cpp
 	serializer.cpp
 	sc_man.cpp
+	scriptutil.cpp
 	st_stuff.cpp
 	statistics.cpp
 	stats.cpp
@@ -1118,6 +1122,7 @@ set (PCH_SOURCES
 	gl/system/gl_buffers.cpp
 	gl/textures/gl_hwtexture.cpp
 	gl/textures/gl_samplers.cpp
+	hwrenderer/data/hw_vertexbuilder.cpp
 	hwrenderer/data/flatvertices.cpp
 	hwrenderer/data/hw_viewpointbuffer.cpp
 	hwrenderer/dynlights/hw_aabbtree.cpp
@@ -1164,7 +1169,10 @@ set (PCH_SOURCES
 	textures/anim_switches.cpp
 	textures/bitmap.cpp
 	textures/texture.cpp
+	textures/image.cpp
+	textures/imagetexture.cpp
 	textures/texturemanager.cpp
+	textures/multipatchtexturebuilder.cpp
 	textures/skyboxtexture.cpp
 	textures/formats/automaptexture.cpp
 	textures/formats/brightmaptexture.cpp
@@ -1172,6 +1180,7 @@ set (PCH_SOURCES
 	textures/formats/canvastexture.cpp
 	textures/formats/ddstexture.cpp
 	textures/formats/flattexture.cpp
+	textures/formats/fontchars.cpp
 	textures/formats/imgztexture.cpp
 	textures/formats/jpegtexture.cpp
 	textures/formats/md5check.cpp
@@ -1183,8 +1192,6 @@ set (PCH_SOURCES
 	textures/formats/emptytexture.cpp
 	textures/formats/shadertexture.cpp
 	textures/formats/tgatexture.cpp
-	textures/formats/worldtexture.cpp
-	textures/formats/warptexture.cpp
 	textures/hires/hqresize.cpp
 	textures/hires/hirestex.cpp
 	xlat/parse_xlat.cpp
@@ -1208,14 +1215,19 @@ set (PCH_SOURCES
 	r_data/voxels.cpp
 	r_data/renderinfo.cpp
 	r_data/renderstyle.cpp
+	r_data/r_canvastexture.cpp
 	r_data/r_interpolate.cpp
 	r_data/r_vanillatrans.cpp
+	r_data/r_sections.cpp
 	r_data/models/models_md3.cpp
 	r_data/models/models_md2.cpp
 	r_data/models/models_voxel.cpp
 	r_data/models/models_ue1.cpp
 	r_data/models/models_obj.cpp
 	scripting/symbols.cpp
+	scripting/vmiterators.cpp
+	scripting/vmthunks.cpp
+	scripting/vmthunks_actors.cpp
 	scripting/types.cpp
 	scripting/thingdef.cpp
 	scripting/thingdef_data.cpp
@@ -1232,6 +1244,7 @@ set (PCH_SOURCES
 	scripting/vm/vmexec.cpp
 	scripting/vm/vmframe.cpp
 	scripting/vm/jit.cpp
+	scripting/vm/jit_runtime.cpp
 	scripting/vm/jit_call.cpp
 	scripting/vm/jit_flow.cpp
 	scripting/vm/jit_load.cpp
@@ -1306,6 +1319,9 @@ set (PCH_SOURCES
 	sound/wildmidi/reverb.cpp
 	sound/wildmidi/wildmidi_lib.cpp
 	sound/wildmidi/wm_error.cpp
+	swrenderer/textures/r_swtexture.cpp
+	swrenderer/textures/warptexture.cpp
+	swrenderer/textures/swcanvastexture.cpp
 	events.cpp
 )
 

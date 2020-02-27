@@ -138,7 +138,6 @@ bool FGLRenderState::ApplyShader()
 	activeShader->muLightParms.Set(mLightParms);
 	activeShader->muFogColor.Set(mFogColor);
 	activeShader->muObjectColor.Set(mObjectColor);
-	activeShader->muObjectColor2.Set(mObjectColor2);
 	activeShader->muDynLightColor.Set(mDynColor.vec);
 	activeShader->muInterpolationFactor.Set(mInterpolationFactor);
 	activeShader->muTimer.Set((double)(screen->FrameTime - firstFrame) * (double)mShaderTimer / 1000.);
@@ -146,11 +145,14 @@ bool FGLRenderState::ApplyShader()
 	activeShader->muLightIndex.Set(-1);
 	activeShader->muClipSplit.Set(mClipSplit);
 	activeShader->muSpecularMaterial.Set(mGlossiness, mSpecularLevel);
+	activeShader->muAddColor.Set(mAddColor); // Can this be done without a shader?
 
 	if (mGlowEnabled)
 	{
 		activeShader->muGlowTopColor.Set(mGlowTop.vec);
 		activeShader->muGlowBottomColor.Set(mGlowBottom.vec);
+		activeShader->muGlowTopPlane.Set(mGlowTopPlane.vec);
+		activeShader->muGlowBottomPlane.Set(mGlowBottomPlane.vec);
 		activeShader->currentglowstate = 1;
 	}
 	else if (activeShader->currentglowstate)
@@ -160,10 +162,18 @@ bool FGLRenderState::ApplyShader()
 		activeShader->muGlowBottomColor.Set(nulvec);
 		activeShader->currentglowstate = 0;
 	}
-	if (mGlowEnabled || mObjectColor2.a != 0)
+
+	if (mGradientEnabled)
 	{
-		activeShader->muGlowTopPlane.Set(mGlowTopPlane.vec);
-		activeShader->muGlowBottomPlane.Set(mGlowBottomPlane.vec);
+		activeShader->muObjectColor2.Set(mObjectColor2);
+		activeShader->muGradientTopPlane.Set(mGradientTopPlane.vec);
+		activeShader->muGradientBottomPlane.Set(mGradientBottomPlane.vec);
+		activeShader->currentgradientstate = 1;
+	}
+	else if (activeShader->currentgradientstate)
+	{
+		activeShader->muObjectColor2.Set(0);
+		activeShader->currentgradientstate = 0;
 	}
 
 	if (mSplitEnabled)
@@ -294,7 +304,7 @@ void FGLRenderState::Apply()
 
 void FGLRenderState::ApplyMaterial(FMaterial *mat, int clampmode, int translation, int overrideshader)
 {
-	if (mat->tex->bHasCanvas)
+	if (mat->tex->isHardwareCanvas())
 	{
 		mTempTM = TM_OPAQUE;
 	}
@@ -308,8 +318,8 @@ void FGLRenderState::ApplyMaterial(FMaterial *mat, int clampmode, int translatio
 
 	auto tex = mat->tex;
 	if (tex->UseType == ETextureType::SWCanvas) clampmode = CLAMP_NOFILTER;
-	if (tex->bHasCanvas) clampmode = CLAMP_CAMTEX;
-	else if ((tex->bWarped || tex->shaderindex >= FIRST_USER_SHADER) && clampmode <= CLAMP_XY) clampmode = CLAMP_NONE;
+	if (tex->isHardwareCanvas()) clampmode = CLAMP_CAMTEX;
+	else if ((tex->isWarped() || tex->shaderindex >= FIRST_USER_SHADER) && clampmode <= CLAMP_XY) clampmode = CLAMP_NONE;
 	
 	// avoid rebinding the same texture multiple times.
 	if (mat == lastMaterial && lastClamp == clampmode && translation == lastTranslation) return;
@@ -321,16 +331,16 @@ void FGLRenderState::ApplyMaterial(FMaterial *mat, int clampmode, int translatio
 	int maxbound = 0;
 
 	// Textures that are already scaled in the texture lump will not get replaced by hires textures.
-	int flags = mat->isExpanded() ? CTF_Expand : (gl_texture_usehires && tex->Scale.X == 1 && tex->Scale.Y == 1 && clampmode <= CLAMP_XY) ? CTF_CheckHires : 0;
+	int flags = mat->isExpanded() ? CTF_Expand : (gl_texture_usehires && !tex->isScaled() && clampmode <= CLAMP_XY) ? CTF_CheckHires : 0;
 	int numLayers = mat->GetLayers();
-	auto base = static_cast<FHardwareTexture*>(mat->GetLayer(0));
+	auto base = static_cast<FHardwareTexture*>(mat->GetLayer(0, translation));
 
 	if (base->BindOrCreate(tex, 0, clampmode, translation, flags))
 	{
 		for (int i = 1; i<numLayers; i++)
 		{
 			FTexture *layer;
-			auto systex = static_cast<FHardwareTexture*>(mat->GetLayer(i, &layer));
+			auto systex = static_cast<FHardwareTexture*>(mat->GetLayer(i, 0, &layer));
 			systex->BindOrCreate(layer, i, clampmode, 0, mat->isExpanded() ? CTF_Expand : 0);
 			maxbound = i;
 		}
@@ -427,22 +437,29 @@ void FGLRenderState::SetDepthRange(float min, float max)
 	glDepthRange(min, max);
 }
 
+void FGLRenderState::SetColorMask(bool r, bool g, bool b, bool a)
+{
+	glColorMask(r, g, b, a);
+}
+
 void FGLRenderState::EnableDrawBufferAttachments(bool on)
 {
 	EnableDrawBuffers(on ? GetPassDrawBufferCount() : 1);
 }
 
-void FGLRenderState::SetStencil(int offs, int op, int flags)
+void FGLRenderState::SetStencil(int offs, int op, int flags = -1)
 {
 	static int op2gl[] = { GL_KEEP, GL_INCR, GL_DECR };
 
 	glStencilFunc(GL_EQUAL, screen->stencilValue + offs, ~0);		// draw sky into stencil
 	glStencilOp(GL_KEEP, GL_KEEP, op2gl[op]);		// this stage doesn't modify the stencil
 
-	bool cmon = !(flags & SF_ColorMaskOff);
-	bool cmalpha = cmon || (flags & SF_ColorMaskAlpha);
-	glColorMask(cmon, cmon, cmon, cmalpha);						// don't write to the graphics buffer
-	glDepthMask(!(flags & SF_DepthMaskOff));
+	if (flags != -1)
+	{
+		bool cmon = !(flags & SF_ColorMaskOff);
+		glColorMask(cmon, cmon, cmon, cmon);						// don't write to the graphics buffer
+		glDepthMask(!(flags & SF_DepthMaskOff));
+	}
 }
 
 void FGLRenderState::ToggleState(int state, bool on)

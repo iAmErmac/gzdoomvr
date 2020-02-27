@@ -53,6 +53,7 @@
 #include "hwrenderer/postprocessing/hw_shadowmapshader.h"
 #include "hwrenderer/data/flatvertices.h"
 #include "hwrenderer/scene/hw_skydome.h"
+#include "hwrenderer/scene/hw_fakeflat.h"
 #include "gl/shaders/gl_postprocessshaderinstance.h"
 #include "gl/textures/gl_samplers.h"
 #include "hwrenderer/dynlights/hw_lightbuffer.h"
@@ -117,13 +118,10 @@ FGLRenderer::~FGLRenderer()
 {
 	FlushModels();
 	AActor::DeleteAllAttachedLights();
-	FMaterial::FlushAll();
-	if (mShaderManager != nullptr)
-		delete mShaderManager;
-	if (mSamplerManager != nullptr)
-		delete mSamplerManager;
-	if (mFBID != 0)
-		glDeleteFramebuffers(1, &mFBID);
+	TexMan.FlushAll();
+	if (mShaderManager != nullptr) delete mShaderManager;
+	if (mSamplerManager != nullptr) delete mSamplerManager;
+	if (mFBID != 0) glDeleteFramebuffers(1, &mFBID);
 	if (mVAOID != 0)
 	{
 		glBindVertexArray(0);
@@ -240,6 +238,8 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 	}
 	else
 	{
+		hw_ClearFakeFlat();
+
 		iter_dlightf = iter_dlight = draw_dlight = draw_dlightf = 0;
 
 		checkBenchActive();
@@ -262,7 +262,10 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 		bool saved_niv = NoInterpolateView;
 		NoInterpolateView = false;
 		// prepare all camera textures that have been used in the last frame
-		FCanvasTextureInfo::UpdateAll();
+		level.canvasTextureInfo.UpdateAll([&](AActor *camera, FCanvasTexture *camtex, double fov)
+		{
+			RenderTextureView(camtex, camera, fov);
+		});
 		NoInterpolateView = saved_niv;
 
 		// now render the main view
@@ -292,7 +295,7 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 
 void FGLRenderer::BindToFrameBuffer(FMaterial *mat)
 {
-	auto BaseLayer = static_cast<FHardwareTexture *>(mat->GetLayer(0));
+	auto BaseLayer = static_cast<FHardwareTexture*>(mat->GetLayer(0, 0));
 
 	if (BaseLayer == nullptr)
 	{
@@ -312,7 +315,8 @@ void FGLRenderer::BindToFrameBuffer(FMaterial *mat)
 
 void FGLRenderer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV)
 {
-	FMaterial *gltex = FMaterial::ValidateTexture(tex, false);
+	// This doesn't need to clear the fake flat cache. It can be shared between camera textures and the main view of a scene.
+	FMaterial * gltex = FMaterial::ValidateTexture(tex, false);
 
 	int width = gltex->TextureWidth();
 	int height = gltex->TextureHeight();
@@ -330,7 +334,8 @@ void FGLRenderer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, doub
 
 	EndOffscreen();
 
-	tex->SetUpdated();
+	tex->SetUpdated(true);
+	static_cast<OpenGLFrameBuffer*>(screen)->camtexcount++;
 }
 
 //===========================================================================
@@ -341,19 +346,20 @@ void FGLRenderer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, doub
 
 void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, int height)
 {
-	IntRect bounds;
-	bounds.left = 0;
-	bounds.top = 0;
-	bounds.width = width;
-	bounds.height = height;
-
-	// we must be sure the GPU finished reading from the buffer before we fill it with new data.
-	glFinish();
-
-	// Switch to render buffers dimensioned for the savepic
-	mBuffers = mSaveBuffers;
-
-	P_FindParticleSubsectors(); // make sure that all recently spawned particles have a valid subsector.
+    IntRect bounds;
+    bounds.left = 0;
+    bounds.top = 0;
+    bounds.width = width;
+    bounds.height = height;
+    
+    // we must be sure the GPU finished reading from the buffer before we fill it with new data.
+    glFinish();
+    
+    // Switch to render buffers dimensioned for the savepic
+    mBuffers = mSaveBuffers;
+    
+	hw_ClearFakeFlat();
+	P_FindParticleSubsectors();    // make sure that all recently spawned particles have a valid subsector.
 	gl_RenderState.SetVertexBuffer(screen->mVertexData);
 	screen->mVertexData->Reset();
 	screen->mLights->Clear();

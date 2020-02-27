@@ -25,12 +25,22 @@ extern int VMCalls[10];
 #define ABCs			(pc[0].i24)
 #define JMPOFS(x)		((x)->i24)
 
+struct JitLineInfo
+{
+	ptrdiff_t InstructionIndex = 0;
+	int32_t LineNumber = -1;
+	asmjit::Label Label;
+};
+
 class JitCompiler
 {
 public:
 	JitCompiler(asmjit::CodeHolder *code, VMScriptFunction *sfunc) : cc(code), sfunc(sfunc) { }
 
 	asmjit::CCFunc *Codegen();
+	VMScriptFunction *GetScriptFunction() { return sfunc; }
+
+	TArray<JitLineInfo> LineInfo;
 
 private:
 	// Declare EmitXX functions for the opcodes:
@@ -38,19 +48,24 @@ private:
 	#include "vmops.h"
 	#undef xx
 
+	asmjit::FuncSignature CreateFuncSignature();
+
 	void Setup();
+	void CreateRegisters();
+	void IncrementVMCalls();
+	void SetupFrame();
+	void SetupSimpleFrame();
+	void SetupFullVMFrame();
 	void BindLabels();
 	void EmitOpcode();
 	void EmitPopFrame();
 
-	void EmitDoCall(asmjit::X86Gp ptr);
-	void EmitScriptCall(asmjit::X86Gp vmfunc, asmjit::X86Gp paramsptr);
+	void EmitNativeCall(VMNativeFunction *target);
+	void EmitVMCall(asmjit::X86Gp ptr, VMFunction *target);
+	void EmitVtbl(const VMOP *op);
 
-	void EmitDoTail(asmjit::X86Gp ptr);
-	void EmitScriptTailCall(asmjit::X86Gp vmfunc, asmjit::X86Gp result, asmjit::X86Gp paramsptr);
-
-	void StoreInOuts(int b);
-	void LoadInOuts(int b);
+	int StoreCallParams();
+	void LoadInOuts();
 	void LoadReturns(const VMOP *retval, int numret);
 	void FillReturns(const VMOP *retval, int numret);
 	void LoadCallResult(int type, int regnum, bool addrof);
@@ -70,6 +85,60 @@ private:
 
 		cc.bind(successLabel);
 		pc++; // This instruction uses two instruction slots - skip the next one
+	}
+
+	template<int N>
+	void EmitVectorComparison(bool check, asmjit::Label& fail, asmjit::Label& success)
+	{
+		bool approx = static_cast<bool>(A & CMP_APPROX);
+		if (!approx)
+		{
+			for (int i = 0; i < N; i++)
+			{
+				cc.ucomisd(regF[B + i], regF[C + i]);
+				if (check)
+				{
+					cc.jp(success);
+					if (i == (N - 1))
+					{
+						cc.je(fail);
+					}
+					else
+					{
+						cc.jne(success);
+					}
+				}
+				else
+				{
+					cc.jp(fail);
+					cc.jne(fail);
+				}
+			}
+		}
+		else
+		{
+			auto tmp = newTempXmmSd();
+
+			const int64_t absMaskInt = 0x7FFFFFFFFFFFFFFF;
+			auto absMask = cc.newDoubleConst(asmjit::kConstScopeLocal, reinterpret_cast<const double&>(absMaskInt));
+			auto absMaskXmm = newTempXmmPd();
+
+			auto epsilon = cc.newDoubleConst(asmjit::kConstScopeLocal, VM_EPSILON);
+			auto epsilonXmm = newTempXmmSd();
+
+			for (int i = 0; i < N; i++)
+			{
+				cc.movsd(tmp, regF[B + i]);
+				cc.subsd(tmp, regF[C + i]);
+				cc.movsd(absMaskXmm, absMask);
+				cc.andpd(tmp, absMaskXmm);
+				cc.movsd(epsilonXmm, epsilon);
+				cc.ucomisd(epsilonXmm, tmp);
+
+				if (check) cc.ja(fail);
+				else       cc.jna(fail);
+			}
+		}
 	}
 
 	static uint64_t ToMemAddress(const void *d)
@@ -144,9 +213,14 @@ private:
 	asmjit::X86Gp newResultIntPtr() { return newTempRegister(regResultIntPtr, resultPosIntPtr, "resultPtr", [&](const char *name) { return cc.newIntPtr(name); }); }
 	asmjit::X86Xmm newResultXmmSd() { return newTempRegister(regResultXmmSd, resultPosXmmSd, "resultXmmSd", [&](const char *name) { return cc.newXmmSd(name); }); }
 
+	void EmitReadBarrier();
+
 	void EmitNullPointerThrow(int index, EVMAbortException reason);
 	void EmitThrowException(EVMAbortException reason);
-	void EmitThrowException(EVMAbortException reason, asmjit::X86Gp arg1);
+	asmjit::Label EmitThrowExceptionLabel(EVMAbortException reason);
+
+	static void ThrowArrayOutOfBounds(int index, int size);
+	static void ThrowException(int reason);
 
 	asmjit::X86Gp CheckRegD(int r0, int r1);
 	asmjit::X86Xmm CheckRegF(int r0, int r1);
@@ -171,9 +245,18 @@ private:
 	int offsetA;
 	int offsetD;
 	int offsetExtra;
-	asmjit::X86Gp vmframe;
-	int NumParam = 0; // Actually part of vmframe (f->NumParam), but nobody seems to read that?
+
 	TArray<const VMOP *> ParamOpcodes;
+
+	void CheckVMFrame();
+	asmjit::X86Gp GetCallReturns();
+
+	bool vmframeAllocated = false;
+	asmjit::CBNode *vmframeCursor = nullptr;
+	asmjit::X86Gp vmframe;
+
+	bool callReturnsAllocated = false;
+	asmjit::CBNode *callReturnsCursor = nullptr;
 	asmjit::X86Gp callReturns;
 
 	const int *konstd;
@@ -234,3 +317,6 @@ public:
 		throw AsmJitException(err, message);
 	}
 };
+
+void *AddJitFunction(asmjit::CodeHolder* code, JitCompiler *compiler);
+asmjit::CodeInfo GetHostCodeInfo();

@@ -554,7 +554,7 @@ static int ExecScriptFunc(VMFrameStack *stack, VMReturn *ret, int numret)
 		NEXTOP;
 	OP(IJMP):
 		ASSERTD(a);
-		pc += (BCs + reg.d[a]);
+		pc += (reg.d[a]);
 		assert(pc[1].op == OP_JMP);
 		pc += 1 + JMPOFS(pc+1);
 		NEXTOP;
@@ -697,7 +697,7 @@ static int ExecScriptFunc(VMFrameStack *stack, VMReturn *ret, int numret)
 				try
 				{
 					VMCycles[0].Unclock();
-					numret = static_cast<VMNativeFunction *>(call)->NativeCall(reg.param + f->NumParam - b, call->DefaultArgs, b, returns, C);
+					numret = static_cast<VMNativeFunction *>(call)->NativeCall(VM_INVOKE(reg.param + f->NumParam - b, b, returns, C, call->RegTypes));
 					VMCycles[0].Clock();
 				}
 				catch (CVMAbortException &err)
@@ -716,45 +716,6 @@ static int ExecScriptFunc(VMFrameStack *stack, VMReturn *ret, int numret)
 			assert(numret == C && "Number of parameters returned differs from what was expected by the caller");
 			f->NumParam -= B;
 			pc += C;			// Skip RESULTs
-		}
-		NEXTOP;
-	OP(TAIL_K):
-		ASSERTKA(a);
-		ptr = konsta[a].o;
-		goto Do_TAILCALL;
-	OP(TAIL):
-		ASSERTA(a);
-		ptr = reg.a[a];
-	Do_TAILCALL:
-		// Whereas the CALL instruction uses its third operand to specify how many return values
-		// it expects, TAIL ignores its third operand and uses whatever was passed to this Exec call.
-		assert(B <= f->NumParam);
-		assert(C <= MAX_RETURNS);
-		{
-			VMFunction *call = (VMFunction *)ptr;
-
-			if (call->VarFlags & VARF_Native)
-			{
-				try
-				{
-					VMCycles[0].Unclock();
-					auto r = static_cast<VMNativeFunction *>(call)->NativeCall(reg.param + f->NumParam - B, call->DefaultArgs, B, ret, numret);
-					VMCycles[0].Clock();
-					return r;
-				}
-				catch (CVMAbortException &err)
-				{
-					err.MaybePrintMessage();
-					err.stacktrace.AppendFormat("Called from %s\n", call->PrintableName.GetChars());
-					// PrintParameters(reg.param + f->NumParam - B, B);
-					throw;
-				}
-			}
-			else
-			{ // FIXME: Not a true tail call
-				auto sfunc = static_cast<VMScriptFunction *>(call);
-				return sfunc->ScriptCall(sfunc, reg.param + f->NumParam - B, B, ret, numret);
-			}
 		}
 		NEXTOP;
 	OP(RET):
@@ -1200,6 +1161,23 @@ static int ExecScriptFunc(VMFrameStack *stack, VMReturn *ret, int numret)
 	OP(MAX_RK):
 		ASSERTD(a); ASSERTD(B); ASSERTKD(C);
 		reg.d[a] = reg.d[B] > konstd[C] ? reg.d[B] : konstd[C];
+		NEXTOP;
+
+	OP(MINU_RR) :
+		ASSERTD(a); ASSERTD(B); ASSERTD(C);
+		reg.d[a] = (unsigned)reg.d[B] < (unsigned)reg.d[C] ? reg.d[B] : reg.d[C];
+		NEXTOP;
+	OP(MINU_RK) :
+		ASSERTD(a); ASSERTD(B); ASSERTKD(C);
+		reg.d[a] = (unsigned)reg.d[B] < (unsigned)konstd[C] ? reg.d[B] : konstd[C];
+		NEXTOP;
+	OP(MAXU_RR) :
+		ASSERTD(a); ASSERTD(B); ASSERTD(C);
+		reg.d[a] = (unsigned)reg.d[B] > (unsigned)reg.d[C] ? reg.d[B] : reg.d[C];
+		NEXTOP;
+	OP(MAXU_RK) :
+		ASSERTD(a); ASSERTD(B); ASSERTKD(C);
+		reg.d[a] = (unsigned)reg.d[B] > (unsigned)konstd[C] ? reg.d[B] : konstd[C];
 		NEXTOP;
 
 	OP(ABS):
@@ -1896,8 +1874,8 @@ static void DoCast(const VMRegisters &reg, const VMFrame *f, int a, int b, int c
 	case CAST_TID2S:
 	{
 		ASSERTS(a); ASSERTD(b);
-		auto tex = TexMan[*(FTextureID*)&(reg.d[b])];
-		reg.s[a] = tex == nullptr ? "(null)" : tex->Name.GetChars(); 
+		auto tex = TexMan.GetTexture(*(FTextureID*)&(reg.d[b]));
+		reg.s[a] = tex == nullptr ? "(null)" : tex->GetName().GetChars();
 		break;
 	}
 

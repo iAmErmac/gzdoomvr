@@ -245,10 +245,13 @@ class FShader
 	FBufferedUniform4f muDynLightColor;
 	FBufferedUniformPE muObjectColor;
 	FBufferedUniformPE muObjectColor2;
+	FBufferedUniformPE muAddColor;
 	FUniform4f muGlowBottomColor;
 	FUniform4f muGlowTopColor;
 	FUniform4f muGlowBottomPlane;
 	FUniform4f muGlowTopPlane;
+	FUniform4f muGradientBottomPlane;
+	FUniform4f muGradientTopPlane;
 	FUniform4f muSplitBottomPlane;
 	FUniform4f muSplitTopPlane;
 	FBufferedUniform1f muInterpolationFactor;
@@ -266,6 +269,7 @@ public:
 	int fakevb_index;
 private:
 	int currentglowstate = 0;
+	int currentgradientstate = 0;
 	int currentsplitstate = 0;
 	int currentcliplinestate = 0;
 	int currentfixedcolormap = 0;

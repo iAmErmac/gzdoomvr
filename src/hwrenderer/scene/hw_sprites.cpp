@@ -94,7 +94,7 @@ void GLSprite::DrawSprite(HWDrawInfo *di, FRenderState &state, bool translucent)
 			gl_usecolorblending && !di->isFullbrightScene() && actor &&
 			fullbright && gltexture && !gltexture->tex->GetTranslucency())
 		{
-			RenderStyle = LegacyRenderStyles[STYLE_ColorBlend];
+			RenderStyle = LegacyRenderStyles[STYLE_ColorAdd];
 		}
 
 		state.SetRenderStyle(RenderStyle);
@@ -159,6 +159,7 @@ void GLSprite::DrawSprite(HWDrawInfo *di, FRenderState &state, bool translucent)
 				: ThingColor.Modulate(cursec->SpecialColors[sector_t::sprites]);
 
 			state.SetObjectColor(finalcol);
+			state.SetAddColor(cursec->AdditiveColors[sector_t::sprites] | 0xff000000);
 		}
 		state.SetColor(lightlevel, rel, di->isFullbrightScene(), Colormap, trans);
 	}
@@ -207,8 +208,8 @@ void GLSprite::DrawSprite(HWDrawInfo *di, FRenderState &state, bool translucent)
 		state.EnableSplit(true);
 	}
 
-	secplane_t bottomp = { { 0, 0, -1. }, bottomclip };
-	secplane_t topp = { { 0, 0, -1. }, topclip };
+	secplane_t bottomp = { { 0, 0, -1. }, bottomclip, 1. };
+	secplane_t topp = { { 0, 0, -1. }, topclip, 1. };
 	for (unsigned i = 0; i < iter; i++)
 	{
 		if (lightlist)
@@ -243,6 +244,7 @@ void GLSprite::DrawSprite(HWDrawInfo *di, FRenderState &state, bool translucent)
 		if (!modelframe)
 		{
 			state.SetNormal(0, 0, 0);
+
 
 			if (screen->BuffersArePersistent())
 			{
@@ -294,6 +296,7 @@ void GLSprite::DrawSprite(HWDrawInfo *di, FRenderState &state, bool translucent)
 	}
 
 	state.SetObjectColor(0xffffffff);
+	state.SetAddColor(0);
 	state.EnableTexture(true);
 	state.SetDynLight(0, 0, 0);
 }
@@ -555,7 +558,7 @@ void GLSprite::SplitSprite(HWDrawInfo *di, sector_t * frontsector, bool transluc
 void GLSprite::PerformSpriteClipAdjustment(AActor *thing, const DVector2 &thingpos, float spriteheight)
 {
 	const float NO_VAL = 100000000.0f;
-	bool clipthing = (thing->player || thing->flags3&MF3_ISMONSTER || thing->IsKindOf(RUNTIME_CLASS(AInventory))) && (thing->flags&MF_ICECORPSE || !(thing->flags&MF_CORPSE));
+	bool clipthing = (thing->player || thing->flags3&MF3_ISMONSTER || thing->IsKindOf(NAME_Inventory)) && (thing->flags&MF_ICECORPSE || !(thing->flags&MF_CORPSE));
 	bool smarterclip = !clipthing && gl_spriteclip == 3;
 	if (clipthing || gl_spriteclip > 1)
 	{
@@ -755,7 +758,9 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 
 	if (sector->sectornum != thing->Sector->sectornum && !thruportal)
 	{
-		rendersector = hw_FakeFlat(thing->Sector, &rs, in_area, false);
+		// This cannot create a copy in the fake sector cache because it'd interfere with the main thread, so provide a local buffer for the copy.
+		// Adding synchronization for this one case would cost more than it might save if the result here could be cached.
+		rendersector = hw_FakeFlat(thing->Sector, in_area, false, &rs);
 	}
 	else
 	{
@@ -787,9 +792,9 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 		if (isPicnumOverride)
 		{
 			// Animate picnum overrides.
-			auto tex = TexMan(thing->picnum);
+			auto tex = TexMan.GetTexture(thing->picnum, true);
 			if (tex == nullptr) return;
-			patch =  tex->id;
+			patch =  tex->GetID();
 			mirror = false;
 		}
 		else
@@ -908,7 +913,7 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 	// allow disabling of the fullbright flag by a brightmap definition
 	// (e.g. to do the gun flashes of Doom's zombies correctly.
 	fullbright = (thing->flags5 & MF5_BRIGHT) ||
-		((thing->renderflags & RF_FULLBRIGHT) && (!gltexture || !gltexture->tex->bDisableFullbright));
+		((thing->renderflags & RF_FULLBRIGHT) && (!gltexture || !gltexture->tex->isFullbrightDisabled()));
 
 	lightlevel = fullbright ? 255 :
 		hw_ClampLight(rendersector->GetTexture(sector_t::ceiling) == skyflatnum ?
@@ -930,7 +935,7 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 
 		if (di->isNightvision())
 		{
-			if ((thing->IsKindOf(RUNTIME_CLASS(AInventory)) || thing->flags3&MF3_ISMONSTER || thing->flags&MF_MISSILE || thing->flags&MF_CORPSE))
+			if ((thing->IsKindOf(NAME_Inventory) || thing->flags3&MF3_ISMONSTER || thing->flags&MF_MISSILE || thing->flags&MF_CORPSE))
 			{
 				RenderStyle.Flags |= STYLEF_InvertSource;
 			}
@@ -1027,7 +1032,7 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 			RenderStyle.DestAlpha = STYLEALPHA_InvSrc;
 		}
 	}
-	if ((gltexture && gltexture->tex->GetTranslucency()) || (RenderStyle.Flags & STYLEF_RedIsAlpha))
+	if ((gltexture && gltexture->tex->GetTranslucency()) || (RenderStyle.Flags & STYLEF_RedIsAlpha) || (modelframe && thing->RenderStyle != DefaultRenderStyle()))
 	{
 		if (hw_styleflags == STYLEHW_Solid)
 		{
@@ -1059,7 +1064,7 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 	// end of light calculation
 
 	actor = thing;
-	index = di->spriteindex++;	// this assumes that sprites from the same sector are added sequentially, i.e. by the same thread.
+	index = thing->SpawnOrder;
 	particle = nullptr;
 
 	const bool drawWithXYBillboard = (!(actor->renderflags & RF_FORCEYBILLBOARD)
@@ -1161,6 +1166,7 @@ void GLSprite::ProcessParticle (HWDrawInfo *di, particle_t *particle, sector_t *
 	gltexture=nullptr;
 	topclip = LARGE_VALUE;
 	bottomclip = -LARGE_VALUE;
+	index = 0;
 
 	// [BB] Load the texture for round or smooth particles
 	if (gl_particles_style)
@@ -1287,7 +1293,8 @@ void HWDrawInfo::ProcessActorsInPortal(FLinePortalSpan *glport, area_t in_area)
 					th->Prev += newpos - savedpos;
 
 					GLSprite spr;
-					spr.Process(this, th, hw_FakeFlat(th->Sector, &fakesector, in_area, false), in_area, 2);
+					// This is called from the worker thread and must not alter the fake sector cache.
+					spr.Process(this, th, hw_FakeFlat(th->Sector, in_area, false, &fakesector), in_area, 2);
 					th->Angles.Yaw = savedangle;
 					th->SetXYZ(savedpos);
 					th->Prev -= newpos - savedpos;

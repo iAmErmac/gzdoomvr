@@ -27,6 +27,7 @@ struct FSpriteModelFrame;
 struct particle_t;
 class FRenderState;
 struct GLDecal;
+struct FSection;
 enum area_t : int;
 
 enum HWRenderStyle
@@ -185,7 +186,6 @@ public:
 	};
 
 
-	secplane_t topplane, bottomplane;	// we need to save these to pass them to the shader for calculating glows.
 
 	// these are not the same as ytop and ybottom!!!
 	float zceil[2];
@@ -197,10 +197,11 @@ public:
 public:
 	seg_t * seg;			// this gives the easiest access to all other structs involved
 	subsector_t * sub;		// For polyobjects
+	sector_t *frontsector, *backsector;
 //private:
 
 	void PutWall(HWDrawInfo *di, bool translucent);
-	void PutPortal(HWDrawInfo *di, int ptype);
+	void PutPortal(HWDrawInfo *di, int ptype, int plane);
 	void CheckTexturePosition(FTexCoordInfo *tci);
 
 	void Put3DWall(HWDrawInfo *di, lightlist_t * lightlist, bool translucent);
@@ -293,11 +294,13 @@ class GLFlat
 {
 public:
 	sector_t * sector;
+	FSection *section;
 	float z; // the z position of the flat (only valid for non-sloped planes)
 	FMaterial *gltexture;
 
 	FColormap Colormap;	// light and fog
 	PalEntry FlatColor;
+	PalEntry AddColor;
 	ERenderStyle renderstyle;
 
 	float alpha;
@@ -306,6 +309,7 @@ public:
 	bool stack;
 	bool ceiling;
 	uint8_t renderflags;
+    uint8_t hacktype;
 	int iboindex;
 	//int vboheight;
 
@@ -317,10 +321,13 @@ public:
 	void PutFlat(HWDrawInfo *di, bool fog = false);
 	void Process(HWDrawInfo *di, sector_t * model, int whichplane, bool notexture);
 	void SetFrom3DFloor(F3DFloor *rover, bool top, bool underside);
-	void ProcessSector(HWDrawInfo *di, sector_t * frontsector);
+	void ProcessSector(HWDrawInfo *di, sector_t * frontsector, int which = 7 /*SSRF_RENDERALL*/);	// cannot use constant due to circular dependencies.
 	
 	void DrawSubsectors(HWDrawInfo *di, FRenderState &state);
 	void DrawFlat(HWDrawInfo *di, FRenderState &state, bool translucent);
+    
+    void DrawOtherPlanes(HWDrawInfo *di, FRenderState &state);
+    void DrawFloodPlanes(HWDrawInfo *di, FRenderState &state);
 };
 
 //==========================================================================
@@ -405,7 +412,7 @@ struct GLDecal
 	int rellight;
 	float alpha;
 	FColormap Colormap;
-	secplane_t bottomplane;
+	sector_t *frontsector;
 	FVector3 Normal;
 
 	void DrawDecal(HWDrawInfo *di, FRenderState &state);
