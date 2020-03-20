@@ -1149,6 +1149,7 @@ set (PCH_SOURCES
 	maploader/glnodes.cpp
 	maploader/udmf.cpp
 	maploader/polyobjects.cpp
+	maploader/renderinfo.cpp
 	menu/joystickmenu.cpp
 	menu/loadsavemenu.cpp
 	menu/menu.cpp
@@ -1215,7 +1216,6 @@ set (PCH_SOURCES
 	r_data/sprites.cpp
 	r_data/portalgroups.cpp
 	r_data/voxels.cpp
-	r_data/renderinfo.cpp
 	r_data/renderstyle.cpp
 	r_data/r_canvastexture.cpp
 	r_data/r_interpolate.cpp
