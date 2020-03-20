@@ -146,7 +146,6 @@ public:
 	FName Face;			// Doom status bar face (when used)
 	FName Portrait;
 	FName Slot[10];
-	double HexenArmor[5];
 
 	//For VR, override firing position
 	bool OverrideAttackPosDir;
@@ -157,6 +156,7 @@ public:
 	TObjPtr<AActor*> InvFirst;		// first inventory item displayed on inventory bar
 	double		ForwardMove1, ForwardMove2;
 	double		SideMove1, SideMove2;
+	double HexenArmor[5];
 	PClassActor *FlechetteType;
 
 };
