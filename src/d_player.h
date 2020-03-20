@@ -137,8 +137,6 @@ public:
 	double		AttackZOffset;			// attack height, relative to player center
 	double		UseRange;				// [NS] Distance at which player can +use
 	double		AirCapacity;			// Multiplier for air supply underwater.
-	PClassActor *FlechetteType;
-
 
 	// [CW] Fades for when you are being damaged.
 	PalEntry DamageFade;
@@ -160,6 +158,9 @@ public:
 	bool OverrideAttackPosDir;
 	DVector3 AttackPos;
 	DVector3 (*AttackDir)(AActor* actor, DAngle yaw, DAngle pitch);
+	// Everything below this point is only used by scripted code.
+	PClassActor *FlechetteType;
+
 };
 
 //
