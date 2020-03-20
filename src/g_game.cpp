@@ -431,14 +431,14 @@ CCMD (invuse)
 {
 	if (players[consoleplayer].inventorytics == 0)
 	{
-		if (players[consoleplayer].mo) SendItemUse = players[consoleplayer].mo->InvSel;
+		if (players[consoleplayer].mo) SendItemUse = players[consoleplayer].mo->PointerVar<AActor>(NAME_InvSel);
 	}
 	players[consoleplayer].inventorytics = 0;
 }
 
 CCMD(invquery)
 {
-	AActor *inv = players[consoleplayer].mo->InvSel;
+	AActor *inv = players[consoleplayer].mo->PointerVar<AActor>(NAME_InvSel);
 	if (inv != NULL)
 	{
 		Printf(PRINT_HIGH, "%s (%dx)\n", inv->GetTag(), inv->IntVar(NAME_Amount));
@@ -457,7 +457,7 @@ CCMD (invdrop)
 {
 	if (players[consoleplayer].mo)
 	{
-		SendItemDrop = players[consoleplayer].mo->InvSel;
+		SendItemDrop = players[consoleplayer].mo->PointerVar<AActor>(NAME_InvSel);
 		SendItemDropAmount = -1;
 	}
 }
@@ -498,7 +498,7 @@ CCMD (select)
 		auto item = who->FindInventory(argv[1]);
 		if (item != NULL)
 		{
-			who->InvSel = item;
+			who->PointerVar<AActor>(NAME_InvSel) = item;
 		}
 	}
 	who->player->inventorytics = 5*TICRATE;
