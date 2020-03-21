@@ -477,10 +477,6 @@ int G_FinishTravel ();
 
 void G_DoLoadLevel (int position, bool autosave, bool newGame);
 
-void G_InitLevelLocals (void);
-
-void G_AirControlChanged ();
-
 cluster_info_t *FindClusterInfo (int cluster);
 level_info_t *FindLevelInfo (const char *mapname, bool allowdefault=true);
 level_info_t *FindLevelByNum (int num);
@@ -492,8 +488,6 @@ void G_ParseMapInfo (FString basemapinfo);
 
 void G_ClearSnapshots (void);
 void P_RemoveDefereds ();
-void G_SnapshotLevel (void);
-void G_UnSnapshotLevel (bool keepPlayers);
 void G_ReadSnapshots (FResourceFile *);
 void G_WriteSnapshots (TArray<FString> &, TArray<FCompressedBuffer> &);
 void G_WriteVisited(FSerializer &arc);

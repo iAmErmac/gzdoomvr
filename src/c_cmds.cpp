@@ -366,7 +366,7 @@ CCMD (changemap)
 	if (argv.argc() > 1)
 	{
 		const char *mapname = argv[1];
-		if (!strcmp(mapname, "*")) mapname = level.MapName.GetChars();
+		if (!strcmp(mapname, "*")) mapname = currentUILevel->MapName.GetChars();
 
 		try
 		{
@@ -1061,7 +1061,8 @@ CCMD(changesky)
 		FTextureID newsky = TexMan.GetTextureID(sky1name, ETextureType::Wall, FTextureManager::TEXMAN_Overridable | FTextureManager::TEXMAN_ReturnFirst);
 		if (newsky.Exists())
 		{
-			sky1texture = level.skytexture1 = newsky;
+			// This only alters the primary level's sky setting.
+			sky1texture = currentUILevel->skytexture1 = newsky;
 		}
 		else
 		{
@@ -1099,9 +1100,9 @@ CCMD(nextmap)
 		return;
 	}
 	
-	if (level.NextMap.Len() > 0 && level.NextMap.Compare("enDSeQ", 6))
+	if (currentUILevel->NextMap.Len() > 0 && currentUILevel->NextMap.Compare("enDSeQ", 6))
 	{
-		G_DeferedInitNew(level.NextMap);
+		G_DeferedInitNew(currentUILevel->NextMap);
 	}
 	else
 	{
@@ -1123,9 +1124,9 @@ CCMD(nextsecret)
 		return;
 	}
 
-	if (level.NextSecretMap.Len() > 0 && level.NextSecretMap.Compare("enDSeQ", 6))
+	if (currentUILevel->NextSecretMap.Len() > 0 && currentUILevel->NextSecretMap.Compare("enDSeQ", 6))
 	{
-		G_DeferedInitNew(level.NextSecretMap);
+		G_DeferedInitNew(currentUILevel->NextSecretMap);
 	}
 	else
 	{
@@ -1170,10 +1171,10 @@ static void PrintSecretString(const char *string, bool thislevel)
 			{
 				auto secnum = (unsigned)strtoull(string+2, (char**)&string, 10);
 				if (*string == ';') string++;
-				if (thislevel && secnum < level.sectors.Size())
+				if (thislevel && secnum < currentUILevel->sectors.Size())
 				{
-					if (level.sectors[secnum].isSecret()) colstr = TEXTCOLOR_RED;
-					else if (level.sectors[secnum].wasSecret()) colstr = TEXTCOLOR_GREEN;
+					if (currentUILevel->sectors[secnum].isSecret()) colstr = TEXTCOLOR_RED;
+					else if (currentUILevel->sectors[secnum].wasSecret()) colstr = TEXTCOLOR_GREEN;
 					else colstr = TEXTCOLOR_ORANGE;
 				}
 			}
@@ -1181,7 +1182,7 @@ static void PrintSecretString(const char *string, bool thislevel)
 			{
 				long tid = (long)strtoll(string+2, (char**)&string, 10);
 				if (*string == ';') string++;
-				auto it = level.GetActorIterator(tid);
+				auto it = currentUILevel->GetActorIterator(tid);
 				AActor *actor;
 				bool foundone = false;
 				if (thislevel)
@@ -1214,8 +1215,8 @@ static void PrintSecretString(const char *string, bool thislevel)
 
 CCMD(secret)
 {
-	const char *mapname = argv.argc() < 2? level.MapName.GetChars() : argv[1];
-	bool thislevel = !stricmp(mapname, level.MapName);
+	const char *mapname = argv.argc() < 2? currentUILevel->MapName.GetChars() : argv[1];
+	bool thislevel = !stricmp(mapname, currentUILevel->MapName);
 	bool foundsome = false;
 
 	int lumpno=Wads.CheckNumForName("SECRETS");

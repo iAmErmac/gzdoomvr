@@ -671,9 +671,8 @@ public:
 		SCRIPT_ModulusBy0,
 	};
 
-	DLevelScript(AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
+	DLevelScript(FLevelLocals *l, AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
 		const int *args, int argcount, int flags);
-	~DLevelScript();
 
 	void Serialize(FSerializer &arc);
 	int RunScript();
@@ -780,7 +779,7 @@ private:
 	friend class DACSThinker;
 };
 
-static DLevelScript *P_GetScriptGoing (AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
+static DLevelScript *P_GetScriptGoing (FLevelLocals *Level, AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
 	const int *args, int argcount, int flags);
 
 
@@ -1814,7 +1813,7 @@ class DPlaneWatcher : public DThinker
 	DECLARE_CLASS (DPlaneWatcher, DThinker)
 	HAS_OBJECT_POINTERS
 public:
-	DPlaneWatcher (AActor *it, line_t *line, int lineSide, bool ceiling,
+	void Construct(AActor *it, line_t *line, int lineSide, bool ceiling,
 		sector_t *sec, int height, int special,
 		int arg0, int arg1, int arg2, int arg3, int arg4);
 	void Tick ();
@@ -1838,12 +1837,16 @@ IMPLEMENT_POINTERS_START(DPlaneWatcher)
 	IMPLEMENT_POINTER(Activator)
 IMPLEMENT_POINTERS_END
 
-DPlaneWatcher::DPlaneWatcher (AActor *it, line_t *line, int lineSide, bool ceiling,
+void DPlaneWatcher::Construct(AActor *it, line_t *line, int lineSide, bool ceiling,
 	sector_t *sec, int height, int special, int arg0, int arg1, int arg2, int arg3, int arg4)
-	: Special (special),
-	  Activator (it), Line (line), LineSide (!!lineSide), bCeiling (ceiling)
 {
 	secplane_t plane;
+
+	Special = special;
+	Activator = it;
+	Line = line;
+	LineSide = !!lineSide;
+	bCeiling = ceiling;
 
 	Args[0] = arg0;
 	Args[1] = arg1;
@@ -3264,11 +3267,10 @@ void FBehavior::StartTypedScripts (uint16_t type, AActor *activator, bool always
 		ptr = &Scripts[i];
 		if (ptr->Type == type)
 		{
-			DLevelScript *runningScript = P_GetScriptGoing (activator, NULL, ptr->Number,
+			DLevelScript *runningScript = P_GetScriptGoing (&level, activator, NULL, ptr->Number,
 				ptr, this, &arg1, 1, always ? ACS_ALWAYS : 0);
 			if (nullptr != runningScript && runNow)
 			{
-				runningScript->Level = &level;
 				runningScript->RunScript();
 			}
 		}
@@ -3300,14 +3302,6 @@ IMPLEMENT_POINTERS_START(DACSThinker)
 	IMPLEMENT_POINTER(LastScript)
 	IMPLEMENT_POINTER(Scripts)
 IMPLEMENT_POINTERS_END
-
-DACSThinker::DACSThinker ()
-: DThinker(STAT_SCRIPTS)
-{
-	Scripts = nullptr;
-	LastScript = nullptr;
-	RunningScripts.Clear();
-}
 
 DACSThinker::~DACSThinker ()
 {
@@ -3389,7 +3383,6 @@ void DACSThinker::Tick ()
 	while (script)
 	{
 		DLevelScript *next = script->next;
-		script->Level = &level;
 		script->RunScript();
 		script = next;
 	}
@@ -3460,11 +3453,12 @@ void DLevelScript::Serialize(FSerializer &arc)
 		("cliprectwidth", ClipRectWidth)
 		("cliprectheight", ClipRectHeight)
 		("wrapwidth", WrapWidth)
-		("inmodulescriptnum", InModuleScriptNumber);
+		("inmodulescriptnum", InModuleScriptNumber)
+		("level", Level);
 
 	if (arc.isReading())
 	{
-		activeBehavior = level.Behaviors.GetModule(lib);
+		activeBehavior = Level->Behaviors.GetModule(lib);
 
 		if (nullptr == activeBehavior)
 		{
@@ -3477,19 +3471,12 @@ void DLevelScript::Serialize(FSerializer &arc)
 
 DLevelScript::DLevelScript ()
 {
-	next = prev = nullptr;
-	if (level.ACSThinker == nullptr)
-		level.ACSThinker =  Create<DACSThinker>();
 	activefont = SmallFont;
-}
-
-DLevelScript::~DLevelScript ()
-{
 }
 
 void DLevelScript::Unlink ()
 {
-	DACSThinker *controller = level.ACSThinker;
+	DACSThinker *controller = Level->ACSThinker;
 
 	if (controller->LastScript == this)
 	{
@@ -3515,7 +3502,7 @@ void DLevelScript::Unlink ()
 
 void DLevelScript::Link ()
 {
-	DACSThinker *controller = level.ACSThinker;
+	DACSThinker *controller = Level->ACSThinker;
 
 	next = controller->Scripts;
 	GC::WriteBarrier(this, next);
@@ -3535,7 +3522,7 @@ void DLevelScript::Link ()
 
 void DLevelScript::PutLast ()
 {
-	DACSThinker *controller = level.ACSThinker;
+	DACSThinker *controller = Level->ACSThinker;
 
 	if (controller->LastScript == this)
 		return;
@@ -3557,7 +3544,7 @@ void DLevelScript::PutLast ()
 
 void DLevelScript::PutFirst ()
 {
-	DACSThinker *controller = level.ACSThinker;
+	DACSThinker *controller = Level->ACSThinker;
 
 	if (controller->Scripts == this)
 		return;
@@ -3626,7 +3613,7 @@ do_count:
 	}
 	else
 	{
-		TThinkerIterator<AActor> iterator;
+		auto iterator = Level->GetThinkerIterator<AActor>();
 		while ( (actor = iterator.Next ()) )
 		{
 			if (actor->health > 0 &&
@@ -3889,7 +3876,7 @@ showme:
 							fa1 = viewer->BlendA;
 						}
 					}
-					Create<DFlashFader> (fr1, fg1, fb1, fa1, fr2, fg2, fb2, fa2, ftime, viewer->mo);
+					Level->CreateThinker<DFlashFader> (fr1, fg1, fb1, fa1, fr2, fg2, fb2, fa2, ftime, viewer->mo);
 				}
 			}
 		}
@@ -5025,7 +5012,7 @@ static bool DoSpawnDecal(AActor *actor, const FDecalTemplate *tpl, int flags, DA
 	{
 		angle += actor->Angles.Yaw;
 	}
-	return NULL != ShootDecal(tpl, actor, actor->Sector, actor->X(), actor->Y(),
+	return nullptr != ShootDecal(actor->Level, tpl, actor->Sector, actor->X(), actor->Y(),
 		actor->Center() - actor->Floorclip + actor->GetBobOffset() + zofs,
 		angle, distance, !!(flags & SDF_PERMANENT));
 }
@@ -5584,7 +5571,7 @@ int DLevelScript::CallFunction(int argCount, int funcIndex, int32_t *args)
 		}
 
 		case ACSF_Radius_Quake2:
-			P_StartQuake(activator, args[0], args[1], args[2], args[3], args[4], Level->Behaviors.LookupString(args[5]));
+			P_StartQuake(Level, activator, args[0], args[1], args[2], args[3], args[4], Level->Behaviors.LookupString(args[5]));
 			break;
 
 		case ACSF_CheckActorClass:
@@ -6163,7 +6150,7 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 
 		case ACSF_QuakeEx:
 		{
-			return P_StartQuakeXYZ(activator, args[0], args[1], args[2], args[3], args[4], args[5], args[6], Level->Behaviors.LookupString(args[7]), 
+			return P_StartQuakeXYZ(Level, activator, args[0], args[1], args[2], args[3], args[4], args[5], args[6], Level->Behaviors.LookupString(args[7]),
 				argCount > 8 ? args[8] : 0,
 				argCount > 9 ? ACSToDouble(args[9]) : 1.0,
 				argCount > 10 ? ACSToDouble(args[10]) : 1.0,
@@ -6808,7 +6795,7 @@ int DLevelScript::RunScript()
 
 	case SCRIPT_PolyWait:
 		// Wait for polyobj(s) to stop moving, then enter state running
-		if (!PO_Busy (&level, statedata))
+		if (!PO_Busy (Level, statedata))
 		{
 			state = SCRIPT_Running;
 		}
@@ -8893,7 +8880,7 @@ scriptwait:
 			const char *fromname = Level->Behaviors.LookupString(STACK(3));
 			const char *toname = Level->Behaviors.LookupString(STACK(2));
 
-			P_ReplaceTextures(fromname, toname, STACK(1));
+			Level->ReplaceTextures(fromname, toname, STACK(1));
 			sp -= 3;
 			break;
 		}
@@ -9062,13 +9049,13 @@ scriptwait:
 		case PCD_SETAIRCONTROL:
 			Level->aircontrol = ACSToDouble(STACK(1));
 			sp--;
-			G_AirControlChanged ();
+			Level->AirControlChanged ();
 			break;
 
 		case PCD_SETAIRCONTROLDIRECT:
 			Level->aircontrol = ACSToDouble(uallong(pc[0]));
 			pc++;
-			G_AirControlChanged ();
+			Level->AirControlChanged ();
 			break;
 
 		case PCD_SPAWN:
@@ -9340,7 +9327,7 @@ scriptwait:
 
 		case PCD_CANCELFADE:
 			{
-				TThinkerIterator<DFlashFader> iterator;
+				auto iterator = Level->GetThinkerIterator<DFlashFader>();
 				DFlashFader *fader;
 
 				while ( (fader = iterator.Next()) )
@@ -9480,7 +9467,7 @@ scriptwait:
 			int secnum = Level->FindFirstSectorFromTag(STACK(8));
 			if (secnum >= 0)
 			{
-				Create<DPlaneWatcher>(activator, activationline, backSide, pcd == PCD_SETCEILINGTRIGGER, &Level->sectors[secnum],
+				Level->CreateThinker<DPlaneWatcher>(activator, activationline, backSide, pcd == PCD_SETCEILINGTRIGGER, &Level->sectors[secnum],
 					STACK(7), STACK(6), STACK(5), STACK(4), STACK(3), STACK(2), STACK(1));
 			}
 
@@ -9702,14 +9689,14 @@ scriptwait:
 			// Like Thing_Projectile(Gravity) specials, but you can give the
 			// projectile a TID.
 			// Thing_Projectile2 (tid, type, angle, speed, vspeed, gravity, newtid);
-			P_Thing_Projectile(STACK(7), activator, STACK(6), NULL, STACK(5) * (360. / 256.),
+			Level->EV_Thing_Projectile(STACK(7), activator, STACK(6), NULL, STACK(5) * (360. / 256.),
 				STACK(4) / 8., STACK(3) / 8., 0, NULL, STACK(2), STACK(1), false);
 			sp -= 7;
 			break;
 
 		case PCD_SPAWNPROJECTILE:
 			// Same, but takes an actor name instead of a spawn ID.
-			P_Thing_Projectile(STACK(7), activator, 0, Level->Behaviors.LookupString(STACK(6)), STACK(5) * (360. / 256.),
+			Level->EV_Thing_Projectile(STACK(7), activator, 0, Level->Behaviors.LookupString(STACK(6)), STACK(5) * (360. / 256.),
 				STACK(4) / 8., STACK(3) / 8., 0, NULL, STACK(2), STACK(1), false);
 			sp -= 7;
 			break;
@@ -9921,12 +9908,12 @@ scriptwait:
 				int flags = STACK(1);
 				sp -= 5;
 
-				P_SectorDamage(&level, tag, amount, type, protectClass, flags);
+				P_SectorDamage(Level, tag, amount, type, protectClass, flags);
 			}
 			break;
 
 		case PCD_THINGDAMAGE2:
-			STACK(3) = P_Thing_Damage (STACK(3), activator, STACK(2), FName(Level->Behaviors.LookupString(STACK(1))));
+			STACK(3) = Level->EV_Thing_Damage (STACK(3), activator, STACK(2), FName(Level->Behaviors.LookupString(STACK(1))));
 			sp -= 2;
 			break;
 
@@ -10218,10 +10205,10 @@ scriptwait:
 
 #undef PushtoStack
 
-static DLevelScript *P_GetScriptGoing (AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
+static DLevelScript *P_GetScriptGoing (FLevelLocals *l, AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
 	const int *args, int argcount, int flags)
 {
-	DACSThinker *controller = level.ACSThinker;
+	DACSThinker *controller = l->ACSThinker;
 	DLevelScript **running;
 
 	if (controller && !(flags & ACS_ALWAYS) && (running = controller->RunningScripts.CheckKey(num)) != NULL)
@@ -10234,15 +10221,16 @@ static DLevelScript *P_GetScriptGoing (AActor *who, line_t *where, int num, cons
 		return NULL;
 	}
 
-	return Create<DLevelScript> (who, where, num, code, module, args, argcount, flags);
+	return Create<DLevelScript> (l, who, where, num, code, module, args, argcount, flags);
 }
 
-DLevelScript::DLevelScript (AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
+DLevelScript::DLevelScript (FLevelLocals *l, AActor *who, line_t *where, int num, const ScriptPtr *code, FBehavior *module,
 	const int *args, int argcount, int flags)
 	: activeBehavior (module)
 {
-	if (level.ACSThinker == nullptr)
-		level.ACSThinker = Create<DACSThinker>();
+	Level = l;
+	if (Level->ACSThinker == nullptr)
+		Level->ACSThinker = Level->CreateThinker<DACSThinker>();
 
 	script = num;
 	assert(code->VarCount >= code->ArgCount);
@@ -10270,11 +10258,11 @@ DLevelScript::DLevelScript (AActor *who, line_t *where, int num, const ScriptPtr
 	// goes by while they're in their default state.
 
 	if (!(flags & ACS_ALWAYS))
-		level.ACSThinker->RunningScripts[num] = this;
+		Level->ACSThinker->RunningScripts[num] = this;
 
 	Link();
 
-	if (level.flags2 & LEVEL2_HEXENHACK)
+	if (Level->flags2 & LEVEL2_HEXENHACK)
 	{
 		PutLast();
 	}
@@ -10282,9 +10270,8 @@ DLevelScript::DLevelScript (AActor *who, line_t *where, int num, const ScriptPtr
 	DPrintf(DMSG_SPAMMY, "%s started.\n", ScriptPresentation(num).GetChars());
 }
 
-static void SetScriptState (int script, DLevelScript::EScriptState state)
+void SetScriptState (DACSThinker *controller, int script, DLevelScript::EScriptState state)
 {
-	DACSThinker *controller = level.ACSThinker;
 	DLevelScript **running;
 
 	if (controller != NULL && (running = controller->RunningScripts.CheckKey(script)) != NULL)
@@ -10293,23 +10280,23 @@ static void SetScriptState (int script, DLevelScript::EScriptState state)
 	}
 }
 
-void P_DoDeferedScripts ()
+void FLevelLocals::DoDeferedScripts ()
 {
 	const ScriptPtr *scriptdata;
 	FBehavior *module;
 
 	// Handle defered scripts in this step, too
-	for(int i = level.info->deferred.Size()-1; i>=0; i--)
+	for(int i = info->deferred.Size()-1; i>=0; i--)
 	{
-		acsdefered_t *def = &level.info->deferred[i];
+		acsdefered_t *def = &info->deferred[i];
 		switch (def->type)
 		{
 		case acsdefered_t::defexecute:
 		case acsdefered_t::defexealways:
-			scriptdata = level.Behaviors.FindScript (def->script, module);
+			scriptdata = Behaviors.FindScript (def->script, module);
 			if (scriptdata)
 			{
-				P_GetScriptGoing ((unsigned)def->playernum < MAXPLAYERS &&
+				P_GetScriptGoing (this, (unsigned)def->playernum < MAXPLAYERS &&
 					playeringame[def->playernum] ? players[def->playernum].mo : NULL,
 					NULL, def->script,
 					scriptdata, module,
@@ -10323,17 +10310,17 @@ void P_DoDeferedScripts ()
 			break;
 
 		case acsdefered_t::defsuspend:
-			SetScriptState (def->script, DLevelScript::SCRIPT_Suspended);
+			SetScriptState (ACSThinker, def->script, DLevelScript::SCRIPT_Suspended);
 			DPrintf (DMSG_SPAMMY, "Deferred suspend of %s\n", ScriptPresentation(def->script).GetChars());
 			break;
 
 		case acsdefered_t::defterminate:
-			SetScriptState (def->script, DLevelScript::SCRIPT_PleaseRemove);
+			SetScriptState (ACSThinker, def->script, DLevelScript::SCRIPT_PleaseRemove);
 			DPrintf (DMSG_SPAMMY, "Deferred terminate of %s\n", ScriptPresentation(def->script).GetChars());
 			break;
 		}
 	}
-	level.info->deferred.Clear();
+	info->deferred.Clear();
 }
 
 static void addDefered (level_info_t *i, acsdefered_t::EType type, int script, const int *args, int argcount, AActor *who)
@@ -10367,14 +10354,14 @@ static void addDefered (level_info_t *i, acsdefered_t::EType type, int script, c
 
 EXTERN_CVAR (Bool, sv_cheats)
 
-int P_StartScript (AActor *who, line_t *where, int script, const char *map, const int *args, int argcount, int flags)
+int P_StartScript (FLevelLocals *Level, AActor *who, line_t *where, int script, const char *map, const int *args, int argcount, int flags)
 {
-	if (map == NULL || 0 == strnicmp (level.MapName, map, 8))
+	if (map == NULL || 0 == strnicmp (Level->MapName, map, 8))
 	{
 		FBehavior *module = NULL;
 		const ScriptPtr *scriptdata;
 
-		if ((scriptdata = level.Behaviors.FindScript (script, module)) != NULL)
+		if ((scriptdata = Level->Behaviors.FindScript (script, module)) != NULL)
 		{
 			if ((flags & ACS_NET) && netgame && !sv_cheats)
 			{
@@ -10392,13 +10379,12 @@ int P_StartScript (AActor *who, line_t *where, int script, const char *map, cons
 					return false;
 				}
 			}
-			DLevelScript *runningScript = P_GetScriptGoing (who, where, script,
+			DLevelScript *runningScript = P_GetScriptGoing (Level, who, where, script,
 				scriptdata, module, args, argcount, flags);
 			if (runningScript != NULL)
 			{
 				if (flags & ACS_WANTRESULT)
 				{
-					runningScript->Level = &level;
 					return runningScript->RunScript();
 				}
 				return true;
@@ -10423,20 +10409,20 @@ int P_StartScript (AActor *who, line_t *where, int script, const char *map, cons
 	return false;
 }
 
-void P_SuspendScript (int script, const char *map)
+void P_SuspendScript (FLevelLocals *Level, int script, const char *map)
 {
-	if (strnicmp (level.MapName, map, 8))
+	if (strnicmp (Level->MapName, map, 8))
 		addDefered (FindLevelInfo (map), acsdefered_t::defsuspend, script, NULL, 0, NULL);
 	else
-		SetScriptState (script, DLevelScript::SCRIPT_Suspended);
+		SetScriptState (Level->ACSThinker, script, DLevelScript::SCRIPT_Suspended);
 }
 
-void P_TerminateScript (int script, const char *map)
+void P_TerminateScript (FLevelLocals *Level, int script, const char *map)
 {
-	if (strnicmp (level.MapName, map, 8))
+	if (strnicmp (Level->MapName, map, 8))
 		addDefered (FindLevelInfo (map), acsdefered_t::defterminate, script, NULL, 0, NULL);
 	else
-		SetScriptState (script, DLevelScript::SCRIPT_PleaseRemove);
+		SetScriptState (Level->ACSThinker, script, DLevelScript::SCRIPT_PleaseRemove);
 }
 
 FSerializer &Serialize(FSerializer &arc, const char *key, acsdefered_t &defer, acsdefered_t *def)
@@ -10515,11 +10501,11 @@ void ACSProfileInfo::AddRun(unsigned int num_instr)
 	}
 }
 
-void ArrangeScriptProfiles(TArray<ProfileCollector> &profiles)
+void FBehaviorContainer::ArrangeScriptProfiles(TArray<ProfileCollector> &profiles)
 {
-	for (unsigned int mod_num = 0; mod_num < level.Behaviors.StaticModules.Size(); ++mod_num)
+	for (unsigned int mod_num = 0; mod_num < StaticModules.Size(); ++mod_num)
 	{
-		FBehavior *module = level.Behaviors.StaticModules[mod_num];
+		FBehavior *module = StaticModules[mod_num];
 		ProfileCollector prof;
 		prof.Module = module;
 		for (int i = 0; i < module->NumScripts; ++i)
@@ -10531,11 +10517,11 @@ void ArrangeScriptProfiles(TArray<ProfileCollector> &profiles)
 	}
 }
 
-void ArrangeFunctionProfiles(TArray<ProfileCollector> &profiles)
+void FBehaviorContainer::ArrangeFunctionProfiles(TArray<ProfileCollector> &profiles)
 {
-	for (unsigned int mod_num = 0; mod_num < level.Behaviors.StaticModules.Size(); ++mod_num)
+	for (unsigned int mod_num = 0; mod_num < StaticModules.Size(); ++mod_num)
 	{
-		FBehavior *module = level.Behaviors.StaticModules[mod_num];
+		FBehavior *module = StaticModules[mod_num];
 		ProfileCollector prof;
 		prof.Module = module;
 		for (int i = 0; i < module->NumFunctions; ++i)
@@ -10692,8 +10678,8 @@ CCMD(acsprofile)
 
 	assert(countof(sort_names) == countof(sort_match_len));
 
-	ArrangeScriptProfiles(ScriptProfiles);
-	ArrangeFunctionProfiles(FuncProfiles);
+	level.Behaviors.ArrangeScriptProfiles(ScriptProfiles);
+	level.Behaviors.ArrangeFunctionProfiles(FuncProfiles);
 
 	if (argv.argc() > 1)
 	{

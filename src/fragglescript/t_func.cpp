@@ -560,7 +560,7 @@ void FParser::SF_Include(void)
 		else
 			mysnprintf(tempstr, countof(tempstr), "%i", (int)t_argv[0].value.i);
 		
-		Script->ParseInclude(tempstr);
+		Script->ParseInclude(Level, tempstr);
 	}
 }
 
@@ -1040,7 +1040,7 @@ void FParser::SF_Teleport(void)
 		}
 		
 		if(mo)
-			EV_Teleport(0, tag, NULL, 0, mo, TELF_DESTFOG | TELF_SOURCEFOG);
+			Level->EV_Teleport(0, tag, NULL, 0, mo, TELF_DESTFOG | TELF_SOURCEFOG);
 	}
 }
 
@@ -1069,7 +1069,7 @@ void FParser::SF_SilentTeleport(void)
 		}
 		
 		if(mo)
-			EV_Teleport(0, tag, NULL, 0, mo, TELF_KEEPORIENTATION);
+			Level->EV_Teleport(0, tag, NULL, 0, mo, TELF_KEEPORIENTATION);
 	}
 }
 
@@ -1586,7 +1586,7 @@ void FParser::SF_MoveFloor(void)
 		auto itr = Level->GetSectorTagIterator(tagnum);
 		while ((secnum = itr.Next()) >= 0)
 		{
-			P_CreateFloor(&Level->sectors[secnum], DFloor::floorMoveToValue, NULL, platspeed, destheight, crush, 0, false, false);
+			Level->CreateFloor(&Level->sectors[secnum], DFloor::floorMoveToValue, NULL, platspeed, destheight, crush, 0, false, false);
 		}
 	}
 }
@@ -1678,7 +1678,7 @@ void FParser::SF_MoveCeiling(void)
 		auto itr = Level->GetSectorTagIterator(tagnum);
 		while ((secnum = itr.Next()) >= 0)
 		{
-			P_CreateCeiling(&Level->sectors[secnum], DCeiling::ceilMoveToValue, NULL, tagnum, platspeed, platspeed, destheight, crush, silent | 4, 0, DCeiling::ECrushMode::crushDoom);
+			Level->CreateCeiling(&Level->sectors[secnum], DCeiling::ceilMoveToValue, NULL, tagnum, platspeed, platspeed, destheight, crush, silent | 4, 0, DCeiling::ECrushMode::crushDoom);
 		}
 	}
 }
@@ -1741,11 +1741,9 @@ class DLightLevel : public DLighting
 	unsigned char destlevel;
 	unsigned char speed;
 
-	DLightLevel() = default;
-
 public:
 
-	DLightLevel(sector_t * s,int destlevel,int speed);
+	void Construct(sector_t * s,int destlevel,int speed);
 	void	Serialize(FSerializer &arc);
 	void		Tick ();
 	void		OnDestroy() { Super::OnDestroy(); m_Sector->lightingdata = nullptr; }
@@ -1806,8 +1804,9 @@ void DLightLevel::Tick()
 //==========================================================================
 //
 //==========================================================================
-DLightLevel::DLightLevel(sector_t * s,int _destlevel,int _speed) : DLighting(s)
+void DLightLevel::Construct(sector_t * s,int _destlevel,int _speed)
 {
+	Super::Construct(s);
 	destlevel=_destlevel;
 	speed=_speed;
 	s->lightingdata=this;
@@ -1835,7 +1834,7 @@ void FParser::SF_FadeLight(void)
 		auto it = Level->GetSectorTagIterator(sectag);
 		while ((i = it.Next()) >= 0)
 		{
-			if (!Level->sectors[i].lightingdata) Create<DLightLevel>(&Level->sectors[i],destlevel,speed);
+			if (!Level->sectors[i].lightingdata) Level->CreateThinker<DLightLevel>(&Level->sectors[i],destlevel,speed);
 		}
 	}
 }
@@ -2015,7 +2014,7 @@ void FParser::SF_OpenDoor(void)
 		if(t_argc > 2) speed = intvalue(t_argv[2]);
 		else speed = 1;    // 1= normal speed
 
-		EV_DoDoor(wait_time ? DDoor::doorRaise : DDoor::doorOpen, NULL, NULL, sectag, 2. * clamp(speed, 1, 127), wait_time, 0, 0);
+		Level->EV_DoDoor(wait_time ? DDoor::doorRaise : DDoor::doorOpen, NULL, NULL, sectag, 2. * clamp(speed, 1, 127), wait_time, 0, 0);
 	}
 }
 
@@ -2040,7 +2039,7 @@ void FParser::SF_CloseDoor(void)
 		if(t_argc > 1) speed = intvalue(t_argv[1]);
 		else speed = 1;    // 1= normal speed
 		
-		EV_DoDoor(DDoor::doorClose, NULL, NULL, sectag, 2.*clamp(speed, 1, 127), 0, 0, 0);
+		Level->EV_DoDoor(DDoor::doorClose, NULL, NULL, sectag, 2.*clamp(speed, 1, 127), 0, 0, 0);
 	}
 }
 
@@ -3617,8 +3616,8 @@ void FParser::SF_ThingCount(void)
 		// If we want to count map items we must consider actor replacement
 		pClass = pClass->GetReplacement();
 		
-again:
-		TThinkerIterator<AActor> it;
+	again:
+		auto it = Level->GetThinkerIterator<AActor>();
 
 		if (t_argc<2 || intvalue(t_argv[1])==0 || pClass->IsDescendantOf(NAME_Inventory))
 		{
@@ -3759,7 +3758,7 @@ void  FParser::SF_KillInSector()
 {
 	if (CheckArgs(1))
 	{
-		TThinkerIterator<AActor> it;
+		auto it = Level->GetThinkerIterator<AActor>();
 		AActor * mo;
 		int tag=intvalue(t_argv[0]);
 

@@ -7,7 +7,7 @@ struct _ native	// These are the global variables, the struct is only here to av
 	native readonly Array<@Team> Teams;
 	native int validcount;
 	native readonly bool multiplayer;
-	native play @LevelLocals level;
+	deprecated("3.8") native play @LevelLocals level;
 	native @KeyBindings Bindings;
 	native @KeyBindings AutomapBindings;
 	native play @DehInfo deh;
@@ -92,7 +92,10 @@ struct TexMan
 	};
 
 	native static TextureID CheckForTexture(String name, int usetype, int flags = TryAny);
-	native static void ReplaceTextures(String from, String to, int flags);
+	deprecated("3.8") static void ReplaceTextures(String from, String to, int flags)
+	{
+		level.ReplaceTextures(from, to, flags);
+	}
 	native static String GetName(TextureID tex);
 	native static int, int GetSize(TextureID tex);
 	native static Vector2 GetScaledSize(TextureID tex);
@@ -397,8 +400,14 @@ class Object native
 	native static String G_SkillName();
 	native static int G_SkillPropertyInt(int p);
 	native static double G_SkillPropertyFloat(int p);
-	native static vector3, int G_PickDeathmatchStart();
-	native static vector3, int G_PickPlayerStart(int pnum, int flags = 0);
+	deprecated("3.8") static vector3, int G_PickDeathmatchStart()
+	{
+		return level.PickDeathmatchStart();
+	}
+	deprecated("3.8") static vector3, int G_PickPlayerStart(int pnum, int flags = 0)
+	{
+		return level.PickPlayerStart(pnum, flags);
+	}
 	native static void S_Sound (Sound sound_id, int channel, float volume = 1, float attenuation = ATTN_NORM);
 	native static void S_PauseSound (bool notmusic, bool notsfx);
 	native static void S_ResumeSound (bool notsfx);
@@ -461,6 +470,8 @@ class Thinker : Object native play
 	}
 
 	const TICRATE = 35;
+
+	native LevelLocals Level;
 	
 	virtual native void Tick();
 	virtual native void PostBeginPlay();
@@ -687,7 +698,7 @@ struct LevelLocals native
 	native static void StartSlideshow(Name whichone = 'none');
 	native static void WorldDone();
 	native static void RemoveAllBots(bool fromlist);
-	native static Vector2 GetAutomapPosition();
+	native ui Vector2 GetAutomapPosition();
 	native void SetInterMusic(String nextmap);
 	native String FormatMapName(int mapnamecolor);
 	native bool IsJumpingAllowed() const;
@@ -697,6 +708,9 @@ struct LevelLocals native
 	native SpotState GetSpotState(bool create = true);
 	native int FindUniqueTid(int start = 0, int limit = 0);
 	native uint GetSkyboxPortal(Actor actor);
+	native void ReplaceTextures(String from, String to, int flags);
+	native vector3, int PickDeathmatchStart();
+	native vector3, int PickPlayerStart(int pnum, int flags = 0);
 
 	native static clearscope bool IsPointInMap(vector3 p);
 
@@ -721,6 +735,10 @@ struct LevelLocals native
 		int sec = Thinker.Tics2Seconds(totals? totaltime : time); 
 		return String.Format("%02d:%02d:%02d", sec / 3600, (sec % 3600) / 60, sec % 60);
 	}
+
+	native bool CreateCeiling(sector sec, int type, line ln, double speed, double speed2, double height = 0, int crush = -1, int silent = 0, int change = 0, int crushmode = 0 /*Floor.crushDoom*/);
+	native bool CreateFloor(sector sec, int floortype, line ln, double speed, double height = 0, int crush = -1, int change = 0, bool crushmode = false, bool hereticlower = false);
+
 }
 
 struct StringTable native
@@ -922,7 +940,10 @@ class Floor : MovingFloor native
 		genFloorChg
 	};
 
-	native static bool CreateFloor(sector sec, EFloor floortype, line ln, double speed, double height = 0, int crush = -1, int change = 0, bool crushmode = false, bool hereticlower = false);
+	deprecated("3.8") static bool CreateFloor(sector sec, int floortype, line ln, double speed, double height = 0, int crush = -1, int change = 0, bool crushmode = false, bool hereticlower = false)
+	{
+		return level.CreateFloor(sec, floortype, ln, speed, height, crush, change, crushmode, hereticlower);
+	}
 }
 
 class Ceiling : MovingCeiling native
@@ -965,7 +986,10 @@ class Ceiling : MovingCeiling native
 		crushSlowdown = 2
 	}
 	
-	native static bool CreateCeiling(sector sec, int type, line ln, double speed, double speed2, double height = 0, int crush = -1, int silent = 0, int change = 0, int crushmode = crushDoom);
+	deprecated("3.8") static bool CreateCeiling(sector sec, int type, line ln, double speed, double speed2, double height = 0, int crush = -1, int silent = 0, int change = 0, int crushmode = crushDoom)
+	{
+		return level.CreateCeiling(sec, type, ln, speed, speed2, height, crush, silent, change, crushmode);
+	}
 	
 }
 

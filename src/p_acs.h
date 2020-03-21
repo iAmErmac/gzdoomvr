@@ -420,8 +420,6 @@ private:
 	void MarkMapVarStrings() const;
 	void LockMapVarStrings(int levelnum) const;
 
-	friend void ArrangeScriptProfiles(TArray<ProfileCollector> &profiles);
-	friend void ArrangeFunctionProfiles(TArray<ProfileCollector> &profiles);
 	friend struct FBehaviorContainer;
 };
 
@@ -443,6 +441,8 @@ struct FBehaviorContainer
 	const char *LookupString(uint32_t index);
 	void StartTypedScripts(uint16_t type, AActor *activator, bool always, int arg1 = 0, bool runNow = false);
 	void StopMyScripts(AActor *actor);
+	void ArrangeScriptProfiles(TArray<ProfileCollector> &profiles);
+	void ArrangeFunctionProfiles(TArray<ProfileCollector> &profiles);
 
 };
 
@@ -453,7 +453,8 @@ class DACSThinker : public DThinker
 	DECLARE_CLASS(DACSThinker, DThinker)
 	HAS_OBJECT_POINTERS
 public:
-	DACSThinker();
+	static const int DEFAULT_STAT = STAT_SCRIPTS;
+	void Construct() {}
 	~DACSThinker();
 
 	void Serialize(FSerializer &arc);
@@ -466,8 +467,8 @@ public:
 	void StopScriptsFor(AActor *actor);
 
 private:
-	DLevelScript *LastScript;
-	DLevelScript *Scripts;				// List of all running scripts
+	DLevelScript *LastScript = nullptr;
+	DLevelScript *Scripts = nullptr;				// List of all running scripts
 
 	friend class DLevelScript;
 	friend class FBehavior;

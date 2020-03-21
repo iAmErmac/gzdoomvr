@@ -71,6 +71,7 @@
 #include "a_specialspot.h"
 #include "maploader/maploader.h"
 #include "p_acs.h"
+#include "am_map.h"
 #include "fragglescript/t_script.h"
 
 void P_ClearUDMFKeys();
@@ -142,7 +143,7 @@ static void PrecacheLevel(FLevelLocals *Level)
 	memset(hitlist.Data(), 0, cnt);
 
 	AActor *actor;
-	TThinkerIterator<AActor> iterator;
+	auto iterator = Level->GetThinkerIterator<AActor>();
 
 	while ((actor = iterator.Next()))
 	{
@@ -260,6 +261,8 @@ void FLevelLocals::ClearPortals()
 
 void FLevelLocals::ClearLevelData()
 {
+	ClearAllSubsectorLinks(); // can't be done as part of the polyobj deletion process.
+
 	total_monsters = total_items = total_secrets =
 		killed_monsters = found_items = found_secrets =
 		wminfo.maxfrags = 0;
@@ -330,7 +333,7 @@ void FLevelLocals::ClearLevelData()
 	AllPlayerStarts.Clear();
 	memset(playerstarts, 0, sizeof(playerstarts));
 	Scrolls.Clear();
-
+	if (automap) automap->Destroy();
 }
 
 //==========================================================================
@@ -348,7 +351,6 @@ void P_FreeLevelData ()
 	P_ClearUDMFKeys();
 
 	interpolator.ClearInterpolations();	// [RH] Nothing to interpolate on a fresh level.
-	level.ClearAllSubsectorLinks(); // can't be done as part of the polyobj deletion process.
 	SN_StopAllSequences ();
 	DThinker::DestroyAllThinkers ();
 
@@ -363,20 +365,20 @@ void P_FreeLevelData ()
 //
 //===========================================================================
 
-void P_SetupLevel(const char *lumpname, int position, bool newGame)
+void P_SetupLevel(FLevelLocals *Level, int position, bool newGame)
 {
 	int i;
 
-	level.ShaderStartTime = I_msTimeFS(); // indicate to the shader system that the level just started
+	Level->ShaderStartTime = I_msTimeFS(); // indicate to the shader system that the level just started
 
 	// This is motivated as follows:
 
-	level.maptype = MAPTYPE_UNKNOWN;
+	Level->maptype = MAPTYPE_UNKNOWN;
 	wminfo.partime = 180;
 
 	if (!savegamerestore)
 	{
-		level.SetMusicVolume(level.MusicVolume);
+		Level->SetMusicVolume(Level->MusicVolume);
 		for (i = 0; i < MAXPLAYERS; ++i)
 		{
 			players[i].killcount = players[i].secretcount
@@ -411,10 +413,10 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 	// Free all level data from the previous map
 	P_FreeLevelData();
 
-	MapData *map = P_OpenMapData(lumpname, true);
+	MapData *map = P_OpenMapData(Level->MapName, true);
 	if (map == nullptr)
 	{
-		I_Error("Unable to open map '%s'\n", lumpname);
+		I_Error("Unable to open map '%s'\n", Level->MapName.GetChars());
 	}
 
 	// [ZZ] init per-map static handlers. we need to call this before everything is set up because otherwise scripts don't receive PlayerEntered event
@@ -422,17 +424,17 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 	E_InitStaticHandlers(true);
 
 	// generate a checksum for the level, to be included and checked with savegames.
-	map->GetChecksum(level.md5);
+	map->GetChecksum(Level->md5);
 	// find map num
-	level.lumpnum = map->lumpnum;
+	Level->lumpnum = map->lumpnum;
 
 	if (newGame)
 	{
 		E_NewGame(EventHandlerType::PerMap);
 	}
 
-	MapLoader loader(&level);
-	loader.LoadLevel(map, lumpname, position);
+	MapLoader loader(Level);
+	loader.LoadLevel(map, Level->MapName.GetChars(), position);
 	delete map;
 
 	// if deathmatch, randomly spawn the active players
@@ -443,27 +445,27 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 			if (playeringame[i])
 			{
 				players[i].mo = nullptr;
-				G_DeathMatchSpawnPlayer(i);
+				Level->DeathMatchSpawnPlayer(i);
 			}
 		}
 	}
 	// the same, but for random single/coop player starts
-	else if (level.flags2 & LEVEL2_RANDOMPLAYERSTARTS)
+	else if (Level->flags2 & LEVEL2_RANDOMPLAYERSTARTS)
 	{
 		for (i = 0; i < MAXPLAYERS; ++i)
 		{
 			if (playeringame[i])
 			{
 				players[i].mo = nullptr;
-				FPlayerStart *mthing = G_PickPlayerStart(i);
-				P_SpawnPlayer(mthing, i, (level.flags2 & LEVEL2_PRERAISEWEAPON) ? SPF_WEAPONFULLYUP : 0);
+				FPlayerStart *mthing = Level->PickPlayerStart(i);
+				Level->SpawnPlayer(mthing, i, (Level->flags2 & LEVEL2_PRERAISEWEAPON) ? SPF_WEAPONFULLYUP : 0);
 			}
 		}
 	}
 
 	// [SP] move unfriendly players around
 	// horribly hacky - yes, this needs rewritten.
-	if (level.deathmatchstarts.Size() > 0)
+	if (Level->deathmatchstarts.Size() > 0)
 	{
 		for (i = 0; i < MAXPLAYERS; ++i)
 		{
@@ -472,7 +474,7 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 				if (!(players[i].mo->flags & MF_FRIENDLY))
 				{
 					AActor * oldSpawn = players[i].mo;
-					G_DeathMatchSpawnPlayer(i);
+					Level->DeathMatchSpawnPlayer(i);
 					oldSpawn->Destroy();
 				}
 			}
@@ -483,7 +485,7 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 	// Don't count monsters in end-of-level sectors if option is on
 	if (dmflags2 & DF2_NOCOUNTENDMONST)
 	{
-		TThinkerIterator<AActor> it;
+		auto it = Level->GetThinkerIterator<AActor>();
 		AActor * mo;
 
 		while ((mo = it.Next()))
@@ -498,7 +500,7 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 		}
 	}
 
-	T_PreprocessScripts(&level);        // preprocess FraggleScript scripts
+	T_PreprocessScripts(Level);        // preprocess FraggleScript scripts
 
 	// build subsector connect matrix
 	//	UNUSED P_ConnectSubsectors ();
@@ -511,8 +513,8 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 	// preload graphics and sounds
 	if (precache)
 	{
-		PrecacheLevel(&level);
-		S_PrecacheLevel();
+		PrecacheLevel(Level);
+		S_PrecacheLevel(Level);
 	}
 
 	if (deathmatch)
@@ -522,7 +524,7 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 
 	// This check was previously done at run time each time the heightsec was checked.
 	// However, since 3D floors are static data, we can easily precalculate this and store it in the sector's flags for quick access.
-	for (auto &s : level.sectors)
+	for (auto &s : Level->sectors)
 	{
 		if (s.heightsec != nullptr)
 		{
@@ -537,17 +539,25 @@ void P_SetupLevel(const char *lumpname, int position, bool newGame)
 		}
 	}
 
-	P_ResetSightCounters(true);
-
 	// Create a backup of the map data so the savegame code can toss out all fields that haven't changed in order to reduce processing time and file size.
 	// Note that we want binary identity here, so assignment is not sufficient because it won't initialize any padding bytes.
 	// Note that none of these structures may contain non POD fields anyway.
-	level.loadsectors.Resize(level.sectors.Size());
-	memcpy(&level.loadsectors[0], &level.sectors[0], level.sectors.Size() * sizeof(level.sectors[0]));
-	level.loadlines.Resize(level.lines.Size());
-	memcpy(&level.loadlines[0], &level.lines[0], level.lines.Size() * sizeof(level.lines[0]));
-	level.loadsides.Resize(level.sides.Size());
-	memcpy(&level.loadsides[0], &level.sides[0], level.sides.Size() * sizeof(level.sides[0]));
+	Level->loadsectors.Resize(Level->sectors.Size());
+	memcpy(&Level->loadsectors[0], &Level->sectors[0], Level->sectors.Size() * sizeof(Level->sectors[0]));
+	Level->loadlines.Resize(Level->lines.Size());
+	memcpy(&Level->loadlines[0], &Level->lines[0], Level->lines.Size() * sizeof(Level->lines[0]));
+	Level->loadsides.Resize(Level->sides.Size());
+	memcpy(&Level->loadsides[0], &Level->sides[0], Level->sides.Size() * sizeof(Level->sides[0]));
+
+	Level->automap = AM_Create(Level);
+	Level->automap->LevelInit();
+
+	// [RH] Start lightning, if MAPINFO tells us to
+	if (Level->flags & LEVEL_STARTLIGHTNING)
+	{
+		Level->StartLightning();
+	}
+
 }
 
 //
@@ -584,39 +594,43 @@ static void P_Shutdown ()
 
 CCMD(dumpgeometry)
 {
-	for (auto &sector : level.sectors)
+	for (auto Level : AllLevels())
 	{
-		Printf(PRINT_LOG, "Sector %d\n", sector.sectornum);
-		for (int j = 0; j<sector.subsectorcount; j++)
+		Printf("Geometry for %s\n", Level->MapName.GetChars());
+		for (auto &sector : Level->sectors)
 		{
-			subsector_t * sub = sector.subsectors[j];
-
-			Printf(PRINT_LOG, "    Subsector %d - real sector = %d - %s\n", int(sub->Index()), sub->sector->sectornum, sub->hacked & 1 ? "hacked" : "");
-			for (uint32_t k = 0; k<sub->numlines; k++)
+			Printf(PRINT_LOG, "Sector %d\n", sector.sectornum);
+			for (int j = 0; j<sector.subsectorcount; j++)
 			{
-				seg_t * seg = sub->firstline + k;
-				if (seg->linedef)
+				subsector_t * sub = sector.subsectors[j];
+				
+				Printf(PRINT_LOG, "    Subsector %d - real sector = %d - %s\n", int(sub->Index()), sub->sector->sectornum, sub->hacked & 1 ? "hacked" : "");
+				for (uint32_t k = 0; k<sub->numlines; k++)
 				{
-					Printf(PRINT_LOG, "      (%4.4f, %4.4f), (%4.4f, %4.4f) - seg %d, linedef %d, side %d",
-						seg->v1->fX(), seg->v1->fY(), seg->v2->fX(), seg->v2->fY(),
-						seg->Index(), seg->linedef->Index(), seg->sidedef != seg->linedef->sidedef[0]);
+					seg_t * seg = sub->firstline + k;
+					if (seg->linedef)
+					{
+						Printf(PRINT_LOG, "      (%4.4f, %4.4f), (%4.4f, %4.4f) - seg %d, linedef %d, side %d",
+							   seg->v1->fX(), seg->v1->fY(), seg->v2->fX(), seg->v2->fY(),
+							   seg->Index(), seg->linedef->Index(), seg->sidedef != seg->linedef->sidedef[0]);
+					}
+					else
+					{
+						Printf(PRINT_LOG, "      (%4.4f, %4.4f), (%4.4f, %4.4f) - seg %d, miniseg",
+							   seg->v1->fX(), seg->v1->fY(), seg->v2->fX(), seg->v2->fY(), seg->Index());
+					}
+					if (seg->PartnerSeg)
+					{
+						subsector_t * sub2 = seg->PartnerSeg->Subsector;
+						Printf(PRINT_LOG, ", back sector = %d, real back sector = %d", sub2->render_sector->sectornum, seg->PartnerSeg->frontsector->sectornum);
+					}
+					else if (seg->backsector)
+					{
+						Printf(PRINT_LOG, ", back sector = %d (no partnerseg)", seg->backsector->sectornum);
+					}
+					
+					Printf(PRINT_LOG, "\n");
 				}
-				else
-				{
-					Printf(PRINT_LOG, "      (%4.4f, %4.4f), (%4.4f, %4.4f) - seg %d, miniseg",
-						seg->v1->fX(), seg->v1->fY(), seg->v2->fX(), seg->v2->fY(), seg->Index());
-				}
-				if (seg->PartnerSeg)
-				{
-					subsector_t * sub2 = seg->PartnerSeg->Subsector;
-					Printf(PRINT_LOG, ", back sector = %d, real back sector = %d", sub2->render_sector->sectornum, seg->PartnerSeg->frontsector->sectornum);
-				}
-				else if (seg->backsector)
-				{
-					Printf(PRINT_LOG, ", back sector = %d (no partnerseg)", seg->backsector->sectornum);
-				}
-
-				Printf(PRINT_LOG, "\n");
 			}
 		}
 	}
@@ -630,14 +644,18 @@ CCMD(dumpgeometry)
 
 CCMD(listmapsections)
 {
-	for (int i = 0; i < 100; i++)
+	for (auto Level : AllLevels())
 	{
-		for (auto &sub : level.subsectors)
+		Printf("Map sections for %s:\n", Level->MapName.GetChars());
+		for (int i = 0; i < 100; i++)
 		{
-			if (sub.mapsection == i)
+			for (auto &sub : Level->subsectors)
 			{
-				Printf("Mapsection %d, sector %d, line %d\n", i, sub.render_sector->Index(), sub.firstline->linedef->Index());
-				break;
+				if (sub.mapsection == i)
+				{
+					Printf("Mapsection %d, sector %d, line %d\n", i, sub.render_sector->Index(), sub.firstline->linedef->Index());
+					break;
+				}
 			}
 		}
 	}
@@ -651,9 +669,8 @@ CCMD(listmapsections)
 
 CUSTOM_CVAR(Bool, forcewater, false, CVAR_ARCHIVE | CVAR_SERVERINFO)
 {
-	if (gamestate == GS_LEVEL)
+	if (gamestate == GS_LEVEL) for (auto Level : AllLevels())
 	{
-		auto Level = &level;
 		for (auto &sec : Level->sectors)
 		{
 			sector_t *hsec = sec.GetHeightSec();
