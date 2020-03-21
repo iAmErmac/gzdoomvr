@@ -79,6 +79,7 @@
 #include "events.h"
 #include "i_music.h"
 #include "a_dynlight.h"
+#include "p_conversation.h"
 
 #include "gi.h"
 
@@ -762,6 +763,9 @@ void G_DoCompleted (void)
 
 	if (automapactive)
 		AM_Stop ();
+	
+	// Close the conversation menu if open.
+	P_FreeStrifeConversations ();
 
 	wminfo.finished_ep = level.cluster - 1;
 	wminfo.LName0 = TexMan.CheckForTexture(level.info->PName, ETextureType::MiscPatch);
@@ -1659,7 +1663,7 @@ void G_SnapshotLevel ()
 		if (arc.OpenWriter(save_formatted))
 		{
 			SaveVersion = SAVEVER;
-			G_SerializeLevel(arc, false);
+			G_SerializeLevel(arc, &level, false);
 			level.info->Snapshot = arc.GetCompressedOutput();
 		}
 	}
@@ -1686,7 +1690,7 @@ void G_UnSnapshotLevel (bool hubLoad)
 			return;
 		}
 
-		G_SerializeLevel (arc, hubLoad);
+		G_SerializeLevel (arc, &level, hubLoad);
 		level.FromSnapshot = true;
 
 		TThinkerIterator<AActor> it(NAME_PlayerPawn);

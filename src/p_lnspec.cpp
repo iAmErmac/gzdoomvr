@@ -71,7 +71,7 @@
 static const uint8_t ChangeMap[8] = { 0, 1, 5, 3, 7, 2, 6, 0 };
 
 
-#define FUNC(a) static int a (line_t *ln, AActor *it, bool backSide, \
+#define FUNC(a) static int a (FLevelLocals *Level, line_t *ln, AActor *it, bool backSide, \
 	int arg0, int arg1, int arg2, int arg3, int arg4)
 
 #define SPEED(a)		((a) / 8.)
@@ -141,97 +141,97 @@ FUNC(LS_NOP)
 FUNC(LS_Polyobj_RotateLeft)
 // Polyobj_RotateLeft (po, speed, angle)
 {
-	return EV_RotatePoly (ln, arg0, arg1, arg2, 1, false);
+	return EV_RotatePoly (Level, ln, arg0, arg1, arg2, 1, false);
 }
 
 FUNC(LS_Polyobj_RotateRight)
 // Polyobj_rotateRight (po, speed, angle)
 {
-	return EV_RotatePoly (ln, arg0, arg1, arg2, -1, false);
+	return EV_RotatePoly (Level, ln, arg0, arg1, arg2, -1, false);
 }
 
 FUNC(LS_Polyobj_Move)
 // Polyobj_Move (po, speed, angle, distance)
 {
-	return EV_MovePoly (ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3, false);
+	return EV_MovePoly (Level, ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3, false);
 }
 
 FUNC(LS_Polyobj_MoveTimes8)
 // Polyobj_MoveTimes8 (po, speed, angle, distance)
 {
-	return EV_MovePoly (ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3 * 8, false);
+	return EV_MovePoly (Level, ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3 * 8, false);
 }
 
 FUNC(LS_Polyobj_MoveTo)
 // Polyobj_MoveTo (po, speed, x, y)
 {
-	return EV_MovePolyTo (ln, arg0, SPEED(arg1), DVector2(arg2, arg3), false);
+	return EV_MovePolyTo (Level, ln, arg0, SPEED(arg1), DVector2(arg2, arg3), false);
 }
 
 FUNC(LS_Polyobj_MoveToSpot)
 // Polyobj_MoveToSpot (po, speed, tid)
 {
-	FActorIterator iterator (arg2);
+	auto iterator = Level->GetActorIterator(arg2);
 	AActor *spot = iterator.Next();
 	if (spot == NULL) return false;
-	return EV_MovePolyTo (ln, arg0, SPEED(arg1), spot->Pos(), false);
+	return EV_MovePolyTo (Level, ln, arg0, SPEED(arg1), spot->Pos(), false);
 }
 
 FUNC(LS_Polyobj_DoorSwing)
 // Polyobj_DoorSwing (po, speed, angle, delay)
 {
-	return EV_OpenPolyDoor (ln, arg0, arg1, BYTEANGLE(arg2), arg3, 0, PODOOR_SWING);
+	return EV_OpenPolyDoor (Level, ln, arg0, arg1, BYTEANGLE(arg2), arg3, 0, PODOOR_SWING);
 }
 
 FUNC(LS_Polyobj_DoorSlide)
 // Polyobj_DoorSlide (po, speed, angle, distance, delay)
 {
-	return EV_OpenPolyDoor (ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg4, arg3, PODOOR_SLIDE);
+	return EV_OpenPolyDoor (Level, ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg4, arg3, PODOOR_SLIDE);
 }
 
 FUNC(LS_Polyobj_OR_RotateLeft)
 // Polyobj_OR_RotateLeft (po, speed, angle)
 {
-	return EV_RotatePoly (ln, arg0, arg1, arg2, 1, true);
+	return EV_RotatePoly (Level, ln, arg0, arg1, arg2, 1, true);
 }
 
 FUNC(LS_Polyobj_OR_RotateRight)
 // Polyobj_OR_RotateRight (po, speed, angle)
 {
-	return EV_RotatePoly (ln, arg0, arg1, arg2, -1, true);
+	return EV_RotatePoly (Level, ln, arg0, arg1, arg2, -1, true);
 }
 
 FUNC(LS_Polyobj_OR_Move)
 // Polyobj_OR_Move (po, speed, angle, distance)
 {
-	return EV_MovePoly (ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3, true);
+	return EV_MovePoly (Level, ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3, true);
 }
 
 FUNC(LS_Polyobj_OR_MoveTimes8)
 // Polyobj_OR_MoveTimes8 (po, speed, angle, distance)
 {
-	return EV_MovePoly (ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3 * 8, true);
+	return EV_MovePoly (Level, ln, arg0, SPEED(arg1), BYTEANGLE(arg2), arg3 * 8, true);
 }
 
 FUNC(LS_Polyobj_OR_MoveTo)
 // Polyobj_OR_MoveTo (po, speed, x, y)
 {
-	return EV_MovePolyTo (ln, arg0, SPEED(arg1), DVector2(arg2, arg3), true);
+	return EV_MovePolyTo (Level, ln, arg0, SPEED(arg1), DVector2(arg2, arg3), true);
 }
 
 FUNC(LS_Polyobj_OR_MoveToSpot)
 // Polyobj_OR_MoveToSpot (po, speed, tid)
 {
-	FActorIterator iterator (arg2);
+	auto iterator = Level->GetActorIterator(arg2);
 	AActor *spot = iterator.Next();
 	if (spot == NULL) return false;
-	return EV_MovePolyTo (ln, arg0, SPEED(arg1), spot->Pos(), true);
+	return EV_MovePolyTo (Level, ln, arg0, SPEED(arg1), spot->Pos(), true);
 }
 
 FUNC(LS_Polyobj_Stop)
 // Polyobj_Stop (po)
 {
-	return EV_StopPoly (arg0);
+	return EV_StopPoly (Level, arg0);
 }
 
 FUNC(LS_Door_Close)
@@ -258,7 +258,7 @@ FUNC(LS_Door_LockedRaise)
 #if 0
 	// In Hexen this originally created a thinker running for nearly 4 years.
 	// Let's not do this unless it becomes necessary because this can hang tagwait.
-	return EV_DoDoor (arg2 || (level.flags2 & LEVEL2_HEXENHACK) ? DDoor::doorRaise : DDoor::doorOpen, ln, it,
+	return EV_DoDoor (arg2 || (Level->flags2 & LEVEL2_HEXENHACK) ? DDoor::doorRaise : DDoor::doorOpen, ln, it,
 #else
 	return EV_DoDoor (arg2 ? DDoor::doorRaise : DDoor::doorOpen, ln, it,
 #endif
@@ -1060,7 +1060,7 @@ FUNC(LS_Generic_Lift)
 FUNC(LS_Exit_Normal)
 // Exit_Normal (position)
 {
-	if (CheckIfExitIsGood (it, FindLevelInfo(G_GetExitMap())))
+	if (Level->CheckIfExitIsGood (it, FindLevelInfo(G_GetExitMap())))
 	{
 		G_ExitLevel (arg0, false);
 		return true;
@@ -1071,7 +1071,7 @@ FUNC(LS_Exit_Normal)
 FUNC(LS_Exit_Secret)
 // Exit_Secret (position)
 {
-	if (CheckIfExitIsGood (it, FindLevelInfo(G_GetSecretExitMap())))
+	if (Level->CheckIfExitIsGood (it, FindLevelInfo(G_GetSecretExitMap())))
 	{
 		G_SecretExitLevel (arg0);
 		return true;
@@ -1086,7 +1086,7 @@ FUNC(LS_Teleport_NewMap)
 	{
 		level_info_t *info = FindLevelByNum (arg0);
 
-		if (info && CheckIfExitIsGood (it, info))
+		if (info && Level->CheckIfExitIsGood (it, info))
 		{
 			G_ChangeLevel(info->MapName, arg1, arg2 ? CHANGELEVEL_KEEPFACING : 0);
 			return true;
@@ -1181,7 +1181,7 @@ FUNC(LS_TeleportInSector)
 FUNC(LS_Teleport_EndGame)
 // Teleport_EndGame ()
 {
-	if (!backSide && CheckIfExitIsGood (it, NULL))
+	if (!backSide && Level->CheckIfExitIsGood (it, NULL))
 	{
 		G_ChangeLevel(NULL, 0, 0);
 		return true;
@@ -1210,7 +1210,7 @@ FUNC(LS_ThrustThing)
 {
 	if (arg3 != 0)
 	{
-		FActorIterator iterator (arg3);
+		auto iterator = Level->GetActorIterator(arg3);
 		while ((it = iterator.Next()) != NULL)
 		{
 			ThrustThingHelper (it, BYTEANGLE(arg0), arg1, arg2);
@@ -1219,7 +1219,7 @@ FUNC(LS_ThrustThing)
 	}
 	else if (it)
 	{
-		if (level.flags2 & LEVEL2_HEXENHACK && backSide)
+		if (Level->flags2 & LEVEL2_HEXENHACK && backSide)
 		{
 			return false;
 		}
@@ -1241,7 +1241,7 @@ FUNC(LS_ThrustThingZ)	// [BC]
 
 	if (arg0 != 0)
 	{
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 
 		while ( (victim = iterator.Next ()) )
 		{
@@ -1281,7 +1281,7 @@ FUNC(LS_Thing_SetSpecial)	// [BC]
 	else
 	{
 		AActor *actor;
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 
 		while ( (actor = iterator.Next ()) )
 		{
@@ -1308,7 +1308,7 @@ FUNC(LS_Thing_ChangeTID)
 	}
 	else
 	{
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 		AActor *actor, *next;
 
 		next = iterator.Next ();
@@ -1424,7 +1424,7 @@ FUNC(LS_Thing_Activate)
 	if (arg0 != 0)
 	{
 		AActor *actor;
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 		int count = 0;
 
 		actor = iterator.Next ();
@@ -1454,7 +1454,7 @@ FUNC(LS_Thing_Deactivate)
 	if (arg0 != 0)
 	{
 		AActor *actor;
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 		int count = 0;
 	
 		actor = iterator.Next ();
@@ -1483,7 +1483,7 @@ FUNC(LS_Thing_Remove)
 {
 	if (arg0 != 0)
 	{
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 		AActor *actor;
 
 		actor = iterator.Next ();
@@ -1520,20 +1520,20 @@ FUNC(LS_Thing_Destroy)
 		while (actor)
 		{
 			AActor *temp = iterator.Next ();
-			if (actor->flags & MF_SHOOTABLE && tagManager.SectorHasTag(actor->Sector, arg2))
+			if (actor->flags & MF_SHOOTABLE && Level->SectorHasTag(actor->Sector, arg2))
 				P_DamageMobj (actor, NULL, it, arg1 ? TELEFRAG_DAMAGE : actor->health, NAME_None);
 			actor = temp;
 		}
 	}
 	else
 	{
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 
 		actor = iterator.Next ();
 		while (actor)
 		{
 			AActor *temp = iterator.Next ();
-			if (actor->flags & MF_SHOOTABLE && (arg2 == 0 || tagManager.SectorHasTag(actor->Sector, arg2)))
+			if (actor->flags & MF_SHOOTABLE && (arg2 == 0 || Level->SectorHasTag(actor->Sector, arg2)))
 				P_DamageMobj (actor, NULL, it, arg1 ? TELEFRAG_DAMAGE : actor->health, NAME_None);
 			actor = temp;
 		}
@@ -1565,9 +1565,9 @@ FUNC(LS_Thing_ProjectileGravity)
 FUNC(LS_Thing_Hate)
 // Thing_Hate (hater, hatee, group/"xray"?)
 {
-	FActorIterator haterIt (arg0);
-	AActor *hater, *hatee = NULL;
-	FActorIterator hateeIt (arg1);
+	AActor *hater, *hatee = nullptr;
+	auto haterIt = Level->GetActorIterator(arg0);
+	auto hateeIt = Level->GetActorIterator(arg1);
 	bool nothingToHate = false;
 
 	if (arg1 != 0)
@@ -1768,7 +1768,7 @@ FUNC(LS_Thing_Raise)
 	}
 	else
 	{
-		TActorIterator<AActor> iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 
 		while ( (target = iterator.Next ()) )
 		{
@@ -1795,7 +1795,7 @@ FUNC(LS_Thing_Stop)
 	}
 	else
 	{
-		TActorIterator<AActor> iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 
 		while ( (target = iterator.Next ()) )
 		{
@@ -1811,8 +1811,8 @@ FUNC(LS_Thing_Stop)
 FUNC(LS_Thing_SetGoal)
 // Thing_SetGoal (tid, goal, delay, chasegoal)
 {
-	TActorIterator<AActor> selfiterator (arg0);
-	NActorIterator goaliterator (NAME_PatrolPoint, arg1);
+	auto selfiterator = Level->GetActorIterator(arg0);
+	auto goaliterator = Level->GetActorIterator(NAME_PatrolPoint, arg1);
 	AActor *self;
 	AActor *goal = goaliterator.Next ();
 	bool ok = false;
@@ -1861,7 +1861,7 @@ enum
 FUNC(LS_Thing_SetTranslation)
 // Thing_SetTranslation (tid, range)
 {
-	TActorIterator<AActor> iterator (arg0);
+	auto iterator = Level->GetActorIterator(arg0);
 	int range;
 	AActor *target;
 	bool ok = false;
@@ -1913,7 +1913,7 @@ FUNC(LS_ACS_Execute)
 
 	if (arg1 == 0)
 	{
-		mapname = level.MapName;
+		mapname = Level->MapName;
 	}
 	else if ((info = FindLevelByNum(arg1)) != NULL)
 	{
@@ -1936,7 +1936,7 @@ FUNC(LS_ACS_ExecuteAlways)
 
 	if (arg1 == 0)
 	{
-		mapname = level.MapName;
+		mapname = Level->MapName;
 	}
 	else if ((info = FindLevelByNum(arg1)) != NULL)
 	{
@@ -1955,7 +1955,7 @@ FUNC(LS_ACS_LockedExecute)
 	if (arg4 && !P_CheckKeys (it, arg4, true))
 		return false;
 	else
-		return LS_ACS_Execute (ln, it, backSide, arg0, arg1, arg2, arg3, 0);
+		return LS_ACS_Execute (Level, ln, it, backSide, arg0, arg1, arg2, arg3, 0);
 }
 
 FUNC(LS_ACS_LockedExecuteDoor)
@@ -1964,7 +1964,7 @@ FUNC(LS_ACS_LockedExecuteDoor)
 	if (arg4 && !P_CheckKeys (it, arg4, false))
 		return false;
 	else
-		return LS_ACS_Execute (ln, it, backSide, arg0, arg1, arg2, arg3, 0);
+		return LS_ACS_Execute (Level, ln, it, backSide, arg0, arg1, arg2, arg3, 0);
 }
 
 FUNC(LS_ACS_ExecuteWithResult)
@@ -1976,7 +1976,7 @@ FUNC(LS_ACS_ExecuteWithResult)
 	int args[4] = { arg1, arg2, arg3, arg4 };
 	int flags = (backSide ? ACS_BACKSIDE : 0) | ACS_ALWAYS | ACS_WANTRESULT;
 
-	return P_StartScript (it, ln, arg0, level.MapName, args, 4, flags);
+	return P_StartScript (it, ln, arg0, Level->MapName, args, 4, flags);
 }
 
 FUNC(LS_ACS_Suspend)
@@ -1985,7 +1985,7 @@ FUNC(LS_ACS_Suspend)
 	level_info_t *info;
 
 	if (arg1 == 0)
-		P_SuspendScript (arg0, level.MapName);
+		P_SuspendScript (arg0, Level->MapName);
 	else if ((info = FindLevelByNum (arg1)) )
 		P_SuspendScript (arg0, info->MapName);
 
@@ -1998,7 +1998,7 @@ FUNC(LS_ACS_Terminate)
 	level_info_t *info;
 
 	if (arg1 == 0)
-		P_TerminateScript (arg0, level.MapName);
+		P_TerminateScript (arg0, Level->MapName);
 	else if ((info = FindLevelByNum (arg1)) )
 		P_TerminateScript (arg0, info->MapName);
 
@@ -2194,10 +2194,10 @@ FUNC(LS_Sector_ChangeSound)
 		return false;
 
 	rtn = false;
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	while ((secNum = itr.Next()) >= 0)
 	{
-		level.sectors[secNum].seqType = arg1;
+		Level->sectors[secNum].seqType = arg1;
 		rtn = true;
 	}
 	return rtn;
@@ -2213,13 +2213,13 @@ FUNC(LS_Sector_ChangeFlags)
 		return false;
 
 	rtn = false;
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	// exclude protected flags
 	arg1 &= ~SECF_NOMODIFY;
 	arg2 &= ~SECF_NOMODIFY;
 	while ((secNum = itr.Next()) >= 0)
 	{
-		level.sectors[secNum].Flags = (level.sectors[secNum].Flags | arg1) & ~arg2;
+		Level->sectors[secNum].Flags = (Level->sectors[secNum].Flags | arg1) & ~arg2;
 		rtn = true;
 	}
 	return rtn;
@@ -2252,7 +2252,7 @@ FUNC(LS_Sector_SetCurrent)
 FUNC(LS_Sector_SetFriction)
 // Sector_SetFriction (tag, amount)
 {
-	P_SetSectorFriction (arg0, arg1, true);
+	P_SetSectorFriction (&level, arg0, arg1, true);
 	return true;
 }
 
@@ -2262,11 +2262,11 @@ FUNC(LS_Sector_SetTranslucent)
 	if (arg0 != 0)
 	{
 		int secnum;
-		FSectorTagIterator itr(arg0);
+		auto itr = Level->GetSectorTagIterator(arg0);
 		while ((secnum = itr.Next()) >= 0)
 		{
-			level.sectors[secnum].SetAlpha(arg1, clamp(arg2, 0, 255) / 255.);
-			level.sectors[secnum].ChangeFlags(arg1, ~PLANEF_ADDITIVE, arg3? PLANEF_ADDITIVE:0);
+			Level->sectors[secnum].SetAlpha(arg1, clamp(arg2, 0, 255) / 255.);
+			Level->sectors[secnum].ChangeFlags(arg1, ~PLANEF_ADDITIVE, arg3? PLANEF_ADDITIVE:0);
 		}
 		return true;
 	}
@@ -2278,10 +2278,10 @@ FUNC(LS_Sector_SetLink)
 {
 	if (arg0 != 0)	// control tag == 0 is for static initialization and must not be handled here
 	{
-		int control = P_FindFirstSectorFromTag(arg0);
+		int control = Level->FindFirstSectorFromTag(arg0);
 		if (control >= 0)
 		{
-			return P_AddSectorLinks(&level.sectors[control], arg1, arg2, arg3);
+			return P_AddSectorLinks(&Level->sectors[control], arg1, arg2, arg3);
 		}
 	}
 	return false;
@@ -2379,7 +2379,7 @@ FUNC(LS_Sector_SetDamage)
 	// problems by adding an unwanted constructor.
 	// Since it doesn't really matter whether the type is translated
 	// here or in P_PlayerInSpecialSector I think it's the best solution.
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
@@ -2401,10 +2401,10 @@ FUNC(LS_Sector_SetDamage)
 				arg3 = 1;
 			}
 		}
-		level.sectors[secnum].damageamount = (short)arg1;
-		level.sectors[secnum].damagetype = MODtoDamageType(arg2);
-		level.sectors[secnum].damageinterval = (short)arg3;
-		level.sectors[secnum].leakydamage = (short)arg4;
+		Level->sectors[secnum].damageamount = (short)arg1;
+		Level->sectors[secnum].damagetype = MODtoDamageType(arg2);
+		Level->sectors[secnum].damageinterval = (short)arg3;
+		Level->sectors[secnum].leakydamage = (short)arg4;
 	}
 	return true;
 }
@@ -2418,10 +2418,10 @@ FUNC(LS_Sector_SetGravity)
 		arg2 = 99;
 	gravity = (double)arg1 + (double)arg2 * 0.01;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
-		level.sectors[secnum].gravity = gravity;
+		Level->sectors[secnum].gravity = gravity;
 
 	return true;
 }
@@ -2429,11 +2429,11 @@ FUNC(LS_Sector_SetGravity)
 FUNC(LS_Sector_SetColor)
 // Sector_SetColor (tag, r, g, b, desaturate)
 {
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
-		level.sectors[secnum].SetColor(PalEntry(arg1, arg2, arg3), arg4);
+		Level->sectors[secnum].SetColor(PalEntry(arg1, arg2, arg3), arg4);
 	}
 
 	return true;
@@ -2442,11 +2442,11 @@ FUNC(LS_Sector_SetColor)
 FUNC(LS_Sector_SetFade)
 // Sector_SetFade (tag, r, g, b)
 {
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
-		level.sectors[secnum].SetFade(PalEntry(arg1, arg2, arg3));
+		Level->sectors[secnum].SetFade(PalEntry(arg1, arg2, arg3));
 	}
 	return true;
 }
@@ -2457,12 +2457,12 @@ FUNC(LS_Sector_SetCeilingPanning)
 	double xofs = arg1 + arg2 / 100.;
 	double yofs = arg3 + arg4 / 100.;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
-		level.sectors[secnum].SetXOffset(sector_t::ceiling, xofs);
-		level.sectors[secnum].SetYOffset(sector_t::ceiling, yofs);
+		Level->sectors[secnum].SetXOffset(sector_t::ceiling, xofs);
+		Level->sectors[secnum].SetYOffset(sector_t::ceiling, yofs);
 	}
 	return true;
 }
@@ -2473,12 +2473,12 @@ FUNC(LS_Sector_SetFloorPanning)
 	double xofs = arg1 + arg2 / 100.;
 	double yofs = arg3 + arg4 / 100.;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
-		level.sectors[secnum].SetXOffset(sector_t::floor, xofs);
-		level.sectors[secnum].SetYOffset(sector_t::floor, yofs);
+		Level->sectors[secnum].SetXOffset(sector_t::floor, xofs);
+		Level->sectors[secnum].SetYOffset(sector_t::floor, yofs);
 	}
 	return true;
 }
@@ -2494,14 +2494,14 @@ FUNC(LS_Sector_SetFloorScale)
 	if (yscale)
 		yscale = 1. / yscale;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
 		if (xscale)
-			level.sectors[secnum].SetXScale(sector_t::floor, xscale);
+			Level->sectors[secnum].SetXScale(sector_t::floor, xscale);
 		if (yscale)
-			level.sectors[secnum].SetYScale(sector_t::floor, yscale);
+			Level->sectors[secnum].SetYScale(sector_t::floor, yscale);
 	}
 	return true;
 }
@@ -2517,14 +2517,14 @@ FUNC(LS_Sector_SetCeilingScale)
 	if (yscale)
 		yscale = 1. / yscale;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
 		if (xscale)
-			level.sectors[secnum].SetXScale(sector_t::ceiling, xscale);
+			Level->sectors[secnum].SetXScale(sector_t::ceiling, xscale);
 		if (yscale)
-			level.sectors[secnum].SetYScale(sector_t::ceiling, yscale);
+			Level->sectors[secnum].SetYScale(sector_t::ceiling, yscale);
 	}
 	return true;
 }
@@ -2539,14 +2539,14 @@ FUNC(LS_Sector_SetFloorScale2)
 	if (yscale)
 		yscale = 1. / yscale;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
 		if (arg1)
-			level.sectors[secnum].SetXScale(sector_t::floor, xscale);
+			Level->sectors[secnum].SetXScale(sector_t::floor, xscale);
 		if (arg2)
-			level.sectors[secnum].SetYScale(sector_t::floor, yscale);
+			Level->sectors[secnum].SetYScale(sector_t::floor, yscale);
 	}
 	return true;
 }
@@ -2561,14 +2561,14 @@ FUNC(LS_Sector_SetCeilingScale2)
 	if (yscale)
 		yscale = 1. / yscale;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
 		if (arg1)
-			level.sectors[secnum].SetXScale(sector_t::ceiling, xscale);
+			Level->sectors[secnum].SetXScale(sector_t::ceiling, xscale);
 		if (arg2)
-			level.sectors[secnum].SetYScale(sector_t::ceiling, yscale);
+			Level->sectors[secnum].SetYScale(sector_t::ceiling, yscale);
 	}
 	return true;
 }
@@ -2579,12 +2579,12 @@ FUNC(LS_Sector_SetRotation)
 	DAngle ceiling = (double)arg2;
 	DAngle floor = (double)arg1;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
-		level.sectors[secnum].SetAngle(sector_t::floor, floor);
-		level.sectors[secnum].SetAngle(sector_t::ceiling, ceiling);
+		Level->sectors[secnum].SetAngle(sector_t::floor, floor);
+		Level->sectors[secnum].SetAngle(sector_t::ceiling, ceiling);
 	}
 	return true;
 }
@@ -2594,7 +2594,7 @@ FUNC(LS_Line_AlignCeiling)
 {
 	bool ret = 0;
 
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int line;
 	while ((line = itr.Next()) >= 0)
 	{
@@ -2608,7 +2608,7 @@ FUNC(LS_Line_AlignFloor)
 {
 	bool ret = 0;
 
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int line;
 	while ((line = itr.Next()) >= 0)
 	{
@@ -2627,11 +2627,11 @@ FUNC(LS_Line_SetTextureOffset)
 	if (arg0 == 0 || arg3 < 0 || arg3 > 1)
 		return false;
 
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int line;
 	while ((line = itr.Next()) >= 0)
 	{
-		side_t *side = level.lines[line].sidedef[arg3];
+		side_t *side = Level->lines[line].sidedef[arg3];
 		if (side != NULL)
 		{
 
@@ -2682,11 +2682,11 @@ FUNC(LS_Line_SetTextureScale)
 	if (arg0 == 0 || arg3 < 0 || arg3 > 1)
 		return false;
 
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int line;
 	while ((line = itr.Next()) >= 0)
 	{
-		side_t *side = level.lines[line].sidedef[arg3];
+		side_t *side = Level->lines[line].sidedef[arg3];
 		if (side != NULL)
 		{
 			if ((arg4&8)==0)
@@ -2756,11 +2756,11 @@ FUNC(LS_Line_SetBlocking)
 		if (arg2 & 1) clearflags |= flagtrans[i];
 	}
 
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int line;
 	while ((line = itr.Next()) >= 0)
 	{
-		level.lines[line].flags = (level.lines[line].flags & ~clearflags) | setflags;
+		Level->lines[line].flags = (Level->lines[line].flags & ~clearflags) | setflags;
 	}
 	return true;
 }
@@ -2788,11 +2788,11 @@ FUNC(LS_Line_SetAutomapFlags)
 		if (arg2 & 1) clearflags |= flagtrans[i];
 	}
 
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int line;
 	while ((line = itr.Next()) >= 0)
 	{
-		level.lines[line].flags = (level.lines[line].flags & ~clearflags) | setflags;
+		Level->lines[line].flags = (Level->lines[line].flags & ~clearflags) | setflags;
 	}
 
 	return true;
@@ -2803,11 +2803,11 @@ FUNC(LS_Line_SetAutomapStyle)
 {
 	if (arg1 < AMLS_COUNT && arg1 >= 0)
 	{
-		FLineIdIterator itr(arg0);
+		auto itr = Level->GetLineIdIterator(arg0);
 		int line;
 		while ((line = itr.Next()) >= 0)
 		{
-			level.lines[line].automapstyle = (AutomapLineStyle) arg1;
+			Level->lines[line].automapstyle = (AutomapLineStyle) arg1;
 		}
 
 		return true;
@@ -2822,7 +2822,7 @@ FUNC(LS_ChangeCamera)
 	AActor *camera;
 	if (arg0 != 0)
 	{
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 		camera = iterator.Next ();
 	}
 	else
@@ -2953,7 +2953,7 @@ FUNC(LS_SetPlayerProperty)
 				}
 				else if (it->player - players == consoleplayer)
 				{
-					level.flags2 |= LEVEL2_ALLMAP;
+					Level->flags2 |= LEVEL2_ALLMAP;
 				}
 			}
 			else
@@ -2968,7 +2968,7 @@ FUNC(LS_SetPlayerProperty)
 				}
 				else if (it->player - players == consoleplayer)
 				{
-					level.flags2 &= ~LEVEL2_ALLMAP;
+					Level->flags2 &= ~LEVEL2_ALLMAP;
 				}
 			}
 		}
@@ -2993,7 +2993,7 @@ FUNC(LS_SetPlayerProperty)
 					}
 					else if (i == consoleplayer)
 					{
-						level.flags2 |= LEVEL2_ALLMAP;
+						Level->flags2 |= LEVEL2_ALLMAP;
 					}
 				}
 				else
@@ -3008,7 +3008,7 @@ FUNC(LS_SetPlayerProperty)
 					}
 					else if (i == consoleplayer)
 					{
-						level.flags2 &= ~LEVEL2_ALLMAP;
+						Level->flags2 &= ~LEVEL2_ALLMAP;
 					}
 				}
 			}
@@ -3103,18 +3103,18 @@ FUNC(LS_SetPlayerProperty)
 FUNC(LS_TranslucentLine)
 // TranslucentLine (id, amount, type)
 {
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int linenum;
 	while ((linenum = itr.Next()) >= 0)
 	{
-		level.lines[linenum].alpha = clamp(arg1, 0, 255) / 255.;
+		Level->lines[linenum].alpha = clamp(arg1, 0, 255) / 255.;
 		if (arg2 == 0)
 		{
-			level.lines[linenum].flags &= ~ML_ADDTRANS;
+			Level->lines[linenum].flags &= ~ML_ADDTRANS;
 		}
 		else if (arg2 == 1)
 		{
-			level.lines[linenum].flags |= ML_ADDTRANS;
+			Level->lines[linenum].flags |= ML_ADDTRANS;
 		}
 		else
 		{
@@ -3129,7 +3129,7 @@ FUNC(LS_Autosave)
 {
 	if (gameaction != ga_savegame)
 	{
-		level.flags2 &= ~LEVEL2_NOAUTOSAVEHINT;
+		Level->flags2 &= ~LEVEL2_NOAUTOSAVEHINT;
 		Net_WriteByte (DEM_CHECKAUTOSAVE);
 	}
 	return true;
@@ -3159,7 +3159,7 @@ FUNC(LS_NoiseAlert)
 	}
 	else
 	{
-		FActorIterator iter (arg0);
+		auto iter = Level->GetActorIterator(arg0);
 		target = iter.Next();
 	}
 
@@ -3173,7 +3173,7 @@ FUNC(LS_NoiseAlert)
 	}
 	else
 	{
-		FActorIterator iter (arg1);
+		auto iter = Level->GetActorIterator(arg1);
 		emitter = iter.Next();
 	}
 
@@ -3233,11 +3233,11 @@ FUNC(LS_ClearForceField)
 {
 	bool rtn = false;
 
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int secnum;
 	while ((secnum = itr.Next()) >= 0)
 	{
-		sector_t *sec = &level.sectors[secnum];
+		sector_t *sec = &Level->sectors[secnum];
 		rtn = true;
 
 		sec->RemoveForceField();
@@ -3333,7 +3333,7 @@ FUNC(LS_GlassBreak)
 FUNC(LS_StartConversation)
 // StartConversation (tid, facetalker)
 {
-	FActorIterator iterator (arg0);
+	auto iterator = Level->GetActorIterator(arg0);
 
 	AActor *target = iterator.Next();
 
@@ -3377,14 +3377,14 @@ FUNC(LS_Thing_SetConversation)
 
 	if (arg1 != 0)
 	{
-		dlg_index = GetConversation(arg1);	
+		dlg_index = Level->GetConversation(arg1);
 		if (dlg_index == -1) return false;
-		node = StrifeDialogues[dlg_index];
+		node = Level->StrifeDialogues[dlg_index];
 	}
 
 	if (arg0 != 0)
 	{
-		FActorIterator iterator (arg0);
+		auto iterator = Level->GetActorIterator(arg0);
 		while ((it = iterator.Next()) != NULL)
 		{
 			it->ConversationRoot = dlg_index;
@@ -3402,20 +3402,20 @@ FUNC(LS_Thing_SetConversation)
 FUNC(LS_Line_SetPortalTarget)
 // Line_SetPortalTarget(thisid, destid)
 {
-	return P_ChangePortal(ln, arg0, arg1);
+	return Level->ChangePortal(ln, arg0, arg1);
 }
 
 FUNC(LS_Sector_SetPlaneReflection)
 // Sector_SetPlaneReflection (tag, floor, ceiling)
 {
 	int secnum;
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 
 	while ((secnum = itr.Next()) >= 0)
 	{
-		sector_t * s = &level.sectors[secnum];
+		sector_t * s = &Level->sectors[secnum];
 		if (!s->floorplane.isSlope()) s->reflect[sector_t::floor] = arg1 / 255.f;
-		if (!s->ceilingplane.isSlope()) level.sectors[secnum].reflect[sector_t::ceiling] = arg2 / 255.f;
+		if (!s->ceilingplane.isSlope()) Level->sectors[secnum].reflect[sector_t::ceiling] = arg2 / 255.f;
 	}
 
 	return true;
@@ -3428,15 +3428,15 @@ FUNC(LS_SetGlobalFogParameter)
 	switch (arg0)
 	{
 	case 0:
-		level.fogdensity = arg1 >> 1;
+		Level->fogdensity = arg1 >> 1;
 		return true;
 
 	case 1:
-		level.outsidefogdensity = arg1 >> 1;
+		Level->outsidefogdensity = arg1 >> 1;
 		return true;
 
 	case 2:
-		level.skyfog = arg1;
+		Level->skyfog = arg1;
 		return true;
 
 	default:
@@ -3450,11 +3450,11 @@ FUNC(LS_Sector_SetFloorGlow)
 	int secnum;
 	PalEntry color(arg2, arg3, arg4);
 	if (arg1 < 0) color = -1;	// negative height invalidates the glow.
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 
 	while ((secnum = itr.Next()) >= 0)
 	{
-		sector_t * s = &level.sectors[secnum];
+		sector_t * s = &Level->sectors[secnum];
 		s->SetGlowColor(sector_t::floor, color);
 		s->SetGlowHeight(sector_t::floor, float(arg1));
 	}
@@ -3467,11 +3467,11 @@ FUNC(LS_Sector_SetCeilingGlow)
 	int secnum;
 	PalEntry color(arg2, arg3, arg4);
 	if (arg1 < 0) color = -1;	// negative height invalidates the glow.
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 
 	while ((secnum = itr.Next()) >= 0)
 	{
-		sector_t * s = &level.sectors[secnum];
+		sector_t * s = &Level->sectors[secnum];
 		s->SetGlowColor(sector_t::ceiling, color);
 		s->SetGlowHeight(sector_t::ceiling, float(arg1));
 	}
@@ -3481,7 +3481,7 @@ FUNC(LS_Sector_SetCeilingGlow)
 FUNC(LS_Line_SetHealth)
 // Line_SetHealth(id, health)
 {
-	FLineIdIterator itr(arg0);
+	auto itr = Level->GetLineIdIterator(arg0);
 	int l;
 
 	if (arg1 < 0)
@@ -3489,7 +3489,7 @@ FUNC(LS_Line_SetHealth)
 
 	while ((l = itr.Next()) >= 0)
 	{
-		line_t* line = &level.lines[l];
+		line_t* line = &Level->lines[l];
 		line->health = arg1;
 		if (line->healthgroup)
 			P_SetHealthGroupHealth(line->healthgroup, arg1);
@@ -3500,7 +3500,7 @@ FUNC(LS_Line_SetHealth)
 FUNC(LS_Sector_SetHealth)
 // Sector_SetHealth(id, part, health)
 {
-	FSectorTagIterator itr(arg0);
+	auto itr = Level->GetSectorTagIterator(arg0);
 	int s;
 
 	if (arg2 < 0)
@@ -3508,7 +3508,7 @@ FUNC(LS_Sector_SetHealth)
 
 	while ((s = itr.Next()) >= 0)
 	{
-		sector_t* sector = &level.sectors[s];
+		sector_t* sector = &Level->sectors[s];
 		if (arg1 == SECPART_Ceiling)
 		{
 			sector->healthceiling = arg2;
@@ -3937,7 +3937,7 @@ int P_ExecuteSpecial(int			num,
 {
 	if (num >= 0 && num < (int)countof(LineSpecials))
 	{
-		return LineSpecials[num](line, activator, backSide, arg1, arg2, arg3, arg4, arg5);
+		return LineSpecials[num](&level, line, activator, backSide, arg1, arg2, arg3, arg4, arg5);
 	}
 	return 0;
 }

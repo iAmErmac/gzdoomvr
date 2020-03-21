@@ -263,6 +263,16 @@ void FLevelLocals::ClearLevelData()
 	total_monsters = total_items = total_secrets =
 		killed_monsters = found_items = found_secrets =
 		wminfo.maxfrags = 0;
+	
+	FStrifeDialogueNode *node;
+	
+	while (StrifeDialogues.Pop (node))
+	{
+		delete node;
+	}
+	
+	DialogueRoots.Clear();
+	ClassRoots.Clear();
 
 	// delete allocated data in the level arrays.
 	if (sectors.Size() > 0)
@@ -275,6 +285,9 @@ void FLevelLocals::ClearLevelData()
 	}
 	ClearPortals();
 
+	tagManager.Clear();
+	ClearTIDHashes();
+	Behaviors.UnloadModules();
 	SpotState = nullptr;
 	ACSThinker = nullptr;
 	FraggleScriptThinker = nullptr;
@@ -334,18 +347,11 @@ void P_FreeLevelData ()
 	R_FreePastViewers();
 	P_ClearUDMFKeys();
 
-	// [RH] Clear all ThingID hash chains.
-	AActor::ClearTIDHashes();
-
 	interpolator.ClearInterpolations();	// [RH] Nothing to interpolate on a fresh level.
-	FPolyObj::ClearAllSubsectorLinks(); // can't be done as part of the polyobj deletion process.
+	level.ClearAllSubsectorLinks(); // can't be done as part of the polyobj deletion process.
 	SN_StopAllSequences ();
 	DThinker::DestroyAllThinkers ();
-	tagManager.Clear();
 
-	level.Behaviors.UnloadModules ();
-
-	P_FreeStrifeConversations ();
 	level.ClearLevelData();
 }
 
