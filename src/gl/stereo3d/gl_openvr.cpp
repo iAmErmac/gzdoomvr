@@ -327,7 +327,7 @@ public:
 
 			pFTex = new FControllerTexture(pTexture);
 
-			auto* di = HWDrawInfo::StartDrawInfo(nullptr, r_viewpoint, nullptr);
+			auto* di = HWDrawInfo::StartDrawInfo(r_viewpoint.ViewLevel, nullptr, r_viewpoint, nullptr);
 			FGLModelRenderer renderer(di, gl_RenderState, -1);
 			BuildVertexBuffer(&renderer);
 			di->EndDrawInfo();
@@ -711,7 +711,7 @@ void OpenVREyePose::AdjustHud() const
 	{
 		return;
 	}
-	auto *di = HWDrawInfo::StartDrawInfo(nullptr, r_viewpoint, nullptr);
+	auto *di = HWDrawInfo::StartDrawInfo(r_viewpoint.ViewLevel, nullptr, r_viewpoint, nullptr);
 
 	di->VPUniforms.mViewMatrix.loadIdentity();
 	const OpenVRMode * openVrMode = static_cast<const OpenVRMode *>(vrmode);
@@ -751,7 +751,7 @@ void OpenVREyePose::AdjustBlend(HWDrawInfo *di) const
 	bool new_di = false;
 	if (di == nullptr)
 	{
-		di = HWDrawInfo::StartDrawInfo(nullptr, r_viewpoint, nullptr);
+		di = HWDrawInfo::StartDrawInfo(r_viewpoint.ViewLevel, nullptr, r_viewpoint, nullptr);
 		new_di = true;
 	}
 
