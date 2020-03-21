@@ -71,6 +71,7 @@
 #include "serializer.h"
 #include "vm.h"
 #include "dobjgc.h"
+#include "gi.h"
 
 #include "g_hub.h"
 #include "g_levellocals.h"
@@ -181,8 +182,6 @@ short			consistancy[MAXPLAYERS][BACKUPTICS];
  
 #define TURBOTHRESHOLD	12800
 
-float	 		normforwardmove[2] = {0x19, 0x32};		// [RH] For setting turbo from console
-float	 		normsidemove[2] = {0x18, 0x28};			// [RH] Ditto
 
 int				forwardmove[2], sidemove[2];
 int		 		angleturn[4] = {640, 1280, 320, 320};		// + slow turn
@@ -230,7 +229,7 @@ CVAR (Bool, teamplay, false, CVAR_SERVERINFO)
 #endif // _M_X64 && _MSC_VER < 1910
 
 // [RH] Allow turbo setting anytime during game
-CUSTOM_CVAR (Float, turbo, 100.f, 0)
+CUSTOM_CVAR (Float, turbo, 100.f, CVAR_NOINITCALL)
 {
 	if (self < 10.f)
 	{
@@ -244,10 +243,10 @@ CUSTOM_CVAR (Float, turbo, 100.f, 0)
 	{
 		double scale = self * 0.01;
 
-		forwardmove[0] = (int)(normforwardmove[0]*scale);
-		forwardmove[1] = (int)(normforwardmove[1]*scale);
-		sidemove[0] = (int)(normsidemove[0]*scale);
-		sidemove[1] = (int)(normsidemove[1]*scale);
+		forwardmove[0] = (int)(gameinfo.normforwardmove[0]*scale);
+		forwardmove[1] = (int)(gameinfo.normforwardmove[1]*scale);
+		sidemove[0] = (int)(gameinfo.normsidemove[0]*scale);
+		sidemove[1] = (int)(gameinfo.normsidemove[1]*scale);
 	}
 }
 
@@ -1693,11 +1692,11 @@ void G_DoPlayerPop(int playernum)
 	}
 
 	// [RH] Make the player disappear
-	FBehavior::StaticStopMyScripts(players[playernum].mo);
+	level.Behaviors.StopMyScripts(players[playernum].mo);
 	// [ZZ] fire player disconnect hook
 	E_PlayerDisconnected(playernum);
 	// [RH] Let the scripts know the player left
-	FBehavior::StaticStartTypedScripts(SCRIPT_Disconnect, players[playernum].mo, true, playernum, true);
+	level.Behaviors.StartTypedScripts(SCRIPT_Disconnect, players[playernum].mo, true, playernum, true);
 	if (players[playernum].mo != NULL)
 	{
 		P_DisconnectEffect(players[playernum].mo);
@@ -1709,7 +1708,7 @@ void G_DoPlayerPop(int playernum)
 			players[playernum].mo->Destroy();
 		}
 		players[playernum].mo = NULL;
-		players[playernum].camera = NULL;
+		players[playernum].camera = nullptr;
 	}
 
 	players[playernum].DestroyPSprites();
@@ -2059,12 +2058,12 @@ static void PutSaveWads (FSerializer &arc)
 	name = Wads.GetWadName (Wads.GetIwadNum());
 	arc.AddString("Game WAD", name);
 
-	// Name of wad the map resides in
+		// Name of wad the map resides in
 	if (Wads.GetLumpFile (level.lumpnum) > Wads.GetIwadNum())
-	{
+		{
 		name = Wads.GetWadName (Wads.GetLumpFile (level.lumpnum));
 		arc.AddString("Map WAD", name);
-	}
+		}
 }
 
 static void PutSaveComment (FSerializer &arc)
@@ -2080,14 +2079,14 @@ static void PutSaveComment (FSerializer &arc)
 
 	arc.AddString("Creation Time", comment);
 
-	// Get level name
+		// Get level name
 	//strcpy (comment, level.level_name);
 	comment.Format("%s - %s\n", level.MapName.GetChars(), level.LevelName.GetChars());
 
 	// Append elapsed time
+	const char *const time = GStrings("SAVECOMMENT_TIME");
 	levelTime = level.time / TICRATE;
-	comment.AppendFormat("time: %02d:%02d:%02d",
-		levelTime/3600, (levelTime%3600)/60, levelTime%60);
+	comment.AppendFormat("%s: %02d:%02d:%02d", time, levelTime/3600, (levelTime%3600)/60, levelTime%60);
 
 	// Write out the comment
 	arc.AddString("Comment", comment);
@@ -2773,7 +2772,7 @@ bool G_CheckDemoStatus (void)
 		for (int i = 1; i < MAXPLAYERS; i++)
 			playeringame[i] = 0;
 		consoleplayer = 0;
-		players[0].camera = NULL;
+		players[0].camera = nullptr;
 		if (StatusBar != NULL)
 		{
 			StatusBar->AttachToPlayer (&players[0]);

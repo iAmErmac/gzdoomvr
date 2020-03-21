@@ -1906,7 +1906,7 @@ static const char *GetSoundClass(AActor *pp)
 	{
 		return Skins[player->userinfo.GetSkin()].Name.GetChars();
 	}
-	auto sclass = pp->NameVar(NAME_SoundClass);
+	auto sclass = player? pp->NameVar(NAME_SoundClass) : NAME_None;
 
 	return sclass != NAME_None ? sclass.GetChars() : "player";
 }
@@ -2255,8 +2255,13 @@ DEFINE_ACTION_FUNCTION(AAmbientSound, Tick)
 	PARAM_SELF_PROLOGUE(AActor);
 
 	self->Tick();
+	
+	if (self->special1 > 0)
+	{
+		if (--self->special1 > 0) return 0;
+	}
 
-	if (!self->special2 || level.maptime < self->special1)
+	if (!self->special2)
 		return 0;
 
 	FAmbientSound *ambient;
@@ -2351,7 +2356,7 @@ DEFINE_ACTION_FUNCTION(AAmbientSound, Activate)
 			amb->periodmin = ::Scale(S_GetMSLength(sndnum), TICRATE, 1000);
 		}
 
-		self->special1 = level.maptime;
+		self->special1 = 0;
 		if (amb->type & (RANDOM|PERIODIC))
 			self->special1 += GetTicker (amb);
 

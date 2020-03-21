@@ -262,7 +262,9 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 		bool saved_niv = NoInterpolateView;
 		NoInterpolateView = false;
 		// prepare all camera textures that have been used in the last frame
-		level.canvasTextureInfo.UpdateAll([&](AActor *camera, FCanvasTexture *camtex, double fov)
+		auto Level = &level;
+		gl_RenderState.CheckTimer(Level->ShaderStartTime);
+		Level->canvasTextureInfo.UpdateAll([&](AActor *camera, FCanvasTexture *camtex, double fov)
 		{
 			RenderTextureView(camtex, camera, fov);
 		});
@@ -280,7 +282,6 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 			fovratio = ratio;
 		}
 
-		UpdateShadowMap();
 		retsec = RenderViewpoint(r_viewpoint, player->camera, NULL, r_viewpoint.FieldOfView.Degrees, ratio, fovratio, true, true);
 	}
 	All.Unclock();
@@ -365,24 +366,24 @@ void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, in
 	screen->mLights->Clear();
 	screen->mViewpoints->Clear();
 
-	// This shouldn't overwrite the global viewpoint even for a short time.
-	FRenderViewpoint savevp;
-	sector_t *viewsector = RenderViewpoint(savevp, players[consoleplayer].camera, &bounds, r_viewpoint.FieldOfView.Degrees, 1.6f, 1.6f, true, false);
-	glDisable(GL_STENCIL_TEST);
-	gl_RenderState.SetSoftLightLevel(-1);
-	CopyToBackbuffer(&bounds, false);
-
-	// strictly speaking not needed as the glReadPixels should block until the scene is rendered, but this is to safeguard against shitty drivers
-	glFinish();
-
-	uint8_t *scr = (uint8_t *)M_Malloc(width * height * 3);
-	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, scr);
-	M_CreatePNG(file, scr + ((height - 1) * width * 3), NULL, SS_RGB, width, height, -width * 3, Gamma);
-	M_Free(scr);
-
-	// Switch back the screen render buffers
-	screen->SetViewportRects(nullptr);
-	mBuffers = mScreenBuffers;
+    // This shouldn't overwrite the global viewpoint even for a short time.
+    FRenderViewpoint savevp;
+    sector_t *viewsector = RenderViewpoint(savevp, players[consoleplayer].camera, &bounds, r_viewpoint.FieldOfView.Degrees, 1.6f, 1.6f, true, false);
+    glDisable(GL_STENCIL_TEST);
+    gl_RenderState.SetNoSoftLightLevel();
+    CopyToBackbuffer(&bounds, false);
+    
+    // strictly speaking not needed as the glReadPixels should block until the scene is rendered, but this is to safeguard against shitty drivers
+    glFinish();
+    
+    uint8_t * scr = (uint8_t *)M_Malloc(width * height * 3);
+    glReadPixels(0,0,width, height,GL_RGB,GL_UNSIGNED_BYTE,scr);
+    M_CreatePNG (file, scr + ((height-1) * width * 3), NULL, SS_RGB, width, height, -width * 3, Gamma);
+    M_Free(scr);
+    
+    // Switch back the screen render buffers
+    screen->SetViewportRects(nullptr);
+    mBuffers = mScreenBuffers;
 }
 
 //===========================================================================

@@ -117,7 +117,6 @@ static void PlayerLandedOnThing (AActor *mo, AActor *onmobj);
 
 // EXTERNAL DATA DECLARATIONS ----------------------------------------------
 
-extern int BotWTG;
 EXTERN_CVAR (Int,  cl_rockettrails)
 
 // PRIVATE DATA DEFINITIONS ------------------------------------------------
@@ -1714,7 +1713,7 @@ bool P_SeekerMissile (AActor *actor, double thresh, double turnMax, bool precise
 	}
 	if (!(target->flags & MF_SHOOTABLE))
 	{ // Target died
-		actor->tracer = NULL;
+		actor->tracer = nullptr;
 		return false;
 	}
 	if (speed == 0)
@@ -5018,7 +5017,7 @@ AActor *P_SpawnPlayer (FPlayerStart *mthing, int playernum, int flags)
 			VMValue params[] = { mobj, oldactor };
 			VMCall(func, params, 2, nullptr, 0);
 		}
-		FBehavior::StaticStopMyScripts (oldactor);	// cancel all ENTER/RESPAWN scripts for the voodoo doll
+		level.Behaviors.StopMyScripts (oldactor);	// cancel all ENTER/RESPAWN scripts for the voodoo doll
 	}
 
 	// [GRB] Reset skin
@@ -5058,14 +5057,14 @@ AActor *P_SpawnPlayer (FPlayerStart *mthing, int playernum, int flags)
 	p->fixedlightlevel = -1;
 	p->viewheight = p->DefaultViewHeight();
 	p->inconsistant = 0;
-	p->attacker = NULL;
+	p->attacker = nullptr;
 	p->spreecount = 0;
 	p->multicount = 0;
 	p->lastkilltime = 0;
 	p->BlendR = p->BlendG = p->BlendB = p->BlendA = 0.f;
 	p->Uncrouch();
 	p->MinPitch = p->MaxPitch = 0.;	// will be filled in by PostBeginPlay()/netcode
-	p->MUSINFOactor = NULL;
+	p->MUSINFOactor = nullptr;
 	p->MUSINFOtics = -1;
 	p->Vel.Zero();	// killough 10/98: initialize bobbing to 0.
 
@@ -5147,7 +5146,7 @@ AActor *P_SpawnPlayer (FPlayerStart *mthing, int playernum, int flags)
 	{
 		if (state == PST_ENTER || (state == PST_LIVE && !savegamerestore))
 		{
-			FBehavior::StaticStartTypedScripts (SCRIPT_Enter, p->mo, true);
+			level.Behaviors.StartTypedScripts (SCRIPT_Enter, p->mo, true);
 		}
 		else if (state == PST_REBORN)
 		{
@@ -5161,7 +5160,7 @@ AActor *P_SpawnPlayer (FPlayerStart *mthing, int playernum, int flags)
 			TThinkerIterator<AActor> it;
 			while ((th = it.Next()))
 			{
-				if (th->LastHeard == oldactor) th->LastHeard = NULL;
+				if (th->LastHeard == oldactor) th->LastHeard = nullptr;
 			}
 			for(auto &sec : level.sectors)
 			{
@@ -5171,7 +5170,7 @@ AActor *P_SpawnPlayer (FPlayerStart *mthing, int playernum, int flags)
 			DObject::StaticPointerSubstitution (oldactor, p->mo);
 
 			E_PlayerRespawned(int(p - players));
-			FBehavior::StaticStartTypedScripts (SCRIPT_Respawn, p->mo, true);
+			level.Behaviors.StartTypedScripts (SCRIPT_Respawn, p->mo, true);
 		}
 	}
 	return mobj;
@@ -5570,7 +5569,7 @@ AActor *SpawnMapThing(int index, FMapThing *mt, int position)
 			index, mt->pos.X, mt->pos.Y, mt->pos.Z, mt->EdNum, mt->flags,
 			spawned ? spawned->GetClass()->TypeName.GetChars() : "(none)");
 	}
-	T_AddSpawnedThing(spawned);
+	T_AddSpawnedThing(&level, spawned);
 	return spawned;
 }
 
@@ -6710,7 +6709,7 @@ AActor *P_SpawnPlayerMissile (AActor *source, double x, double y, double z,
 	if (z != ONFLOORZ && z != ONCEILINGZ)
 	{
 		// Doom spawns missiles 4 units lower than hitscan attacks for players.
-		z += source->Center() - source->Floorclip + source->AttackOffset(4);
+		z += source->Center() - source->Floorclip + source->AttackOffset(-4);
 		// Do not fire beneath the floor.
 		if (z < source->floorz)
 		{
@@ -7145,8 +7144,8 @@ void AActor::Revive()
 	if (SpawnFlags & MTF_FRIENDLY) flags |= MF_FRIENDLY;
 	DamageType = info->DamageType;
 	health = SpawnHealth();
-	target = NULL;
-	lastenemy = NULL;
+	target = nullptr;
+	lastenemy = nullptr;
 
 	// [RH] If it's a monster, it gets to count as another kill
 	if (CountsAsKill())
