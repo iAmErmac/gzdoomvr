@@ -1892,7 +1892,7 @@ bool S_AreSoundsEquivalent (AActor *actor, int id1, int id2)
 
 //===========================================================================
 //
-// APlayerPawn :: GetSoundClass
+//PlayerPawn :: GetSoundClass
 //
 //===========================================================================
 

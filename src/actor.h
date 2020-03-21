@@ -742,11 +742,6 @@ public:
 	bool CallOkayToSwitchTarget(AActor *other);
 	bool OkayToSwitchTarget (AActor *other);
 
-	// Note: Although some of the inventory functions are virtual, this
-	// is not exposed to scripts, as the only class overriding them is 
-	// APlayerPawn for some specific handling for players. None of this
-	// should ever be overridden by custom classes.
-
 	// Uses an item and removes it from the inventory.
 	bool UseInventory (AActor *item);
 
@@ -1108,7 +1103,7 @@ public:
 	int32_t			threshold;		// if > 0, the target will be chased
 	int32_t			DefThreshold;	// [MC] Default threshold which the actor will reset its threshold to after switching targets
 									// no matter what (even if shot)
-	player_t		*player;		// only valid if type of APlayerPawn
+	player_t		*player;		// only valid if type of PlayerPawn
 	TObjPtr<AActor*>	LastLookActor;	// Actor last looked for (if TIDtoHate != 0)
 	DVector3		SpawnPoint; 	// For nightmare respawn
 	uint16_t			SpawnAngle;
@@ -1498,6 +1493,12 @@ public:
 	static void RecreateAllAttachedLights();
 
 	bool				hasmodel;
+
+	//For VR, override firing position
+	public:
+	bool OverrideAttackPosDir;
+	DVector3 AttackPos;
+	DVector3 (*AttackDir)(AActor* actor, DAngle yaw, DAngle pitch);
 };
 
 class FActorIterator

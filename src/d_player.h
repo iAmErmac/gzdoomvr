@@ -79,17 +79,6 @@ extern ColorSetList ColorSets;
 
 FString GetPrintableDisplayName(PClassActor *cls);
 
-class APlayerPawn : public AActor
-{
-	DECLARE_CLASS(APlayerPawn, AActor)
-
-	//For VR, override firing position
-	public:
-	bool OverrideAttackPosDir;
-	DVector3 AttackPos;
-	DVector3 (*AttackDir)(AActor* actor, DAngle yaw, DAngle pitch);
-};
-
 void PlayIdle(AActor *player);
 
 
@@ -302,7 +291,7 @@ public:
 	void SetLogText (const char *text);
 	void SendPitchLimits() const;
 
-	APlayerPawn	*mo = nullptr;
+	AActor *mo = nullptr;
 	uint8_t		playerstate = 0;
 	ticcmd_t	cmd = {};
 	usercmd_t	original_cmd;
