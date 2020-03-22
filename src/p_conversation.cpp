@@ -352,7 +352,7 @@ static FStrifeDialogueNode *ReadRetailNode (FLevelLocals *Level, const char *nam
 	if (name)
 	{
 		FStringf label("$TXT_DLG_%s_d%d_%s", name, int(pos), TokenFromString(speech.Dialogue).GetChars());
-		node->Dialogue = label;
+		node->Dialogue = GStrings.exists(label)? label : FString(speech.Dialogue);
 	}
 	else
 	{
@@ -370,7 +370,19 @@ static FStrifeDialogueNode *ReadRetailNode (FLevelLocals *Level, const char *nam
 
 	// The speaker's name, if any.
 	speech.Sound[0] = 0; 		//speech.Name[16] = 0;
-	node->SpeakerName = speech.Name;
+	if (name && speech.Name[0])
+	{
+		FString label = speech.Name;
+		label.ReplaceChars(' ', '_');
+		label.ReplaceChars('\'', '_');
+		node->SpeakerName.Format("$TXT_SPEAKER_%s", label.GetChars());
+		if (!GStrings.exists(node->SpeakerName)) node->SpeakerName = speech.Name;
+
+	}
+	else
+	{
+		node->SpeakerName = speech.Name;
+	}
 
 	// The item the speaker should drop when killed.
 	node->DropType = GetStrifeType(speech.DropType);
@@ -436,7 +448,7 @@ static FStrifeDialogueNode *ReadTeaserNode (FLevelLocals *Level, const char *nam
 	if (name)
 	{
 		FStringf label("$TXT_DLG_%s_d%d_%s", name, pos, TokenFromString(speech.Dialogue).GetChars());
-		node->Dialogue = label;
+		node->Dialogue = GStrings.exists(label)? label : FString(speech.Dialogue);
 	}
 	else
 	{
@@ -459,7 +471,18 @@ static FStrifeDialogueNode *ReadTeaserNode (FLevelLocals *Level, const char *nam
 
 	// The speaker's name, if any.
 	speech.Dialogue[0] = 0; 	//speech.Name[16] = 0;
-	node->SpeakerName = speech.Name;
+	if (name && speech.Name[0])
+	{
+		FString label = speech.Name;
+		label.ReplaceChars(' ', '_');
+		label.ReplaceChars('\'', '_');
+		node->SpeakerName.Format("$TXT_SPEAKER_%s", label.GetChars());
+		if (!GStrings.exists(node->SpeakerName)) node->SpeakerName = speech.Name;
+	}
+	else
+	{
+		node->SpeakerName = speech.Name;
+	}
 
 	// The item the speaker should drop when killed.
 	node->DropType = GetStrifeType (speech.DropType);
@@ -551,6 +574,8 @@ static void ParseReplies (const char *name, int pos, FStrifeDialogueReply **repl
 		if (name)
 		{
 			FStringf label("$TXT_RPLY%d_%s_d%d_%s", j, name, pos, TokenFromString(rsp->Reply).GetChars());
+			reply->Reply = GStrings.exists(label)? label : FString(rsp->Reply);
+
 			reply->Reply = label;
 		}
 		else
@@ -575,7 +600,7 @@ static void ParseReplies (const char *name, int pos, FStrifeDialogueReply **repl
 			if (name)
 			{
 				FStringf label("$TXT_RYES%d_%s_d%d_%s", j, name, pos, TokenFromString(rsp->Yes).GetChars());
-				reply->QuickYes = label;
+				reply->QuickYes = GStrings.exists(label)? label : FString(rsp->Yes);
 			}
 			else
 			{
@@ -584,16 +609,8 @@ static void ParseReplies (const char *name, int pos, FStrifeDialogueReply **repl
 		}
 		if (reply->ItemCheck[0].Item != 0)
 		{
-			if (name && strncmp(rsp->No, "NO. ", 4))	// All 'no' nodes starting with 'NO.' won't ever be shown and they all contain broken text.
-			{
-				FStringf label("$TXT_RNO%d_%s_d%d_%s", j, name, pos, TokenFromString(rsp->No).GetChars());
-				reply->QuickNo = label;
-			}
-			else
-			{
-				reply->QuickNo = rsp->No;
-			}
-
+			FStringf label("$TXT_RNO%d_%s_d%d_%s", j, name, pos, TokenFromString(rsp->No).GetChars());
+			reply->QuickNo = GStrings.exists(label)? label : FString(rsp->No);
 		}
 		else
 		{
