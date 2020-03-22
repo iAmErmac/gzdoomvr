@@ -90,6 +90,7 @@
 #include "p_acs.h"
 #include "events.h"
 #include "gstrings.h"
+#include "g_game.h"
 
 static FRandom pr_skullpop ("SkullPop");
 
@@ -438,7 +439,7 @@ void player_t::SetLogText (const char *text)
 {
 	LogText = text;
 
-	if (mo->CheckLocalView(consoleplayer))
+	if (mo->CheckLocalView())
 	{
 		// Print log text to console
 		AddToConsole(-1, TEXTCOLOR_GOLD);

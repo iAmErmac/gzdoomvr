@@ -99,6 +99,8 @@
 #include "events.h"
 #include "vm.h"
 #include "types.h"
+#include "i_system.h"
+#include "g_cvars.h"
 #include "r_data/r_vanillatrans.h"
 #include <hwrenderer\utility\hw_vrmodes.h>
 

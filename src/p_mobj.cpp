@@ -59,7 +59,7 @@
 // HEADER FILES ------------------------------------------------------------
 #include <float.h>
 #include "templates.h"
-#include "i_system.h"
+
 #include "m_random.h"
 #include "doomdef.h"
 #include "p_local.h"
@@ -943,9 +943,9 @@ DEFINE_ACTION_FUNCTION(AActor, GiveBody)
 //
 //============================================================================
 
-bool AActor::CheckLocalView (int playernum) const
+bool AActor::CheckLocalView() const
 {
-	auto p = &players[playernum];
+	auto p = &players[consoleplayer];
 	if (p->camera == this)
 	{
 		return true;
@@ -966,7 +966,7 @@ DEFINE_ACTION_FUNCTION(AActor, CheckLocalView)
 {
 	PARAM_SELF_PROLOGUE(AActor);
 	PARAM_INT(cp);
-	ACTION_RETURN_BOOL(self->CheckLocalView(cp));
+	ACTION_RETURN_BOOL(self->CheckLocalView());
 }
 
 //============================================================================
