@@ -2383,7 +2383,7 @@ void A_DoChase (AActor *actor, bool fastchase, FState *meleestate, FState *missi
 			// as the goal.
 			while ( (spec = specit.Next()) )
 			{
-				P_ExecuteSpecial(spec->special, NULL, actor, false, spec->args[0],
+				P_ExecuteSpecial(actor->Level, spec->special, NULL, actor, false, spec->args[0],
 					spec->args[1], spec->args[2], spec->args[3], spec->args[4]);
 			}
 
@@ -3073,7 +3073,7 @@ void A_BossDeath(AActor *self)
 	FName mytype = self->GetClass()->TypeName;
 
 	// Ugh...
-	FName type = self->GetClass()->GetReplacee()->TypeName;
+	FName type = self->GetClass()->GetReplacee(self->Level)->TypeName;
 	
 	// Do generic special death actions first
 	bool checked = false;
@@ -3098,11 +3098,11 @@ void A_BossDeath(AActor *self)
 				ml.tag = sa->Args[0];
 				line_t line;
 				self->Level->TranslateLineDef(&line, &ml);
-				P_ExecuteSpecial(line.special, NULL, self, false, line.args[0], line.args[1], line.args[2], line.args[3], line.args[4]);
+				P_ExecuteSpecial(self->Level, line.special, nullptr, self, false, line.args[0], line.args[1], line.args[2], line.args[3], line.args[4]);
 			}
 			else
 			{
-				P_ExecuteSpecial(sa->Action, NULL, self, false, sa->Args[0], sa->Args[1], sa->Args[2], sa->Args[3], sa->Args[4]);
+				P_ExecuteSpecial(self->Level, sa->Action, nullptr, self, false, sa->Args[0], sa->Args[1], sa->Args[2], sa->Args[3], sa->Args[4]);
 			}
 		}
 	}

@@ -89,9 +89,9 @@
 #include "actorinlines.h"
 #include "p_acs.h"
 #include "events.h"
-#include "gstrings.h"
 #include "g_game.h"
 #include "v_video.h"
+#include "gstrings.h"
 
 static FRandom pr_skullpop ("SkullPop");
 
@@ -236,46 +236,6 @@ void SetupPlayerClasses ()
 				newclass.Flags |= PCF_NOMENU;
 			}
 			PlayerClasses.Push(newclass);
-		}
-	}
-}
-
-CCMD (clearplayerclasses)
-{
-	if (ParsingKeyConf)
-	{
-		PlayerClasses.Clear ();
-	}
-}
-
-CCMD (addplayerclass)
-{
-	if (ParsingKeyConf && argv.argc () > 1)
-	{
-		PClassActor *ti = PClass::FindActor(argv[1]);
-
-		if (ValidatePlayerClass(ti, argv[1]))
-		{
-			FPlayerClass newclass;
-
-			newclass.Type = ti;
-			newclass.Flags = 0;
-
-			int arg = 2;
-			while (arg < argv.argc())
-			{
-				if (!stricmp (argv[arg], "nomenu"))
-				{
-					newclass.Flags |= PCF_NOMENU;
-				}
-				else
-				{
-					Printf ("Unknown flag '%s' for player class '%s'\n", argv[arg], argv[1]);
-				}
-
-				arg++;
-			}
-			PlayerClasses.Push (newclass);
 		}
 	}
 }
@@ -695,8 +655,7 @@ bool player_t::Resurrect()
 
 	// player is now alive.
 	// fire E_PlayerRespawned and start the ACS SCRIPT_Respawn.
-	E_PlayerRespawned(pnum);
-	//
+	mo->Level->localEventManager->PlayerRespawned(pnum);
 	mo->Level->Behaviors.StartTypedScripts(SCRIPT_Respawn, mo, true);
 	return true;
 }
@@ -997,8 +956,8 @@ void P_CheckPlayerSprite(AActor *actor, int &spritenum, DVector2 &scale)
 
 CUSTOM_CVAR (Float, sv_aircontrol, 0.00390625f, CVAR_SERVERINFO|CVAR_NOSAVE)
 {
-	currentUILevel->aircontrol = self;
-	currentUILevel->AirControlChanged ();
+	primaryLevel->aircontrol = self;
+	primaryLevel->AirControlChanged ();
 }
 
 //==========================================================================

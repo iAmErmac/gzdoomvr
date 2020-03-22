@@ -730,7 +730,7 @@ AActor *AActor::GiveInventoryType (PClassActor *type)
 {
 	if (type != nullptr)
 	{
-		auto item = Spawn (type);
+		auto item = Spawn (Level, type);
 		if (!CallTryPickup (item, this))
 		{
 			item->Destroy ();
@@ -1208,7 +1208,7 @@ bool AActor::Grind(bool items)
 
 			if (i != NULL)
 			{
-				i = i->GetReplacement();
+				i = i->GetReplacement(Level);
 
 				const AActor *defaults = GetDefaultByType (i);
 				if (defaults->SpawnState == NULL ||
@@ -1227,7 +1227,7 @@ bool AActor::Grind(bool items)
 				return false;
 			}
 
-			AActor *gib = Spawn (i, Pos(), ALLOW_REPLACE);
+			AActor *gib = Spawn (Level, i, Pos(), ALLOW_REPLACE);
 			if (gib != NULL)
 			{
 				gib->RenderStyle = RenderStyle;
@@ -2820,7 +2820,7 @@ void P_NightmareRespawn (AActor *mobj)
 		z = ONFLOORZ;
 
 	// spawn it
-	mo = AActor::StaticSpawn(mobj->GetClass(), DVector3(mobj->SpawnPoint.X, mobj->SpawnPoint.Y, z), NO_REPLACE, true);
+	mo = AActor::StaticSpawn(mobj->Level, mobj->GetClass(), DVector3(mobj->SpawnPoint.X, mobj->SpawnPoint.Y, z), NO_REPLACE, true);
 	mo->health = mobj->SpawnHealth();
 
 	if (z == ONFLOORZ)
@@ -3578,7 +3578,7 @@ void AActor::Tick ()
 			{
 				// add some smoke behind the rocket 
 				smokecounter = 0;
-				AActor *th = Spawn("RocketSmokeTrail", Vec3Offset(-Vel), ALLOW_REPLACE);
+				AActor *th = Spawn(Level, "RocketSmokeTrail", Vec3Offset(-Vel), ALLOW_REPLACE);
 				if (th)
 				{
 					th->tics -= pr_rockettrail()&3;
@@ -3596,7 +3596,7 @@ void AActor::Tick ()
 				double xo = -moveangle.Cos() * radius * 2 + pr_rockettrail() / 64.;
 				double yo = -moveangle.Sin() * radius * 2 + pr_rockettrail() / 64.;
 				double zo = -Height * Vel.Z / 8. + Height * (2 / 3.);
-				AActor * th = Spawn("GrenadeSmokeTrail", Vec3Offset(xo, yo, zo), ALLOW_REPLACE);
+				AActor * th = Spawn(Level, "GrenadeSmokeTrail", Vec3Offset(xo, yo, zo), ALLOW_REPLACE);
 				if (th)
 				{
 					th->tics -= pr_rockettrail()&3;
@@ -4530,7 +4530,7 @@ void ConstructActor(AActor *actor, const DVector3 &pos, bool SpawningMapThing)
 }
 
 
-AActor *AActor::StaticSpawn(PClassActor *type, const DVector3 &pos, replace_t allowreplacement, bool SpawningMapThing)
+AActor *AActor::StaticSpawn(FLevelLocals *Level, PClassActor *type, const DVector3 &pos, replace_t allowreplacement, bool SpawningMapThing)
 {
 	if (type == NULL)
 	{
@@ -4539,12 +4539,12 @@ AActor *AActor::StaticSpawn(PClassActor *type, const DVector3 &pos, replace_t al
 
 	if (allowreplacement)
 	{
-		type = type->GetReplacement();
+		type = type->GetReplacement(Level);
 	}
 
 	AActor *actor;
 
-	actor = static_cast<AActor *>(level.CreateThinker(type));
+	actor = static_cast<AActor *>(Level->CreateThinker(type));
 
 	ConstructActor(actor, pos, SpawningMapThing);
 	return actor;
@@ -4558,7 +4558,7 @@ DEFINE_ACTION_FUNCTION(AActor, Spawn)
 	PARAM_FLOAT(y);
 	PARAM_FLOAT(z);
 	PARAM_INT(flags);
-	ACTION_RETURN_OBJECT(AActor::StaticSpawn(type, DVector3(x, y, z), replace_t(flags)));
+	ACTION_RETURN_OBJECT(AActor::StaticSpawn(currentVMLevel, type, DVector3(x, y, z), replace_t(flags)));
 }
 
 PClassActor *ClassForSpawn(FName classname)
@@ -4682,7 +4682,7 @@ void AActor::PostBeginPlay ()
 void AActor::CallPostBeginPlay()
 {
 	Super::CallPostBeginPlay();
-	E_WorldThingSpawned(this);
+	Level->localEventManager->WorldThingSpawned(this);
 }
 
 bool AActor::isFast()
@@ -4800,7 +4800,7 @@ void AActor::OnDestroy ()
 	//      note that this differs from ThingSpawned in that you can actually override OnDestroy to avoid calling the hook.
 	//      but you can't really do that without utterly breaking the game, so it's ok.
 	//      note: if OnDestroy is ever made optional, E_WorldThingDestroyed should still be called for ANY thing.
-	E_WorldThingDestroyed(this);
+	Level->localEventManager->WorldThingDestroyed(this);
 
 	DeleteAttachedLights();
 	ClearRenderSectorList();
@@ -4975,7 +4975,7 @@ AActor *FLevelLocals::SpawnPlayer (FPlayerStart *mthing, int playernum, int flag
 			spawn.Z = ONFLOORZ;
 	}
 
-	mobj = Spawn (p->cls, spawn, NO_REPLACE);
+	mobj = Spawn (this, p->cls, spawn, NO_REPLACE);
 
 	if (flags & LEVEL_USEPLAYERSTARTZ)
 	{
@@ -5155,7 +5155,7 @@ AActor *FLevelLocals::SpawnPlayer (FPlayerStart *mthing, int playernum, int flag
 
 			DObject::StaticPointerSubstitution (oldactor, p->mo);
 
-			E_PlayerRespawned(PlayerNum(p));
+			localEventManager->PlayerRespawned(PlayerNum(p));
 			Behaviors.StartTypedScripts (SCRIPT_Respawn, p->mo, true);
 		}
 	}
@@ -5363,7 +5363,7 @@ AActor *FLevelLocals::SpawnMapThing (FMapThing *mthing, int position)
 	//		it to the unknown thing.
 		// Handle decorate replacements explicitly here
 		// to check for missing frames in the replacement object.
-	i = mentry->Type->GetReplacement();
+	i = mentry->Type->GetReplacement(this);
 
 		const AActor *defaults = GetDefaultByType (i);
 		if (defaults->SpawnState == NULL ||
@@ -5423,7 +5423,7 @@ AActor *FLevelLocals::SpawnMapThing (FMapThing *mthing, int position)
 	else
 		sz = ONFLOORZ;
 
-	mobj = AActor::StaticSpawn (i, DVector3(mthing->pos, sz), NO_REPLACE, true);
+	mobj = AActor::StaticSpawn (this, i, DVector3(mthing->pos, sz), NO_REPLACE, true);
 
 	if (sz == ONFLOORZ)
 	{
@@ -5582,7 +5582,7 @@ AActor *P_SpawnPuff (AActor *source, PClassActor *pufftype, const DVector3 &pos1
 	if (pufftype == nullptr) return nullptr;
 
 	if (!(flags & PF_NORANDOMZ)) pos.Z += pr_spawnpuff.Random2() / 64.;
-	puff = Spawn(pufftype, pos, ALLOW_REPLACE);
+	puff = Spawn(source->Level, pufftype, pos, ALLOW_REPLACE);
 	if (puff == NULL) return NULL;
 
 	if ((puff->flags4 & MF4_RANDOMIZE) && puff->tics > 0)
@@ -5685,7 +5685,7 @@ void P_SpawnBlood (const DVector3 &pos1, DAngle dir, int damage, AActor *origina
 
 	if (bloodcls != NULL)
 	{
-		th = Spawn(bloodcls, pos, NO_REPLACE); // GetBloodType already performed the replacement
+		th = Spawn(originator->Level, bloodcls, pos, NO_REPLACE); // GetBloodType already performed the replacement
 		th->Vel.Z = 2;
 		th->Angles.Yaw = dir;
 		// [NG] Applying PUFFGETSOWNER to the blood will make it target the owner
@@ -5792,7 +5792,7 @@ void P_BloodSplatter (const DVector3 &pos, AActor *originator, DAngle hitangle)
 	{
 		AActor *mo;
 
-		mo = Spawn(bloodcls, pos, NO_REPLACE); // GetBloodType already performed the replacement
+		mo = Spawn(originator->Level, bloodcls, pos, NO_REPLACE); // GetBloodType already performed the replacement
 		mo->target = originator;
 		mo->Vel.X = pr_splatter.Random2 () / 64.;
 		mo->Vel.Y = pr_splatter.Random2() / 64.;
@@ -5836,7 +5836,7 @@ void P_BloodSplatter2 (const DVector3 &pos, AActor *originator, DAngle hitangle)
 		AActor *mo;
 
 
-		mo = Spawn (bloodcls, pos + add, NO_REPLACE); // GetBloodType already performed the replacement
+		mo = Spawn (originator->Level, bloodcls, pos + add, NO_REPLACE); // GetBloodType already performed the replacement
 		mo->target = originator;
 
 		// colorize the blood!
@@ -5890,7 +5890,7 @@ void P_RipperBlood (AActor *mo, AActor *bleeder)
 	if (bloodcls != NULL)
 	{
 		AActor *th;
-		th = Spawn (bloodcls, pos, NO_REPLACE); // GetBloodType already performed the replacement
+		th = Spawn (bleeder->Level, bloodcls, pos, NO_REPLACE); // GetBloodType already performed the replacement
 		// [NG] Applying PUFFGETSOWNER to the blood will make it target the owner
 		if (th->flags5 & MF5_PUFFGETSOWNER) th->target = bleeder;
 		if (gameinfo.gametype == GAME_Heretic)
@@ -6033,14 +6033,14 @@ foundone:
 	{
 		if (smallsplash && splash->SmallSplash)
 		{
-			mo = Spawn(splash->SmallSplash, pos, ALLOW_REPLACE);
+			mo = Spawn(sec->Level, splash->SmallSplash, pos, ALLOW_REPLACE);
 			if (mo) mo->Floorclip += splash->SmallSplashClip;
 		}
 		else
 		{
 			if (splash->SplashChunk)
 			{
-				mo = Spawn(splash->SplashChunk, pos, ALLOW_REPLACE);
+				mo = Spawn(sec->Level, splash->SplashChunk, pos, ALLOW_REPLACE);
 				mo->target = thing;
 				if (splash->ChunkXVelShift != 255)
 				{
@@ -6054,7 +6054,7 @@ foundone:
 			}
 			if (splash->SplashBase)
 			{
-				mo = Spawn(splash->SplashBase, pos, ALLOW_REPLACE);
+				mo = Spawn(sec->Level, splash->SplashBase, pos, ALLOW_REPLACE);
 			}
 			if (thing->player && !splash->NoAlert && alert)
 			{
@@ -6334,7 +6334,7 @@ AActor *P_SpawnMissileXYZ (DVector3 pos, AActor *source, AActor *dest, PClassAct
 		pos.Z -= source->Floorclip;
 	}
 
-	AActor *th = Spawn (type, pos, ALLOW_REPLACE);
+	AActor *th = Spawn (source->Level, type, pos, ALLOW_REPLACE);
 	
 	P_PlaySpawnSound(th, source);
 
@@ -6445,7 +6445,7 @@ AActor *P_OldSpawnMissile(AActor *source, AActor *owner, AActor *dest, PClassAct
 	{
 		return nullptr;
 	}
-	AActor *th = Spawn (type, source->PosPlusZ(32.), ALLOW_REPLACE);
+	AActor *th = Spawn (source->Level, type, source->PosPlusZ(32.), ALLOW_REPLACE);
 
 	P_PlaySpawnSound(th, source);
 	th->target = owner;		// record missile's originator
@@ -6559,7 +6559,7 @@ AActor *P_SpawnMissileAngleZSpeed (AActor *source, double z,
 		z -= source->Floorclip;
 	}
 
-	mo = Spawn (type, source->PosAtZ(z), ALLOW_REPLACE);
+	mo = Spawn (source->Level, type, source->PosAtZ(z), ALLOW_REPLACE);
 
 	P_PlaySpawnSound(mo, source);
 	if (owner == NULL) owner = source;
@@ -6592,7 +6592,7 @@ DEFINE_ACTION_FUNCTION(AActor, SpawnMissileAngleZSpeed)
 
 AActor *P_SpawnSubMissile(AActor *source, PClassActor *type, AActor *target)
 {
-	AActor *other = Spawn(type, source->Pos(), ALLOW_REPLACE);
+	AActor *other = Spawn(source->Level, type, source->Pos(), ALLOW_REPLACE);
 
 	if (source == nullptr || type == nullptr)
 	{
@@ -6714,7 +6714,7 @@ AActor *P_SpawnPlayerMissile (AActor *source, double x, double y, double z,
 		an = dir.Angle();
 		pitch = dir.Pitch();
 	}
-	AActor *MissileActor = Spawn (type, pos, ALLOW_REPLACE);
+	AActor *MissileActor = Spawn (source->Level, type, pos, ALLOW_REPLACE);
 	if (pMissileActor) *pMissileActor = MissileActor;
 	P_PlaySpawnSound(MissileActor, source);
 	MissileActor->target = source;
@@ -7144,7 +7144,7 @@ void AActor::Revive()
 	}
 
 	// [ZZ] resurrect hook
-	E_WorldThingRevived(this);
+	Level->localEventManager->WorldThingRevived(this);
 }
 
 int AActor::GetGibHealth() const
