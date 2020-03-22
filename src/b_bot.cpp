@@ -49,6 +49,7 @@
 #include "d_player.h"
 #include "w_wad.h"
 #include "vm.h"
+#include "g_levellocals.h"
 
 IMPLEMENT_CLASS(DBot, false, true)
 
@@ -137,15 +138,15 @@ void DBot::Tick ()
 {
 	Super::Tick ();
 
-	if (player->mo == nullptr || bglobal.freeze)
+	if (player->mo == nullptr || Level->isFrozen())
 	{
 		return;
 	}
 
 	BotThinkCycles.Clock();
-	bglobal.m_Thinking = true;
+	Level->BotInfo.m_Thinking = true;
 	Think ();
-	bglobal.m_Thinking = false;
+	Level->BotInfo.m_Thinking = false;
 	BotThinkCycles.Unclock();
 }
 
@@ -173,9 +174,9 @@ CCMD (addbot)
 	}
 
 	if (argv.argc() > 1)
-		bglobal.SpawnBot (argv[1]);
+		currentUILevel->BotInfo.SpawnBot (argv[1]);
 	else
-		bglobal.SpawnBot (nullptr);
+		currentUILevel->BotInfo.SpawnBot (nullptr);
 }
 
 void FCajunMaster::ClearPlayer (int i, bool keepTeam)
@@ -232,7 +233,7 @@ CCMD (freeze)
 
 CCMD (listbots)
 {
-	botinfo_t *thebot = bglobal.botinfo;
+	botinfo_t *thebot = currentUILevel->BotInfo.botinfo;
 	int count = 0;
 
 	while (thebot)

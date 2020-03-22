@@ -117,7 +117,6 @@ void FGLRenderer::Initialize(int width, int height)
 FGLRenderer::~FGLRenderer()
 {
 	FlushModels();
-	AActor::DeleteAllAttachedLights();
 	TexMan.FlushAll();
 	if (mShaderManager != nullptr) delete mShaderManager;
 	if (mSamplerManager != nullptr) delete mSamplerManager;
@@ -253,8 +252,6 @@ sector_t *FGLRenderer::RenderView(player_t *player)
 		else
 			r_viewpoint.TicFrac = I_GetTimeFrac();
 
-		P_FindParticleSubsectors();
-
 		screen->mLights->Clear();
 		screen->mViewpoints->Clear();
 
@@ -365,7 +362,6 @@ void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, in
     mBuffers = mSaveBuffers;
     
 	hw_ClearFakeFlat();
-	P_FindParticleSubsectors();    // make sure that all recently spawned particles have a valid subsector.
 	gl_RenderState.SetVertexBuffer(screen->mVertexData);
 	screen->mVertexData->Reset();
 	screen->mLights->Clear();

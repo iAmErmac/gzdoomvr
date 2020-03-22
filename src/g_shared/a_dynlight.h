@@ -75,7 +75,7 @@ public:
 	void SetSpot(bool spot) { if (spot) m_lightFlags |= LF_SPOT; else m_lightFlags &= ~LF_SPOT; }
 	void SetSpotInnerAngle(double angle) { m_spotInnerAngle = angle; }
 	void SetSpotOuterAngle(double angle) { m_spotOuterAngle = angle; }
-	static void SetAttenuationForLevel();
+	static void SetAttenuationForLevel(bool);
 
 	void OrderIntensities()
 	{

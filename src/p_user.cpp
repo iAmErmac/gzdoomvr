@@ -1220,6 +1220,12 @@ void P_PlayerThink (player_t *player)
 		I_Error ("No player %td start\n", player - players + 1);
 	}
 
+	// Bots do not think in freeze mode.
+	if (player->mo->Level->isFrozen() && player->Bot != nullptr)
+	{
+		return;
+	}
+
 	if (debugfile && !(player->cheats & CF_PREDICTING))
 	{
 		fprintf (debugfile, "tic %d for pl %d: (%f, %f, %f, %f) b:%02x p:%d y:%d f:%d s:%d u:%d\n",
@@ -1258,7 +1264,6 @@ bool P_LerpCalculate(AActor *pmo, PredictPos from, PredictPos to, PredictPos &re
 	DVector3 delta = vecResult - vecTo;
 
 	result.pos = pmo->Vec3Offset(vecResult - to.pos);
-	//result.portalgroup = P_PointInSector(result.pos.x, result.pos.y)->PortalGroup;
 
 	// As a fail safe, assume extrapolation is the threshold.
 	return (delta.LengthSquared() > cl_predict_lerpthreshold && scale <= 1.00f);
@@ -1683,7 +1688,7 @@ bool P_IsPlayerTotallyFrozen(const player_t *player)
 	return
 		gamestate == GS_TITLELEVEL ||
 		player->cheats & CF_TOTALLYFROZEN ||
-		((player->mo->Level->flags2 & LEVEL2_FROZEN) && player->timefreezer == 0);
+		player->mo->isFrozen();
 }
 
 

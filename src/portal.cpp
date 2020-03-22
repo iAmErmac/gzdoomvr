@@ -1115,7 +1115,7 @@ bool FLevelLocals::CollectConnectedGroups(int startgroup, const DVector3 &positi
 	}
 	if (out.method != FPortalGroupArray::PGA_NoSectorPortals)
 	{
-		sector_t *sec = P_PointInSector(position);
+		sector_t *sec = PointInSector(position);
 		sector_t *wsec = sec;
 		while (!wsec->PortalBlocksMovement(sector_t::ceiling) && upperz > wsec->GetPortalPlaneZ(sector_t::ceiling))
 		{
@@ -1124,7 +1124,7 @@ bool FLevelLocals::CollectConnectedGroups(int startgroup, const DVector3 &positi
 			if (processMask.getBit(othergroup)) break;
 			processMask.setBit(othergroup);
 			out.Add(othergroup | FPortalGroupArray::UPPER);
-			wsec = P_PointInSector(pos);	// get upper sector at the exact spot we want to check and repeat
+			wsec = PointInSector(pos);	// get upper sector at the exact spot we want to check and repeat
 			retval = true;
 		}
 		wsec = sec;
@@ -1135,7 +1135,7 @@ bool FLevelLocals::CollectConnectedGroups(int startgroup, const DVector3 &positi
 			if (processMask.getBit(othergroup)) break;
 			processMask.setBit(othergroup);
 			out.Add(othergroup | FPortalGroupArray::LOWER);
-			wsec = P_PointInSector(pos);	// get lower sector at the exact spot we want to check and repeat
+			wsec = PointInSector(pos);	// get lower sector at the exact spot we want to check and repeat
 			retval = true;
 		}
 		if (out.method == FPortalGroupArray::PGA_Full3d && PortalBlockmap.hasLinkedSectorPortals)
@@ -1147,7 +1147,7 @@ bool FLevelLocals::CollectConnectedGroups(int startgroup, const DVector3 &positi
 			{
 				DVector2 disp = Displacements.getOffset(startgroup, thisgroup & ~FPortalGroupArray::FLAT);
 				FBoundingBox box(position.X + disp.X, position.Y + disp.Y, checkradius);
-				FBlockLinesIterator it(box);
+				FBlockLinesIterator it(this, box);
 				line_t *ld;
 				while ((ld = it.Next()))
 				{

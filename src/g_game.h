@@ -34,6 +34,7 @@ struct event_t;
 
 
 class AActor;
+struct FLevelLocals;
 
 //
 // GAME
@@ -68,7 +69,7 @@ void G_Ticker (void);
 bool G_Responder (event_t*	ev);
 
 void G_ScreenShot (char *filename);
-void G_StartSlideshow(FName whichone);
+void G_StartSlideshow(FLevelLocals *Level, FName whichone);
 
 FString G_BuildSaveName (const char *prefix, int slot);
 

@@ -753,7 +753,6 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 	else
 		Angles = thing->Angles;
 
-	player_t *player = &players[consoleplayer];
 	FloatRect r;
 
 	if (sector->sectornum != thing->Sector->sectornum && !thruportal)
@@ -1069,7 +1068,6 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 
 	const bool drawWithXYBillboard = (!(actor->renderflags & RF_FORCEYBILLBOARD)
 		&& (actor->renderflags & RF_SPRITETYPEMASK) == RF_FACESPRITE
-		&& players[consoleplayer].camera
 		&& (gl_billboard_mode == 1 || actor->renderflags & RF_FORCEXYBILLBOARD));
 
 
@@ -1113,8 +1111,6 @@ void GLSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 
 void GLSprite::ProcessParticle (HWDrawInfo *di, particle_t *particle, sector_t *sector)//, int shade, int fakeside)
 {
-	player_t *player=&players[consoleplayer];
-	
 	if (particle->alpha==0) return;
 
 	lightlevel = hw_ClampLight(sector->GetTexture(sector_t::ceiling) == skyflatnum ? 
@@ -1198,7 +1194,7 @@ void GLSprite::ProcessParticle (HWDrawInfo *di, particle_t *particle, sector_t *
 
     const auto &vp = di->Viewpoint;
 	double timefrac = vp.TicFrac;
-	if (paused || bglobal.freeze || (di->Level->flags2 & LEVEL2_FROZEN))
+	if (paused || di->Level->isFrozen())
 		timefrac = 0.;
 	float xvf = (particle->Vel.X) * timefrac;
 	float yvf = (particle->Vel.Y) * timefrac;

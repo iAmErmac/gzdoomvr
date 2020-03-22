@@ -945,16 +945,17 @@ DEFINE_ACTION_FUNCTION(AActor, GiveBody)
 
 bool AActor::CheckLocalView (int playernum) const
 {
-	if (players[playernum].camera == this)
+	auto p = &players[playernum];
+	if (p->camera == this)
 	{
 		return true;
 	}
-	if (players[playernum].mo != this || players[playernum].camera == NULL)
+	if (p->mo != this || p->camera == nullptr)
 	{
 		return false;
 	}
-	if (players[playernum].camera->player == NULL &&
-		!(players[playernum].camera->flags3 & MF3_ISMONSTER))
+	if (p->camera->player == NULL &&
+		!(p->camera->flags3 & MF3_ISMONSTER))
 	{
 		return true;
 	}
@@ -983,6 +984,10 @@ bool AActor::IsInsideVisibleAngles() const
 		return true;
 
 	if (players[consoleplayer].camera == nullptr)
+		return true;
+	
+	// Not detectable.
+	if (!Level->isPrimaryLevel())
 		return true;
 	
 	DAngle anglestart = VisibleStartAngle;
@@ -1161,7 +1166,7 @@ bool AActor::Grind(bool items)
 		// see rh_log entry for February 21, 1999. Don't know if it is still relevant.
 		if (state == NULL 									// Only use the default crushed state if:
 			&& !(flags & MF_NOBLOOD)						// 1. the monster bleeeds,
-			&& (i_compatflags & COMPATF_CORPSEGIBS)			// 2. the compat setting is on,
+			&& (Level->i_compatflags & COMPATF_CORPSEGIBS)			// 2. the compat setting is on,
 			&& player == NULL)								// 3. and the thing isn't a player.
 		{
 			isgeneric = true;
@@ -1816,7 +1821,7 @@ double P_XYMovement (AActor *mo, DVector2 scroll)
 	// [anon] When friction is turned off, turn off the crouching and water
 	//  speed caps as well, since it is a sort of friction, and the modders
 	//  most likely want to deal with that themselves.
-	if ((mo->player != NULL && (i_compatflags & COMPATF_WALLRUN)) || ((mo->waterlevel >= 1 ||
+	if ((mo->player != NULL && (mo->Level->i_compatflags & COMPATF_WALLRUN)) || ((mo->waterlevel >= 1 ||
 		(mo->player != NULL && mo->player->crouchfactor < 0.75)) && !(mo->flags8 & MF8_NOFRICTION)))
 	{
 		// preserve the direction instead of clamping x and y independently.
@@ -1938,7 +1943,7 @@ double P_XYMovement (AActor *mo, DVector2 scroll)
 	DAngle oldangle = mo->Angles.Yaw;
 	do
 	{
-		if (i_compatflags & COMPATF_WALLRUN) pushtime++;
+		if (mo->Level->i_compatflags & COMPATF_WALLRUN) pushtime++;
 		tm.PushTime = pushtime;
 
 		ptry = start + move * step / steps;
@@ -1989,7 +1994,7 @@ double P_XYMovement (AActor *mo, DVector2 scroll)
 					// actor's velocity, do not attempt to slide.
 					if (mo->Vel.XY() == startvel)
 					{
-						if (player && (i_compatflags & COMPATF_WALLRUN))
+						if (player && (mo->Level->i_compatflags & COMPATF_WALLRUN))
 						{
 						// [RH] Here is the key to wall running: The move is clipped using its full speed.
 						// If the move is done a second time (because it was too fast for one move), it
@@ -2007,7 +2012,7 @@ double P_XYMovement (AActor *mo, DVector2 scroll)
 						}
 						else
 						{
-							if (!player || !(i_compatflags & COMPATF_WALLRUN))
+							if (!player || !(mo->Level->i_compatflags & COMPATF_WALLRUN))
 							{
 								move = mo->Vel;
 								onestep = move / steps;
@@ -2451,7 +2456,7 @@ void P_ZMovement (AActor *mo, double oldfloorz)
 	// Hexen yanked all items to the floor, except those being spawned at map start in the air.
 	// Those were kept at their original height.
 	// Do this only if the item was actually spawned by the map above ground to avoid problems.
-	if (mo->specialf1 > 0 && (mo->flags2 & MF2_FLOATBOB) && (ib_compatflags & BCOMPATF_FLOATBOB))
+	if (mo->specialf1 > 0 && (mo->flags2 & MF2_FLOATBOB) && (mo->Level->ib_compatflags & BCOMPATF_FLOATBOB))
 	{
 		mo->SetZ(mo->floorz + mo->specialf1);
 	}
@@ -3264,7 +3269,7 @@ bool AActor::IsOkayToAttack (AActor *link)
 	AActor * Friend;
 	if (flags5 & MF5_SUMMONEDMONSTER)					Friend = tracer;
 	else if (flags2 & MF2_SEEKERMISSILE)				Friend = target;
-	else if ((flags & MF_FRIENDLY) && FriendPlayer)		Friend = players[FriendPlayer-1].mo;
+	else if ((flags & MF_FRIENDLY) && FriendPlayer)		Friend = Level->Players[FriendPlayer-1]->mo;
 	else												Friend = this;
 
 	// Friend checks
@@ -3395,7 +3400,7 @@ DVector3 AActor::GetPortalTransition(double byoffset, sector_t **pSec)
 		if (testz >= sec->GetPortalPlaneZ(sector_t::ceiling))
 		{
 			pos = PosRelative(sec->GetOppositePortalGroup(sector_t::ceiling));
-			sec = P_PointInSector(pos);
+			sec = Level->PointInSector(pos);
 			moved = true;
 		}
 		else break;
@@ -3407,7 +3412,7 @@ DVector3 AActor::GetPortalTransition(double byoffset, sector_t **pSec)
 			if (testz < sec->GetPortalPlaneZ(sector_t::floor))
 			{
 				pos = PosRelative(sec->GetOppositePortalGroup(sector_t::floor));
-				sec = P_PointInSector(pos);
+				sec = Level->PointInSector(pos);
 			}
 			else break;
 		}
@@ -3430,7 +3435,7 @@ void AActor::CheckPortalTransition(bool islinked)
 			if (islinked && !moved) UnlinkFromWorld(&ctx);
 			SetXYZ(PosRelative(Sector->GetOppositePortalGroup(sector_t::ceiling)));
 			Prev += Pos() - oldpos;
-			Sector = P_PointInSector(Pos());
+			Sector = Level->PointInSector(Pos());
 			PrevPortalGroup = Sector->PortalGroup;
 			moved = true;
 		}
@@ -3447,7 +3452,7 @@ void AActor::CheckPortalTransition(bool islinked)
 				if (islinked && !moved) UnlinkFromWorld(&ctx);
 				SetXYZ(PosRelative(Sector->GetOppositePortalGroup(sector_t::floor)));
 				Prev += Pos() - oldpos;
-				Sector = P_PointInSector(Pos());
+				Sector = Level->PointInSector(Pos());
 				PrevPortalGroup = Sector->PortalGroup;
 				moved = true;
 			}
@@ -3505,18 +3510,15 @@ void AActor::Tick ()
 		// apply velocity
 		// ensure that the actor is not linked into the blockmap
 
-		if (!(flags5 & MF5_NOTIMEFREEZE))
+		//Added by MC: Freeze mode.
+		if (isFrozen())
 		{
-			//Added by MC: Freeze mode.
-			if (bglobal.freeze || Level->flags2 & LEVEL2_FROZEN)
+			// Boss cubes shouldn't be accelerated by timefreeze
+			if (flags6 & MF6_BOSSCUBE)
 			{
-				// Boss cubes shouldn't be accelerated by timefreeze
-				if (flags6 & MF6_BOSSCUBE)
-				{
-					special2++;
-				}
-				return;
+				special2++;
 			}
+			return;
 		}
 
 		if (!Vel.isZero() || !(flags & MF_NOBLOCKMAP))
@@ -3555,26 +3557,15 @@ void AActor::Tick ()
 			return;
 		}
 
-		if (!(flags5 & MF5_NOTIMEFREEZE))
+		if (isFrozen())
 		{
 			// Boss cubes shouldn't be accelerated by timefreeze
 			if (flags6 & MF6_BOSSCUBE)
 			{
 				special2++;
 			}
-			//Added by MC: Freeze mode.
-			if (bglobal.freeze && !(player && player->Bot == NULL))
-			{
-				return;
-			}
-
-			// Apply freeze mode.
-			if ((Level->flags2 & LEVEL2_FROZEN) && (player == NULL || player->timefreezer == 0))
-			{
-				return;
-			}
+			return;
 		}
-
 
 		if (effects & FX_ROCKET) 
 		{
@@ -3677,10 +3668,10 @@ void AActor::Tick ()
 			}
 		}
 
-		if (bglobal.botnum && !demoplayback &&
+		if (Level->BotInfo.botnum && !demoplayback &&
 			((flags & (MF_SPECIAL|MF_MISSILE)) || (flags3 & MF3_ISMONSTER)))
 		{
-			bglobal.BotTick(this);
+			Level->BotInfo.BotTick(this);
 		}
 
 		// [RH] Consider carrying sectors here
@@ -3727,7 +3718,7 @@ void AActor::Tick ()
 						scrolltype <= Scroll_SouthWest_Fast)
 					{ // Hexen scroll special
 						scrolltype -= Scroll_North_Slow;
-						if (i_compatflags&COMPATF_RAVENSCROLL)
+						if (Level->i_compatflags&COMPATF_RAVENSCROLL)
 						{
 							scrollv.X -= HexenCompatSpeeds[HexenScrollies[scrolltype][0]+4] * (1. / (32 * CARRYFACTOR));
 							scrollv.Y += HexenCompatSpeeds[HexenScrollies[scrolltype][1]+4] * (1. / (32 * CARRYFACTOR));
@@ -3746,7 +3737,7 @@ void AActor::Tick ()
 						scrolltype -= Carry_East5;
 						uint8_t dir = HereticScrollDirs[scrolltype / 5];
 						double carryspeed = HereticSpeedMuls[scrolltype % 5] * (1. / (32 * CARRYFACTOR));
-						if (scrolltype < 5 && !(i_compatflags&COMPATF_RAVENSCROLL)) 
+						if (scrolltype < 5 && !(Level->i_compatflags&COMPATF_RAVENSCROLL))
 						{
 							// Use speeds that actually match the scrolling textures!
 							carryspeed = (1 << ((scrolltype % 5) + 15)) / 65536.;
@@ -3756,7 +3747,7 @@ void AActor::Tick ()
 					}
 					else if (scrolltype == dScroll_EastLavaDamage)
 					{ // Special Heretic scroll special
-						if (i_compatflags&COMPATF_RAVENSCROLL)
+						if (Level->i_compatflags&COMPATF_RAVENSCROLL)
 						{
 							scrollv.X += 28. / (32*CARRYFACTOR);
 						}
@@ -3809,7 +3800,7 @@ void AActor::Tick ()
 			// Some levels designed with Boom in mind actually want things to accelerate
 			// at neighboring scrolling sector boundaries. But it is only important for
 			// non-player objects.
-			if (player != NULL || !(i_compatflags & COMPATF_BOOMSCROLL))
+			if (player != NULL || !(Level->i_compatflags & COMPATF_BOOMSCROLL))
 			{
 				if (countx > 1)
 				{
@@ -3902,7 +3893,7 @@ void AActor::Tick ()
 		}
 		if (Vel.Z != 0 || BlockingMobj || Z() != floorz)
 		{	// Handle Z velocity and gravity
-			if (((flags2 & MF2_PASSMOBJ) || (flags & MF_SPECIAL)) && !(i_compatflags & COMPATF_NO_PASSMOBJ))
+			if (((flags2 & MF2_PASSMOBJ) || (flags & MF_SPECIAL)) && !(Level->i_compatflags & COMPATF_NO_PASSMOBJ))
 			{
 				if (!(onmo = P_CheckOnmobj (this)))
 				{
@@ -4384,7 +4375,7 @@ void ConstructActor(AActor *actor, const DVector3 &pos, bool SpawningMapThing)
 	// Actors with zero gravity need the NOGRAVITY flag set.
 	if (actor->Gravity == 0) actor->flags |= MF_NOGRAVITY;
 
-	FRandom &rng = bglobal.m_Thinking ? pr_botspawnmobj : pr_spawnmobj;
+	FRandom &rng = Level->BotInfo.m_Thinking ? pr_botspawnmobj : pr_spawnmobj;
 
 	if (actor->isFast() && actor->flags3 & MF3_ISMONSTER)
 		actor->reactiontime = 0;
@@ -5066,9 +5057,9 @@ AActor *FLevelLocals::SpawnPlayer (FPlayerStart *mthing, int playernum, int flag
 
 	for (int ii = 0; ii < MAXPLAYERS; ++ii)
 	{
-		if (playeringame[ii] && players[ii].camera == oldactor)
+		if (PlayerInGame(ii) && Players[ii]->camera == oldactor)
 		{
-			players[ii].camera = mobj;
+			Players[ii]->camera = mobj;
 		}
 	}
 
@@ -5354,7 +5345,7 @@ AActor *FLevelLocals::SpawnMapThing (FMapThing *mthing, int position)
 		}
 		else
 		{
-			P_PointInSector (mthing->pos)->seqType = type;
+			PointInSector (mthing->pos)->seqType = type;
 		}
 		return NULL;
 	}
@@ -5428,7 +5419,7 @@ AActor *FLevelLocals::SpawnMapThing (FMapThing *mthing, int position)
 	if (sz == ONFLOORZ)
 	{
 		mobj->AddZ(mthing->pos.Z);
-		if ((mobj->flags2 & MF2_FLOATBOB) && (ib_compatflags & BCOMPATF_FLOATBOB))
+		if ((mobj->flags2 & MF2_FLOATBOB) && (mobj->Level->ib_compatflags & BCOMPATF_FLOATBOB))
 		{
 			mobj->specialf1 = mthing->pos.Z;
 		}
@@ -5451,7 +5442,7 @@ AActor *FLevelLocals::SpawnMapThing (FMapThing *mthing, int position)
 	}
 
 	// For Hexen floatbob 'compatibility' we do not really want to alter the floorz.
-	if (mobj->specialf1 == 0 || !(mobj->flags2 & MF2_FLOATBOB) || !(ib_compatflags & BCOMPATF_FLOATBOB))
+	if (mobj->specialf1 == 0 || !(mobj->flags2 & MF2_FLOATBOB) || !(mobj->Level->ib_compatflags & BCOMPATF_FLOATBOB))
 	{
 		P_FindFloorCeiling(mobj, FFCF_SAMESECTOR | FFCF_ONLY3DFLOORS | FFCF_3DRESTRICT);
 	}
@@ -5633,7 +5624,7 @@ AActor *P_SpawnPuff (AActor *source, PClassActor *pufftype, const DVector3 &pos1
 	{
 		if (cl_pufftype && updown != 3 && (puff->flags4 & MF4_ALLOWPARTICLES))
 		{
-			P_DrawSplash2 (32, pos, particledir, updown, 1);
+			P_DrawSplash2 (source->Level, 32, pos, particledir, updown, 1);
 			if (cl_pufftype == 1) puff->renderflags |= RF_INVISIBLE;
 		}
 
@@ -5757,7 +5748,7 @@ void P_SpawnBlood (const DVector3 &pos1, DAngle dir, int damage, AActor *origina
 	}
 
 	if (bloodtype >= 1)
-		P_DrawSplash2 (40, pos, dir, 2, originator->BloodColor);
+		P_DrawSplash2 (originator->Level, 40, pos, dir, 2, originator->BloodColor);
 }
 
 DEFINE_ACTION_FUNCTION(AActor, SpawnBlood)
@@ -5808,7 +5799,7 @@ void P_BloodSplatter (const DVector3 &pos, AActor *originator, DAngle hitangle)
 	}
 	if (bloodtype >= 1)
 	{
-		P_DrawSplash2 (40, pos, hitangle-180., 2, originator->BloodColor);
+		P_DrawSplash2 (originator->Level, 40, pos, hitangle-180., 2, originator->BloodColor);
 	}
 }
 
@@ -5849,7 +5840,7 @@ void P_BloodSplatter2 (const DVector3 &pos, AActor *originator, DAngle hitangle)
 	}
 	if (bloodtype >= 1)
 	{
-		P_DrawSplash2(40, pos + add, hitangle - 180., 2, originator->BloodColor);
+		P_DrawSplash2(originator->Level, 40, pos + add, hitangle - 180., 2, originator->BloodColor);
 	}
 }
 
@@ -5909,7 +5900,7 @@ void P_RipperBlood (AActor *mo, AActor *bleeder)
 	}
 	if (bloodtype >= 1)
 	{
-		P_DrawSplash2(28, pos, bleeder->AngleTo(mo) + 180., 0, bleeder->BloodColor);
+		P_DrawSplash2(bleeder->Level, 28, pos, bleeder->AngleTo(mo) + 180., 0, bleeder->BloodColor);
 	}
 }
 
@@ -6190,7 +6181,7 @@ bool P_CheckMissileSpawn (AActor* th, double maxdist)
 
 	newpos = th->Vec3Offset(newpos);
 	th->SetXYZ(newpos);
-	th->Sector = P_PointInSector(th->Pos());
+	th->Sector = th->Level->PointInSector(th->Pos());
 
 	FCheckPosition tm(!!(th->flags2 & MF2_RIP));
 
@@ -6846,13 +6837,13 @@ bool AActor::IsFriend (AActor *other)
 		if (deathmatch && teamplay)
 			return IsTeammate(other) ||
 				(FriendPlayer != 0 && other->FriendPlayer != 0 &&
-					players[FriendPlayer-1].mo->IsTeammate(players[other->FriendPlayer-1].mo));
+					Level->Players[FriendPlayer-1]->mo->IsTeammate(Level->Players[other->FriendPlayer-1]->mo));
 
 		return !deathmatch ||
 			FriendPlayer == other->FriendPlayer ||
 			FriendPlayer == 0 ||
 			other->FriendPlayer == 0 ||
-			players[FriendPlayer-1].mo->IsTeammate(players[other->FriendPlayer-1].mo);
+			Level->Players[FriendPlayer-1]->mo->IsTeammate(Level->Players[other->FriendPlayer-1]->mo);
 	}
 	// [SP] If friendly flags match, then they are on the same team.
 	/*if (!((flags ^ other->flags) & MF_FRIENDLY))
@@ -6879,13 +6870,13 @@ bool AActor::IsHostile (AActor *other)
 		if (deathmatch && teamplay)
 			return !IsTeammate(other) &&
 				!(FriendPlayer != 0 && other->FriendPlayer != 0 &&
-					players[FriendPlayer-1].mo->IsTeammate(players[other->FriendPlayer-1].mo));
+					Level->Players[FriendPlayer-1]->mo->IsTeammate(Level->Players[other->FriendPlayer-1]->mo));
 
 		return deathmatch &&
 			FriendPlayer != other->FriendPlayer &&
 			FriendPlayer !=0 &&
 			other->FriendPlayer != 0 &&
-			!players[FriendPlayer-1].mo->IsTeammate(players[other->FriendPlayer-1].mo);
+			!Level->Players[FriendPlayer-1]->mo->IsTeammate(Level->Players[other->FriendPlayer-1]->mo);
 	}
 	return true;
 }
