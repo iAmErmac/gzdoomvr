@@ -2003,6 +2003,8 @@ AUTOMAPMNU_SHOWTRIGGERLINES		= "Show trigger lines";
 AUTOMAPMNU_SHOWTHINGSPRITES		= "Show things as sprites";
 AUTOMAPMNU_PTOVERLAY			= "Overlay portals";
 AUTOMAPMNU_EMPTYSPACEMARGIN		= "Empty space margin";
+AUTOMAPMNU_MARKFONT				= "Mark font";
+AUTOMAPMNU_MARKCOLOR			= "Mark color";
 
 // Automap Controls
 MAPCNTRLMNU_TITLE 			= "CUSTOMIZE MAP CONTROLS";
@@ -2184,6 +2186,7 @@ CMPTMNU_SOUNDCUTOFF			= "Sounds stop when actor vanishes";
 CMPTMNU_SOUNDTARGET			= "Use original sound target handling";
 CMPTMNU_TELEPORT			= "Scripted teleports don't trigger sector actions";
 CMPTMNU_PUSHWINDOW			= "Non-blocking lines can be pushed";
+CMPTMNU_CHECKSWITCHRANGE	= "Enable buggy CheckSwitchRange behavior";
 
 // Sound Options
 SNDMNU_TITLE			= "SOUND OPTIONS";
@@ -2502,6 +2505,9 @@ OPTVAL_VTAVANILLA			= "Auto (Vanilla Preferred)";
 OPTVAL_SCALENEAREST			= "Scaled (Nearest)";
 OPTVAL_SCALELINEAR			= "Scaled (Linear)";
 OPTVAL_LETTERBOX			= "Letterbox";
+OPTVAL_SMALL				= "Small";
+OPTVAL_LARGE				= "Large";
+OPTVAL_CONSOLE				= "Console";
 
 // Colors
 C_BRICK					= "\cabrick";

@@ -1078,6 +1078,14 @@ OptionValue MapTriggers
 	2, "$OPTVAL_ON"
 }
 
+OptionString MapMarkFont
+{
+	"AMMNUMx", "$OPTVAL_DEFAULT"
+	"SmallFont", "$OPTVAL_SMALL"
+	"BigFont", "$OPTVAL_LARGE"
+	"ConsoleFont", "$OPTVAL_CONSOLE"
+}
+
 OptionMenu AutomapOptions protected
 {
 	Title "$AUTOMAPMNU_TITLE"
@@ -1104,6 +1112,9 @@ OptionMenu AutomapOptions protected
 	Option "$AUTOMAPMNU_SHOWKEYS",				"am_showkeys", "OnOff"
 	Option "$AUTOMAPMNU_SHOWTRIGGERLINES",		"am_showtriggerlines", "MapTriggers"
 	Option "$AUTOMAPMNU_SHOWTHINGSPRITES",		"am_showthingsprites", "STSTypes"
+	StaticText " "
+	Option "$AUTOMAPMNU_MARKFONT",				"am_markfont", "MapMarkFont"
+	Option "$AUTOMAPMNU_MARKCOLOR",				"am_markcolor", "TextColors"
 }
 
 //-------------------------------------------------------------------------------------------
@@ -1435,6 +1446,7 @@ OptionMenu "CompatibilityOptions" protected
 	Option "$CMPTMNU_MULTIEXIT",					"compat_multiexit", "YesNo"
 	Option "$CMPTMNU_TELEPORT",						"compat_teleport", "YesNo"
 	Option "$CMPTMNU_PUSHWINDOW",					"compat_pushwindow", "YesNo"
+	Option "$CMPTMNU_CHECKSWITCHRANGE",				"compat_checkswitchrange", "YesNo"
 
 	StaticText " "
 	StaticText "$CMPTMNU_PHYSICSBEHAVIOR",1
