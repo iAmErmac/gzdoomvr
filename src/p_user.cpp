@@ -400,11 +400,11 @@ void player_t::SetLogText (const char *text)
 {
 	LogText = text;
 
-	if (mo->CheckLocalView())
+	if (mo && mo->CheckLocalView())
 	{
 		// Print log text to console
 		AddToConsole(-1, TEXTCOLOR_GOLD);
-		AddToConsole(-1, GStrings(text[0] == '$' ? text + 1 : text));
+		AddToConsole(-1, LogText[0] == '$'? GStrings(text+1) : text );
 		AddToConsole(-1, "\n");
 	}
 }
@@ -578,7 +578,7 @@ static int GetSoftPitch(bool down)
 
 void player_t::SendPitchLimits() const
 {
-	if (this == mo->Level->GetConsolePlayer())
+	if (this - players == consoleplayer)
 	{
 		int uppitch, downpitch;
 
