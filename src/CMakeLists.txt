@@ -1356,6 +1356,7 @@ set (PCH_SOURCES
 	utility/name.cpp
 	utility/s_playlist.cpp
 	utility/v_collection.cpp
+	utility/utf8.cpp
 	utility/zstrformat.cpp
 )
 
