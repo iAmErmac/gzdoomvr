@@ -91,6 +91,7 @@
 #include "events.h"
 #include "gstrings.h"
 #include "g_game.h"
+#include "v_video.h"
 
 static FRandom pr_skullpop ("SkullPop");
 
@@ -617,7 +618,7 @@ static int GetSoftPitch(bool down)
 
 void player_t::SendPitchLimits() const
 {
-	if (this - players == consoleplayer)
+	if (this == mo->Level->GetConsolePlayer())
 	{
 		int uppitch, downpitch;
 
@@ -676,9 +677,10 @@ bool player_t::Resurrect()
 	mo->special1 = 0;	// required for the Hexen fighter's fist attack. 
 								// This gets set by AActor::Die as flag for the wimpy death and must be reset here.
 	mo->SetState(mo->SpawnState);
+	int pnum = mo->Level->PlayerNum(this);
 	if (!(mo->flags2 & MF2_DONTTRANSLATE))
 	{
-		mo->Translation = TRANSLATION(TRANSLATION_Players, uint8_t(this - players));
+		mo->Translation = TRANSLATION(TRANSLATION_Players, uint8_t(pnum));
 	}
 	if (ReadyWeapon != nullptr)
 	{
@@ -693,7 +695,7 @@ bool player_t::Resurrect()
 
 	// player is now alive.
 	// fire E_PlayerRespawned and start the ACS SCRIPT_Respawn.
-	E_PlayerRespawned(int(this - players));
+	E_PlayerRespawned(pnum);
 	//
 	mo->Level->Behaviors.StartTypedScripts(SCRIPT_Respawn, mo, true);
 	return true;
@@ -1108,7 +1110,7 @@ void P_CheckMusicChange(player_t *player)
 	{
 		if (--player->MUSINFOtics < 0)
 		{
-			if (player - players == consoleplayer)
+			if (player == player->mo->Level->GetConsolePlayer())
 			{
 				if (player->MUSINFOactor->args[0] != 0)
 				{
@@ -1124,7 +1126,7 @@ void P_CheckMusicChange(player_t *player)
 					S_ChangeMusic("*");
 				}
 			}
-			DPrintf(DMSG_NOTIFY, "MUSINFO change for player %d to %d\n", (int)(player - players), player->MUSINFOactor->args[0]);
+			DPrintf(DMSG_NOTIFY, "MUSINFO change for player %d to %d\n", (int)player->mo->Level->PlayerNum(player), player->MUSINFOactor->args[0]);
 		}
 	}
 }
@@ -1372,7 +1374,7 @@ void P_PredictPlayer (player_t *player)
 		singletics ||
 		demoplayback ||
 		player->mo == NULL ||
-		player != &players[consoleplayer] ||
+		player != player->mo->Level->GetConsolePlayer() ||
 		player->playerstate != PST_LIVE ||
 		!netgame ||
 		/*player->morphTics ||*/
