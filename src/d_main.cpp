@@ -2689,7 +2689,7 @@ void D_DoomMain (void)
 							if (StoredWarp.IsNotEmpty())
 							{
 								AddCommandString(StoredWarp);
-								StoredWarp = NULL;
+								StoredWarp = "";
 							}
 						}
 						else
