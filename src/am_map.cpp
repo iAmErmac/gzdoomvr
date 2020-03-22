@@ -124,7 +124,6 @@ struct islope_t
 //
 //=============================================================================
 
-CVAR (Bool,  am_showkeys_always,			false,		CVAR_ARCHIVE);
 CVAR(Bool, am_textured, false, CVAR_ARCHIVE)
 CVAR(Int, am_showsubsector, -1, 0);
 
@@ -160,6 +159,7 @@ CVAR(Int, am_drawmapback, 1, CVAR_ARCHIVE);
 CVAR(Bool, am_showkeys, true, CVAR_ARCHIVE);
 CVAR(Int, am_showtriggerlines, 0, CVAR_ARCHIVE);
 CVAR(Int, am_showthingsprites, 0, CVAR_ARCHIVE);
+CVAR (Bool, am_showkeys_always, false, CVAR_ARCHIVE);
 
 CUSTOM_CVAR(Int, am_emptyspacemargin, 0, CVAR_ARCHIVE)
 {
@@ -3170,7 +3170,7 @@ void DAutomap::Drawer (int bottom)
 
 	drawWalls(allmap);
 	drawPlayers();
-	if (G_SkillProperty(SKILLP_EasyKey))
+	if (G_SkillProperty(SKILLP_EasyKey) || am_showkeys_always)
 		drawKeys();
 	if ((am_cheat >= 2 && am_cheat != 4) || allthings)
 		drawThings();
