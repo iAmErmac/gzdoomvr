@@ -130,11 +130,11 @@ void I_InitGraphics ()
 	// if (vid_backend == 0)
 	{
 		// first try Vulkan, if that fails OpenGL
-		try
+		/*try
 		{
 			Video = new Win32VulkanVideo();
 		}
-		catch (CRecoverableError &)
+		catch (CRecoverableError &)*/
 		{
 			Video = new Win32GLVideo();
 		}

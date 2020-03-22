@@ -51,7 +51,7 @@ public:
 
 	void SetVSync(bool vsync);
 
-	void Draw2D() override;
+	void Draw2D(bool outside2D = false) override;
 
 private:
 	std::unique_ptr<VkShaderManager> mShaderManager;

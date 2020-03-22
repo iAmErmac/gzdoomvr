@@ -217,9 +217,9 @@ void VulkanFrameBuffer::BeginFrame()
 {
 }
 
-void VulkanFrameBuffer::Draw2D()
+void VulkanFrameBuffer::Draw2D(bool outside2D)
 {
-	::Draw2D(&m2DDrawer, *mRenderState);
+	//::Draw2D(&m2DDrawer, *mRenderState);
 }
 
 VulkanCommandBuffer *VulkanFrameBuffer::GetUploadCommands()
