@@ -81,5 +81,4 @@ config.h
 /build_vc2017-32
 /build2
 /build_vc2019-64
-/glslang/glslang/OSDependent/Windows/Debug
-/glslang/glslang/OSDependent/Windows/Release
+/glslang/glslang/OSDependent/Windows/
