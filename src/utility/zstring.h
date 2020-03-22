@@ -131,6 +131,8 @@ public:
 	FString (const char *copyStr);
 	FString (const char *copyStr, size_t copyLen);
 	FString (char oneChar);
+	FString(const TArray<char> & source) : FString(source.Data(), source.Size()) {}
+	FString(const TArray<uint8_t> & source) : FString((char*)source.Data(), source.Size()) {}
 	// This is intentionally #ifdef'd. The only code which needs this is parts of the Windows backend that receive Unicode text from the system.
 #ifdef _WIN32
 	explicit FString(const wchar_t *copyStr);
@@ -207,6 +209,9 @@ public:
 	FString Left (size_t numChars) const;
 	FString Right (size_t numChars) const;
 	FString Mid (size_t pos, size_t numChars = ~(size_t)0) const;
+
+	void AppendCharacter(int codepoint);
+	void DeleteLastCharacter();
 
 	long IndexOf (const FString &substr, long startIndex=0) const;
 	long IndexOf (const char *substr, long startIndex=0) const;

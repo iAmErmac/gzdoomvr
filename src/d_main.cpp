@@ -2037,8 +2037,6 @@ static void D_DoomInit()
 
 	gamestate = GS_STARTUP;
 
-	SetLanguageIDs ();
-
 	const char *v = Args->CheckValue("-rngseed");
 	if (v)
 	{

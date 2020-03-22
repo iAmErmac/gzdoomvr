@@ -553,7 +553,6 @@ endif()
 # Start defining source files for ZDoom
 set( PLAT_WIN32_SOURCES
 	sound/mididevices/music_win_mididevice.cpp
-	win32/critsec.cpp
 	win32/hardware.cpp
 	win32/helperthread.cpp
 	win32/i_cd.cpp
@@ -578,7 +577,6 @@ set( PLAT_POSIX_SOURCES
 	posix/i_steam.cpp )
 set( PLAT_SDL_SOURCES
 	posix/sdl/crashcatcher.c
-	posix/sdl/critsec.cpp
 	posix/sdl/hardware.cpp
 	posix/sdl/i_gui.cpp
 	posix/sdl/i_input.cpp
@@ -595,7 +593,6 @@ set( PLAT_OSX_SOURCES
 	posix/osx/i_specialpaths.mm
 	posix/osx/zdoom.icns )
 set( PLAT_COCOA_SOURCES
-	posix/cocoa/critsec.cpp
 	posix/cocoa/i_input.mm
 	posix/cocoa/i_joystick.cpp
 	posix/cocoa/i_main.mm
@@ -722,6 +719,7 @@ file( GLOB HEADER_FILES
 	g_statusbar/*.h
 	gamedata/*.h
 	gamedata/resourcefiles/*.h
+	gamedata/fonts/*.h
 	gamedata/textures/*.h
 	gamedata/textures/hires/hqnx/*.h
 	gamedata/textures/hires/hqnx_asm/*.h
@@ -1035,7 +1033,6 @@ set (PCH_SOURCES
 	p_states.cpp
 	p_things.cpp
 	p_tick.cpp
-	p_usdf.cpp
 	p_user.cpp
 	r_utility.cpp
 	r_sky.cpp
@@ -1048,15 +1045,12 @@ set (PCH_SOURCES
 	scriptutil.cpp
 	st_stuff.cpp
 	statistics.cpp
-	stats.cpp
 	v_2ddrawer.cpp
+	v_drawtext.cpp
 	v_blend.cpp
 	v_draw.cpp
-	v_font.cpp
 	v_framebuffer.cpp
 	v_palette.cpp
-	v_pfx.cpp
-	v_text.cpp
 	v_video.cpp
 	wi_stuff.cpp
 	gamedata/a_keys.cpp
@@ -1160,6 +1154,8 @@ set (PCH_SOURCES
 	maploader/slopes.cpp
 	maploader/glnodes.cpp
 	maploader/udmf.cpp
+	maploader/usdf.cpp
+	maploader/strifedialogue.cpp
 	maploader/polyobjects.cpp
 	maploader/renderinfo.cpp
 	maploader/compatibility.cpp
@@ -1210,6 +1206,12 @@ set (PCH_SOURCES
 	gamedata/textures/formats/tgatexture.cpp
 	gamedata/textures/hires/hqresize.cpp
 	gamedata/textures/hires/hirestex.cpp
+	gamedata/fonts/singlelumpfont.cpp
+	gamedata/fonts/singlepicfont.cpp
+	gamedata/fonts/specialfont.cpp
+	gamedata/fonts/font.cpp
+	gamedata/fonts/v_font.cpp
+	gamedata/fonts/v_text.cpp	
 	gamedata/p_xlat.cpp
 	gamedata/xlat/parse_xlat.cpp
 	gamedata/xlat/parsecontext.cpp
@@ -1345,6 +1347,7 @@ set (PCH_SOURCES
 	utility/nodebuilder/nodebuild_gl.cpp
 	utility/nodebuilder/nodebuild_utility.cpp
 	utility/sc_man.cpp
+	utility/stats.cpp
 	utility/cmdlib.cpp
 	utility/colormatcher.cpp
 	utility/configfile.cpp
@@ -1425,6 +1428,7 @@ include_directories( .
 	g_shared
 	gamedata
 	gamedata/textures
+	gamedata/fonts
 	rendering
 	sound
 	sound/oplsynth
@@ -1551,6 +1555,7 @@ source_group("External\\SFMT" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/s
 source_group("FraggleScript" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/fragglescript/.+")
 source_group("Game Data" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gamedata/.+")
 source_group("Game Data\\Resource Files" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gamedata/resourcefiles/.+")
+source_group("Game Data\\Fonts" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gamedata/fonts/.+")
 source_group("Game Data\\Textures" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gamedata/textures/.+")
 source_group("Game Data\\Textures\\Hires" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gamedata/textures/hires/.+")
 source_group("Game Data\\Textures\\Hires\\HQ Resize" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/gamedata/textures/hires/hqnx/.+")

@@ -299,14 +299,14 @@ void level_info_t::Reset()
 //
 //==========================================================================
 
-FString level_info_t::LookupLevelName()
+FString level_info_t::LookupLevelName(uint32_t *langtable)
 {
+	// All IWAD names that may be substituted by a graphics patch are declared as language strings.
+	if (langtable) *langtable = 0;
 	if (flags & LEVEL_LOOKUPLEVELNAME)
 	{
 		const char *thename;
-		const char *lookedup;
-
-		lookedup = GStrings[LevelName];
+		const char *lookedup = GStrings.GetString(LevelName, langtable);
 		if (lookedup == NULL)
 		{
 			thename = LevelName;
@@ -830,7 +830,7 @@ void FMapInfoParser::ParseCluster()
 	// Remap Hexen's CLUS?MSG lumps to the string table, if applicable. The code here only checks what can actually be in an IWAD.
 	if (clusterinfo->flags & CLUSTER_EXITTEXTINLUMP)
 	{
-		int lump = Wads.CheckNumForFullName(clusterinfo->ExitText, false);
+		int lump = Wads.CheckNumForFullName(clusterinfo->ExitText, true);
 		if (lump > 0)
 		{
 			// Check if this comes from either Hexen.wad or Hexdd.wad and if so, map to the string table.
@@ -838,7 +838,7 @@ void FMapInfoParser::ParseCluster()
 			auto fn = Wads.GetWadName(fileno);
 			if (fn && (!stricmp(fn, "HEXEN.WAD") || !stricmp(fn, "HEXDD.WAD")))
 			{
-				FStringf key("TXT_%.5s_%s", fn, sc.String);
+				FStringf key("TXT_%.5s_%s", fn, clusterinfo->ExitText.GetChars());
 				if (GStrings.exists(key))
 				{
 					clusterinfo->ExitText = key;
