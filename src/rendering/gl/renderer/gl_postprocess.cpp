@@ -146,15 +146,12 @@ void FGLRenderer::Flush()
 	}
 	else
 	{
-	
 		vrmode->AdjustViewport(screen);
 		const auto& mSceneViewport = screen->mSceneViewport;
 		const auto& mScreenViewport = screen->mScreenViewport;
 
 		const bool is2D = (gamestate != GS_LEVEL);
 		if (is2D) vrmode->SetUp();
-		// Change from BGRA to RGBA
-		screen->SwapColors();
 		// Render 2D to eye textures
 		for (int eye_ix = 0; eye_ix < vrmode->mEyeCount; ++eye_ix)
 		{
