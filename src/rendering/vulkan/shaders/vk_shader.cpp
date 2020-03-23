@@ -46,23 +46,13 @@ static const char *shaderBindings = R"(
 	    vec4 lights[];
 	};
 
-	// textures
-	layout(set = 1, binding = 0) uniform sampler2D tex;
-	layout(set = 1, binding = 1) uniform sampler2D texture2;
-	layout(set = 1, binding = 2) uniform sampler2D texture3;
-	layout(set = 1, binding = 3) uniform sampler2D texture4;
-	layout(set = 1, binding = 4) uniform sampler2D texture5;
-	layout(set = 1, binding = 5) uniform sampler2D texture6;
-	layout(set = 1, binding = 16) uniform sampler2D ShadowMap;
+	layout(set = 0, binding = 2, std140) uniform MatricesUBO {
+		mat4 ModelMatrix;
+		mat4 NormalModelMatrix;
+		mat4 TextureMatrix;
+	};
 
-	// This must match the PushConstants struct
-	layout(push_constant, std140) uniform PushConstants
-	{
-		int uTextureMode;
-		vec2 uClipSplit;
-		float uAlphaThreshold;
-
-		// colors
+	layout(set = 0, binding = 3, std140) uniform ColorsUBO {
 		vec4 uObjectColor;
 		vec4 uObjectColor2;
 		vec4 uDynLightColor;
@@ -70,8 +60,10 @@ static const char *shaderBindings = R"(
 		vec4 uFogColor;
 		float uDesaturationFactor;
 		float uInterpolationFactor;
+		float padding0, padding1;
+	};
 
-		// Glowing walls stuff
+	layout(set = 0, binding = 4, std140) uniform GlowingWallsUBO {
 		vec4 uGlowTopPlane;
 		vec4 uGlowTopColor;
 		vec4 uGlowBottomPlane;
@@ -82,6 +74,23 @@ static const char *shaderBindings = R"(
 
 		vec4 uSplitTopPlane;
 		vec4 uSplitBottomPlane;
+	};
+
+	// textures
+	layout(set = 1, binding = 0) uniform sampler2D tex;
+	// layout(set = 1, binding = 1) uniform sampler2D texture2;
+	// layout(set = 1, binding = 2) uniform sampler2D texture3;
+	// layout(set = 1, binding = 3) uniform sampler2D texture4;
+	// layout(set = 1, binding = 4) uniform sampler2D texture5;
+	// layout(set = 1, binding = 5) uniform sampler2D texture6;
+	// layout(set = 1, binding = 16) uniform sampler2D ShadowMap;
+
+	// This must match the PushConstants struct
+	layout(push_constant) uniform PushConstants
+	{
+		int uTextureMode;
+		float uAlphaThreshold;
+		vec2 uClipSplit;
 
 		// Lighting + Fog
 		float uLightLevel;
@@ -95,11 +104,6 @@ static const char *shaderBindings = R"(
 
 		// Blinn glossiness and specular level
 		vec2 uSpecularMaterial;
-
-		// matrices
-		mat4 ModelMatrix;
-		mat4 NormalModelMatrix;
-		mat4 TextureMatrix;
 	};
 
 	// material types
@@ -117,9 +121,9 @@ static const char *shaderBindings = R"(
 	#define brighttexture texture2
 	#endif
 
-	#define SUPPORTS_SHADOWMAPS
+	// #define SUPPORTS_SHADOWMAPS
+	#define VULKAN_COORDINATE_SYSTEM
 )";
-
 
 std::unique_ptr<VulkanShader> VkShaderManager::LoadVertShader(const char *vert_lump, const char *defines)
 {

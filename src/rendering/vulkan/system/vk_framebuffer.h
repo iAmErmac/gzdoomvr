@@ -6,7 +6,11 @@
 
 class VkSamplerManager;
 class VkShaderManager;
+class VkRenderPassManager;
 class VkRenderState;
+class VKDataBuffer;
+class VkHardwareTexture;
+class SWSceneDrawer;
 
 class VulkanFrameBuffer : public SystemBaseFrameBuffer
 {
@@ -18,6 +22,20 @@ public:
 
 	VulkanCommandBuffer *GetUploadCommands();
 	VulkanCommandBuffer *GetDrawCommands();
+	VkShaderManager *GetShaderManager() { return mShaderManager.get(); }
+	VkSamplerManager *GetSamplerManager() { return mSamplerManager.get(); }
+	VkRenderPassManager *GetRenderPassManager() { return mRenderPassManager.get(); }
+	VkRenderState *GetRenderState() { return mRenderState.get(); }
+
+	VKDataBuffer *ViewpointUBO = nullptr;
+	VKDataBuffer *LightBufferSSO = nullptr;
+	VKDataBuffer *MatricesUBO = nullptr;
+	VKDataBuffer *ColorsUBO = nullptr;
+	VKDataBuffer *GlowingWallsUBO = nullptr;
+
+	std::vector<std::unique_ptr<VulkanBuffer>> mFrameDeleteList;
+
+	std::unique_ptr<SWSceneDrawer> swdrawer;
 
 	VulkanFrameBuffer(void *hMonitor, bool fullscreen, VulkanDevice *dev);
 	~VulkanFrameBuffer();
@@ -36,6 +54,7 @@ public:
 	void BeginFrame() override;
 	void BlurScene(float amount) override;
 
+	IHardwareTexture *CreateHardwareTexture() override;
 	FModelRenderer *CreateModelRenderer(int mli) override;
 	IShaderProgram *CreateShaderProgram() override;
 	IVertexBuffer *CreateVertexBuffer() override;
@@ -56,15 +75,19 @@ public:
 private:
 	std::unique_ptr<VkShaderManager> mShaderManager;
 	std::unique_ptr<VkSamplerManager> mSamplerManager;
+	std::unique_ptr<VkRenderPassManager> mRenderPassManager;
 	std::unique_ptr<VulkanCommandPool> mGraphicsCommandPool;
 	std::unique_ptr<VulkanCommandBuffer> mUploadCommands;
-	std::unique_ptr<VulkanCommandBuffer> mPresentCommands;
+	std::unique_ptr<VulkanCommandBuffer> mDrawCommands;
+	std::unique_ptr<VulkanSemaphore> mUploadSemaphore;
 	std::unique_ptr<VkRenderState> mRenderState;
 
 	int camtexcount = 0;
 
 	int lastSwapWidth = 0;
 	int lastSwapHeight = 0;
+
+	TArray<VkHardwareTexture*> AllTextures;
 };
 
 inline VulkanFrameBuffer *GetVulkanFrameBuffer() { return static_cast<VulkanFrameBuffer*>(screen); }

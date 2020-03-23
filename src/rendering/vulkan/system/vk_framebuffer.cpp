@@ -34,13 +34,18 @@
 #include "hwrenderer/scene/hw_skydome.h"
 #include "hwrenderer/data/hw_viewpointbuffer.h"
 #include "hwrenderer/data/flatvertices.h"
+#include "hwrenderer/data/shaderuniforms.h"
 #include "hwrenderer/dynlights/hw_lightbuffer.h"
+
+#include "swrenderer/r_swscene.h"
 
 #include "vk_framebuffer.h"
 #include "vk_buffers.h"
 #include "vulkan/renderer/vk_renderstate.h"
+#include "vulkan/renderer/vk_renderpass.h"
 #include "vulkan/shaders/vk_shader.h"
 #include "vulkan/textures/vk_samplers.h"
+#include "vulkan/textures/vk_hwtexture.h"
 #include "vulkan/system/vk_builders.h"
 #include "vulkan/system/vk_swapchain.h"
 #include "doomerrors.h"
@@ -56,14 +61,28 @@ VulkanFrameBuffer::VulkanFrameBuffer(void *hMonitor, bool fullscreen, VulkanDevi
 {
 	device = dev;
 	SetViewportRects(nullptr);
+	InitPalette();
 }
 
 VulkanFrameBuffer::~VulkanFrameBuffer()
 {
+	delete MatricesUBO;
+	delete ColorsUBO;
+	delete GlowingWallsUBO;
+	delete mVertexData;
+	delete mSkyData;
+	delete mViewpoints;
+	delete mLights;
+	for (auto tex : AllTextures)
+		tex->Reset();
 }
 
 void VulkanFrameBuffer::InitializeState()
 {
+	gl_vendorstring = "Vulkan";
+	hwcaps = RFL_SHADER_STORAGE_BUFFER | RFL_BUFFER_STORAGE;
+
+	mUploadSemaphore.reset(new VulkanSemaphore(device));
 	mGraphicsCommandPool.reset(new VulkanCommandPool(device, device->graphicsFamily));
 
 	mVertexData = new FFlatVertexBuffer(GetWidth(), GetHeight());
@@ -71,8 +90,17 @@ void VulkanFrameBuffer::InitializeState()
 	mViewpoints = new GLViewpointBuffer;
 	mLights = new FLightBuffer();
 
+	// To do: move this to HW renderer interface maybe?
+	MatricesUBO = (VKDataBuffer*)CreateDataBuffer(1234, false);
+	ColorsUBO = (VKDataBuffer*)CreateDataBuffer(1234, false);
+	GlowingWallsUBO = (VKDataBuffer*)CreateDataBuffer(1234, false);
+	MatricesUBO->SetData(UniformBufferAlignment<::MatricesUBO>() * 50000, nullptr, false);
+	ColorsUBO->SetData(UniformBufferAlignment<::ColorsUBO>() * 50000, nullptr, false);
+	GlowingWallsUBO->SetData(UniformBufferAlignment<::GlowingWallsUBO>() * 50000, nullptr, false);
+
 	mShaderManager.reset(new VkShaderManager(device));
 	mSamplerManager.reset(new VkSamplerManager(device));
+	mRenderPassManager.reset(new VkRenderPassManager());
 	mRenderState.reset(new VkRenderState());
 }
 
@@ -94,30 +122,87 @@ void VulkanFrameBuffer::Update()
 
 	device->beginFrame();
 
-	mPresentCommands = mGraphicsCommandPool->createBuffer();
-	mPresentCommands->begin();
-
 	Draw2D();
 	Clear2D();
+
+	mRenderState->EndRenderPass();
+
 	//DrawPresentTexture(mOutputLetterbox, true);
+	{
+		auto sceneColor = mRenderPassManager->SceneColor.get();
 
-	mPresentCommands->end();
+		PipelineBarrier barrier0;
+		barrier0.addImage(sceneColor, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+		barrier0.execute(GetDrawCommands(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
-	VkSemaphore waitSemaphores[] = { device->imageAvailableSemaphore };
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		VkImageBlit blit = {};
+		blit.srcOffsets[0] = { 0, 0, 0 };
+		blit.srcOffsets[1] = { sceneColor->width, sceneColor->height, 1 };
+		blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.srcSubresource.mipLevel = 0;
+		blit.srcSubresource.baseArrayLayer = 0;
+		blit.srcSubresource.layerCount = 1;
+		blit.dstOffsets[0] = { 0, 0, 0 };
+		blit.dstOffsets[1] = { (int32_t)device->swapChain->actualExtent.width, (int32_t)device->swapChain->actualExtent.height, 1 };
+		blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		blit.dstSubresource.mipLevel = 0;
+		blit.dstSubresource.baseArrayLayer = 0;
+		blit.dstSubresource.layerCount = 1;
+		GetDrawCommands()->blitImage(
+			sceneColor->image, VK_IMAGE_LAYOUT_GENERAL,
+			device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR,
+			1, &blit, VK_FILTER_NEAREST);
+	}
 
-	VkSubmitInfo submitInfo = {};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = waitSemaphores;
-	submitInfo.pWaitDstStageMask = waitStages;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &mPresentCommands->buffer;
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &device->renderFinishedSemaphore;
-	VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, device->renderFinishedFence);
-	if (result != VK_SUCCESS)
-		I_FatalError("Failed to submit command buffer!\n");
+	mDrawCommands->end();
+
+	if (mUploadCommands)
+	{
+		mUploadCommands->end();
+
+		// Submit upload commands immediately
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &mUploadCommands->buffer;
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &mUploadSemaphore->semaphore;
+		VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+		if (result != VK_SUCCESS)
+			I_FatalError("Failed to submit command buffer!\n");
+
+		// Wait for upload commands to finish, then submit render commands
+		VkSemaphore waitSemaphores[] = { mUploadSemaphore->semaphore, device->imageAvailableSemaphore->semaphore };
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+		submitInfo.waitSemaphoreCount = 2;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &mDrawCommands->buffer;
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &device->renderFinishedSemaphore->semaphore;
+		result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, device->renderFinishedFence->fence);
+		if (result != VK_SUCCESS)
+			I_FatalError("Failed to submit command buffer!\n");
+	}
+	else
+	{
+		VkSemaphore waitSemaphores[] = { device->imageAvailableSemaphore->semaphore };
+		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.waitSemaphoreCount = 1;
+		submitInfo.pWaitSemaphores = waitSemaphores;
+		submitInfo.pWaitDstStageMask = waitStages;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &mDrawCommands->buffer;
+		submitInfo.signalSemaphoreCount = 1;
+		submitInfo.pSignalSemaphores = &device->renderFinishedSemaphore->semaphore;
+		VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, device->renderFinishedFence->fence);
+		if (result != VK_SUCCESS)
+			I_FatalError("Failed to submit command buffer!\n");
+	}
 
 	Flush3D.Unclock();
 
@@ -126,8 +211,9 @@ void VulkanFrameBuffer::Update()
 	device->presentFrame();
 	device->waitPresent();
 
-	mPresentCommands.reset();
+	mDrawCommands.reset();
 	mUploadCommands.reset();
+	mFrameDeleteList.clear();
 
 	Finish.Unclock();
 
@@ -142,7 +228,18 @@ void VulkanFrameBuffer::WriteSavePic(player_t *player, FileWriter *file, int wid
 
 sector_t *VulkanFrameBuffer::RenderView(player_t *player)
 {
-	return nullptr;
+	mRenderState->SetVertexBuffer(screen->mVertexData);
+	screen->mVertexData->Reset();
+
+	if (!V_IsHardwareRenderer())
+	{
+		if (!swdrawer) swdrawer.reset(new SWSceneDrawer);
+		return swdrawer->RenderView(player);
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 uint32_t VulkanFrameBuffer::GetCaps()
@@ -164,10 +261,23 @@ uint32_t VulkanFrameBuffer::GetCaps()
 
 void VulkanFrameBuffer::SetVSync(bool vsync)
 {
+	if (device->swapChain->vsync != vsync)
+	{
+		device->windowResized();
+	}
 }
 
 void VulkanFrameBuffer::CleanForRestart()
 {
+	// force recreation of the SW scene drawer to ensure it gets a new set of resources.
+	swdrawer.reset();
+}
+
+IHardwareTexture *VulkanFrameBuffer::CreateHardwareTexture()
+{
+	auto texture = new VkHardwareTexture();
+	AllTextures.Push(texture);
+	return texture;
 }
 
 FModelRenderer *VulkanFrameBuffer::CreateModelRenderer(int mli) 
@@ -194,7 +304,16 @@ IIndexBuffer *VulkanFrameBuffer::CreateIndexBuffer()
 
 IDataBuffer *VulkanFrameBuffer::CreateDataBuffer(int bindingpoint, bool ssbo)
 {
-	return new VKDataBuffer(bindingpoint, ssbo);
+	auto buffer = new VKDataBuffer(bindingpoint, ssbo);
+	if (bindingpoint == VIEWPOINT_BINDINGPOINT)
+	{
+		ViewpointUBO = buffer;
+	}
+	else if (bindingpoint == LIGHTBUF_BINDINGPOINT)
+	{
+		LightBufferSSO = buffer;
+	}
+	return buffer;
 }
 
 void VulkanFrameBuffer::UnbindTexUnit(int no)
@@ -215,6 +334,7 @@ void VulkanFrameBuffer::UpdatePalette()
 
 void VulkanFrameBuffer::BeginFrame()
 {
+	mRenderPassManager->BeginFrame();
 }
 
 void VulkanFrameBuffer::Draw2D(bool outside2D)
@@ -234,5 +354,10 @@ VulkanCommandBuffer *VulkanFrameBuffer::GetUploadCommands()
 
 VulkanCommandBuffer *VulkanFrameBuffer::GetDrawCommands()
 {
-	return mPresentCommands.get();
+	if (!mDrawCommands)
+	{
+		mDrawCommands = mGraphicsCommandPool->createBuffer();
+		mDrawCommands->begin();
+	}
+	return mDrawCommands.get();
 }

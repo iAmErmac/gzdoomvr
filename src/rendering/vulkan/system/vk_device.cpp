@@ -40,10 +40,13 @@ extern HWND Window;
 
 #include "vk_device.h"
 #include "vk_swapchain.h"
+#include "vk_objects.h"
 #include "c_cvars.h"
 #include "i_system.h"
 #include "version.h"
 #include "doomerrors.h"
+
+EXTERN_CVAR(Bool, vid_vsync);
 
 #ifdef NDEBUG
 CVAR(Bool, vk_debug, true, 0);	// this should be false, once the oversized model can be removed.
@@ -73,7 +76,7 @@ VulkanDevice::VulkanDevice()
 
 		RECT clientRect = { 0 };
 		GetClientRect(Window, &clientRect);
-		swapChain = std::make_unique<VulkanSwapChain>(this, clientRect.right, clientRect.bottom, true);
+		swapChain = std::make_unique<VulkanSwapChain>(this, clientRect.right, clientRect.bottom, vid_vsync);
 
 		createSemaphores();
 	}
@@ -95,25 +98,25 @@ void VulkanDevice::windowResized()
 	GetClientRect(Window, &clientRect);
 
 	swapChain.reset();
-	swapChain = std::make_unique<VulkanSwapChain>(this, clientRect.right, clientRect.bottom, true);
+	swapChain = std::make_unique<VulkanSwapChain>(this, clientRect.right, clientRect.bottom, vid_vsync);
 }
 
 void VulkanDevice::waitPresent()
 {
-	vkWaitForFences(device, 1, &renderFinishedFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-	vkResetFences(device, 1, &renderFinishedFence);
+	vkWaitForFences(device, 1, &renderFinishedFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+	vkResetFences(device, 1, &renderFinishedFence->fence);
 }
 
 void VulkanDevice::beginFrame()
 {
-	VkResult result = vkAcquireNextImageKHR(device, swapChain->swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore, VK_NULL_HANDLE, &presentImageIndex);
+	VkResult result = vkAcquireNextImageKHR(device, swapChain->swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore->semaphore, VK_NULL_HANDLE, &presentImageIndex);
 	if (result != VK_SUCCESS)
 		throw std::runtime_error("Failed to acquire next image!");
 }
 
 void VulkanDevice::presentFrame()
 {
-	VkSemaphore waitSemaphores[] = { renderFinishedSemaphore };
+	VkSemaphore waitSemaphores[] = { renderFinishedSemaphore->semaphore };
 	VkSwapchainKHR swapChains[] = { swapChain->swapChain };
 
 	VkPresentInfoKHR presentInfo = {};
@@ -126,6 +129,8 @@ void VulkanDevice::presentFrame()
 	presentInfo.pResults = nullptr;
 	vkQueuePresentKHR(presentQueue, &presentInfo);
 }
+
+//FString allVulkanOutput;
 
 VkBool32 VulkanDevice::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData)
 {
@@ -142,6 +147,8 @@ VkBool32 VulkanDevice::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT mess
 	}
 
 	Printf("Vulkan validation layer %s: %s\n", prefix, callbackData->pMessage);
+
+	//allVulkanOutput.AppendFormat("Vulkan validation layer %s: %s\n", prefix, callbackData->pMessage);
 
 	return VK_FALSE;
 }
@@ -172,13 +179,13 @@ void VulkanDevice::createInstance()
 
 	std::vector<const char*> validationLayers;
 	std::string debugLayer = "VK_LAYER_LUNARG_standard_validation";
+	bool wantDebugLayer = vk_debug;
 	bool debugLayerFound = false;
 	for (const VkLayerProperties &layer : availableLayers)
 	{
-		if (layer.layerName == debugLayer)
+		if (layer.layerName == debugLayer && wantDebugLayer)
 		{
 			validationLayers.push_back(debugLayer.c_str());
-			//enabledExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
 			enabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 			debugLayerFound = true;
 		}
@@ -203,23 +210,20 @@ void VulkanDevice::createInstance()
 	{
 		VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-		createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-		createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+		createInfo.messageSeverity =
+			//VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+			//VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+		createInfo.messageType =
+			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
 		createInfo.pfnUserCallback = debugCallback;
 		createInfo.pUserData = this;
 		result = vkCreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger);
 		if (result != VK_SUCCESS)
 			throw std::runtime_error("vkCreateDebugUtilsMessengerEXT failed");
-
-		/*
-		VkDebugReportCallbackCreateInfoEXT createInfo = {};
-		createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
-		createInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-		createInfo.pfnCallback = debugCallback;
-		result = vkCreateDebugReportCallbackEXT(instance, &createInfo, nullptr, &vkCallback);
-		if (result != VK_SUCCESS)
-			throw std::runtime_error("vkCreateDebugReportCallbackEXT failed");
-		*/
 	}
 }
 
@@ -374,22 +378,9 @@ void VulkanDevice::createAllocator()
 
 void VulkanDevice::createSemaphores()
 {
-	VkSemaphoreCreateInfo semaphoreInfo = {};
-	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-	VkResult result = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore);
-	if (result != VK_SUCCESS)
-		throw std::runtime_error("Failed to create semaphore!");
-
-	result = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore);
-	if (result != VK_SUCCESS)
-		throw std::runtime_error("Failed to create semaphore!");
-
-	VkFenceCreateInfo fenceInfo = {};
-	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-	result = vkCreateFence(device, &fenceInfo, nullptr, &renderFinishedFence);
-	if (result != VK_SUCCESS)
-		throw std::runtime_error("Failed to create fence!");
+	imageAvailableSemaphore.reset(new VulkanSemaphore(this));
+	renderFinishedSemaphore.reset(new VulkanSemaphore(this));
+	renderFinishedFence.reset(new VulkanFence(this));
 }
 
 void VulkanDevice::releaseResources()
@@ -397,19 +388,13 @@ void VulkanDevice::releaseResources()
 	if (device)
 		vkDeviceWaitIdle(device);
 
-	if (!imageAvailableSemaphore)
-		vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
-	imageAvailableSemaphore = 0;
-
-	if (!renderFinishedSemaphore)
-		vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
-	renderFinishedSemaphore = 0;
-
-	if (!renderFinishedFence)
-		vkDestroyFence(device, renderFinishedFence, nullptr);
-	renderFinishedFence = 0;
-
+	imageAvailableSemaphore.reset();
+	renderFinishedSemaphore.reset();
+	renderFinishedFence.reset();
 	swapChain.reset();
+
+	if (allocator)
+		vmaDestroyAllocator(allocator);
 
 	if (device)
 		vkDestroyDevice(device, nullptr);
@@ -418,6 +403,9 @@ void VulkanDevice::releaseResources()
 	if (surface)
 		vkDestroySurfaceKHR(instance, surface, nullptr);
 	surface = 0;
+
+	if (debugMessenger)
+		vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 
 	if (instance)
 		vkDestroyInstance(instance, nullptr);

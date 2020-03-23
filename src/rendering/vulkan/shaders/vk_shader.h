@@ -8,13 +8,17 @@
 class VulkanDevice;
 class VulkanShader;
 
-struct PushConstants
-{
-	int uTextureMode;
-	FVector2 uClipSplit;
-	float uAlphaThreshold;
+template<typename T> int UniformBufferAlignment() { return (sizeof(T) + 127) / 128 * 128; }
 
-	// colors
+struct MatricesUBO
+{
+	VSMatrix ModelMatrix;
+	VSMatrix NormalModelMatrix;
+	VSMatrix TextureMatrix;
+};
+
+struct ColorsUBO
+{
 	FVector4 uObjectColor;
 	FVector4 uObjectColor2;
 	FVector4 uDynLightColor;
@@ -22,8 +26,11 @@ struct PushConstants
 	FVector4 uFogColor;
 	float uDesaturationFactor;
 	float uInterpolationFactor;
+	float padding0, padding1;
+};
 
-	// Glowing walls stuff
+struct GlowingWallsUBO
+{
 	FVector4 uGlowTopPlane;
 	FVector4 uGlowTopColor;
 	FVector4 uGlowBottomPlane;
@@ -34,6 +41,13 @@ struct PushConstants
 
 	FVector4 uSplitTopPlane;
 	FVector4 uSplitBottomPlane;
+};
+
+struct PushConstants
+{
+	int uTextureMode;
+	float uAlphaThreshold;
+	FVector2 uClipSplit;
 
 	// Lighting + Fog
 	float uLightLevel;
@@ -47,11 +61,6 @@ struct PushConstants
 
 	// Blinn glossiness and specular level
 	FVector2 uSpecularMaterial;
-
-	// matrices
-	VSMatrix ModelMatrix;
-	VSMatrix NormalModelMatrix;
-	VSMatrix TextureMatrix;
 };
 
 class VkShaderManager

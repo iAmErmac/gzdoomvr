@@ -40,7 +40,8 @@ public:
 
 	void setSize(int width, int height, int miplevels = 1);
 	void setFormat(VkFormat format);
-	void setUsage(VkImageUsageFlags imageUsage, VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY);
+	void setUsage(VkImageUsageFlags imageUsage, VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags allocFlags = 0);
+	void setLinearTiling();
 
 	std::unique_ptr<VulkanImage> create(VulkanDevice *device);
 
@@ -87,7 +88,7 @@ public:
 	BufferBuilder();
 
 	void setSize(size_t size);
-	void setUsage(VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY);
+	void setUsage(VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags allocFlags = 0);
 
 	std::unique_ptr<VulkanBuffer> create(VulkanDevice *device);
 
@@ -285,10 +286,8 @@ private:
 class WriteDescriptors
 {
 public:
-	void addUniformBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer);
-	void addUniformBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer, size_t offset, size_t range);
-	void addStorageBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer);
-	void addStorageBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer, size_t offset, size_t range);
+	void addBuffer(VulkanDescriptorSet *descriptorSet, int binding, VkDescriptorType type, VulkanBuffer *buffer);
+	void addBuffer(VulkanDescriptorSet *descriptorSet, int binding, VkDescriptorType type, VulkanBuffer *buffer, size_t offset, size_t range);
 	void addStorageImage(VulkanDescriptorSet *descriptorSet, int binding, VulkanImageView *view, VkImageLayout imageLayout);
 	void addCombinedImageSampler(VulkanDescriptorSet *descriptorSet, int binding, VulkanImageView *view, VulkanSampler *sampler, VkImageLayout imageLayout);
 
@@ -333,10 +332,16 @@ inline void ImageBuilder::setFormat(VkFormat format)
 	imageInfo.format = format;
 }
 
-inline void ImageBuilder::setUsage(VkImageUsageFlags usage, VmaMemoryUsage memoryUsage)
+inline void ImageBuilder::setLinearTiling()
+{
+	imageInfo.tiling = VK_IMAGE_TILING_LINEAR;
+}
+
+inline void ImageBuilder::setUsage(VkImageUsageFlags usage, VmaMemoryUsage memoryUsage, VmaAllocationCreateFlags allocFlags)
 {
 	imageInfo.usage = usage;
 	allocInfo.usage = memoryUsage;
+	allocInfo.flags = allocFlags;
 }
 
 inline std::unique_ptr<VulkanImage> ImageBuilder::create(VulkanDevice *device)
@@ -465,10 +470,11 @@ inline void BufferBuilder::setSize(size_t size)
 	bufferInfo.size = size;
 }
 
-inline void BufferBuilder::setUsage(VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage)
+inline void BufferBuilder::setUsage(VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage, VmaAllocationCreateFlags allocFlags)
 {
 	bufferInfo.usage = bufferUsage;
 	allocInfo.usage = memoryUsage;
+	allocInfo.flags = allocFlags;
 }
 
 inline std::unique_ptr<VulkanBuffer> BufferBuilder::create(VulkanDevice *device)
@@ -476,7 +482,6 @@ inline std::unique_ptr<VulkanBuffer> BufferBuilder::create(VulkanDevice *device)
 	VkBuffer buffer;
 	VmaAllocation allocation;
 
-	allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;	// we want this to be mappable.
 	VkResult result = vmaCreateBuffer(device->allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr);
 	if (result != VK_SUCCESS)
 		throw std::runtime_error("could not allocate memory for vulkan buffer");
@@ -1041,12 +1046,12 @@ inline void PipelineBarrier::execute(VulkanCommandBuffer *commandBuffer, VkPipel
 
 /////////////////////////////////////////////////////////////////////////////
 
-inline void WriteDescriptors::addUniformBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer)
+inline void WriteDescriptors::addBuffer(VulkanDescriptorSet *descriptorSet, int binding, VkDescriptorType type, VulkanBuffer *buffer)
 {
-	addUniformBuffer(descriptorSet, binding, buffer, 0, buffer->size);
+	addBuffer(descriptorSet, binding, type, buffer, 0, buffer->size);
 }
 
-inline void WriteDescriptors::addUniformBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer, size_t offset, size_t range)
+inline void WriteDescriptors::addBuffer(VulkanDescriptorSet *descriptorSet, int binding, VkDescriptorType type, VulkanBuffer *buffer, size_t offset, size_t range)
 {
 	VkDescriptorBufferInfo bufferInfo = {};
 	bufferInfo.buffer = buffer->buffer;
@@ -1061,34 +1066,7 @@ inline void WriteDescriptors::addUniformBuffer(VulkanDescriptorSet *descriptorSe
 	descriptorWrite.dstSet = descriptorSet->set;
 	descriptorWrite.dstBinding = binding;
 	descriptorWrite.dstArrayElement = 0;
-	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	descriptorWrite.descriptorCount = 1;
-	descriptorWrite.pBufferInfo = &extra->bufferInfo;
-	writes.push_back(descriptorWrite);
-	writeExtras.push_back(std::move(extra));
-}
-
-inline void WriteDescriptors::addStorageBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer)
-{
-	addStorageBuffer(descriptorSet, binding, buffer, 0, buffer->size);
-}
-
-inline void WriteDescriptors::addStorageBuffer(VulkanDescriptorSet *descriptorSet, int binding, VulkanBuffer *buffer, size_t offset, size_t range)
-{
-	VkDescriptorBufferInfo bufferInfo = {};
-	bufferInfo.buffer = buffer->buffer;
-	bufferInfo.offset = offset;
-	bufferInfo.range = range;
-
-	auto extra = std::make_unique<WriteExtra>();
-	extra->bufferInfo = bufferInfo;
-
-	VkWriteDescriptorSet descriptorWrite = {};
-	descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrite.dstSet = descriptorSet->set;
-	descriptorWrite.dstBinding = binding;
-	descriptorWrite.dstArrayElement = 0;
-	descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	descriptorWrite.descriptorType = type;
 	descriptorWrite.descriptorCount = 1;
 	descriptorWrite.pBufferInfo = &extra->bufferInfo;
 	writes.push_back(descriptorWrite);

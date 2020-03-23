@@ -2,7 +2,18 @@
 #include "vk_buffers.h"
 #include "vk_builders.h"
 #include "vk_framebuffer.h"
+#include "vulkan/renderer/vk_renderstate.h"
 #include "doomerrors.h"
+
+VKBuffer::~VKBuffer()
+{
+	if (map)
+		mBuffer->Unmap();
+
+	auto fb = GetVulkanFrameBuffer();
+	if (fb && mBuffer)
+		fb->mFrameDeleteList.push_back(std::move(mBuffer));
+}
 
 void VKBuffer::SetData(size_t size, const void *data, bool staticdata)
 {
@@ -29,13 +40,15 @@ void VKBuffer::SetData(size_t size, const void *data, bool staticdata)
 	else
 	{
 		BufferBuilder builder;
-		builder.setUsage(mBufferType, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		builder.setUsage(mBufferType, VMA_MEMORY_USAGE_CPU_TO_GPU, mPersistent ? VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT : 0);
 		builder.setSize(size);
 		mBuffer = builder.create(fb->device);
 
 		if (mPersistent)
 		{
 			map = mBuffer->Map(0, size);
+			if (data)
+				memcpy(map, data, size);
 		}
 		else if (data)
 		{
@@ -112,8 +125,10 @@ void VKVertexBuffer::SetFormat(int numBindingPoints, int numAttributes, size_t s
 
 void VKDataBuffer::BindRange(size_t start, size_t length)
 {
+	GetVulkanFrameBuffer()->GetRenderState()->Bind(bindingpoint, (uint32_t)start);
 }
 
 void VKDataBuffer::BindBase()
 {
+	GetVulkanFrameBuffer()->GetRenderState()->Bind(bindingpoint, 0);
 }

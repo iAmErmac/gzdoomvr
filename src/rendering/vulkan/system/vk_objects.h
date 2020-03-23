@@ -5,6 +5,34 @@
 class VulkanCommandPool;
 class VulkanDescriptorPool;
 
+class VulkanSemaphore
+{
+public:
+	VulkanSemaphore(VulkanDevice *device);
+	~VulkanSemaphore();
+
+	VulkanDevice *device = nullptr;
+	VkSemaphore semaphore = VK_NULL_HANDLE;
+
+private:
+	VulkanSemaphore(const VulkanSemaphore &) = delete;
+	VulkanSemaphore &operator=(const VulkanSemaphore &) = delete;
+};
+
+class VulkanFence
+{
+public:
+	VulkanFence(VulkanDevice *device);
+	~VulkanFence();
+
+	VulkanDevice *device = nullptr;
+	VkFence fence = VK_NULL_HANDLE;
+
+private:
+	VulkanFence(const VulkanFence &) = delete;
+	VulkanFence &operator=(const VulkanFence &) = delete;
+};
+
 class VulkanBuffer
 {
 public:
@@ -49,6 +77,9 @@ public:
 	int width = 0;
 	int height = 0;
 	int mipLevels = 1;
+
+	void *Map(size_t offset, size_t size);
+	void Unmap();
 
 private:
 	VulkanDevice *device = nullptr;
@@ -229,7 +260,7 @@ public:
 	void setStencilCompareMask(VkStencilFaceFlags faceMask, uint32_t compareMask);
 	void setStencilWriteMask(VkStencilFaceFlags faceMask, uint32_t writeMask);
 	void setStencilReference(VkStencilFaceFlags faceMask, uint32_t reference);
-	void bindDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VulkanPipelineLayout *layout, VulkanDescriptorSet *descriptorSet, uint32_t dynamicOffsetCount = 0, const uint32_t* pDynamicOffsets = nullptr);
+	void bindDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VulkanPipelineLayout *layout, uint32_t setIndex, VulkanDescriptorSet *descriptorSet, uint32_t dynamicOffsetCount = 0, const uint32_t* pDynamicOffsets = nullptr);
 	void bindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets);
 	void bindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
 	void bindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets);
@@ -297,6 +328,38 @@ private:
 
 	friend class VulkanCommandBuffer;
 };
+
+/////////////////////////////////////////////////////////////////////////////
+
+inline VulkanSemaphore::VulkanSemaphore(VulkanDevice *device) : device(device)
+{
+	VkSemaphoreCreateInfo semaphoreInfo = {};
+	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+	VkResult result = vkCreateSemaphore(device->device, &semaphoreInfo, nullptr, &semaphore);
+	if (result != VK_SUCCESS)
+		throw std::runtime_error("Failed to create semaphore!");
+}
+
+inline VulkanSemaphore::~VulkanSemaphore()
+{
+	vkDestroySemaphore(device->device, semaphore, nullptr);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+inline VulkanFence::VulkanFence(VulkanDevice *device) : device(device)
+{
+	VkFenceCreateInfo fenceInfo = {};
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	VkResult result = vkCreateFence(device->device, &fenceInfo, nullptr, &fence);
+	if (result != VK_SUCCESS)
+		throw std::runtime_error("Failed to create fence!");
+}
+
+inline VulkanFence::~VulkanFence()
+{
+	vkDestroyFence(device->device, fence, nullptr);
+}
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -545,9 +608,9 @@ inline void VulkanCommandBuffer::setStencilReference(VkStencilFaceFlags faceMask
 	vkCmdSetStencilReference(buffer, faceMask, reference);
 }
 
-inline void VulkanCommandBuffer::bindDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VulkanPipelineLayout *layout, VulkanDescriptorSet *descriptorSet, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets)
+inline void VulkanCommandBuffer::bindDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VulkanPipelineLayout *layout, uint32_t setIndex, VulkanDescriptorSet *descriptorSet, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets)
 {
-	bindDescriptorSets(pipelineBindPoint, layout->layout, 0, 1, &descriptorSet->set, dynamicOffsetCount, pDynamicOffsets);
+	bindDescriptorSets(pipelineBindPoint, layout->layout, setIndex, 1, &descriptorSet->set, dynamicOffsetCount, pDynamicOffsets);
 }
 
 inline void VulkanCommandBuffer::bindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets)
@@ -819,6 +882,18 @@ inline VulkanImage::VulkanImage(VulkanDevice *device, VkImage image, VmaAllocati
 inline VulkanImage::~VulkanImage()
 {
 	vmaDestroyImage(device->allocator, image, allocation);
+}
+
+inline void *VulkanImage::Map(size_t offset, size_t size)
+{
+	void *data;
+	VkResult result = vmaMapMemory(device->allocator, allocation, &data);
+	return (result == VK_SUCCESS) ? data : nullptr;
+}
+
+inline void VulkanImage::Unmap()
+{
+	vmaUnmapMemory(device->allocator, allocation);
 }
 
 /////////////////////////////////////////////////////////////////////////////
