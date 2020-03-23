@@ -10,6 +10,10 @@
 
 VkRenderPassManager::VkRenderPassManager()
 {
+}
+
+void VkRenderPassManager::Init()
+{
 	CreateDynamicSetLayout();
 	CreateTextureSetLayout();
 	CreatePipelineLayout();
@@ -23,7 +27,7 @@ void VkRenderPassManager::BeginFrame()
 	{
 		auto fb = GetVulkanFrameBuffer();
 
-		RenderPassSetup.reset();
+		RenderPassSetup.clear();
 		SceneColorView.reset();
 		SceneDepthStencilView.reset();
 		SceneDepthView.reset();
@@ -49,9 +53,46 @@ void VkRenderPassManager::BeginFrame()
 
 		viewbuilder.setImage(SceneDepthStencil.get(), VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_ASPECT_DEPTH_BIT);
 		SceneDepthView = viewbuilder.create(fb->device);
-
-		RenderPassSetup.reset(new VkRenderPassSetup());
 	}
+}
+
+VkRenderPassSetup *VkRenderPassManager::GetRenderPass(const VkRenderPassKey &key)
+{
+	auto &item = RenderPassSetup[key];
+	if (!item)
+		item.reset(new VkRenderPassSetup(key));
+	return item.get();
+}
+
+int VkRenderPassManager::GetVertexFormat(int numBindingPoints, int numAttributes, size_t stride, const FVertexBufferAttribute *attrs)
+{
+	for (size_t i = 0; i < VertexFormats.size(); i++)
+	{
+		const auto &f = VertexFormats[i];
+		if (f.Attrs.size() == numAttributes && f.NumBindingPoints == numBindingPoints && f.Stride == stride)
+		{
+			bool matches = true;
+			for (int j = 0; j < numAttributes; j++)
+			{
+				if (memcmp(&f.Attrs[j], &attrs[j], sizeof(FVertexBufferAttribute)) != 0)
+				{
+					matches = false;
+					break;
+				}
+			}
+
+			if (matches)
+				return (int)i;
+		}
+	}
+
+	VkVertexFormat fmt;
+	fmt.NumBindingPoints = numBindingPoints;
+	fmt.Stride = stride;
+	for (int j = 0; j < numAttributes; j++)
+		fmt.Attrs.push_back(attrs[j]);
+	VertexFormats.push_back(fmt);
+	return (int)VertexFormats.size() - 1;
 }
 
 void VkRenderPassManager::CreateDynamicSetLayout()
@@ -68,14 +109,11 @@ void VkRenderPassManager::CreateDynamicSetLayout()
 void VkRenderPassManager::CreateTextureSetLayout()
 {
 	DescriptorSetLayoutBuilder builder;
-	builder.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-	/*
 	for (int i = 0; i < 6; i++)
 	{
 		builder.addBinding(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 	builder.addBinding(16, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-	*/
 	TextureSetLayout = builder.create(GetVulkanFrameBuffer()->device);
 }
 
@@ -114,63 +152,154 @@ void VkRenderPassManager::CreateDynamicSet()
 
 /////////////////////////////////////////////////////////////////////////////
 
-VkRenderPassSetup::VkRenderPassSetup()
+VkRenderPassSetup::VkRenderPassSetup(const VkRenderPassKey &key)
 {
-	CreateRenderPass();
-	CreatePipeline();
-	CreateFramebuffer();
+	CreateRenderPass(key);
+	CreatePipeline(key);
+	CreateFramebuffer(key);
 }
 
-void VkRenderPassSetup::CreateRenderPass()
+void VkRenderPassSetup::CreateRenderPass(const VkRenderPassKey &key)
 {
 	RenderPassBuilder builder;
-	builder.addRgba16fAttachment(true, VK_IMAGE_LAYOUT_GENERAL);
+	builder.addRgba16fAttachment(false, VK_IMAGE_LAYOUT_GENERAL);
+	if (key.DepthTest || key.DepthWrite)
+		builder.addDepthStencilAttachment(false, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 	builder.addSubpass();
 	builder.addSubpassColorAttachmentRef(0, VK_IMAGE_LAYOUT_GENERAL);
-	builder.addExternalSubpassDependency();
+	if (key.DepthTest || key.DepthWrite)
+	{
+		builder.addSubpassDepthStencilAttachmentRef(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		builder.addExternalSubpassDependency(
+			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
+	}
+	else
+	{
+		builder.addExternalSubpassDependency(
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
+	}
 	RenderPass = builder.create(GetVulkanFrameBuffer()->device);
 }
 
-void VkRenderPassSetup::CreatePipeline()
+void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
 {
 	auto fb = GetVulkanFrameBuffer();
 	GraphicsPipelineBuilder builder;
-	builder.addVertexShader(fb->GetShaderManager()->vert.get());
-	builder.addFragmentShader(fb->GetShaderManager()->frag.get());
 
-	builder.addVertexBufferBinding(0, sizeof(F2DDrawer::TwoDVertex));
-	builder.addVertexAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(F2DDrawer::TwoDVertex, x));
-	builder.addVertexAttribute(1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(F2DDrawer::TwoDVertex, u));
-	builder.addVertexAttribute(2, 0, VK_FORMAT_R8G8B8A8_UNORM, offsetof(F2DDrawer::TwoDVertex, color0));
-	builder.addVertexAttribute(3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(F2DDrawer::TwoDVertex, x));
-	builder.addVertexAttribute(4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(F2DDrawer::TwoDVertex, x));
-	builder.addVertexAttribute(5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(F2DDrawer::TwoDVertex, x));
+	VkShaderProgram *program;
+	if (key.SpecialEffect != EFF_NONE)
+	{
+		program = fb->GetShaderManager()->GetEffect(key.SpecialEffect);
+	}
+	else
+	{
+		program = fb->GetShaderManager()->Get(key.EffectState, key.AlphaTest);
+	}
+	builder.addVertexShader(program->vert.get());
+	builder.addFragmentShader(program->frag.get());
 
-#if 0
-		builder.addVertexBufferBinding(0, sizeof(FFlatVertex));
-	builder.addVertexAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(FFlatVertex, x));
-	builder.addVertexAttribute(1, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(FFlatVertex, u));
-	// To do: not all vertex formats has all the data..
-	builder.addVertexAttribute(2, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(FFlatVertex, x));
-	builder.addVertexAttribute(3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(FFlatVertex, x));
-	builder.addVertexAttribute(4, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(FFlatVertex, x));
-	builder.addVertexAttribute(5, 0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(FFlatVertex, x));
-#endif
+	const VkVertexFormat &vfmt = fb->GetRenderPassManager()->VertexFormats[key.VertexFormat];
+
+	for (int i = 0; i < vfmt.NumBindingPoints; i++)
+		builder.addVertexBufferBinding(i, vfmt.Stride);
+
+	const static VkFormat vkfmts[] = {
+		VK_FORMAT_R32G32B32A32_SFLOAT,
+		VK_FORMAT_R32G32B32_SFLOAT,
+		VK_FORMAT_R32G32_SFLOAT,
+		VK_FORMAT_R32_SFLOAT,
+		VK_FORMAT_R8G8B8A8_UNORM,
+		VK_FORMAT_A2R10G10B10_SNORM_PACK32
+	};
+
+	bool inputLocations[6] = { false, false, false, false, false, false };
+
+	for (size_t i = 0; i < vfmt.Attrs.size(); i++)
+	{
+		const auto &attr = vfmt.Attrs[i];
+		builder.addVertexAttribute(attr.location, attr.binding, vkfmts[attr.format], attr.offset);
+		inputLocations[attr.location] = true;
+	}
+
+	// To do: does vulkan absolutely needs a binding for each location or not? What happens if it isn't specified? Better be safe than sorry..
+	for (int i = 0; i < 6; i++)
+	{
+		if (!inputLocations[i])
+			builder.addVertexAttribute(i, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
+	}
+
+	builder.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
+	builder.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
+	// builder.addDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
+	// builder.addDynamicState(VK_DYNAMIC_STATE_DEPTH_BIAS);
+	// builder.addDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+	// builder.addDynamicState(VK_DYNAMIC_STATE_DEPTH_BOUNDS);
+	// builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+	// builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
+	// builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
 
 	builder.setViewport(0.0f, 0.0f, (float)SCREENWIDTH, (float)SCREENHEIGHT);
 	builder.setScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
-	builder.setAlphaBlendMode();
+
+	static const VkPrimitiveTopology vktopology[] = {
+		VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
+		VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,
+		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
+	};
+
+	builder.setTopology(vktopology[key.DrawType]);
+
+	static const int blendstyles[] = {
+		VK_BLEND_FACTOR_ZERO,
+		VK_BLEND_FACTOR_ONE,
+		VK_BLEND_FACTOR_SRC_ALPHA,
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+		VK_BLEND_FACTOR_SRC_COLOR,
+		VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+		VK_BLEND_FACTOR_DST_COLOR,
+		VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+	};
+
+	static const int renderops[] = {
+		0, VK_BLEND_OP_ADD, VK_BLEND_OP_SUBTRACT, VK_BLEND_OP_REVERSE_SUBTRACT, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+	};
+
+	int srcblend = blendstyles[key.RenderStyle.SrcAlpha%STYLEALPHA_MAX];
+	int dstblend = blendstyles[key.RenderStyle.DestAlpha%STYLEALPHA_MAX];
+	int blendequation = renderops[key.RenderStyle.BlendOp & 15];
+
+	if (blendequation == -1)	// This was a fuzz style.
+	{
+		srcblend = VK_BLEND_FACTOR_DST_COLOR;
+		dstblend = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		blendequation = VK_BLEND_OP_ADD;
+	}
+
+	builder.setDepthEnable(key.DepthTest, key.DepthWrite);
+
+	builder.setBlendMode((VkBlendOp)blendequation, (VkBlendFactor)srcblend, (VkBlendFactor)dstblend);
+
 	builder.setLayout(fb->GetRenderPassManager()->PipelineLayout.get());
 	builder.setRenderPass(RenderPass.get());
 	Pipeline = builder.create(fb->device);
 }
 
-void VkRenderPassSetup::CreateFramebuffer()
+void VkRenderPassSetup::CreateFramebuffer(const VkRenderPassKey &key)
 {
 	auto fb = GetVulkanFrameBuffer();
 	FramebufferBuilder builder;
 	builder.setRenderPass(RenderPass.get());
 	builder.setSize(SCREENWIDTH, SCREENHEIGHT);
 	builder.addAttachment(fb->GetRenderPassManager()->SceneColorView.get());
+	if (key.DepthTest || key.DepthWrite)
+		builder.addAttachment(fb->GetRenderPassManager()->SceneDepthStencilView.get());
 	Framebuffer = builder.create(GetVulkanFrameBuffer()->device);
 }

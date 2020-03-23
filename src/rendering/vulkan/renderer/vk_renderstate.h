@@ -10,6 +10,8 @@
 #include "hwrenderer/scene/hw_renderstate.h"
 #include "hwrenderer/textures/hw_material.h"
 
+class VkRenderPassSetup;
+
 class VkRenderState : public FRenderState
 {
 public:
@@ -47,7 +49,17 @@ private:
 
 	bool mLastDepthClamp = true;
 	VulkanCommandBuffer *mCommandBuffer = nullptr;
+	VkRenderPassSetup *mRenderPassSetup = nullptr;
 	bool mDescriptorsChanged = true;
+
+	int mScissorX = 0, mScissorY = 0, mScissorWidth = -1, mScissorHeight = -1;
+	int mViewportX = 0, mViewportY = 0, mViewportWidth = -1, mViewportHeight = -1;
+	float mViewportDepthMin = 0.0f, mViewportDepthMax = 1.0f;
+	bool mScissorChanged = true;
+	bool mViewportChanged = true;
+
+	bool mDepthTest = false;
+	bool mDepthWrite = false;
 
 	MatricesUBO mMatrices = {};
 	ColorsUBO mColors = {};
