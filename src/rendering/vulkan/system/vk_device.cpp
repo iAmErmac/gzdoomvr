@@ -37,6 +37,7 @@ extern HWND Window;
 #include <vector>
 #include <array>
 #include <set>
+#include <string>
 
 #include "vk_device.h"
 #include "vk_swapchain.h"
@@ -49,11 +50,10 @@ extern HWND Window;
 
 EXTERN_CVAR(Bool, vid_vsync);
 
-#ifdef NDEBUG
-CVAR(Bool, vk_debug, false, 0);	// this should be false, once the oversized model can be removed.
-#else
-CVAR(Bool, vk_debug, true, 0);
-#endif
+CUSTOM_CVAR(Bool, vk_debug, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_NOINITCALL)
+{
+	Printf("This won't take effect until " GAMENAME " is restarted.\n");
+}
 
 VulkanDevice::VulkanDevice()
 {
@@ -75,9 +75,13 @@ VulkanDevice::VulkanDevice()
 		createDevice();
 		createAllocator();
 
+#ifdef _WIN32
 		RECT clientRect = { 0 };
 		GetClientRect(Window, &clientRect);
 		swapChain = std::make_unique<VulkanSwapChain>(this, clientRect.right, clientRect.bottom, vid_vsync);
+#else
+		assert(!"Implement platform-specific swapchain size getter");
+#endif
 
 		createSemaphores();
 	}
@@ -95,11 +99,15 @@ VulkanDevice::~VulkanDevice()
 
 void VulkanDevice::windowResized()
 {
+#ifdef _WIN32
 	RECT clientRect = { 0 };
 	GetClientRect(Window, &clientRect);
 
 	swapChain.reset();
 	swapChain = std::make_unique<VulkanSwapChain>(this, clientRect.right, clientRect.bottom, vid_vsync);
+#else
+	assert(!"Implement platform-specific swapchain resize");
+#endif
 }
 
 void VulkanDevice::waitPresent()
@@ -203,7 +211,12 @@ void VulkanDevice::createInstance()
 	appInfo.engineVersion = VK_MAKE_VERSION(ENG_MAJOR, ENG_MINOR, ENG_REVISION);
 	appInfo.apiVersion = VK_API_VERSION_1_0;
 
-	std::vector<const char *> enabledExtensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
+	std::vector<const char *> enabledExtensions = { VK_KHR_SURFACE_EXTENSION_NAME };
+#ifdef _WIN32
+	enabledExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#else
+	assert(!"Add platform-specific surface extension");
+#endif
 
 	std::vector<const char*> validationLayers;
 	std::string debugLayer = "VK_LAYER_LUNARG_standard_validation";
@@ -259,6 +272,8 @@ void VulkanDevice::createSurface()
 #ifdef _WIN32
 	VkWin32SurfaceCreateInfoKHR windowCreateInfo;
 	windowCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    windowCreateInfo.pNext = nullptr;
+    windowCreateInfo.flags = 0;
 	windowCreateInfo.hwnd = Window;
 	windowCreateInfo.hinstance = GetModuleHandle(nullptr);
 
@@ -290,10 +305,7 @@ void VulkanDevice::selectPhysicalDevice()
 
 	for (const auto &device : devices)
 	{
-		VkPhysicalDeviceProperties deviceProperties;
 		vkGetPhysicalDeviceProperties(device, &deviceProperties);
-
-		VkPhysicalDeviceFeatures deviceFeatures;
 		vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
 		bool isUsableDevice = deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader && deviceFeatures.samplerAnisotropy;
@@ -374,6 +386,8 @@ void VulkanDevice::createDevice()
 	usedDeviceFeatures.samplerAnisotropy = VK_TRUE;
 	usedDeviceFeatures.shaderClipDistance = VK_TRUE;
 	usedDeviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
+	usedDeviceFeatures.depthClamp = VK_TRUE;
+	usedDeviceFeatures.shaderClipDistance = VK_TRUE;
 
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

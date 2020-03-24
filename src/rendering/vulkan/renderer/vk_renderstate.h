@@ -47,6 +47,8 @@ public:
 private:
 	void Apply(int dt);
 	void ApplyRenderPass(int dt);
+	void ApplyStencilRef();
+	void ApplyDepthBias();
 	void ApplyScissor();
 	void ApplyViewport();
 	void ApplyStreamData();
@@ -56,10 +58,10 @@ private:
 	void ApplyVertexBuffers();
 	void ApplyMaterial();
 
-	bool mLastDepthClamp = true;
+	bool mDepthClamp = true;
 	VulkanCommandBuffer *mCommandBuffer = nullptr;
 	VkRenderPassKey mRenderPassKey = {};
-	bool mDynamicSetChanged = true;
+	bool mNeedApply = true;
 
 	int mScissorX = 0, mScissorY = 0, mScissorWidth = -1, mScissorHeight = -1;
 	int mViewportX = 0, mViewportY = 0, mViewportWidth = -1, mViewportHeight = -1;
@@ -69,6 +71,14 @@ private:
 
 	bool mDepthTest = false;
 	bool mDepthWrite = false;
+	bool mStencilTest = false;
+
+	bool mStencilRefChanged = false;
+	int mStencilRef = 0;
+	int mStencilOp = 0;
+	int mDepthFunc = 0;
+	int mColorMask = 15;
+	int mCullMode = 0;
 
 	MatricesUBO mMatrices = {};
 	StreamData mStreamData = {};

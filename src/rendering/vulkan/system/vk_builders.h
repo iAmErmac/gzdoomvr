@@ -43,6 +43,8 @@ public:
 	void setUsage(VkImageUsageFlags imageUsage, VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags allocFlags = 0);
 	void setLinearTiling();
 
+	bool isFormatSupported(VulkanDevice *device);
+
 	std::unique_ptr<VulkanImage> create(VulkanDevice *device);
 
 private:
@@ -186,7 +188,12 @@ public:
 	void setScissor(int x, int y, int width, int height);
 
 	void setCull(VkCullModeFlags cullMode, VkFrontFace frontFace);
-	void setDepthEnable(bool test, bool write);
+	void setDepthStencilEnable(bool test, bool write, bool stencil);
+	void setDepthFunc(VkCompareOp func);
+	void setDepthClampEnable(bool value);
+	void setDepthBias(bool enable, float biasConstantFactor, float biasClamp, float biasSlopeFactor);
+	void setColorWriteMask(VkColorComponentFlags mask);
+	void setStencil(VkStencilOp failOp, VkStencilOp passOp, VkStencilOp depthFailOp, VkCompareOp compareOp, uint32_t compareMask, uint32_t writeMask, uint32_t reference);
 
 	void setAdditiveBlendMode();
 	void setAlphaBlendMode();
@@ -247,7 +254,7 @@ public:
 
 	void addRgba16fAttachment(bool clear, VkImageLayout layout) { addColorAttachment(clear, VK_FORMAT_R16G16B16A16_SFLOAT, layout); }
 	void addColorAttachment(bool clear, VkFormat format, VkImageLayout layout);
-	void addDepthStencilAttachment(bool clear, VkImageLayout layout);
+	void addDepthStencilAttachment(bool clear, VkFormat format, VkImageLayout layout);
 
 	void addExternalSubpassDependency(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
 
@@ -349,6 +356,20 @@ inline void ImageBuilder::setUsage(VkImageUsageFlags usage, VmaMemoryUsage memor
 	imageInfo.usage = usage;
 	allocInfo.usage = memoryUsage;
 	allocInfo.flags = allocFlags;
+}
+
+inline bool ImageBuilder::isFormatSupported(VulkanDevice *device)
+{
+	VkImageFormatProperties properties = { };
+	VkResult result = vkGetPhysicalDeviceImageFormatProperties(device->physicalDevice, imageInfo.format, imageInfo.imageType, imageInfo.tiling, imageInfo.usage, imageInfo.flags, &properties);
+	if (result != VK_SUCCESS) return false;
+	if (imageInfo.extent.width > properties.maxExtent.width) return false;
+	if (imageInfo.extent.height > properties.maxExtent.height) return false;
+	if (imageInfo.extent.depth > properties.maxExtent.depth) return false;
+	if (imageInfo.mipLevels > properties.maxMipLevels) return false;
+	if (imageInfo.arrayLayers > properties.maxArrayLayers) return false;
+	if ((imageInfo.samples & properties.sampleCounts) != imageInfo.samples) return false;
+	return true;
 }
 
 inline std::unique_ptr<VulkanImage> ImageBuilder::create(VulkanDevice *device)
@@ -710,7 +731,6 @@ inline GraphicsPipelineBuilder::GraphicsPipelineBuilder()
 	colorBlending.blendConstants[2] = 0.0f;
 	colorBlending.blendConstants[3] = 0.0f;
 
-	VkPipelineDynamicStateCreateInfo dynamicState = {};
 	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 }
 
@@ -764,12 +784,55 @@ inline void GraphicsPipelineBuilder::setCull(VkCullModeFlags cullMode, VkFrontFa
 	rasterizer.frontFace = frontFace;
 }
 
-inline void GraphicsPipelineBuilder::setDepthEnable(bool test, bool write)
+inline void GraphicsPipelineBuilder::setDepthStencilEnable(bool test, bool write, bool stencil)
 {
 	depthStencil.depthTestEnable = test ? VK_TRUE : VK_FALSE;
 	depthStencil.depthWriteEnable = write ? VK_TRUE : VK_FALSE;
+	depthStencil.stencilTestEnable = stencil ? VK_TRUE : VK_FALSE;
 
-	pipelineInfo.pDepthStencilState = (test || write) ? &depthStencil : nullptr;
+	pipelineInfo.pDepthStencilState = (test || write || stencil) ? &depthStencil : nullptr;
+}
+
+inline void GraphicsPipelineBuilder::setStencil(VkStencilOp failOp, VkStencilOp passOp, VkStencilOp depthFailOp, VkCompareOp compareOp, uint32_t compareMask, uint32_t writeMask, uint32_t reference)
+{
+	depthStencil.front.failOp = failOp;
+	depthStencil.front.passOp = passOp;
+	depthStencil.front.depthFailOp = depthFailOp;
+	depthStencil.front.compareOp = compareOp;
+	depthStencil.front.compareMask = compareMask;
+	depthStencil.front.writeMask = writeMask;
+	depthStencil.front.reference = reference;
+
+	depthStencil.back.failOp = failOp;
+	depthStencil.back.passOp = passOp;
+	depthStencil.back.depthFailOp = depthFailOp;
+	depthStencil.back.compareOp = compareOp;
+	depthStencil.back.compareMask = compareMask;
+	depthStencil.back.writeMask = writeMask;
+	depthStencil.back.reference = reference;
+}
+
+inline void GraphicsPipelineBuilder::setDepthFunc(VkCompareOp func)
+{
+	depthStencil.depthCompareOp = func;
+}
+
+inline void GraphicsPipelineBuilder::setDepthClampEnable(bool value)
+{
+	rasterizer.depthClampEnable = value ? VK_TRUE : VK_FALSE;
+}
+
+inline void GraphicsPipelineBuilder::setDepthBias(bool enable, float biasConstantFactor, float biasClamp, float biasSlopeFactor)
+{
+	rasterizer.depthBiasEnable = enable ? VK_TRUE : VK_FALSE;
+	rasterizer.depthBiasConstantFactor = biasConstantFactor;
+	rasterizer.depthBiasClamp = biasClamp;
+	rasterizer.depthBiasSlopeFactor = biasSlopeFactor;
+}
+
+inline void GraphicsPipelineBuilder::setColorWriteMask(VkColorComponentFlags mask)
+{
+	colorBlendAttachment.colorWriteMask = mask;
 }
 
 inline void GraphicsPipelineBuilder::setAdditiveBlendMode()
@@ -937,10 +1000,10 @@ inline void RenderPassBuilder::addColorAttachment(bool clear, VkFormat format, V
 	renderPassInfo.attachmentCount = (uint32_t)attachments.size();
 }
 
-inline void RenderPassBuilder::addDepthStencilAttachment(bool clear, VkImageLayout layout)
+inline void RenderPassBuilder::addDepthStencilAttachment(bool clear, VkFormat format, VkImageLayout layout)
 {
 	VkAttachmentDescription depthAttachment = {};
-	depthAttachment.format = VK_FORMAT_D24_UNORM_S8_UINT;
+	depthAttachment.format = format;
 	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	depthAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE/*VK_ATTACHMENT_STORE_OP_DONT_CARE*/;

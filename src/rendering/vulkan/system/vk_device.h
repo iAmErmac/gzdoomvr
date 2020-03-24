@@ -5,6 +5,7 @@
 #include <mutex>
 #include <vector>
 #include <algorithm>
+#include <memory>
 
 class VulkanSwapChain;
 class VulkanSemaphore;
@@ -44,6 +45,10 @@ public:
 	std::vector<VkLayerProperties> availableLayers;
 	std::vector<VkExtensionProperties> extensions;
 	std::vector<VkExtensionProperties> availableDeviceExtensions;
+	VkPhysicalDeviceProperties deviceProperties;
+	VkPhysicalDeviceFeatures deviceFeatures;
+
+	VkPhysicalDevice physicalDevice = {};
 
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
@@ -63,8 +68,6 @@ private:
 
 	VkInstance instance = nullptr;
 	VkSurfaceKHR surface = 0;
-
-	VkPhysicalDevice physicalDevice = {};
 
 	VkQueue presentQueue = nullptr;
 

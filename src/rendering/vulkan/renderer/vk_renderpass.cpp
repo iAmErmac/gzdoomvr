@@ -40,18 +40,27 @@ void VkRenderPassManager::BeginFrame()
 		builder.setUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 		SceneColor = builder.create(fb->device);
 
-		builder.setFormat(VK_FORMAT_D24_UNORM_S8_UINT);
+		builder.setFormat(SceneDepthStencilFormat);
 		builder.setUsage(VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+		if (!builder.isFormatSupported(fb->device))
+		{
+			SceneDepthStencilFormat = VK_FORMAT_D32_SFLOAT_S8_UINT;
+			builder.setFormat(SceneDepthStencilFormat);
+			if (!builder.isFormatSupported(fb->device))
+			{
+				I_FatalError("This device does not support any of the required depth stencil image formats.");
+			}
+		}
 		SceneDepthStencil = builder.create(fb->device);
 
 		ImageViewBuilder viewbuilder;
 		viewbuilder.setImage(SceneColor.get(), VK_FORMAT_R16G16B16A16_SFLOAT);
 		SceneColorView = viewbuilder.create(fb->device);
 
-		viewbuilder.setImage(SceneDepthStencil.get(), VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+		viewbuilder.setImage(SceneDepthStencil.get(), SceneDepthStencilFormat, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
 		SceneDepthStencilView = viewbuilder.create(fb->device);
 
-		viewbuilder.setImage(SceneDepthStencil.get(), VK_FORMAT_D24_UNORM_S8_UINT, VK_IMAGE_ASPECT_DEPTH_BIT);
+		viewbuilder.setImage(SceneDepthStencil.get(), SceneDepthStencilFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 		SceneDepthView = viewbuilder.create(fb->device);
 
 		PipelineBarrier barrier;
@@ -171,11 +180,11 @@ void VkRenderPassSetup::CreateRenderPass(const VkRenderPassKey &key)
 {
 	RenderPassBuilder builder;
 	builder.addRgba16fAttachment(false, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	if (key.DepthTest || key.DepthWrite)
-		builder.addDepthStencilAttachment(false, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	if (key.DepthTest || key.DepthWrite || key.StencilTest)
+		builder.addDepthStencilAttachment(false, GetVulkanFrameBuffer()->GetRenderPassManager()->SceneDepthStencilFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 	builder.addSubpass();
 	builder.addSubpassColorAttachmentRef(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	if (key.DepthTest || key.DepthWrite)
+	if (key.DepthTest || key.DepthWrite || key.StencilTest)
 	{
 		builder.addSubpassDepthStencilAttachmentRef(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 		builder.addExternalSubpassDependency(
@@ -245,12 +254,12 @@ void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
 	builder.addDynamicState(VK_DYNAMIC_STATE_VIEWPORT);
 	builder.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
 	// builder.addDynamicState(VK_DYNAMIC_STATE_LINE_WIDTH);
-	// builder.addDynamicState(VK_DYNAMIC_STATE_DEPTH_BIAS);
+	builder.addDynamicState(VK_DYNAMIC_STATE_DEPTH_BIAS);
 	// builder.addDynamicState(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
 	// builder.addDynamicState(VK_DYNAMIC_STATE_DEPTH_BOUNDS);
 	// builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
 	// builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
-	// builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+	builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
 
 	builder.setViewport(0.0f, 0.0f, (float)SCREENWIDTH, (float)SCREENHEIGHT);
 	builder.setScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
@@ -262,8 +271,6 @@ void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,
 		VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP
 	};
-
-	builder.setTopology(vktopology[key.DrawType]);
 
 	static const int blendstyles[] = {
 		VK_BLEND_FACTOR_ZERO,
@@ -291,8 +298,17 @@ void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
 		blendequation = VK_BLEND_OP_ADD;
 	}
 
-	builder.setDepthEnable(key.DepthTest, key.DepthWrite);
+	static const VkStencilOp op2vk[] = { VK_STENCIL_OP_KEEP, VK_STENCIL_OP_INCREMENT_AND_CLAMP, VK_STENCIL_OP_DECREMENT_AND_CLAMP };
+	static const VkCompareOp depthfunc2vk[] = { VK_COMPARE_OP_LESS, VK_COMPARE_OP_LESS_OR_EQUAL, VK_COMPARE_OP_ALWAYS };
 
+	builder.setTopology(vktopology[key.DrawType]);
+	builder.setDepthStencilEnable(key.DepthTest, key.DepthWrite, key.StencilTest);
+	builder.setDepthFunc(depthfunc2vk[key.DepthFunc]);
+	builder.setDepthClampEnable(key.DepthClamp);
+	builder.setDepthBias(key.DepthBias, 0.0f, 0.0f, 0.0f);
+	builder.setCull(key.CullMode == Cull_None ? VK_CULL_MODE_NONE : VK_CULL_MODE_FRONT_AND_BACK, key.CullMode == Cull_CW ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE);
+	builder.setColorWriteMask((VkColorComponentFlags)key.ColorMask);
+	builder.setStencil(VK_STENCIL_OP_KEEP, op2vk[key.StencilPassOp], VK_STENCIL_OP_KEEP, VK_COMPARE_OP_EQUAL, 0xffffffff, 0xffffffff, 0);
 	builder.setBlendMode((VkBlendOp)blendequation, (VkBlendFactor)srcblend, (VkBlendFactor)dstblend);
 
 	builder.setLayout(fb->GetRenderPassManager()->PipelineLayout.get());
@@ -307,7 +323,7 @@ void VkRenderPassSetup::CreateFramebuffer(const VkRenderPassKey &key)
 	builder.setRenderPass(RenderPass.get());
 	builder.setSize(SCREENWIDTH, SCREENHEIGHT);
 	builder.addAttachment(fb->GetRenderPassManager()->SceneColorView.get());
-	if (key.DepthTest || key.DepthWrite)
+	if (key.DepthTest || key.DepthWrite || key.StencilTest)
 		builder.addAttachment(fb->GetRenderPassManager()->SceneDepthStencilView.get());
 	Framebuffer = builder.create(GetVulkanFrameBuffer()->device);
 }

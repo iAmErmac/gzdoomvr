@@ -4,6 +4,7 @@
 #include "vulkan/system/vk_objects.h"
 #include "r_data/renderstyle.h"
 #include "hwrenderer/data/buffers.h"
+#include <string.h>
 #include <map>
 
 class VKDataBuffer;
@@ -17,6 +18,13 @@ public:
 	int AlphaTest;
 	int DepthWrite;
 	int DepthTest;
+	int DepthFunc;
+	int DepthClamp;
+	int DepthBias;
+	int StencilTest;
+	int StencilPassOp;
+	int ColorMask;
+	int CullMode;
 	int VertexFormat;
 	int DrawType;
 
@@ -71,6 +79,8 @@ public:
 	std::unique_ptr<VulkanImageView> SceneColorView;
 	std::unique_ptr<VulkanImageView> SceneDepthStencilView;
 	std::unique_ptr<VulkanImageView> SceneDepthView;
+
+	VkFormat SceneDepthStencilFormat = VK_FORMAT_D24_UNORM_S8_UINT;
 
 	std::unique_ptr<VulkanDescriptorSet> DynamicSet;
 

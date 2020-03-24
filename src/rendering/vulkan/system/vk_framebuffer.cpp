@@ -28,6 +28,7 @@
 #include "r_videoscale.h"
 #include "actor.h"
 #include "i_time.h"
+#include "gamedata/fonts/v_text.h"
 
 #include "hwrenderer/utility/hw_clock.h"
 #include "hwrenderer/utility/hw_vrmodes.h"
@@ -88,6 +89,13 @@ VulkanFrameBuffer::~VulkanFrameBuffer()
 
 void VulkanFrameBuffer::InitializeState()
 {
+	static bool first = true;
+	if (first)
+	{
+		PrintStartupLog();
+		first = false;
+	}
+
 	gl_vendorstring = "Vulkan";
 	hwcaps = RFL_SHADER_STORAGE_BUFFER | RFL_BUFFER_STORAGE;
 
@@ -572,4 +580,38 @@ VulkanCommandBuffer *VulkanFrameBuffer::GetDrawCommands()
 		mDrawCommands->begin();
 	}
 	return mDrawCommands.get();
+}
+
+void VulkanFrameBuffer::PrintStartupLog()
+{
+	FString deviceType;
+	switch (device->deviceProperties.deviceType)
+	{
+	case VK_PHYSICAL_DEVICE_TYPE_OTHER: deviceType = "other"; break;
+	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: deviceType = "integrated gpu"; break;
+	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: deviceType = "discrete gpu"; break;
+	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: deviceType = "virtual gpu"; break;
+	case VK_PHYSICAL_DEVICE_TYPE_CPU: deviceType = "cpu"; break;
+	default: deviceType.Format("%d", (int)device->deviceProperties.deviceType); break;
+	}
+
+	FString apiVersion, driverVersion;
+	apiVersion.Format("%d.%d.%d", VK_VERSION_MAJOR(device->deviceProperties.apiVersion), VK_VERSION_MINOR(device->deviceProperties.apiVersion), VK_VERSION_PATCH(device->deviceProperties.apiVersion));
+	driverVersion.Format("%d.%d.%d", VK_VERSION_MAJOR(device->deviceProperties.driverVersion), VK_VERSION_MINOR(device->deviceProperties.driverVersion), VK_VERSION_PATCH(device->deviceProperties.driverVersion));
+
+	Printf("Vulkan device: " TEXTCOLOR_ORANGE "%s\n", device->deviceProperties.deviceName);
+	Printf("Vulkan device type: %s\n", deviceType.GetChars());
+	Printf("Vulkan version: %s (api) %s (driver)\n", apiVersion.GetChars(), driverVersion.GetChars());
+
+	Printf(PRINT_LOG, "Vulkan extensions:");
+	for (const VkExtensionProperties &p : device->availableDeviceExtensions)
+	{
+		Printf(PRINT_LOG, " %s", p.extensionName);
+	}
+	Printf(PRINT_LOG, "\n");
+
+	const auto &limits = device->deviceProperties.limits;
+	Printf("Max. texture size: %d\n", limits.maxImageDimension2D);
+	Printf("Max. uniform buffer range: %d\n", limits.maxUniformBufferRange);
+	Printf("Min. uniform buffer offset alignment: %d\n", limits.minUniformBufferOffsetAlignment);
 }

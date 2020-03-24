@@ -73,7 +73,7 @@ public:
 	VulkanImage(VulkanDevice *device, VkImage image, VmaAllocation allocation, int width, int height, int mipLevels);
 	~VulkanImage();
 
-	VkImage image = nullptr;
+	VkImage image = VK_NULL_HANDLE;
 	int width = 0;
 	int height = 0;
 	int mipLevels = 1;
@@ -95,7 +95,7 @@ public:
 	VulkanImageView(VulkanDevice *device, VkImageView view);
 	~VulkanImageView();
 
-	VkImageView view = nullptr;
+	VkImageView view = VK_NULL_HANDLE;
 
 private:
 	VulkanImageView(const VulkanImageView &) = delete;
@@ -110,7 +110,7 @@ public:
 	VulkanSampler(VulkanDevice *device, VkSampler sampler);
 	~VulkanSampler();
 
-	VkSampler sampler = nullptr;
+	VkSampler sampler = VK_NULL_HANDLE;
 
 private:
 	VulkanSampler(const VulkanSampler &) = delete;
@@ -125,7 +125,7 @@ public:
 	VulkanShader(VulkanDevice *device, VkShaderModule module);
 	~VulkanShader();
 
-	VkShaderModule module = nullptr;
+	VkShaderModule module = VK_NULL_HANDLE;
 
 private:
 	VulkanDevice *device = nullptr;
@@ -318,7 +318,7 @@ public:
 
 	std::unique_ptr<VulkanCommandBuffer> createBuffer();
 
-	VkCommandPool pool = nullptr;
+	VkCommandPool pool = VK_NULL_HANDLE;
 
 private:
 	VulkanDevice *device = nullptr;
@@ -804,7 +804,7 @@ inline void VulkanCommandBuffer::executeCommands(uint32_t commandBufferCount, co
 
 /////////////////////////////////////////////////////////////////////////////
 
-inline VulkanShader::VulkanShader(VulkanDevice *device, VkShaderModule module) : device(device), module(module)
+inline VulkanShader::VulkanShader(VulkanDevice *device, VkShaderModule module) : module(module), device(device)
 {
 }
 
@@ -875,7 +875,7 @@ inline VulkanFramebuffer::~VulkanFramebuffer()
 
 /////////////////////////////////////////////////////////////////////////////
 
-inline VulkanImage::VulkanImage(VulkanDevice *device, VkImage image, VmaAllocation allocation, int width, int height, int mipLevels) : device(device), image(image), allocation(allocation), width(width), height(height), mipLevels(mipLevels)
+inline VulkanImage::VulkanImage(VulkanDevice *device, VkImage image, VmaAllocation allocation, int width, int height, int mipLevels) : image(image), width(width), height(height), mipLevels(mipLevels), device(device), allocation(allocation)
 {
 }
 
@@ -898,7 +898,7 @@ inline void VulkanImage::Unmap()
 
 /////////////////////////////////////////////////////////////////////////////
 
-inline VulkanImageView::VulkanImageView(VulkanDevice *device, VkImageView view) : device(device), view(view)
+inline VulkanImageView::VulkanImageView(VulkanDevice *device, VkImageView view) : view(view), device(device)
 {
 }
 
@@ -909,7 +909,7 @@ inline VulkanImageView::~VulkanImageView()
 
 /////////////////////////////////////////////////////////////////////////////
 
-inline VulkanSampler::VulkanSampler(VulkanDevice *device, VkSampler sampler) : device(device), sampler(sampler)
+inline VulkanSampler::VulkanSampler(VulkanDevice *device, VkSampler sampler) : sampler(sampler), device(device)
 {
 }
 
