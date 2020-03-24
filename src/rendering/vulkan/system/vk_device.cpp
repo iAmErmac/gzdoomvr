@@ -45,11 +45,12 @@ extern HWND Window;
 #include "i_system.h"
 #include "version.h"
 #include "doomerrors.h"
+#include "gamedata/fonts/v_text.h"
 
 EXTERN_CVAR(Bool, vid_vsync);
 
 #ifdef NDEBUG
-CVAR(Bool, vk_debug, true, 0);	// this should be false, once the oversized model can be removed.
+CVAR(Bool, vk_debug, false, 0);	// this should be false, once the oversized model can be removed.
 #else
 CVAR(Bool, vk_debug, true, 0);
 #endif
@@ -130,25 +131,52 @@ void VulkanDevice::presentFrame()
 	vkQueuePresentKHR(presentQueue, &presentInfo);
 }
 
-//FString allVulkanOutput;
-
 VkBool32 VulkanDevice::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* userData)
 {
 	VulkanDevice *device = (VulkanDevice*)userData;
 
-	const char *prefix = "";
-	if (messageSeverity & VK_DEBUG_REPORT_ERROR_BIT_EXT)
-	{
-		prefix = "error";
-	}
-	else if (messageSeverity & VK_DEBUG_REPORT_WARNING_BIT_EXT)
-	{
-		prefix = "warning";
-	}
+	static std::mutex mtx;
+	static std::set<FString> seenMessages;
+	static int totalMessages;
 
-	Printf("Vulkan validation layer %s: %s\n", prefix, callbackData->pMessage);
+	std::unique_lock<std::mutex> lock(mtx);
 
-	//allVulkanOutput.AppendFormat("Vulkan validation layer %s: %s\n", prefix, callbackData->pMessage);
+	FString msg = callbackData->pMessage;
+	bool found = seenMessages.find(msg) != seenMessages.end();
+	if (!found)
+	{
+		if (totalMessages < 100)
+		{
+			totalMessages++;
+			seenMessages.insert(msg);
+
+			const char *typestr;
+			if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+			{
+				typestr = "vulkan error";
+			}
+			else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+			{
+				typestr = "vulkan warning";
+			}
+			else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT)
+			{
+				typestr = "vulkan info";
+			}
+			else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
+			{
+				typestr = "vulkan verbose";
+			}
+			else
+			{
+				typestr = "vulkan";
+			}
+
+			Printf("\n");
+			Printf(TEXTCOLOR_RED "[%s] ", typestr);
+			Printf(TEXTCOLOR_WHITE "%s\n", callbackData->pMessage);
+		}
+	}
 
 	return VK_FALSE;
 }
@@ -198,7 +226,6 @@ void VulkanDevice::createInstance()
 	createInfo.enabledLayerCount = (uint32_t)validationLayers.size();
 	createInfo.ppEnabledLayerNames = validationLayers.data();
 	createInfo.ppEnabledExtensionNames = enabledExtensions.data();
-	createInfo.enabledLayerCount = 0;
 
 	result = vkCreateInstance(&createInfo, nullptr, &instance);
 	if (result != VK_SUCCESS)
@@ -345,6 +372,8 @@ void VulkanDevice::createDevice()
 
 	VkPhysicalDeviceFeatures usedDeviceFeatures = {};
 	usedDeviceFeatures.samplerAnisotropy = VK_TRUE;
+	usedDeviceFeatures.shaderClipDistance = VK_TRUE;
+	usedDeviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
 
 	VkDeviceCreateInfo deviceCreateInfo = {};
 	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

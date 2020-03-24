@@ -9,7 +9,8 @@
 class VulkanDevice;
 class VulkanShader;
 
-template<typename T> int UniformBufferAlignment() { return (sizeof(T) + 127) / 128 * 128; }
+// To do: we need to read this from the card - or maybe merge ColorsUBO with GlowingWallsUBO since we have to use 256 bytes anyway
+template<typename T> int UniformBufferAlignment() { return (sizeof(T) + 255) / 256 * 256; }
 
 struct MatricesUBO
 {
@@ -18,7 +19,7 @@ struct MatricesUBO
 	VSMatrix TextureMatrix;
 };
 
-struct ColorsUBO
+struct StreamData
 {
 	FVector4 uObjectColor;
 	FVector4 uObjectColor2;
@@ -31,10 +32,7 @@ struct ColorsUBO
 	int useVertexData;
 	FVector4 uVertexColor;
 	FVector4 uVertexNormal;
-};
 
-struct GlowingWallsUBO
-{
 	FVector4 uGlowTopPlane;
 	FVector4 uGlowTopColor;
 	FVector4 uGlowBottomPlane;
@@ -45,6 +43,13 @@ struct GlowingWallsUBO
 
 	FVector4 uSplitTopPlane;
 	FVector4 uSplitBottomPlane;
+};
+
+#define MAX_STREAM_DATA 256
+
+struct StreamUBO
+{
+	StreamData data[MAX_STREAM_DATA];
 };
 
 struct PushConstants
@@ -65,6 +70,9 @@ struct PushConstants
 
 	// Blinn glossiness and specular level
 	FVector2 uSpecularMaterial;
+
+	int uDataIndex;
+	int padding1, padding2, padding3;
 };
 
 class VkShaderProgram

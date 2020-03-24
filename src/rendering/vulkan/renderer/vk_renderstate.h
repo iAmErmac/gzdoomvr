@@ -45,12 +45,20 @@ public:
 
 private:
 	void Apply(int dt);
-	void BindDescriptorSets();
+	void ApplyRenderPass(int dt);
+	void ApplyScissor();
+	void ApplyViewport();
+	void ApplyStreamData();
+	void ApplyMatrices();
+	void ApplyPushConstants();
+	void ApplyDynamicSet();
+	void ApplyVertexBuffers();
+	void ApplyMaterial();
 
 	bool mLastDepthClamp = true;
 	VulkanCommandBuffer *mCommandBuffer = nullptr;
 	VkRenderPassSetup *mRenderPassSetup = nullptr;
-	bool mDescriptorsChanged = true;
+	bool mDynamicSetChanged = true;
 
 	int mScissorX = 0, mScissorY = 0, mScissorWidth = -1, mScissorHeight = -1;
 	int mViewportX = 0, mViewportY = 0, mViewportWidth = -1, mViewportHeight = -1;
@@ -62,13 +70,19 @@ private:
 	bool mDepthWrite = false;
 
 	MatricesUBO mMatrices = {};
-	ColorsUBO mColors = {};
-	GlowingWallsUBO mGlowingWalls = {};
+	StreamData mStreamData = {};
 	PushConstants mPushConstants = {};
 
+	uint32_t mLastViewpointOffset = 0xffffffff;
+	uint32_t mLastLightBufferOffset = 0xffffffff;
 	uint32_t mViewpointOffset = 0;
 	uint32_t mLightBufferOffset = 0;
 	uint32_t mMatricesOffset = 0;
-	uint32_t mColorsOffset = 0;
-	uint32_t mGlowingWallsOffset = 0;
+	uint32_t mDataIndex = -1;
+	uint32_t mStreamDataOffset = 0;
+
+	VSMatrix mIdentityMatrix;
+
+	IVertexBuffer *mLastVertexBuffer = nullptr;
+	IIndexBuffer *mLastIndexBuffer = nullptr;
 };
