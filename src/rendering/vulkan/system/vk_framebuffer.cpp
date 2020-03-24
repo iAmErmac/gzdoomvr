@@ -28,6 +28,7 @@
 #include "r_videoscale.h"
 #include "actor.h"
 #include "i_time.h"
+#include "g_game.h"
 #include "gamedata/fonts/v_text.h"
 
 #include "hwrenderer/utility/hw_clock.h"
@@ -48,6 +49,8 @@
 #include "vk_buffers.h"
 #include "vulkan/renderer/vk_renderstate.h"
 #include "vulkan/renderer/vk_renderpass.h"
+#include "vulkan/renderer/vk_postprocess.h"
+#include "vulkan/renderer/vk_renderbuffers.h"
 #include "vulkan/shaders/vk_shader.h"
 #include "vulkan/textures/vk_samplers.h"
 #include "vulkan/textures/vk_hwtexture.h"
@@ -70,7 +73,6 @@ VulkanFrameBuffer::VulkanFrameBuffer(void *hMonitor, bool fullscreen, VulkanDevi
 	Super(hMonitor, fullscreen) 
 {
 	device = dev;
-	SetViewportRects(nullptr);
 	InitPalette();
 }
 
@@ -99,18 +101,26 @@ void VulkanFrameBuffer::InitializeState()
 
 	gl_vendorstring = "Vulkan";
 	hwcaps = RFL_SHADER_STORAGE_BUFFER | RFL_BUFFER_STORAGE;
-	uniformblockalignment = (unsigned int)device->deviceProperties.limits.minUniformBufferOffsetAlignment;
-	maxuniformblock = device->deviceProperties.limits.maxUniformBufferRange;
+	glslversion = 4.50f;
+	uniformblockalignment = (unsigned int)device->PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment;
+	maxuniformblock = device->PhysicalDevice.Properties.limits.maxUniformBufferRange;
 
 	mUploadSemaphore.reset(new VulkanSemaphore(device));
 	mGraphicsCommandPool.reset(new VulkanCommandPool(device, device->graphicsFamily));
 
+	mScreenBuffers.reset(new VkRenderBuffers());
+	mSaveBuffers.reset(new VkRenderBuffers());
+	mActiveRenderBuffers = mScreenBuffers.get();
+
+	mPostprocess.reset(new VkPostprocess());
 	mRenderPassManager.reset(new VkRenderPassManager());
 
 	mVertexData = new FFlatVertexBuffer(GetWidth(), GetHeight());
 	mSkyData = new FSkyVertexBuffer;
 	mViewpoints = new GLViewpointBuffer;
 	mLights = new FLightBuffer();
+
+	CreateFanToTrisIndexBuffer();
 
 	// To do: move this to HW renderer interface maybe?
 	MatricesUBO = (VKDataBuffer*)CreateDataBuffer(-1, false);
@@ -121,7 +131,11 @@ void VulkanFrameBuffer::InitializeState()
 	mShaderManager.reset(new VkShaderManager(device));
 	mSamplerManager.reset(new VkSamplerManager(device));
 	mRenderPassManager->Init();
+#ifdef __APPLE__
+	mRenderState.reset(new VkRenderStateMolten());
+#else
 	mRenderState.reset(new VkRenderState());
+#endif
 }
 
 void VulkanFrameBuffer::Update()
@@ -135,50 +149,22 @@ void VulkanFrameBuffer::Update()
 	int newHeight = GetClientHeight();
 	if (lastSwapWidth != newWidth || lastSwapHeight != newHeight)
 	{
-		device->windowResized();
+		device->WindowResized();
 		lastSwapWidth = newWidth;
 		lastSwapHeight = newHeight;
 	}
 
-	device->beginFrame();
+	device->BeginFrame();
+
+	GetPostprocess()->SetActiveRenderTarget();
 
 	Draw2D();
 	Clear2D();
 
 	mRenderState->EndRenderPass();
+	mRenderState->EndFrame();
 
-	//DrawPresentTexture(mOutputLetterbox, true);
-	{
-		auto sceneColor = mRenderPassManager->SceneColor.get();
-
-		PipelineBarrier barrier0;
-		barrier0.addImage(sceneColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
-		barrier0.addImage(device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
-		barrier0.execute(GetDrawCommands(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
-
-		VkImageBlit blit = {};
-		blit.srcOffsets[0] = { 0, 0, 0 };
-		blit.srcOffsets[1] = { sceneColor->width, sceneColor->height, 1 };
-		blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		blit.srcSubresource.mipLevel = 0;
-		blit.srcSubresource.baseArrayLayer = 0;
-		blit.srcSubresource.layerCount = 1;
-		blit.dstOffsets[0] = { 0, 0, 0 };
-		blit.dstOffsets[1] = { (int32_t)device->swapChain->actualExtent.width, (int32_t)device->swapChain->actualExtent.height, 1 };
-		blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		blit.dstSubresource.mipLevel = 0;
-		blit.dstSubresource.baseArrayLayer = 0;
-		blit.dstSubresource.layerCount = 1;
-		GetDrawCommands()->blitImage(
-			sceneColor->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1, &blit, VK_FILTER_NEAREST);
-
-		PipelineBarrier barrier1;
-		barrier1.addImage(sceneColor, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT, 0);
-		barrier1.addImage(device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_TRANSFER_WRITE_BIT, 0);
-		barrier1.execute(GetDrawCommands(), VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-	}
+	mPostprocess->DrawPresentTexture(mOutputLetterbox, true, true);
 
 	mDrawCommands->end();
 
@@ -234,8 +220,8 @@ void VulkanFrameBuffer::Update()
 
 	Finish.Reset();
 	Finish.Clock();
-	device->presentFrame();
-	device->waitPresent();
+	device->PresentFrame();
+	device->WaitPresent();
 
 	mDrawCommands.reset();
 	mUploadCommands.reset();
@@ -343,16 +329,16 @@ sector_t *VulkanFrameBuffer::RenderViewpoint(FRenderViewpoint &mainvp, AActor * 
 		const auto &eye = vrmode->mEyes[eye_ix];
 		screen->SetViewportRects(bounds);
 
-#if 0
 		if (mainview) // Bind the scene frame buffer and turn on draw buffers used by ssao
 		{
+			mRenderPassManager->SetRenderTarget(GetBuffers()->SceneColorView.get(), GetBuffers()->GetWidth(), GetBuffers()->GetHeight());
+#if 0
 			bool useSSAO = (gl_ssao != 0);
-			mBuffers->BindSceneFB(useSSAO);
 			GetRenderState()->SetPassType(useSSAO ? GBUFFER_PASS : NORMAL_PASS);
 			GetRenderState()->EnableDrawBuffers(gl_RenderState.GetPassDrawBufferCount());
 			GetRenderState()->Apply();
-		}
 #endif
+		}
 
 		auto di = HWDrawInfo::StartDrawInfo(mainvp.ViewLevel, nullptr, mainvp, nullptr);
 		auto &vp = di->Viewpoint;
@@ -384,13 +370,11 @@ sector_t *VulkanFrameBuffer::RenderViewpoint(FRenderViewpoint &mainvp, AActor * 
 				GetRenderState()->SetPassType(NORMAL_PASS);
 				GetRenderState()->EnableDrawBuffers(1);
 			}
+#endif
 
-			mBuffers->BlitSceneToTexture(); // Copy the resulting scene to the current post process texture
+			mPostprocess->BlitSceneToTexture(); // Copy the resulting scene to the current post process texture
 
 			PostProcessScene(cm, [&]() { di->DrawEndScene2D(mainvp.sector, *GetRenderState()); });
-#else
-			di->DrawEndScene2D(mainvp.sector, *GetRenderState());
-#endif
 
 			PostProcess.Unclock();
 		}
@@ -468,6 +452,11 @@ void VulkanFrameBuffer::DrawScene(HWDrawInfo *di, int drawmode)
 	di->RenderTranslucent(*GetRenderState());
 }
 
+void VulkanFrameBuffer::PostProcessScene(int fixedcm, const std::function<void()> &afterBloomDrawEndScene2D)
+{
+	mPostprocess->PostProcessScene(fixedcm, afterBloomDrawEndScene2D);
+}
+
 uint32_t VulkanFrameBuffer::GetCaps()
 {
 	if (!V_IsHardwareRenderer())
@@ -489,7 +478,7 @@ void VulkanFrameBuffer::SetVSync(bool vsync)
 {
 	if (device->swapChain->vsync != vsync)
 	{
-		device->windowResized();
+		device->WindowResized();
 	}
 }
 
@@ -545,19 +534,34 @@ void VulkanFrameBuffer::UnbindTexUnit(int no)
 
 void VulkanFrameBuffer::TextureFilterChanged()
 {
+	if (mSamplerManager)
+	{
+		// Destroy the texture descriptors as they used the old samplers
+		for (VkHardwareTexture *cur = VkHardwareTexture::First; cur; cur = cur->Next)
+			cur->Reset();
+
+		mSamplerManager->SetTextureFilterMode();
+	}
 }
 
 void VulkanFrameBuffer::BlurScene(float amount)
 {
+	if (mPostprocess)
+		mPostprocess->BlurScene(amount);
 }
 
 void VulkanFrameBuffer::UpdatePalette()
 {
+	if (mPostprocess)
+		mPostprocess->ClearTonemapPalette();
 }
 
 void VulkanFrameBuffer::BeginFrame()
 {
-	mRenderPassManager->BeginFrame();
+	SetViewportRects(nullptr);
+	mScreenBuffers->BeginFrame(screen->mScreenViewport.width, screen->mScreenViewport.height, screen->mSceneViewport.width, screen->mSceneViewport.height);
+	mSaveBuffers->BeginFrame(SAVEPICWIDTH, SAVEPICHEIGHT, SAVEPICWIDTH, SAVEPICHEIGHT);
+	mPostprocess->BeginFrame();
 }
 
 void VulkanFrameBuffer::Draw2D(bool outside2D)
@@ -592,34 +596,50 @@ unsigned int VulkanFrameBuffer::GetLightBufferBlockSize() const
 
 void VulkanFrameBuffer::PrintStartupLog()
 {
+	const auto props = device->PhysicalDevice.Properties;
+
 	FString deviceType;
-	switch (device->deviceProperties.deviceType)
+	switch (props.deviceType)
 	{
 	case VK_PHYSICAL_DEVICE_TYPE_OTHER: deviceType = "other"; break;
 	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: deviceType = "integrated gpu"; break;
 	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU: deviceType = "discrete gpu"; break;
 	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU: deviceType = "virtual gpu"; break;
 	case VK_PHYSICAL_DEVICE_TYPE_CPU: deviceType = "cpu"; break;
-	default: deviceType.Format("%d", (int)device->deviceProperties.deviceType); break;
+	default: deviceType.Format("%d", (int)props.deviceType); break;
 	}
 
 	FString apiVersion, driverVersion;
-	apiVersion.Format("%d.%d.%d", VK_VERSION_MAJOR(device->deviceProperties.apiVersion), VK_VERSION_MINOR(device->deviceProperties.apiVersion), VK_VERSION_PATCH(device->deviceProperties.apiVersion));
-	driverVersion.Format("%d.%d.%d", VK_VERSION_MAJOR(device->deviceProperties.driverVersion), VK_VERSION_MINOR(device->deviceProperties.driverVersion), VK_VERSION_PATCH(device->deviceProperties.driverVersion));
+	apiVersion.Format("%d.%d.%d", VK_VERSION_MAJOR(props.apiVersion), VK_VERSION_MINOR(props.apiVersion), VK_VERSION_PATCH(props.apiVersion));
+	driverVersion.Format("%d.%d.%d", VK_VERSION_MAJOR(props.driverVersion), VK_VERSION_MINOR(props.driverVersion), VK_VERSION_PATCH(props.driverVersion));
 
-	Printf("Vulkan device: " TEXTCOLOR_ORANGE "%s\n", device->deviceProperties.deviceName);
+	Printf("Vulkan device: " TEXTCOLOR_ORANGE "%s\n", props.deviceName);
 	Printf("Vulkan device type: %s\n", deviceType.GetChars());
 	Printf("Vulkan version: %s (api) %s (driver)\n", apiVersion.GetChars(), driverVersion.GetChars());
 
 	Printf(PRINT_LOG, "Vulkan extensions:");
-	for (const VkExtensionProperties &p : device->availableDeviceExtensions)
+	for (const VkExtensionProperties &p : device->PhysicalDevice.Extensions)
 	{
 		Printf(PRINT_LOG, " %s", p.extensionName);
 	}
 	Printf(PRINT_LOG, "\n");
 
-	const auto &limits = device->deviceProperties.limits;
+	const auto &limits = props.limits;
 	Printf("Max. texture size: %d\n", limits.maxImageDimension2D);
 	Printf("Max. uniform buffer range: %d\n", limits.maxUniformBufferRange);
 	Printf("Min. uniform buffer offset alignment: %d\n", limits.minUniformBufferOffsetAlignment);
+}
+
+void VulkanFrameBuffer::CreateFanToTrisIndexBuffer()
+{
+	TArray<uint32_t> data;
+	for (int i = 2; i < 1000; i++)
+	{
+		data.Push(0);
+		data.Push(i - 1);
+		data.Push(i);
+	}
+
+	FanToTrisIndexBuffer.reset(CreateIndexBuffer());
+	FanToTrisIndexBuffer->SetData(sizeof(uint32_t) * data.Size(), data.Data());
 }

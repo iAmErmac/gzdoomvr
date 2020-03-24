@@ -11,6 +11,8 @@ class VkRenderPassManager;
 class VkRenderState;
 class VKDataBuffer;
 class VkHardwareTexture;
+class VkRenderBuffers;
+class VkPostprocess;
 class SWSceneDrawer;
 
 class VulkanFrameBuffer : public SystemBaseFrameBuffer
@@ -27,6 +29,8 @@ public:
 	VkSamplerManager *GetSamplerManager() { return mSamplerManager.get(); }
 	VkRenderPassManager *GetRenderPassManager() { return mRenderPassManager.get(); }
 	VkRenderState *GetRenderState() { return mRenderState.get(); }
+	VkPostprocess *GetPostprocess() { return mPostprocess.get(); }
+	VkRenderBuffers *GetBuffers() { return mActiveRenderBuffers; }
 
 	unsigned int GetLightBufferBlockSize() const;
 
@@ -37,6 +41,8 @@ public:
 	VKDataBuffer *LightBufferSSO = nullptr;
 	VKDataBuffer *MatricesUBO = nullptr;
 	VKDataBuffer *StreamUBO = nullptr;
+
+	std::unique_ptr<IIndexBuffer> FanToTrisIndexBuffer;
 
 	std::vector<std::unique_ptr<VulkanBuffer>> mFrameDeleteList;
 
@@ -58,6 +64,7 @@ public:
 	void TextureFilterChanged() override;
 	void BeginFrame() override;
 	void BlurScene(float amount) override;
+	void PostProcessScene(int fixedcm, const std::function<void()> &afterBloomDrawEndScene2D) override;
 
 	IHardwareTexture *CreateHardwareTexture() override;
 	FModelRenderer *CreateModelRenderer(int mli) override;
@@ -81,15 +88,21 @@ private:
 	sector_t *RenderViewpoint(FRenderViewpoint &mainvp, AActor * camera, IntRect * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);
 	void DrawScene(HWDrawInfo *di, int drawmode);
 	void PrintStartupLog();
+	void CreateFanToTrisIndexBuffer();
 
 	std::unique_ptr<VkShaderManager> mShaderManager;
 	std::unique_ptr<VkSamplerManager> mSamplerManager;
+	std::unique_ptr<VkRenderBuffers> mScreenBuffers;
+	std::unique_ptr<VkRenderBuffers> mSaveBuffers;
+	std::unique_ptr<VkPostprocess> mPostprocess;
 	std::unique_ptr<VkRenderPassManager> mRenderPassManager;
 	std::unique_ptr<VulkanCommandPool> mGraphicsCommandPool;
 	std::unique_ptr<VulkanCommandBuffer> mUploadCommands;
 	std::unique_ptr<VulkanCommandBuffer> mDrawCommands;
 	std::unique_ptr<VulkanSemaphore> mUploadSemaphore;
 	std::unique_ptr<VkRenderState> mRenderState;
+
+	VkRenderBuffers *mActiveRenderBuffers = nullptr;
 
 	int camtexcount = 0;
 

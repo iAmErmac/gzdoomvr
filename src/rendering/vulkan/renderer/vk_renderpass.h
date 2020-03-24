@@ -40,12 +40,11 @@ public:
 
 	std::unique_ptr<VulkanRenderPass> RenderPass;
 	std::unique_ptr<VulkanPipeline> Pipeline;
-	std::unique_ptr<VulkanFramebuffer> Framebuffer;
+	std::map<VkImageView, std::unique_ptr<VulkanFramebuffer>> Framebuffer;
 
 private:
 	void CreatePipeline(const VkRenderPassKey &key);
 	void CreateRenderPass(const VkRenderPassKey &key);
-	void CreateFramebuffer(const VkRenderPassKey &key);
 };
 
 class VkVertexFormat
@@ -63,8 +62,10 @@ public:
 	VkRenderPassManager();
 
 	void Init();
-	void BeginFrame();
-	VkRenderPassSetup *GetRenderPass(const VkRenderPassKey &key);
+	void RenderBuffersReset();
+
+	void SetRenderTarget(VulkanImageView *view, int width, int height);
+	void BeginRenderPass(const VkRenderPassKey &key, VulkanCommandBuffer *cmdbuffer);
 
 	int GetVertexFormat(int numBindingPoints, int numAttributes, size_t stride, const FVertexBufferAttribute *attrs);
 
@@ -73,14 +74,6 @@ public:
 	std::unique_ptr<VulkanPipelineLayout> PipelineLayout;
 	std::unique_ptr<VulkanDescriptorPool> DescriptorPool;
 	std::map<VkRenderPassKey, std::unique_ptr<VkRenderPassSetup>> RenderPassSetup;
-
-	std::unique_ptr<VulkanImage> SceneColor;
-	std::unique_ptr<VulkanImage> SceneDepthStencil;
-	std::unique_ptr<VulkanImageView> SceneColorView;
-	std::unique_ptr<VulkanImageView> SceneDepthStencilView;
-	std::unique_ptr<VulkanImageView> SceneDepthView;
-
-	VkFormat SceneDepthStencilFormat = VK_FORMAT_D24_UNORM_S8_UINT;
 
 	std::unique_ptr<VulkanDescriptorSet> DynamicSet;
 
@@ -92,4 +85,10 @@ private:
 	void CreatePipelineLayout();
 	void CreateDescriptorPool();
 	void CreateDynamicSet();
+
+	VkRenderPassSetup *GetRenderPass(const VkRenderPassKey &key);
+
+	VulkanImageView *mRenderTargetView = nullptr;
+	int mRenderTargetWidth = 0;
+	int mRenderTargetHeight = 0;
 };

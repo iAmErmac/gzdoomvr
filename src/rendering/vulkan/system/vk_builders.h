@@ -39,6 +39,7 @@ public:
 	ImageBuilder();
 
 	void setSize(int width, int height, int miplevels = 1);
+	void setSamples(VkSampleCountFlagBits samples);
 	void setFormat(VkFormat format);
 	void setUsage(VkImageUsageFlags imageUsage, VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY, VmaAllocationCreateFlags allocFlags = 0);
 	void setLinearTiling();
@@ -175,6 +176,8 @@ private:
 	FixedSizeVector<VkImageView, 8> attachments;
 };
 
+union FRenderStyle;
+
 class GraphicsPipelineBuilder
 {
 public:
@@ -197,6 +200,7 @@ public:
 
 	void setAdditiveBlendMode();
 	void setAlphaBlendMode();
+	void setBlendMode(const FRenderStyle &style);
 	void setBlendMode(VkBlendOp op, VkBlendFactor src, VkBlendFactor dst);
 	void setSubpassColorAttachmentCount(int count);
 
@@ -341,6 +345,11 @@ inline void ImageBuilder::setSize(int width, int height, int mipLevels)
 	imageInfo.mipLevels = mipLevels;
 }
 
+inline void ImageBuilder::setSamples(VkSampleCountFlagBits samples)
+{
+	imageInfo.samples = samples;
+}
+
 inline void ImageBuilder::setFormat(VkFormat format)
 {
 	imageInfo.format = format;
@@ -361,7 +370,7 @@ inline void ImageBuilder::setUsage(VkImageUsageFlags usage, VmaMemoryUsage memor
 inline bool ImageBuilder::isFormatSupported(VulkanDevice *device)
 {
 	VkImageFormatProperties properties = { };
-	VkResult result = vkGetPhysicalDeviceImageFormatProperties(device->physicalDevice, imageInfo.format, imageInfo.imageType, imageInfo.tiling, imageInfo.usage, imageInfo.flags, &properties);
+	VkResult result = vkGetPhysicalDeviceImageFormatProperties(device->PhysicalDevice.Device, imageInfo.format, imageInfo.imageType, imageInfo.tiling, imageInfo.usage, imageInfo.flags, &properties);
 	if (result != VK_SUCCESS) return false;
 	if (imageInfo.extent.width > properties.maxExtent.width) return false;
 	if (imageInfo.extent.height > properties.maxExtent.height) return false;
