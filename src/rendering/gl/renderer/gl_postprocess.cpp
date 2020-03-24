@@ -122,20 +122,11 @@ void FGLRenderer::BlurScene(float gameinfobluramount)
 	mBuffers->UpdateEffectTextures();
 
 	auto vrmode = VRMode::GetVRMode(true);
-	if (vrmode->mEyeCount == 1)
+	int eyeCount = vrmode->mEyeCount;
+	for (int i = 0; i < eyeCount; ++i)
 	{
 		mBuffers->RenderEffect("BlurScene");
-	}
-	else
-	{
-		for (int eye_ix = 0; eye_ix < vrmode->mEyeCount; ++eye_ix)
-		{
-			FGLDebug::PushGroup("EyeBlur");
-			mBuffers->BlitFromEyeTexture(eye_ix);
-			mBuffers->RenderEffect("BlurScene");
-			mBuffers->BlitToEyeTexture(eye_ix);
-			FGLDebug::PopGroup();
-		}
+		if (eyeCount - i > 1) mBuffers->NextEye(eyeCount);
 	}
 }
 
@@ -163,20 +154,20 @@ void FGLRenderer::Flush()
 		const bool is2D = (gamestate != GS_LEVEL);
 		if (is2D) vrmode->SetUp();
 		// Render 2D to eye textures
-		for (int eye_ix = 0; eye_ix < vrmode->mEyeCount; ++eye_ix)
+		int eyeCount = vrmode->mEyeCount;
+		mBuffers->CurrentEye() = 0; 
+		for (int eye_ix = 0; eye_ix < eyeCount; ++eye_ix)
 		{
-			FGLDebug::PushGroup("Eye2D");
-			mBuffers->BlitFromEyeTexture(eye_ix);
-			
+			const auto &eye = vrmode->mEyes[mBuffers->CurrentEye()];
 			if (vrmode->IsVR())
 			{
-				vrmode->mEyes[eye_ix]->AdjustBlend(nullptr);
+				eye->AdjustBlend(nullptr);
 				screen->Draw2D(true);
 			}
-			vrmode->mEyes[eye_ix]->AdjustHud();
+			eye->AdjustHud();
 			screen->Draw2D(false);
-			mBuffers->BlitToEyeTexture(eye_ix);
-			FGLDebug::PopGroup();
+			if (eyeCount - eye_ix > 1)
+				mBuffers->NextEye(eyeCount);
 		}
 		screen->Clear2D();
 

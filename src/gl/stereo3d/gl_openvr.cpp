@@ -979,6 +979,7 @@ static DVector3 MapAttackDir(AActor* actor, DAngle yaw, DAngle pitch)
 /* virtual */
 void OpenVRMode::Present() const {
 	// TODO: For performance, don't render to the desktop screen here
+	GLRenderer->mBuffers->BlitToEyeTexture(GLRenderer->mBuffers->CurrentEye(), false);
 	if (doRenderToDesktop) {
 		GLRenderer->mBuffers->BindOutputFB();
 		GLRenderer->ClearBorders();
@@ -997,7 +998,6 @@ void OpenVRMode::Present() const {
 		GLRenderer->mBuffers->BindEyeTexture(1, 0);
 		GLRenderer->DrawPresentTexture(rightHalfScreen, true);
 	}
-
 	if (doRenderToHmd) 
 	{
 		leftEyeView->submitFrame(vrCompositor);
@@ -1240,14 +1240,19 @@ void OpenVRMode::SetUp() const
 	}
 	else {
 		// TODO: Draw a more interesting background behind the 2D screen
-		for (int i = 0; i < 2; ++i) {
-			GLRenderer->mBuffers->BlitFromEyeTexture(i);
-			GLRenderer->mBuffers->BindCurrentFB();
+		const int eyeCount = mEyeCount;
+		GLRenderer->mBuffers->CurrentEye() = 0;  // always begin at zero, in case eye count changed
+		for (int eye_ix = 0; eye_ix < eyeCount; ++eye_ix)
+		{
+			const auto& eye = mEyes[GLRenderer->mBuffers->CurrentEye()];
 
+			GLRenderer->mBuffers->BindCurrentFB();
 			glClearColor(0.3f, 0.1f, 0.1f, 1.0f); // draw a dark red universe
 			glClear(GL_COLOR_BUFFER_BIT);
-			GLRenderer->mBuffers->BlitToEyeTexture(i);
+			if (eyeCount - eye_ix > 1)
+				GLRenderer->mBuffers->NextEye(eyeCount);
 		}
+		GLRenderer->mBuffers->BlitToEyeTexture(GLRenderer->mBuffers->CurrentEye(), false);
 	}
 
 	static TrackedDevicePose_t poses[k_unMaxTrackedDeviceCount];
