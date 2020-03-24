@@ -233,13 +233,11 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 			PostProcess.Unclock();
 		}
 		di->EndDrawInfo();
-		if (eyeCount - eye_ix > 1)
-			mBuffers->NextEye(eyeCount);
 		eye->TearDown();
+		mBuffers->NextEye(eyeCount);
 	}
-	
 	vrmode->TearDown();
-	mBuffers->BlitToEyeTexture(mBuffers->CurrentEye(), false);
+	
 	return mainvp.sector;
 }
 

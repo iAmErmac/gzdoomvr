@@ -979,7 +979,6 @@ static DVector3 MapAttackDir(AActor* actor, DAngle yaw, DAngle pitch)
 /* virtual */
 void OpenVRMode::Present() const {
 	// TODO: For performance, don't render to the desktop screen here
-	GLRenderer->mBuffers->BlitToEyeTexture(GLRenderer->mBuffers->CurrentEye(), false);
 	if (doRenderToDesktop) {
 		GLRenderer->mBuffers->BindOutputFB();
 		GLRenderer->ClearBorders();
