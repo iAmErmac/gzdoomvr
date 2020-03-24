@@ -2645,6 +2645,7 @@ void D_DoomMain (void)
 
 			V_Init2();
 			UpdateJoystickMenu(NULL);
+			UpdateVRModes();
 
 			v = Args->CheckValue ("-loadgame");
 			if (v)
