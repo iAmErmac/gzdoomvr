@@ -160,10 +160,6 @@ void FGLRenderer::Flush()
 	}
 	else
 	{
-		vrmode->AdjustViewport(screen);
-		const auto& mSceneViewport = screen->mSceneViewport;
-		const auto& mScreenViewport = screen->mScreenViewport;
-
 		const bool is2D = (gamestate != GS_LEVEL);
 		if (is2D) vrmode->SetUp();
 		// Render 2D to eye textures
@@ -171,8 +167,7 @@ void FGLRenderer::Flush()
 		{
 			FGLDebug::PushGroup("Eye2D");
 			mBuffers->BlitFromEyeTexture(eye_ix);
-			glViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
-			glScissor(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
+			
 			if (vrmode->IsVR())
 			{
 				vrmode->mEyes[eye_ix]->AdjustBlend(nullptr);

@@ -1242,6 +1242,8 @@ void OpenVRMode::SetUp() const
 		// TODO: Draw a more interesting background behind the 2D screen
 		for (int i = 0; i < 2; ++i) {
 			GLRenderer->mBuffers->BlitFromEyeTexture(i);
+			GLRenderer->mBuffers->BindCurrentFB();
+
 			glClearColor(0.3f, 0.1f, 0.1f, 1.0f); // draw a dark red universe
 			glClear(GL_COLOR_BUFFER_BIT);
 			GLRenderer->mBuffers->BlitToEyeTexture(i);
