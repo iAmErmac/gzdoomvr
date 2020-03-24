@@ -62,6 +62,7 @@ bool VkRenderState::SetDepthClamp(bool on)
 
 void VkRenderState::SetDepthMask(bool on)
 {
+	mDepthWrite = on;
 }
 
 void VkRenderState::SetDepthFunc(int func)
@@ -181,7 +182,6 @@ void VkRenderState::SetViewport(int x, int y, int w, int h)
 void VkRenderState::EnableDepthTest(bool on)
 {
 	mDepthTest = on;
-	mDepthWrite = on;
 }
 
 void VkRenderState::EnableMultisampling(bool on)
@@ -213,7 +213,7 @@ void VkRenderState::Apply(int dt)
 	passKey.VertexFormat = static_cast<VKVertexBuffer*>(mVertexBuffer)->VertexFormat;
 	passKey.RenderStyle = mRenderStyle;
 	passKey.DepthTest = mDepthTest;
-	passKey.DepthWrite = mDepthWrite;
+	passKey.DepthWrite = mDepthTest && mDepthWrite;
 	if (mSpecialEffect > EFF_NONE)
 	{
 		passKey.SpecialEffect = mSpecialEffect;
@@ -301,9 +301,6 @@ void VkRenderState::Apply(int dt)
 
 	const float normScale = 1.0f / 255.0f;
 
-	//glVertexAttrib4fv(VATTR_COLOR, mColor.vec);
-	//glVertexAttrib4fv(VATTR_NORMAL, mNormal.vec);
-
 	int fogset = 0;
 
 	if (mFogEnabled)
@@ -329,7 +326,11 @@ void VkRenderState::Apply(int dt)
 	mColors.uDynLightColor = mDynColor.vec;
 	mColors.uInterpolationFactor = mInterpolationFactor;
 
-	//activeShader->muTimer.Set((double)(screen->FrameTime - firstFrame) * (double)mShaderTimer / 1000.);
+	mColors.useVertexData = passManager->VertexFormats[static_cast<VKVertexBuffer*>(mVertexBuffer)->VertexFormat].UseVertexData;
+	mColors.uVertexColor = mColor.vec;
+	mColors.uVertexNormal = mNormal.vec;
+
+	mColors.timer = 0.0f; // static_cast<float>((double)(screen->FrameTime - firstFrame) * (double)mShaderTimer / 1000.);
 
 	int tempTM = TM_NORMAL;
 	if (mMaterial.mMaterial && mMaterial.mMaterial->tex->isHardwareCanvas())

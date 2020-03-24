@@ -22,7 +22,7 @@ public:
 
 	bool operator<(const VkRenderPassKey &other) const
 	{
-		return memcmp(this, &other, sizeof(VkRenderPassKey));
+		return memcmp(this, &other, sizeof(VkRenderPassKey)) < 0;
 	}
 };
 
@@ -47,6 +47,7 @@ public:
 	int NumBindingPoints;
 	size_t Stride;
 	std::vector<FVertexBufferAttribute> Attrs;
+	bool UseVertexData;
 };
 
 class VkRenderPassManager

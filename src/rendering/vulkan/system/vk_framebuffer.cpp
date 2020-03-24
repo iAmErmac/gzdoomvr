@@ -144,7 +144,8 @@ void VulkanFrameBuffer::Update()
 		auto sceneColor = mRenderPassManager->SceneColor.get();
 
 		PipelineBarrier barrier0;
-		barrier0.addImage(sceneColor, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+		barrier0.addImage(sceneColor, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+		barrier0.addImage(device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 		barrier0.execute(GetDrawCommands(), VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
 		VkImageBlit blit = {};
@@ -161,9 +162,14 @@ void VulkanFrameBuffer::Update()
 		blit.dstSubresource.baseArrayLayer = 0;
 		blit.dstSubresource.layerCount = 1;
 		GetDrawCommands()->blitImage(
-			sceneColor->image, VK_IMAGE_LAYOUT_GENERAL,
-			device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_SHARED_PRESENT_KHR,
+			sceneColor->image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			1, &blit, VK_FILTER_NEAREST);
+
+		PipelineBarrier barrier1;
+		barrier1.addImage(sceneColor, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
+		barrier1.addImage(device->swapChain->swapChainImages[device->presentImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
+		barrier1.execute(GetDrawCommands(), VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
 	}
 
 	mDrawCommands->end();
@@ -180,8 +186,8 @@ void VulkanFrameBuffer::Update()
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = &mUploadSemaphore->semaphore;
 		VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-		if (result != VK_SUCCESS)
-			I_FatalError("Failed to submit command buffer!\n");
+		if (result < VK_SUCCESS)
+			I_FatalError("Failed to submit command buffer! Error %d\n", result);
 
 		// Wait for upload commands to finish, then submit render commands
 		VkSemaphore waitSemaphores[] = { mUploadSemaphore->semaphore, device->imageAvailableSemaphore->semaphore };
@@ -194,8 +200,8 @@ void VulkanFrameBuffer::Update()
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = &device->renderFinishedSemaphore->semaphore;
 		result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, device->renderFinishedFence->fence);
-		if (result != VK_SUCCESS)
-			I_FatalError("Failed to submit command buffer!\n");
+		if (result < VK_SUCCESS)
+			I_FatalError("Failed to submit command buffer! Error %d\n", result);
 	}
 	else
 	{
@@ -212,8 +218,8 @@ void VulkanFrameBuffer::Update()
 		submitInfo.signalSemaphoreCount = 1;
 		submitInfo.pSignalSemaphores = &device->renderFinishedSemaphore->semaphore;
 		VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, device->renderFinishedFence->fence);
-		if (result != VK_SUCCESS)
-			I_FatalError("Failed to submit command buffer!\n");
+		if (result < VK_SUCCESS)
+			I_FatalError("Failed to submit command buffer! Error %d\n", result);
 	}
 
 	Flush3D.Unclock();
