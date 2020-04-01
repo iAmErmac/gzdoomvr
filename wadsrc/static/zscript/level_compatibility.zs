@@ -892,6 +892,18 @@ class LevelCompatibility native play
 				break;
 			}
 
+			case '8D7A24B169717907DDA8399D8C1655DF': // strife1.wad map15
+			{
+				SetWallTexture(319, Line.back, Side.top, "WALTEK21");
+				break;
+			}
+
+			case 'D5FD90FA7A8133E7BFED682D3D313962': // strife1.wad map21
+			{
+				SetWallTexture(603, Line.front, Side.bottom, "IRON04");
+				break;
+			}
+
 			case 'DB31D71B11E3E4393B9C0CCB44A8639F': // rop_2015.wad e1m5
 			{
 				// Lower floor a bit so secret switch becomes accessible
@@ -1230,6 +1242,75 @@ class LevelCompatibility native play
 				ClearSectorTags(7857);
 				AddSectorTag(7857, 82);
 				break;
+			}
+			
+			case '7B1EB6C1231CD03E90F4A1C0D51A8B6D': // ur_final.wad map17
+			{
+				SetLineSpecial(3020, Transfer_Heights, 19);
+				break;
+			}
+			
+			case '01592ACF001C534076556D9E1B5D85E7': // Darken2.wad map12
+			{
+				// fix some holes the player can fall in. This map went a bit too far with lighting hacks depending on holes in the floor.
+				OffsetSectorPlane(126, Sector.floor, 1088);
+				level.sectors[126].SetPlaneLight(Sector.floor, level.sectors[125].GetLightLevel() - level.sectors[126].GetLightLevel());
+				OffsetSectorPlane(148, Sector.floor, 1136);
+				level.sectors[148].SetPlaneLight(Sector.floor, level.sectors[122].GetLightLevel() - level.sectors[148].GetLightLevel());
+				OffsetSectorPlane(149, Sector.floor, 1136);
+				level.sectors[149].SetPlaneLight(Sector.floor, level.sectors[122].GetLightLevel() - level.sectors[149].GetLightLevel());
+				OffsetSectorPlane(265, Sector.floor, 992);
+				level.sectors[265].SetPlaneLight(Sector.floor, level.sectors[264].GetLightLevel() - level.sectors[265].GetLightLevel());
+				OffsetSectorPlane(279, Sector.floor, 1072);
+				level.sectors[279].SetPlaneLight(Sector.floor, level.sectors[267].GetLightLevel() - level.sectors[279].GetLightLevel());
+				SetSectorTexture(279, Sector.floor, "OMETL13");
+				OffsetSectorPlane(280, Sector.floor, 1072);
+				level.sectors[280].SetPlaneLight(Sector.floor, level.sectors[267].GetLightLevel() - level.sectors[280].GetLightLevel());
+				SetSectorTexture(280, Sector.floor, "OMETL13");
+				OffsetSectorPlane(281, Sector.floor, 1072);
+				level.sectors[281].SetPlaneLight(Sector.floor, level.sectors[267].GetLightLevel() - level.sectors[281].GetLightLevel());
+				SetSectorTexture(281, Sector.floor, "OMETL13");
+				OffsetSectorPlane(292, Sector.floor, 1056);
+				level.sectors[292].SetPlaneLight(Sector.floor, level.sectors[291].GetLightLevel() - level.sectors[292].GetLightLevel());
+				OffsetSectorPlane(472, Sector.floor, 1136);
+				level.sectors[472].SetPlaneLight(Sector.floor, level.sectors[216].GetLightLevel() - level.sectors[472].GetLightLevel());
+				OffsetSectorPlane(473, Sector.floor, 1136);
+				level.sectors[473].SetPlaneLight(Sector.floor, level.sectors[216].GetLightLevel() - level.sectors[473].GetLightLevel());
+				OffsetSectorPlane(526, Sector.floor, 1024);
+				level.sectors[526].SetPlaneLight(Sector.floor, level.sectors[525].GetLightLevel() - level.sectors[526].GetLightLevel());
+				OffsetSectorPlane(527, Sector.floor, 1024);
+				level.sectors[527].SetPlaneLight(Sector.floor, level.sectors[500].GetLightLevel() - level.sectors[527].GetLightLevel());
+				OffsetSectorPlane(528, Sector.floor, 1024);
+				level.sectors[528].SetPlaneLight(Sector.floor, level.sectors[525].GetLightLevel() - level.sectors[528].GetLightLevel());
+				OffsetSectorPlane(554, Sector.floor, 1024);
+				level.sectors[554].SetPlaneLight(Sector.floor, level.sectors[500].GetLightLevel() - level.sectors[554].GetLightLevel());
+				OffsetSectorPlane(588, Sector.floor, 928);
+				level.sectors[588].SetPlaneLight(Sector.floor, level.sectors[587].GetLightLevel() - level.sectors[588].GetLightLevel());
+				OffsetSectorPlane(604, Sector.floor, 1056);
+				level.sectors[604].SetPlaneLight(Sector.floor, level.sectors[298].GetLightLevel() - level.sectors[604].GetLightLevel());
+				OffsetSectorPlane(697, Sector.floor, 1136);
+				level.sectors[697].SetPlaneLight(Sector.floor, level.sectors[696].GetLightLevel() - level.sectors[697].GetLightLevel());
+				OffsetSectorPlane(698, Sector.floor, 1136);
+				level.sectors[698].SetPlaneLight(Sector.floor, level.sectors[696].GetLightLevel() - level.sectors[698].GetLightLevel());
+				OffsetSectorPlane(699, Sector.floor, 1136);
+				level.sectors[699].SetPlaneLight(Sector.floor, level.sectors[696].GetLightLevel() - level.sectors[699].GetLightLevel());
+				OffsetSectorPlane(700, Sector.floor, 1136);
+				level.sectors[700].SetPlaneLight(Sector.floor, level.sectors[696].GetLightLevel() - level.sectors[700].GetLightLevel());
+				break;
+			}
+			
+			case '3B1F637295F5669E99BE63F1B1CA29DF': // titan426.wad map01
+			{
+				// Missing teleport destinations on easy skill
+				SetThingSkills(138, 31); // secret
+				SetThingSkills(1127, 31); // return from exit room
+				break;
+			}
+
+			case '5E9AF879343D6E44E429F91D57777D26': // cchest.wad map16
+			{
+				// Fix misplaced vertex
+				SetVertex(202, -2, -873);
 			}
 		}
 	}

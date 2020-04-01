@@ -119,6 +119,8 @@ public:
 	void SetKerning(int c) { GlobalKerning = c; }
 	bool NoTranslate() const { return noTranslate; }
 
+
+
 protected:
 	FFont (int lump);
 
@@ -164,7 +166,7 @@ protected:
 };
 
 
-extern FFont *SmallFont, *SmallFont2, *BigFont, *BigUpper, *ConFont, *IntermissionFont;
+extern FFont *SmallFont, *SmallFont2, *BigFont, *BigUpper, *ConFont, *IntermissionFont, *NewConsoleFont, *NewSmallFont, *CurrentConsoleFont;
 
 void V_InitFonts();
 void V_ClearFonts();

@@ -22,8 +22,10 @@ class VulkanFrameBuffer : public SystemBaseFrameBuffer
 
 public:
 	VulkanDevice *device;
+	std::unique_ptr<VulkanSwapChain> swapChain;
+	uint32_t presentImageIndex = 0;
 
-	VulkanCommandBuffer *GetUploadCommands();
+	VulkanCommandBuffer *GetTransferCommands();
 	VulkanCommandBuffer *GetDrawCommands();
 	VkShaderManager *GetShaderManager() { return mShaderManager.get(); }
 	VkSamplerManager *GetSamplerManager() { return mSamplerManager.get(); }
@@ -42,9 +44,20 @@ public:
 	VKDataBuffer *MatricesUBO = nullptr;
 	VKDataBuffer *StreamUBO = nullptr;
 
+	VKDataBuffer *LightNodes = nullptr;
+	VKDataBuffer *LightLines = nullptr;
+	VKDataBuffer *LightList = nullptr;
+
 	std::unique_ptr<IIndexBuffer> FanToTrisIndexBuffer;
 
-	std::vector<std::unique_ptr<VulkanBuffer>> mFrameDeleteList;
+	class DeleteList
+	{
+	public:
+		std::vector<std::unique_ptr<VulkanImage>> Images;
+		std::vector<std::unique_ptr<VulkanImageView>> ImageViews;
+		std::vector<std::unique_ptr<VulkanBuffer>> Buffers;
+		std::vector<std::unique_ptr<VulkanDescriptorSet>> Descriptors;
+	} FrameDeleteList;
 
 	std::unique_ptr<SWSceneDrawer> swdrawer;
 
@@ -56,29 +69,28 @@ public:
 	void InitializeState() override;
 
 	void CleanForRestart() override;
+	void PrecacheMaterial(FMaterial *mat, int translation) override;
 	void UpdatePalette() override;
 	uint32_t GetCaps() override;
 	void WriteSavePic(player_t *player, FileWriter *file, int width, int height) override;
 	sector_t *RenderView(player_t *player) override;
-	void UnbindTexUnit(int no) override;
+	void SetTextureFilterMode() override;
 	void TextureFilterChanged() override;
+	void StartPrecaching() override;
 	void BeginFrame() override;
 	void BlurScene(float amount) override;
 	void PostProcessScene(int fixedcm, const std::function<void()> &afterBloomDrawEndScene2D) override;
 
 	IHardwareTexture *CreateHardwareTexture() override;
 	FModelRenderer *CreateModelRenderer(int mli) override;
-	IShaderProgram *CreateShaderProgram() override;
 	IVertexBuffer *CreateVertexBuffer() override;
 	IIndexBuffer *CreateIndexBuffer() override;
 	IDataBuffer *CreateDataBuffer(int bindingpoint, bool ssbo) override;
 
-	/*
-	bool WipeStartScreen(int type);
-	void WipeEndScreen();
-	bool WipeDo(int ticks);
-	void WipeCleanup();
-	*/
+	FTexture *WipeStartScreen() override;
+	FTexture *WipeEndScreen() override;
+
+	TArray<uint8_t> GetScreenshotBuffer(int &pitch, ESSType &color_type, float &gamma) override;
 
 	void SetVSync(bool vsync);
 
@@ -86,9 +98,14 @@ public:
 
 private:
 	sector_t *RenderViewpoint(FRenderViewpoint &mainvp, AActor * camera, IntRect * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);
+	void RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV);
 	void DrawScene(HWDrawInfo *di, int drawmode);
 	void PrintStartupLog();
 	void CreateFanToTrisIndexBuffer();
+	void SubmitCommands(bool finish);
+	void CopyScreenToBuffer(int w, int h, void *data);
+	void UpdateShadowMap();
+	void DeleteFrameObjects();
 
 	std::unique_ptr<VkShaderManager> mShaderManager;
 	std::unique_ptr<VkSamplerManager> mSamplerManager;
@@ -96,15 +113,17 @@ private:
 	std::unique_ptr<VkRenderBuffers> mSaveBuffers;
 	std::unique_ptr<VkPostprocess> mPostprocess;
 	std::unique_ptr<VkRenderPassManager> mRenderPassManager;
-	std::unique_ptr<VulkanCommandPool> mGraphicsCommandPool;
-	std::unique_ptr<VulkanCommandBuffer> mUploadCommands;
+	std::unique_ptr<VulkanCommandPool> mCommandPool;
+	std::unique_ptr<VulkanCommandBuffer> mTransferCommands;
 	std::unique_ptr<VulkanCommandBuffer> mDrawCommands;
-	std::unique_ptr<VulkanSemaphore> mUploadSemaphore;
+	std::unique_ptr<VulkanSemaphore> mTransferSemaphore;
 	std::unique_ptr<VkRenderState> mRenderState;
 
-	VkRenderBuffers *mActiveRenderBuffers = nullptr;
+	std::unique_ptr<VulkanSemaphore> mSwapChainImageAvailableSemaphore;
+	std::unique_ptr<VulkanSemaphore> mRenderFinishedSemaphore;
+	std::unique_ptr<VulkanFence> mRenderFinishedFence;
 
-	int camtexcount = 0;
+	VkRenderBuffers *mActiveRenderBuffers = nullptr;
 
 	int lastSwapWidth = 0;
 	int lastSwapHeight = 0;

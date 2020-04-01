@@ -28,7 +28,7 @@
 #include "r_data/models/models.h"
 #include "hwrenderer/data/buffers.h"
 
-class GLSprite;
+class HWSprite;
 struct HWDrawInfo;
 class FRenderState;
 
@@ -51,14 +51,14 @@ public:
 	void SetupFrame(FModelRenderer *renderer, unsigned int frame1, unsigned int frame2, unsigned int size) override;
 };
 
-class FGLModelRenderer : public FModelRenderer
+class FHWModelRenderer : public FModelRenderer
 {
 	friend class FModelVertexBuffer;
 	int modellightindex = -1;
 	HWDrawInfo *di;
 	FRenderState &state;
 public:
-	FGLModelRenderer(HWDrawInfo *d, FRenderState &st, int mli) : modellightindex(mli), di(d), state(st)
+	FHWModelRenderer(HWDrawInfo *d, FRenderState &st, int mli) : modellightindex(mli), di(d), state(st)
 	{}
 	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 	ModelRendererType GetType() const override { return GLModelRendererType; }

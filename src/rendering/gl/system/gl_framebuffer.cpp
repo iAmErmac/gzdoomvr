@@ -87,10 +87,13 @@ OpenGLFrameBuffer::OpenGLFrameBuffer(void *hMonitor, bool fullscreen) :
 
 OpenGLFrameBuffer::~OpenGLFrameBuffer()
 {
+	PPResource::ResetAll();
+
 	if (mVertexData != nullptr) delete mVertexData;
 	if (mSkyData != nullptr) delete mSkyData;
 	if (mViewpoints != nullptr) delete mViewpoints;
 	if (mLights != nullptr) delete mLights;
+	mShadowMap.Reset();
 
 	if (GLRenderer)
 	{
@@ -247,6 +250,7 @@ void OpenGLFrameBuffer::Swap()
 	Finish.Reset();
 	Finish.Clock();
 	if (swapbefore) glFinish();
+	FPSLimit();
 	SwapBuffers();
 	if (!swapbefore) glFinish();
 	Finish.Unclock();
@@ -322,12 +326,7 @@ void OpenGLFrameBuffer::PrecacheMaterial(FMaterial *mat, int translation)
 
 FModelRenderer *OpenGLFrameBuffer::CreateModelRenderer(int mli)
 {
-	return new FGLModelRenderer(nullptr, gl_RenderState, mli);
-}
-
-IShaderProgram *OpenGLFrameBuffer::CreateShaderProgram() 
-{ 
-	return new FShaderProgram; 
+	return new FHWModelRenderer(nullptr, gl_RenderState, mli);
 }
 
 IVertexBuffer *OpenGLFrameBuffer::CreateVertexBuffer()

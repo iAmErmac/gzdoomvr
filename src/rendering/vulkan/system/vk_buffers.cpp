@@ -13,7 +13,7 @@ VKBuffer::~VKBuffer()
 
 	auto fb = GetVulkanFrameBuffer();
 	if (fb && mBuffer)
-		fb->mFrameDeleteList.push_back(std::move(mBuffer));
+		fb->FrameDeleteList.Buffers.push_back(std::move(mBuffer));
 }
 
 void VKBuffer::SetData(size_t size, const void *data, bool staticdata)
@@ -42,7 +42,7 @@ void VKBuffer::SetData(size_t size, const void *data, bool staticdata)
 		memcpy(dst, data, size);
 		mStaging->Unmap();
 
-		fb->GetUploadCommands()->copyBuffer(mStaging.get(), mBuffer.get());
+		fb->GetTransferCommands()->copyBuffer(mStaging.get(), mBuffer.get());
 	}
 	else
 	{
@@ -78,7 +78,7 @@ void VKBuffer::SetSubData(size_t offset, size_t size, const void *data)
 		memcpy(dst, data, size);
 		mStaging->Unmap();
 
-		fb->GetUploadCommands()->copyBuffer(mStaging.get(), mBuffer.get(), offset, offset, size);
+		fb->GetTransferCommands()->copyBuffer(mStaging.get(), mBuffer.get(), offset, offset, size);
 	}
 	else
 	{
@@ -110,14 +110,29 @@ void VKBuffer::Unmap()
 
 void *VKBuffer::Lock(unsigned int size)
 {
-	if (!mPersistent)
+	if (!mBuffer)
+	{
+		// The model mesh loaders lock multiple non-persistent buffers at the same time. This is not allowed in vulkan.
+		// VkDeviceMemory can only be mapped once and multiple non-persistent buffers may come from the same device memory object.
+		mStaticUpload.Resize(size);
+		map = mStaticUpload.Data();
+	}
+	else if (!mPersistent)
+	{
 		map = mBuffer->Map(0, size);
+	}
 	return map;
 }
 
 void VKBuffer::Unlock()
 {
-	if (!mPersistent)
+	if (!mBuffer)
+	{
+		map = nullptr;
+		SetData(mStaticUpload.Size(), mStaticUpload.Data(), true);
+		mStaticUpload.Clear();
+	}
+	else if (!mPersistent)
 	{
 		mBuffer->Unmap();
 		map = nullptr;

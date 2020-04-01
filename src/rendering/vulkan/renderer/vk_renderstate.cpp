@@ -86,10 +86,6 @@ void VkRenderState::SetColorMask(bool r, bool g, bool b, bool a)
 	mNeedApply = true;
 }
 
-void VkRenderState::EnableDrawBufferAttachments(bool on)
-{
-}
-
 void VkRenderState::SetStencil(int offs, int op, int flags)
 {
 	mStencilRef = screen->stencilValue + offs;
@@ -118,63 +114,8 @@ void VkRenderState::EnableClipDistance(int num, bool state)
 
 void VkRenderState::Clear(int targets)
 {
-	// We need an active render pass, and it must have a depth attachment..
-	bool lastDepthTest = mDepthTest;
-	bool lastDepthWrite = mDepthWrite;
-	if (targets & (CT_Depth | CT_Stencil))
-	{
-		mDepthTest = true;
-		mDepthWrite = true;
-	}
-	Apply(DT_TriangleStrip);
-	mDepthTest = lastDepthTest;
-	mDepthWrite = lastDepthWrite;
-
-	VkClearAttachment attachments[2] = { };
-	VkClearRect rects[2] = { };
-
-	for (int i = 0; i < 2; i++)
-	{
-		rects[i].layerCount = 1;
-		if (mScissorWidth >= 0)
-		{
-			rects[0].rect.offset.x = mScissorX;
-			rects[0].rect.offset.y = mScissorY;
-			rects[0].rect.extent.width = mScissorWidth;
-			rects[0].rect.extent.height = mScissorHeight;
-		}
-		else
-		{
-			rects[0].rect.offset.x = 0;
-			rects[0].rect.offset.y = 0;
-			rects[0].rect.extent.width = SCREENWIDTH;
-			rects[0].rect.extent.height = SCREENHEIGHT;
-		}
-	}
-
-	if (targets & CT_Depth)
-	{
-		attachments[1].aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
-		attachments[1].clearValue.depthStencil.depth = 1.0f;
-	}
-	if (targets & CT_Stencil)
-	{
-		attachments[1].aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-		attachments[1].clearValue.depthStencil.stencil = 0;
-	}
-	if (targets & CT_Color)
-	{
-		attachments[0].aspectMask |= VK_IMAGE_ASPECT_COLOR_BIT;
-		for (int i = 0; i < 4; i++)
-			attachments[0].clearValue.color.float32[i] = screen->mSceneClearColor[i];
-	}
-
-	if ((targets & CT_Color) && (targets & CT_Stencil) && (targets & CT_Depth))
-		mCommandBuffer->clearAttachments(2, attachments, 2, rects);
-	else if (targets & (CT_Stencil | CT_Depth))
-		mCommandBuffer->clearAttachments(1, attachments + 1, 1, rects + 1);
-	else if (targets & CT_Color)
-		mCommandBuffer->clearAttachments(1, attachments, 1, rects);
+	mClearTargets = targets;
+	EndRenderPass();
 }
 
 void VkRenderState::EnableStencil(bool on)
@@ -246,6 +187,7 @@ void VkRenderState::ApplyRenderPass(int dt)
 {
 	// Find a render pass that matches our state
 	VkRenderPassKey passKey;
+	passKey.ClearTargets = mRenderPassKey.ClearTargets | mClearTargets;
 	passKey.DrawType = dt;
 	passKey.VertexFormat = static_cast<VKVertexBuffer*>(mVertexBuffer)->VertexFormat;
 	passKey.RenderStyle = mRenderStyle;
@@ -258,6 +200,8 @@ void VkRenderState::ApplyRenderPass(int dt)
 	passKey.StencilPassOp = mStencilOp;
 	passKey.ColorMask = mColorMask;
 	passKey.CullMode = mCullMode;
+	passKey.Samples = mRenderTarget.Samples;
+	passKey.DrawBuffers = mRenderTarget.DrawBuffers;
 	if (mSpecialEffect > EFF_NONE)
 	{
 		passKey.SpecialEffect = mSpecialEffect;
@@ -291,8 +235,10 @@ void VkRenderState::ApplyRenderPass(int dt)
 
 	if (changingRenderPass)
 	{
-		GetVulkanFrameBuffer()->GetRenderPassManager()->BeginRenderPass(passKey, mCommandBuffer);
+		passKey.ClearTargets = mClearTargets;
+		BeginRenderPass(passKey, mCommandBuffer);
 		mRenderPassKey = passKey;
+		mClearTargets = 0;
 	}
 }
 
@@ -312,18 +258,22 @@ void VkRenderState::ApplyScissor()
 		VkRect2D scissor;
 		if (mScissorWidth >= 0)
 		{
-			scissor.offset.x = mScissorX;
-			scissor.offset.y = mScissorY;
-			scissor.extent.width = mScissorWidth;
-			scissor.extent.height = mScissorHeight;
+			int x0 = clamp(mScissorX, 0, mRenderTarget.Width);
+			int y0 = clamp(mScissorY, 0, mRenderTarget.Height);
+			int x1 = clamp(mScissorX + mScissorWidth, 0, mRenderTarget.Width);
+			int y1 = clamp(mScissorY + mScissorHeight, 0, mRenderTarget.Height);
+
+			scissor.offset.x = x0;
+			scissor.offset.y = y0;
+			scissor.extent.width = x1 - x0;
+			scissor.extent.height = y1 - y0;
 		}
 		else
 		{
-			auto buffers = GetVulkanFrameBuffer()->GetBuffers();
 			scissor.offset.x = 0;
 			scissor.offset.y = 0;
-			scissor.extent.width = buffers->GetWidth();
-			scissor.extent.height = buffers->GetHeight();
+			scissor.extent.width = mRenderTarget.Width;
+			scissor.extent.height = mRenderTarget.Height;
 		}
 		mCommandBuffer->setScissor(0, 1, &scissor);
 		mScissorChanged = false;
@@ -344,11 +294,10 @@ void VkRenderState::ApplyViewport()
 		}
 		else
 		{
-			auto buffers = GetVulkanFrameBuffer()->GetBuffers();
 			viewport.x = 0.0f;
 			viewport.y = 0.0f;
-			viewport.width = (float)buffers->GetWidth();
-			viewport.height = (float)buffers->GetHeight();
+			viewport.width = (float)mRenderTarget.Width;
+			viewport.height = (float)mRenderTarget.Height;
 		}
 		viewport.minDepth = mViewportDepthMin;
 		viewport.maxDepth = mViewportDepthMax;
@@ -375,7 +324,7 @@ void VkRenderState::ApplyStreamData()
 	mStreamData.uVertexColor = mColor.vec;
 	mStreamData.uVertexNormal = mNormal.vec;
 
-	mStreamData.timer = 0.0f; // static_cast<float>((double)(screen->FrameTime - firstFrame) * (double)mShaderTimer / 1000.);
+	mStreamData.timer = static_cast<float>((double)(screen->FrameTime - firstFrame) * (double)mShaderTimer / 1000.);
 
 	if (mGlowEnabled)
 	{
@@ -448,7 +397,7 @@ void VkRenderState::ApplyPushConstants()
 	}
 
 	int tempTM = TM_NORMAL;
-	if (mMaterial.mMaterial && mMaterial.mMaterial->tex->isHardwareCanvas())
+	if (mMaterial.mMaterial && mMaterial.mMaterial->tex && mMaterial.mMaterial->tex->isHardwareCanvas())
 		tempTM = TM_OPAQUE;
 
 	mPushConstants.uFogEnabled = fogset;
@@ -460,8 +409,8 @@ void VkRenderState::ApplyPushConstants()
 	mPushConstants.uAlphaThreshold = mAlphaThreshold;
 	mPushConstants.uClipSplit = { mClipSplit[0], mClipSplit[1] };
 
-	//if (mMaterial.mMaterial)
-	//	mPushConstants.uSpecularMaterial = { mMaterial.mMaterial->tex->Glossiness, mMaterial.mMaterial->tex->SpecularLevel };
+	if (mMaterial.mMaterial && mMaterial.mMaterial->tex)
+		mPushConstants.uSpecularMaterial = { mMaterial.mMaterial->tex->Glossiness, mMaterial.mMaterial->tex->SpecularLevel };
 
 	mPushConstants.uLightIndex = screen->mLights->BindUBO(mLightIndex);
 	mPushConstants.uDataIndex = mDataIndex;
@@ -553,6 +502,9 @@ void VkRenderState::ApplyMaterial()
 			mCommandBuffer->bindDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, passManager->PipelineLayout.get(), 1, base->GetDescriptorSet(mMaterial));
 		}
 
+		if (mMaterial.mMaterial && mMaterial.mMaterial->tex)
+			mShaderTimer = mMaterial.mMaterial->tex->shaderspeed;
+
 		mMaterial.mChanged = false;
 	}
 }
@@ -588,6 +540,11 @@ void VkRenderState::Bind(int bindingpoint, uint32_t offset)
 	}
 }
 
+void VkRenderState::BeginFrame()
+{
+	mMaterial.Reset();
+}
+
 void VkRenderState::EndRenderPass()
 {
 	if (mCommandBuffer)
@@ -613,6 +570,65 @@ void VkRenderState::EndFrame()
 	mMatricesOffset = 0;
 	mStreamDataOffset = 0;
 	mDataIndex = -1;
+}
+
+void VkRenderState::EnableDrawBuffers(int count)
+{
+	if (mRenderTarget.DrawBuffers != count)
+	{
+		EndRenderPass();
+		mRenderTarget.DrawBuffers = count;
+	}
+}
+
+void VkRenderState::SetRenderTarget(VulkanImageView *view, int width, int height, VkSampleCountFlagBits samples)
+{
+	EndRenderPass();
+
+	mRenderTarget.View = view;
+	mRenderTarget.Width = width;
+	mRenderTarget.Height = height;
+	mRenderTarget.Samples = samples;
+}
+
+void VkRenderState::BeginRenderPass(const VkRenderPassKey &key, VulkanCommandBuffer *cmdbuffer)
+{
+	auto fb = GetVulkanFrameBuffer();
+
+	VkRenderPassSetup *passSetup = fb->GetRenderPassManager()->GetRenderPass(key);
+
+	auto &framebuffer = passSetup->Framebuffer[mRenderTarget.View->view];
+	if (!framebuffer)
+	{
+		auto buffers = fb->GetBuffers();
+		FramebufferBuilder builder;
+		builder.setRenderPass(passSetup->RenderPass.get());
+		builder.setSize(mRenderTarget.Width, mRenderTarget.Height);
+		builder.addAttachment(mRenderTarget.View);
+		if (key.DrawBuffers > 1)
+			builder.addAttachment(buffers->SceneFogView.get());
+		if (key.DrawBuffers > 2)
+			builder.addAttachment(buffers->SceneNormalView.get());
+		if (key.UsesDepthStencil())
+			builder.addAttachment(buffers->SceneDepthStencilView.get());
+		framebuffer = builder.create(GetVulkanFrameBuffer()->device);
+		framebuffer->SetDebugName("VkRenderPassSetup.Framebuffer");
+	}
+
+	RenderPassBegin beginInfo;
+	beginInfo.setRenderPass(passSetup->RenderPass.get());
+	beginInfo.setRenderArea(0, 0, mRenderTarget.Width, mRenderTarget.Height);
+	beginInfo.setFramebuffer(framebuffer.get());
+	beginInfo.addClearColor(screen->mSceneClearColor[0], screen->mSceneClearColor[1], screen->mSceneClearColor[2], screen->mSceneClearColor[3]);
+	if (key.DrawBuffers > 1)
+		beginInfo.addClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	if (key.DrawBuffers > 2)
+		beginInfo.addClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	beginInfo.addClearDepthStencil(1.0f, 0);
+	cmdbuffer->beginRenderPass(beginInfo);
+	cmdbuffer->bindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, passSetup->Pipeline.get());
+
+	mMaterial.mChanged = true;
 }
 
 /////////////////////////////////////////////////////////////////////////////

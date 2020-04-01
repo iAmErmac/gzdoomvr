@@ -28,42 +28,6 @@ void VkRenderPassManager::RenderBuffersReset()
 	RenderPassSetup.clear();
 }
 
-void VkRenderPassManager::SetRenderTarget(VulkanImageView *view, int width, int height)
-{
-	GetVulkanFrameBuffer()->GetRenderState()->EndRenderPass();
-	mRenderTargetView = view;
-	mRenderTargetWidth = width;
-	mRenderTargetHeight = height;
-}
-
-void VkRenderPassManager::BeginRenderPass(const VkRenderPassKey &key, VulkanCommandBuffer *cmdbuffer)
-{
-	auto fb = GetVulkanFrameBuffer();
-	auto buffers = fb->GetBuffers();
-
-	VkRenderPassSetup *passSetup = GetRenderPass(key);
-
-	auto &framebuffer = passSetup->Framebuffer[mRenderTargetView->view];
-	if (!framebuffer)
-	{
-		auto buffers = fb->GetBuffers();
-		FramebufferBuilder builder;
-		builder.setRenderPass(passSetup->RenderPass.get());
-		builder.setSize(mRenderTargetWidth, mRenderTargetHeight);
-		builder.addAttachment(mRenderTargetView->view);
-		if (key.DepthTest || key.DepthWrite || key.StencilTest)
-			builder.addAttachment(buffers->SceneDepthStencilView.get());
-		framebuffer = builder.create(GetVulkanFrameBuffer()->device);
-	}
-
-	RenderPassBegin beginInfo;
-	beginInfo.setRenderPass(passSetup->RenderPass.get());
-	beginInfo.setRenderArea(0, 0, buffers->GetWidth(), buffers->GetHeight());
-	beginInfo.setFramebuffer(framebuffer.get());
-	cmdbuffer->beginRenderPass(beginInfo);
-	cmdbuffer->bindPipeline(VK_PIPELINE_BIND_POINT_GRAPHICS, passSetup->Pipeline.get());
-}
-
 VkRenderPassSetup *VkRenderPassManager::GetRenderPass(const VkRenderPassKey &key)
 {
 	auto &item = RenderPassSetup[key];
@@ -77,7 +41,7 @@ int VkRenderPassManager::GetVertexFormat(int numBindingPoints, int numAttributes
 	for (size_t i = 0; i < VertexFormats.size(); i++)
 	{
 		const auto &f = VertexFormats[i];
-		if (f.Attrs.size() == numAttributes && f.NumBindingPoints == numBindingPoints && f.Stride == stride)
+		if (f.Attrs.size() == (size_t)numAttributes && f.NumBindingPoints == numBindingPoints && f.Stride == stride)
 		{
 			bool matches = true;
 			for (int j = 0; j < numAttributes; j++)
@@ -115,7 +79,9 @@ void VkRenderPassManager::CreateDynamicSetLayout()
 	builder.addBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	builder.addBinding(2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	builder.addBinding(3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	builder.addBinding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	DynamicSetLayout = builder.create(GetVulkanFrameBuffer()->device);
+	DynamicSetLayout->SetDebugName("VkRenderPassManager.DynamicSetLayout");
 }
 
 void VkRenderPassManager::CreateTextureSetLayout()
@@ -125,8 +91,8 @@ void VkRenderPassManager::CreateTextureSetLayout()
 	{
 		builder.addBinding(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
-	builder.addBinding(16, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 	TextureSetLayout = builder.create(GetVulkanFrameBuffer()->device);
+	TextureSetLayout->SetDebugName("VkRenderPassManager.TextureSetLayout");
 }
 
 void VkRenderPassManager::CreatePipelineLayout()
@@ -136,6 +102,7 @@ void VkRenderPassManager::CreatePipelineLayout()
 	builder.addSetLayout(TextureSetLayout.get());
 	builder.addPushConstantRange(VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants));
 	PipelineLayout = builder.create(GetVulkanFrameBuffer()->device);
+	PipelineLayout->SetDebugName("VkRenderPassManager.PipelineLayout");
 }
 
 void VkRenderPassManager::CreateDescriptorPool()
@@ -146,18 +113,24 @@ void VkRenderPassManager::CreateDescriptorPool()
 	builder.addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5000 * 6);
 	builder.setMaxSets(5000);
 	DescriptorPool = builder.create(GetVulkanFrameBuffer()->device);
+	DescriptorPool->SetDebugName("VkRenderPassManager.DescriptorPool");
 }
 
 void VkRenderPassManager::CreateDynamicSet()
 {
 	DynamicSet = DescriptorPool->allocate(DynamicSetLayout.get());
+}
 
+void VkRenderPassManager::UpdateDynamicSet()
+{
 	auto fb = GetVulkanFrameBuffer();
+
 	WriteDescriptors update;
 	update.addBuffer(DynamicSet.get(), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, fb->ViewpointUBO->mBuffer.get(), 0, sizeof(HWViewpointUniforms));
 	update.addBuffer(DynamicSet.get(), 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, fb->LightBufferSSO->mBuffer.get(), 0, fb->GetLightBufferBlockSize());
 	update.addBuffer(DynamicSet.get(), 2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, fb->MatricesUBO->mBuffer.get(), 0, sizeof(MatricesUBO));
 	update.addBuffer(DynamicSet.get(), 3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, fb->StreamUBO->mBuffer.get(), 0, sizeof(StreamUBO));
+	update.addCombinedImageSampler(DynamicSet.get(), 4, fb->GetBuffers()->ShadowmapView.get(), fb->GetBuffers()->ShadowmapSampler.get(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	update.updateSets(fb->device);
 }
 
@@ -171,15 +144,32 @@ VkRenderPassSetup::VkRenderPassSetup(const VkRenderPassKey &key)
 
 void VkRenderPassSetup::CreateRenderPass(const VkRenderPassKey &key)
 {
+	auto buffers = GetVulkanFrameBuffer()->GetBuffers();
+
+	VkFormat drawBufferFormats[] = { VK_FORMAT_R16G16B16A16_SFLOAT, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_A2R10G10B10_UNORM_PACK32 };
+
 	RenderPassBuilder builder;
-	builder.addRgba16fAttachment(false, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	if (key.DepthTest || key.DepthWrite || key.StencilTest)
-		builder.addDepthStencilAttachment(false, GetVulkanFrameBuffer()->GetBuffers()->SceneDepthStencilFormat, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-	builder.addSubpass();
-	builder.addSubpassColorAttachmentRef(0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	if (key.DepthTest || key.DepthWrite || key.StencilTest)
+	for (int i = 0; i < key.DrawBuffers; i++)
 	{
-		builder.addSubpassDepthStencilAttachmentRef(1, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+		builder.addAttachment(
+			drawBufferFormats[i], i == 0 ? (VkSampleCountFlagBits)key.Samples : buffers->GetSceneSamples(),
+			(key.ClearTargets & CT_Color) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	}
+	if (key.UsesDepthStencil())
+	{
+		builder.addDepthStencilAttachment(
+			buffers->SceneDepthStencilFormat, buffers->GetSceneSamples(),
+			(key.ClearTargets & CT_Depth) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
+			(key.ClearTargets & CT_Stencil) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE,
+			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+	}
+	builder.addSubpass();
+	for (int i = 0; i < key.DrawBuffers; i++)
+		builder.addSubpassColorAttachmentRef(i, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	if (key.UsesDepthStencil())
+	{
+		builder.addSubpassDepthStencilAttachmentRef(key.DrawBuffers, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 		builder.addExternalSubpassDependency(
 			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -195,6 +185,7 @@ void VkRenderPassSetup::CreateRenderPass(const VkRenderPassKey &key)
 			VK_ACCESS_COLOR_ATTACHMENT_READ_BIT);
 	}
 	RenderPass = builder.create(GetVulkanFrameBuffer()->device);
+	RenderPass->SetDebugName("VkRenderPassSetup.RenderPass");
 }
 
 void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
@@ -209,7 +200,7 @@ void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
 	}
 	else
 	{
-		program = fb->GetShaderManager()->Get(key.EffectState, key.AlphaTest);
+		program = fb->GetShaderManager()->Get(key.EffectState, key.AlphaTest, key.DrawBuffers > 1 ? GBUFFER_PASS : NORMAL_PASS);
 	}
 	builder.addVertexShader(program->vert.get());
 	builder.addFragmentShader(program->frag.get());
@@ -254,8 +245,9 @@ void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
 	// builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
 	builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
 
-	builder.setViewport(0.0f, 0.0f, (float)SCREENWIDTH, (float)SCREENHEIGHT);
-	builder.setScissor(0, 0, SCREENWIDTH, SCREENHEIGHT);
+	// Note: the actual values are ignored since we use dynamic viewport+scissor states
+	builder.setViewport(0.0f, 0.0f, 320.0f, 200.0f);
+	builder.setScissor(0, 0, 320.0f, 200.0f);
 
 	static const VkPrimitiveTopology vktopology[] = {
 		VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
@@ -277,8 +269,11 @@ void VkRenderPassSetup::CreatePipeline(const VkRenderPassKey &key)
 	builder.setColorWriteMask((VkColorComponentFlags)key.ColorMask);
 	builder.setStencil(VK_STENCIL_OP_KEEP, op2vk[key.StencilPassOp], VK_STENCIL_OP_KEEP, VK_COMPARE_OP_EQUAL, 0xffffffff, 0xffffffff, 0);
 	builder.setBlendMode(key.RenderStyle);
+	builder.setSubpassColorAttachmentCount(key.DrawBuffers);
+	builder.setRasterizationSamples((VkSampleCountFlagBits)key.Samples);
 
 	builder.setLayout(fb->GetRenderPassManager()->PipelineLayout.get());
 	builder.setRenderPass(RenderPass.get());
 	Pipeline = builder.create(fb->device);
+	Pipeline->SetDebugName("VkRenderPassSetup.Pipeline");
 }

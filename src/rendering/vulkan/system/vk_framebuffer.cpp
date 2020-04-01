@@ -33,6 +33,7 @@
 
 #include "hwrenderer/utility/hw_clock.h"
 #include "hwrenderer/utility/hw_vrmodes.h"
+#include "hwrenderer/utility/hw_cvars.h"
 #include "hwrenderer/models/hw_models.h"
 #include "hwrenderer/scene/hw_skydome.h"
 #include "hwrenderer/scene/hw_fakeflat.h"
@@ -59,8 +60,8 @@
 #include "doomerrors.h"
 
 void Draw2D(F2DDrawer *drawer, FRenderState &state);
+void DoWriteSavePic(FileWriter *file, ESSType ssformat, uint8_t *scr, int width, int height, sector_t *viewsector, bool upsidedown);
 
-EXTERN_CVAR(Bool, vid_vsync)
 EXTERN_CVAR(Bool, r_drawvoxels)
 EXTERN_CVAR(Int, gl_tonemap)
 EXTERN_CVAR(Int, screenblocks)
@@ -73,6 +74,12 @@ VulkanFrameBuffer::VulkanFrameBuffer(void *hMonitor, bool fullscreen, VulkanDevi
 	Super(hMonitor, fullscreen) 
 {
 	device = dev;
+
+	swapChain = std::make_unique<VulkanSwapChain>(device);
+	mSwapChainImageAvailableSemaphore.reset(new VulkanSemaphore(device));
+	mRenderFinishedSemaphore.reset(new VulkanSemaphore(device));
+	mRenderFinishedFence.reset(new VulkanFence(device));
+
 	InitPalette();
 }
 
@@ -82,12 +89,17 @@ VulkanFrameBuffer::~VulkanFrameBuffer()
 	for (VkHardwareTexture *cur = VkHardwareTexture::First; cur; cur = cur->Next)
 		cur->Reset();
 
+	PPResource::ResetAll();
+
 	delete MatricesUBO;
 	delete StreamUBO;
 	delete mVertexData;
 	delete mSkyData;
 	delete mViewpoints;
 	delete mLights;
+	mShadowMap.Reset();
+
+	DeleteFrameObjects();
 }
 
 void VulkanFrameBuffer::InitializeState()
@@ -105,8 +117,8 @@ void VulkanFrameBuffer::InitializeState()
 	uniformblockalignment = (unsigned int)device->PhysicalDevice.Properties.limits.minUniformBufferOffsetAlignment;
 	maxuniformblock = device->PhysicalDevice.Properties.limits.maxUniformBufferRange;
 
-	mUploadSemaphore.reset(new VulkanSemaphore(device));
-	mGraphicsCommandPool.reset(new VulkanCommandPool(device, device->graphicsFamily));
+	mTransferSemaphore.reset(new VulkanSemaphore(device));
+	mCommandPool.reset(new VulkanCommandPool(device, device->graphicsFamily));
 
 	mScreenBuffers.reset(new VkRenderBuffers());
 	mSaveBuffers.reset(new VkRenderBuffers());
@@ -149,12 +161,16 @@ void VulkanFrameBuffer::Update()
 	int newHeight = GetClientHeight();
 	if (lastSwapWidth != newWidth || lastSwapHeight != newHeight)
 	{
-		device->WindowResized();
+		swapChain.reset();
+		swapChain = std::make_unique<VulkanSwapChain>(device);
+
 		lastSwapWidth = newWidth;
 		lastSwapHeight = newHeight;
 	}
 
-	device->BeginFrame();
+	VkResult result = vkAcquireNextImageKHR(device->device, swapChain->swapChain, std::numeric_limits<uint64_t>::max(), mSwapChainImageAvailableSemaphore->semaphore, VK_NULL_HANDLE, &presentImageIndex);
+	if (result != VK_SUCCESS)
+		throw std::runtime_error("Failed to acquire next image!");
 
 	GetPostprocess()->SetActiveRenderTarget();
 
@@ -166,76 +182,128 @@ void VulkanFrameBuffer::Update()
 
 	mPostprocess->DrawPresentTexture(mOutputLetterbox, true, true);
 
-	mDrawCommands->end();
-
-	if (mUploadCommands)
-	{
-		mUploadCommands->end();
-
-		// Submit upload commands immediately
-		VkSubmitInfo submitInfo = {};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &mUploadCommands->buffer;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &mUploadSemaphore->semaphore;
-		VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-		if (result < VK_SUCCESS)
-			I_FatalError("Failed to submit command buffer! Error %d\n", result);
-
-		// Wait for upload commands to finish, then submit render commands
-		VkSemaphore waitSemaphores[] = { mUploadSemaphore->semaphore, device->imageAvailableSemaphore->semaphore };
-		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-		submitInfo.waitSemaphoreCount = 2;
-		submitInfo.pWaitSemaphores = waitSemaphores;
-		submitInfo.pWaitDstStageMask = waitStages;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &mDrawCommands->buffer;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &device->renderFinishedSemaphore->semaphore;
-		result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, device->renderFinishedFence->fence);
-		if (result < VK_SUCCESS)
-			I_FatalError("Failed to submit command buffer! Error %d\n", result);
-	}
-	else
-	{
-		VkSemaphore waitSemaphores[] = { device->imageAvailableSemaphore->semaphore };
-		VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-
-		VkSubmitInfo submitInfo = {};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = waitSemaphores;
-		submitInfo.pWaitDstStageMask = waitStages;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &mDrawCommands->buffer;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &device->renderFinishedSemaphore->semaphore;
-		VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, device->renderFinishedFence->fence);
-		if (result < VK_SUCCESS)
-			I_FatalError("Failed to submit command buffer! Error %d\n", result);
-	}
+	SubmitCommands(true);
 
 	Flush3D.Unclock();
 
+	FPSLimit();
+	
 	Finish.Reset();
 	Finish.Clock();
-	device->PresentFrame();
-	device->WaitPresent();
+
+	VkSemaphore waitSemaphores[] = { mRenderFinishedSemaphore->semaphore };
+	VkSwapchainKHR swapChains[] = { swapChain->swapChain };
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = waitSemaphores;
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = swapChains;
+	presentInfo.pImageIndices = &presentImageIndex;
+	presentInfo.pResults = nullptr;
+	vkQueuePresentKHR(device->presentQueue, &presentInfo);
+
+	vkWaitForFences(device->device, 1, &mRenderFinishedFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+	vkResetFences(device->device, 1, &mRenderFinishedFence->fence);
 
 	mDrawCommands.reset();
-	mUploadCommands.reset();
-	mFrameDeleteList.clear();
+	mTransferCommands.reset();
+	DeleteFrameObjects();
 
 	Finish.Unclock();
 
 	Super::Update();
 }
 
+void VulkanFrameBuffer::DeleteFrameObjects()
+{
+	FrameDeleteList.Images.clear();
+	FrameDeleteList.ImageViews.clear();
+	FrameDeleteList.Buffers.clear();
+	FrameDeleteList.Descriptors.clear();
+}
+
+void VulkanFrameBuffer::SubmitCommands(bool finish)
+{
+	if (mTransferCommands)
+	{
+		mTransferCommands->end();
+
+		QueueSubmit submit;
+		submit.addCommandBuffer(mTransferCommands.get());
+		submit.addSignal(mTransferSemaphore.get());
+		submit.execute(device, device->graphicsQueue);
+	}
+
+	mDrawCommands->end();
+
+	QueueSubmit submit;
+	submit.addCommandBuffer(mDrawCommands.get());
+	if (mTransferCommands)
+	{
+		submit.addWait(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, mTransferSemaphore.get());
+	}
+	if (finish)
+	{
+		submit.addWait(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, mSwapChainImageAvailableSemaphore.get());
+		submit.addSignal(mRenderFinishedSemaphore.get());
+	}
+	submit.execute(device, device->graphicsQueue, mRenderFinishedFence.get());
+
+	if (!finish)
+	{
+		vkWaitForFences(device->device, 1, &mRenderFinishedFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+		vkResetFences(device->device, 1, &mRenderFinishedFence->fence);
+		mDrawCommands.reset();
+		mTransferCommands.reset();
+		DeleteFrameObjects();
+	}
+}
+
 void VulkanFrameBuffer::WriteSavePic(player_t *player, FileWriter *file, int width, int height)
 {
 	if (!V_IsHardwareRenderer())
+	{
 		Super::WriteSavePic(player, file, width, height);
+	}
+	else
+	{
+		IntRect bounds;
+		bounds.left = 0;
+		bounds.top = 0;
+		bounds.width = width;
+		bounds.height = height;
+
+		// we must be sure the GPU finished reading from the buffer before we fill it with new data.
+		if (mDrawCommands)
+			SubmitCommands(false);
+
+		// Switch to render buffers dimensioned for the savepic
+		mActiveRenderBuffers = mSaveBuffers.get();
+
+		hw_ClearFakeFlat();
+		GetRenderState()->SetVertexBuffer(screen->mVertexData);
+		screen->mVertexData->Reset();
+		screen->mLights->Clear();
+		screen->mViewpoints->Clear();
+
+		// This shouldn't overwrite the global viewpoint even for a short time.
+		FRenderViewpoint savevp;
+		sector_t *viewsector = RenderViewpoint(savevp, players[consoleplayer].camera, &bounds, r_viewpoint.FieldOfView.Degrees, 1.6f, 1.6f, true, false);
+		GetRenderState()->EnableStencil(false);
+		GetRenderState()->SetNoSoftLightLevel();
+
+		int numpixels = width * height;
+		uint8_t * scr = (uint8_t *)M_Malloc(numpixels * 3);
+		CopyScreenToBuffer(width, height, scr);
+
+		DoWriteSavePic(file, SS_RGB, scr, width, height, viewsector, false);
+		M_Free(scr);
+
+		// Switch back the screen render buffers
+		screen->SetViewportRects(nullptr);
+		mActiveRenderBuffers = mScreenBuffers.get();
+	}
 }
 
 sector_t *VulkanFrameBuffer::RenderView(player_t *player)
@@ -269,7 +337,6 @@ sector_t *VulkanFrameBuffer::RenderView(player_t *player)
 		screen->mLights->Clear();
 		screen->mViewpoints->Clear();
 
-#if 0
 		// NoInterpolateView should have no bearing on camera textures, but needs to be preserved for the main view below.
 		bool saved_niv = NoInterpolateView;
 		NoInterpolateView = false;
@@ -286,7 +353,6 @@ sector_t *VulkanFrameBuffer::RenderView(player_t *player)
 			});
 		}
 		NoInterpolateView = saved_niv;
-#endif
 
 		// now render the main view
 		float fovratio;
@@ -300,6 +366,8 @@ sector_t *VulkanFrameBuffer::RenderView(player_t *player)
 			fovratio = ratio;
 		}
 
+		mPostprocess->ImageTransitionScene(true); // This is the only line that differs compared to FGLRenderer::RenderView
+
 		retsec = RenderViewpoint(r_viewpoint, player->camera, NULL, r_viewpoint.FieldOfView.Degrees, ratio, fovratio, true, true);
 	}
 	All.Unclock();
@@ -312,10 +380,8 @@ sector_t *VulkanFrameBuffer::RenderViewpoint(FRenderViewpoint &mainvp, AActor * 
 
 	R_SetupFrame(mainvp, r_viewwindow, camera);
 
-#if 0
 	if (mainview && toscreen)
 		UpdateShadowMap();
-#endif
 
 	// Update the attenuation flag of all light defaults for each viewpoint.
 	// This function will only do something if the setting differs.
@@ -331,13 +397,10 @@ sector_t *VulkanFrameBuffer::RenderViewpoint(FRenderViewpoint &mainvp, AActor * 
 
 		if (mainview) // Bind the scene frame buffer and turn on draw buffers used by ssao
 		{
-			mRenderPassManager->SetRenderTarget(GetBuffers()->SceneColorView.get(), GetBuffers()->GetWidth(), GetBuffers()->GetHeight());
-#if 0
+			mRenderState->SetRenderTarget(GetBuffers()->SceneColorView.get(), GetBuffers()->GetWidth(), GetBuffers()->GetHeight(), GetBuffers()->GetSceneSamples());
 			bool useSSAO = (gl_ssao != 0);
 			GetRenderState()->SetPassType(useSSAO ? GBUFFER_PASS : NORMAL_PASS);
-			GetRenderState()->EnableDrawBuffers(gl_RenderState.GetPassDrawBufferCount());
-			GetRenderState()->Apply();
-#endif
+			GetRenderState()->EnableDrawBuffers(GetRenderState()->GetPassDrawBufferCount());
 		}
 
 		auto di = HWDrawInfo::StartDrawInfo(mainvp.ViewLevel, nullptr, mainvp, nullptr);
@@ -364,15 +427,13 @@ sector_t *VulkanFrameBuffer::RenderViewpoint(FRenderViewpoint &mainvp, AActor * 
 			PostProcess.Clock();
 			if (toscreen) di->EndDrawScene(mainvp.sector, *GetRenderState()); // do not call this for camera textures.
 
-#if 0
 			if (GetRenderState()->GetPassType() == GBUFFER_PASS) // Turn off ssao draw buffers
 			{
 				GetRenderState()->SetPassType(NORMAL_PASS);
 				GetRenderState()->EnableDrawBuffers(1);
 			}
-#endif
 
-			mPostprocess->BlitSceneToTexture(); // Copy the resulting scene to the current post process texture
+			mPostprocess->BlitSceneToPostprocess(); // Copy the resulting scene to the current post process texture
 
 			PostProcessScene(cm, [&]() { di->DrawEndScene2D(mainvp.sector, *GetRenderState()); });
 
@@ -389,6 +450,45 @@ sector_t *VulkanFrameBuffer::RenderViewpoint(FRenderViewpoint &mainvp, AActor * 
 	return mainvp.sector;
 }
 
+void VulkanFrameBuffer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV)
+{
+	// This doesn't need to clear the fake flat cache. It can be shared between camera textures and the main view of a scene.
+	FMaterial *mat = FMaterial::ValidateTexture(tex, false);
+	auto BaseLayer = static_cast<VkHardwareTexture*>(mat->GetLayer(0, 0));
+
+	int width = mat->TextureWidth();
+	int height = mat->TextureHeight();
+	VulkanImage *image = BaseLayer->GetImage(tex, 0, 0);
+	VulkanImageView *view = BaseLayer->GetImageView(tex, 0, 0);
+
+	mRenderState->EndRenderPass();
+	auto cmdbuffer = GetDrawCommands();
+
+	PipelineBarrier barrier0;
+	barrier0.addImage(image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+	barrier0.execute(cmdbuffer, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+	mRenderState->SetRenderTarget(view, image->width, image->height, VK_SAMPLE_COUNT_1_BIT);
+
+	IntRect bounds;
+	bounds.left = bounds.top = 0;
+	bounds.width = MIN(mat->GetWidth(), image->width);
+	bounds.height = MIN(mat->GetHeight(), image->height);
+
+	FRenderViewpoint texvp;
+	RenderViewpoint(texvp, Viewpoint, &bounds, FOV, (float)width / height, (float)width / height, false, false);
+
+	mRenderState->EndRenderPass();
+
+	PipelineBarrier barrier1;
+	barrier1.addImage(image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+	barrier1.execute(cmdbuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+
+	mRenderState->SetRenderTarget(GetBuffers()->SceneColorView.get(), GetBuffers()->GetWidth(), GetBuffers()->GetHeight(), GetBuffers()->GetSceneSamples());
+
+	tex->SetUpdated(true);
+}
+
 void VulkanFrameBuffer::DrawScene(HWDrawInfo *di, int drawmode)
 {
 	// To do: this is virtually identical to FGLRenderer::DrawScene and should be merged.
@@ -397,7 +497,6 @@ void VulkanFrameBuffer::DrawScene(HWDrawInfo *di, int drawmode)
 	static int ssao_portals_available = 0;
 	const auto &vp = di->Viewpoint;
 
-#if 0
 	bool applySSAO = false;
 	if (drawmode == DM_MAINVIEW)
 	{
@@ -413,7 +512,6 @@ void VulkanFrameBuffer::DrawScene(HWDrawInfo *di, int drawmode)
 		applySSAO = true;
 		ssao_portals_available--;
 	}
-#endif
 
 	if (vp.camera != nullptr)
 	{
@@ -431,18 +529,11 @@ void VulkanFrameBuffer::DrawScene(HWDrawInfo *di, int drawmode)
 
 	di->RenderScene(*GetRenderState());
 
-#if 0
 	if (applySSAO && GetRenderState()->GetPassType() == GBUFFER_PASS)
 	{
-		GetRenderState()->EnableDrawBuffers(1);
-		GLRenderer->AmbientOccludeScene(di->VPUniforms.mProjectionMatrix.get()[5]);
-		glViewport(screen->mSceneViewport.left, screen->mSceneViewport.top, screen->mSceneViewport.width, screen->mSceneViewport.height);
-		GLRenderer->mBuffers->BindSceneFB(true);
-		GetRenderState()->EnableDrawBuffers(GetRenderState()->GetPassDrawBufferCount());
-		GetRenderState()->Apply();
+		mPostprocess->AmbientOccludeScene(di->VPUniforms.mProjectionMatrix.get()[5]);
 		screen->mViewpoints->Bind(*GetRenderState(), di->vpIndex);
 	}
-#endif
 
 	// Handle all portals after rendering the opaque objects but before
 	// doing all translucent stuff
@@ -476,9 +567,10 @@ uint32_t VulkanFrameBuffer::GetCaps()
 
 void VulkanFrameBuffer::SetVSync(bool vsync)
 {
-	if (device->swapChain->vsync != vsync)
+	if (swapChain->vsync != vsync)
 	{
-		device->WindowResized();
+		swapChain.reset();
+		swapChain = std::make_unique<VulkanSwapChain>(device);
 	}
 }
 
@@ -488,6 +580,18 @@ void VulkanFrameBuffer::CleanForRestart()
 	swdrawer.reset();
 }
 
+void VulkanFrameBuffer::PrecacheMaterial(FMaterial *mat, int translation)
+{
+	auto tex = mat->tex;
+	if (tex->isSWCanvas()) return;
+
+	// Textures that are already scaled in the texture lump will not get replaced by hires textures.
+	int flags = mat->isExpanded() ? CTF_Expand : (gl_texture_usehires && !tex->isScaled()) ? CTF_CheckHires : 0;
+	auto base = static_cast<VkHardwareTexture*>(mat->GetLayer(0, translation));
+
+	base->Precache(mat, translation, flags);
+}
+
 IHardwareTexture *VulkanFrameBuffer::CreateHardwareTexture()
 {
 	return new VkHardwareTexture();
@@ -495,13 +599,7 @@ IHardwareTexture *VulkanFrameBuffer::CreateHardwareTexture()
 
 FModelRenderer *VulkanFrameBuffer::CreateModelRenderer(int mli) 
 {
-	return new FGLModelRenderer(nullptr, *GetRenderState(), mli);
-}
-
-IShaderProgram *VulkanFrameBuffer::CreateShaderProgram()
-{
-	I_FatalError("VulkanFrameBuffer::CreateShaderProgram not implemented\n");
-	return nullptr;
+	return new FHWModelRenderer(nullptr, *GetRenderState(), mli);
 }
 
 IVertexBuffer *VulkanFrameBuffer::CreateVertexBuffer()
@@ -517,19 +615,25 @@ IIndexBuffer *VulkanFrameBuffer::CreateIndexBuffer()
 IDataBuffer *VulkanFrameBuffer::CreateDataBuffer(int bindingpoint, bool ssbo)
 {
 	auto buffer = new VKDataBuffer(bindingpoint, ssbo);
-	if (bindingpoint == VIEWPOINT_BINDINGPOINT)
+
+	auto fb = GetVulkanFrameBuffer();
+	switch (bindingpoint)
 	{
-		ViewpointUBO = buffer;
+	case LIGHTBUF_BINDINGPOINT: LightBufferSSO = buffer; break;
+	case VIEWPOINT_BINDINGPOINT: ViewpointUBO = buffer; break;
+	case LIGHTNODES_BINDINGPOINT: LightNodes = buffer; break;
+	case LIGHTLINES_BINDINGPOINT: LightLines = buffer; break;
+	case LIGHTLIST_BINDINGPOINT: LightList = buffer; break;
+	case POSTPROCESS_BINDINGPOINT: break;
+	default: break;
 	}
-	else if (bindingpoint == LIGHTBUF_BINDINGPOINT)
-	{
-		LightBufferSSO = buffer;
-	}
+
 	return buffer;
 }
 
-void VulkanFrameBuffer::UnbindTexUnit(int no)
+void VulkanFrameBuffer::SetTextureFilterMode()
 {
+	TextureFilterChanged();
 }
 
 void VulkanFrameBuffer::TextureFilterChanged()
@@ -538,10 +642,17 @@ void VulkanFrameBuffer::TextureFilterChanged()
 	{
 		// Destroy the texture descriptors as they used the old samplers
 		for (VkHardwareTexture *cur = VkHardwareTexture::First; cur; cur = cur->Next)
-			cur->Reset();
+			cur->ResetDescriptors();
 
 		mSamplerManager->SetTextureFilterMode();
 	}
+}
+
+void VulkanFrameBuffer::StartPrecaching()
+{
+	// Destroy the texture descriptors to avoid problems with potentially stale textures.
+	for (VkHardwareTexture *cur = VkHardwareTexture::First; cur; cur = cur->Next)
+		cur->ResetDescriptors();
 }
 
 void VulkanFrameBuffer::BlurScene(float amount)
@@ -556,12 +667,102 @@ void VulkanFrameBuffer::UpdatePalette()
 		mPostprocess->ClearTonemapPalette();
 }
 
+FTexture *VulkanFrameBuffer::WipeStartScreen()
+{
+	const auto &viewport = screen->mScreenViewport;
+	auto tex = new FWrapperTexture(viewport.width, viewport.height, 1);
+	auto systex = static_cast<VkHardwareTexture*>(tex->GetSystemTexture());
+
+	systex->CreateWipeTexture(viewport.width, viewport.height, "WipeStartScreen");
+
+	return tex;
+}
+
+FTexture *VulkanFrameBuffer::WipeEndScreen()
+{
+	GetPostprocess()->SetActiveRenderTarget();
+	Draw2D();
+	Clear2D();
+
+	const auto &viewport = screen->mScreenViewport;
+	auto tex = new FWrapperTexture(viewport.width, viewport.height, 1);
+	auto systex = static_cast<VkHardwareTexture*>(tex->GetSystemTexture());
+
+	systex->CreateWipeTexture(viewport.width, viewport.height, "WipeEndScreen");
+
+	return tex;
+}
+
+void VulkanFrameBuffer::CopyScreenToBuffer(int w, int h, void *data)
+{
+	// Convert from rgba16f to rgba8 using the GPU:
+	ImageBuilder imgbuilder;
+	imgbuilder.setFormat(VK_FORMAT_R8G8B8A8_UNORM);
+	imgbuilder.setUsage(VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+	imgbuilder.setSize(w, h);
+	auto image = imgbuilder.create(device);
+	VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+	GetPostprocess()->BlitCurrentToImage(image.get(), &layout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+	// Staging buffer for download
+	BufferBuilder bufbuilder;
+	bufbuilder.setSize(w * h * 4);
+	bufbuilder.setUsage(VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU);
+	auto staging = bufbuilder.create(device);
+
+	// Copy from image to buffer
+	VkBufferImageCopy region = {};
+	region.imageExtent.width = w;
+	region.imageExtent.height = h;
+	region.imageExtent.depth = 1;
+	region.imageSubresource.layerCount = 1;
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	GetDrawCommands()->copyImageToBuffer(image->image, layout, staging->buffer, 1, &region);
+
+	// Submit command buffers and wait for device to finish the work
+	SubmitCommands(false);
+
+	// Map and convert from rgba8 to rgb8
+	uint8_t *dest = (uint8_t*)data;
+	uint8_t *pixels = (uint8_t*)staging->Map(0, w * h * 4);
+	int dindex = 0;
+	for (int y = 0; y < h; y++)
+	{
+		int sindex = (h - y - 1) * w * 4;
+		for (int x = 0; x < w; x++)
+		{
+			dest[dindex] = pixels[sindex];
+			dest[dindex + 1] = pixels[sindex + 1];
+			dest[dindex + 2] = pixels[sindex + 2];
+			dindex += 3;
+			sindex += 4;
+		}
+	}
+	staging->Unmap();
+}
+
+TArray<uint8_t> VulkanFrameBuffer::GetScreenshotBuffer(int &pitch, ESSType &color_type, float &gamma)
+{
+	int w = SCREENWIDTH;
+	int h = SCREENHEIGHT;
+
+	TArray<uint8_t> ScreenshotBuffer(w * h * 3, true);
+	CopyScreenToBuffer(w, h, ScreenshotBuffer.Data());
+
+	pitch = w * 3;
+	color_type = SS_RGB;
+	gamma = 2.2f;
+	return ScreenshotBuffer;
+}
+
 void VulkanFrameBuffer::BeginFrame()
 {
 	SetViewportRects(nullptr);
 	mScreenBuffers->BeginFrame(screen->mScreenViewport.width, screen->mScreenViewport.height, screen->mSceneViewport.width, screen->mSceneViewport.height);
 	mSaveBuffers->BeginFrame(SAVEPICWIDTH, SAVEPICHEIGHT, SAVEPICWIDTH, SAVEPICHEIGHT);
 	mPostprocess->BeginFrame();
+	mRenderState->BeginFrame();
+	mRenderPassManager->UpdateDynamicSet();
 }
 
 void VulkanFrameBuffer::Draw2D(bool outside2D)
@@ -569,21 +770,23 @@ void VulkanFrameBuffer::Draw2D(bool outside2D)
 	//::Draw2D(&m2DDrawer, *mRenderState);
 }
 
-VulkanCommandBuffer *VulkanFrameBuffer::GetUploadCommands()
+VulkanCommandBuffer *VulkanFrameBuffer::GetTransferCommands()
 {
-	if (!mUploadCommands)
+	if (!mTransferCommands)
 	{
-		mUploadCommands = mGraphicsCommandPool->createBuffer();
-		mUploadCommands->begin();
+		mTransferCommands = mCommandPool->createBuffer();
+		mTransferCommands->SetDebugName("VulkanFrameBuffer.mTransferCommands");
+		mTransferCommands->begin();
 	}
-	return mUploadCommands.get();
+	return mTransferCommands.get();
 }
 
 VulkanCommandBuffer *VulkanFrameBuffer::GetDrawCommands()
 {
 	if (!mDrawCommands)
 	{
-		mDrawCommands = mGraphicsCommandPool->createBuffer();
+		mDrawCommands = mCommandPool->createBuffer();
+		mDrawCommands->SetDebugName("VulkanFrameBuffer.mDrawCommands");
 		mDrawCommands->begin();
 	}
 	return mDrawCommands.get();
@@ -627,7 +830,7 @@ void VulkanFrameBuffer::PrintStartupLog()
 	const auto &limits = props.limits;
 	Printf("Max. texture size: %d\n", limits.maxImageDimension2D);
 	Printf("Max. uniform buffer range: %d\n", limits.maxUniformBufferRange);
-	Printf("Min. uniform buffer offset alignment: %d\n", limits.minUniformBufferOffsetAlignment);
+	Printf("Min. uniform buffer offset alignment: %llu\n", limits.minUniformBufferOffsetAlignment);
 }
 
 void VulkanFrameBuffer::CreateFanToTrisIndexBuffer()
@@ -642,4 +845,9 @@ void VulkanFrameBuffer::CreateFanToTrisIndexBuffer()
 
 	FanToTrisIndexBuffer.reset(CreateIndexBuffer());
 	FanToTrisIndexBuffer->SetData(sizeof(uint32_t) * data.Size(), data.Data());
+}
+
+void VulkanFrameBuffer::UpdateShadowMap()
+{
+	mPostprocess->UpdateShadowMap();
 }

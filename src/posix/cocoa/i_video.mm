@@ -33,8 +33,10 @@
 
 #include "gl_load/gl_load.h"
 
+#ifdef HAVE_VULKAN
 #define VK_USE_PLATFORM_MACOS_MVK
 #include "volk/volk.h"
+#endif
 
 #include "i_common.h"
 
@@ -52,10 +54,7 @@
 #include "version.h"
 #include "doomerrors.h"
 
-#include "gl/renderer/gl_renderer.h"
 #include "gl/system/gl_framebuffer.h"
-#include "gl/textures/gl_samplers.h"
-
 #include "vulkan/system/vk_framebuffer.h"
 
 
@@ -95,6 +94,8 @@ EXTERN_CVAR(Bool, vid_vsync)
 EXTERN_CVAR(Bool, vid_hidpi)
 EXTERN_CVAR(Int,  vid_defwidth)
 EXTERN_CVAR(Int,  vid_defheight)
+EXTERN_CVAR(Int,  vid_backend)
+EXTERN_CVAR(Bool, vk_debug)
 
 CUSTOM_CVAR(Bool, vid_autoswitch, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_NOINITCALL)
 {
@@ -181,6 +182,12 @@ namespace
 
 @implementation OpenGLCocoaView
 
+- (void)drawRect:(NSRect)dirtyRect
+{
+	[NSColor.blackColor setFill];
+	NSRectFill(dirtyRect);
+}
+
 - (void)resetCursorRects
 {
 	[super resetCursorRects];
@@ -231,11 +238,6 @@ namespace
 - (void)setCursor:(NSCursor*)cursor
 {
 	m_cursor = cursor;
-}
-
--(BOOL) wantsUpdateLayer
-{
-	return YES;
 }
 
 +(Class) layerClass
@@ -326,9 +328,6 @@ void SetupOpenGLView(CocoaWindow* window)
 	[[glView openGLContext] makeCurrentContext];
 
 	[window setContentView:glView];
-
-	// To be able to use OpenGL functions in SetMode()
-	ogl_LoadFunctions();
 }
 
 } // unnamed namespace
@@ -342,14 +341,13 @@ class CocoaVideo : public IVideo
 public:
 	CocoaVideo()
 	{
-		ms_isVulkanSupported = true; // todo
+		ms_isVulkanEnabled = vid_backend == 0 && NSAppKitVersionNumber >= 1404; // NSAppKitVersionNumber10_11
 	}
 
 	~CocoaVideo()
 	{
 		delete m_vulkanDevice;
 
-		[ms_window dealloc];
 		ms_window = nil;
 	}
 
@@ -360,29 +358,42 @@ public:
 
 		SystemBaseFrameBuffer *fb = nullptr;
 
-		if (ms_isVulkanSupported)
+		if (ms_isVulkanEnabled)
 		{
 			const NSRect contentRect = [ms_window contentRectForFrameRect:[ms_window frame]];
 
 			NSView* vulkanView = [[VulkanCocoaView alloc] initWithFrame:contentRect];
-			[vulkanView setWantsLayer:YES];
+			vulkanView.wantsLayer = YES;
+			vulkanView.layer.backgroundColor = NSColor.blackColor.CGColor;
 
 			[ms_window setContentView:vulkanView];
+
+			if (!vk_debug)
+			{
+				// Limit MoltenVK logging to errors only
+				setenv("MVK_CONFIG_LOG_LEVEL", "1", 0);
+			}
+
+			if (!vid_autoswitch)
+			{
+				// CVAR from pre-Vulkan era has a priority over vk_device selection
+				setenv("MVK_CONFIG_FORCE_LOW_POWER_GPU", "1", 0);
+			}
+
+			try
+			{
+				m_vulkanDevice = new VulkanDevice();
+				fb = new VulkanFrameBuffer(nullptr, fullscreen, m_vulkanDevice);
+			}
+			catch (std::exception const&)
+			{
+				ms_isVulkanEnabled = false;
+
+				SetupOpenGLView(ms_window);
+			}
 		}
 		else
 		{
-			SetupOpenGLView(ms_window);
-		}
-
-		try
-		{
-			m_vulkanDevice = new VulkanDevice();
-			fb = new VulkanFrameBuffer(nullptr, fullscreen, m_vulkanDevice);
-		}
-		catch (std::exception const&)
-		{
-			ms_isVulkanSupported = false;
-
 			SetupOpenGLView(ms_window);
 		}
 
@@ -395,6 +406,16 @@ public:
 		fb->SetMode(fullscreen, vid_hidpi);
 		fb->SetSize(fb->GetClientWidth(), fb->GetClientHeight());
 
+		// This lame hack is a temporary workaround for strange performance issues
+		// with fullscreen window and Core Animation's Metal layer
+		// It is somehow related to initial window level and flags
+		// Toggling fullscreen -> window -> fullscreen mysteriously solves the problem
+		if (ms_isVulkanEnabled && fullscreen)
+		{
+			fb->SetMode(false, vid_hidpi);
+			fb->SetMode(true, vid_hidpi);
+		}
+
 		return fb;
 	}
 
@@ -403,23 +424,18 @@ public:
 		return ms_window;
 	}
 
-	static bool IsVulkanSupported()
-	{
-		return ms_isVulkanSupported;
-	}
-
 private:
 	VulkanDevice *m_vulkanDevice = nullptr;
 
 	static CocoaWindow* ms_window;
 
-	static bool ms_isVulkanSupported;
+	static bool ms_isVulkanEnabled;
 };
 
 
 CocoaWindow* CocoaVideo::ms_window;
 
-bool CocoaVideo::ms_isVulkanSupported;
+bool CocoaVideo::ms_isVulkanEnabled;
 
 
 // ---------------------------------------------------------------------------
@@ -434,8 +450,6 @@ SystemBaseFrameBuffer::SystemBaseFrameBuffer(void*, const bool fullscreen)
 , m_hiDPI(false)
 , m_window(nullptr)
 {
-	SetFlash(0, 0);
-
 	assert(frameBuffer == nullptr);
 	frameBuffer = this;
 
@@ -560,6 +574,10 @@ void SystemBaseFrameBuffer::SetWindowedMode()
 
 void SystemBaseFrameBuffer::SetMode(const bool fullscreen, const bool hiDPI)
 {
+	assert(m_window.screen != nil);
+	assert(m_window.contentView.layer != nil);
+	[m_window.contentView layer].contentsScale = hiDPI ? m_window.screen.backingScaleFactor : 1.0;
+
 	if (fullscreen)
 	{
 		SetFullscreenMode();
@@ -661,14 +679,6 @@ void SystemGLFrameBuffer::SetMode(const bool fullscreen, const bool hiDPI)
 		SetWindowedMode();
 	}
 
-	const NSSize viewSize = I_GetContentViewSize(m_window);
-
-	glViewport(0, 0, static_cast<GLsizei>(viewSize.width), static_cast<GLsizei>(viewSize.height));
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	[[NSOpenGLContext currentContext] flushBuffer];
-
 	[m_window updateTitle];
 
 	if (![m_window isKeyWindow])
@@ -716,16 +726,6 @@ void I_InitGraphics()
 
 
 // ---------------------------------------------------------------------------
-
-
-EXTERN_CVAR(Int, vid_maxfps);
-EXTERN_CVAR(Bool, cl_capfps);
-
-// So Apple doesn't support POSIX timers and I can't find a good substitute short of
-// having Objective-C Cocoa events or something like that.
-void I_SetFPSLimit(int limit)
-{
-}
 
 CUSTOM_CVAR(Bool, vid_hidpi, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_NOINITCALL)
 {
@@ -816,6 +816,7 @@ void I_SetWindowTitle(const char* title)
 }
 
 
+#ifdef HAVE_VULKAN
 void I_GetVulkanDrawableSize(int *width, int *height)
 {
 	NSWindow* const window = CocoaVideo::GetWindow();
@@ -877,3 +878,4 @@ bool I_CreateVulkanSurface(VkInstance instance, VkSurfaceKHR *surface)
 	const VkResult result = vkCreateMacOSSurfaceMVK(instance, &windowCreateInfo, nullptr, surface);
 	return result == VK_SUCCESS;
 }
+#endif

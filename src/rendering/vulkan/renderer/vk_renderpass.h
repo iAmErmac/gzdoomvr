@@ -4,6 +4,7 @@
 #include "vulkan/system/vk_objects.h"
 #include "r_data/renderstyle.h"
 #include "hwrenderer/data/buffers.h"
+#include "hwrenderer/scene/hw_renderstate.h"
 #include <string.h>
 #include <map>
 
@@ -27,6 +28,11 @@ public:
 	int CullMode;
 	int VertexFormat;
 	int DrawType;
+	int Samples;
+	int ClearTargets;
+	int DrawBuffers;
+
+	bool UsesDepthStencil() const { return DepthTest || DepthWrite || StencilTest || (ClearTargets & (CT_Depth | CT_Stencil)); }
 
 	bool operator<(const VkRenderPassKey &other) const { return memcmp(this, &other, sizeof(VkRenderPassKey)) < 0; }
 	bool operator==(const VkRenderPassKey &other) const { return memcmp(this, &other, sizeof(VkRenderPassKey)) == 0; }
@@ -63,10 +69,9 @@ public:
 
 	void Init();
 	void RenderBuffersReset();
+	void UpdateDynamicSet();
 
-	void SetRenderTarget(VulkanImageView *view, int width, int height);
-	void BeginRenderPass(const VkRenderPassKey &key, VulkanCommandBuffer *cmdbuffer);
-
+	VkRenderPassSetup *GetRenderPass(const VkRenderPassKey &key);
 	int GetVertexFormat(int numBindingPoints, int numAttributes, size_t stride, const FVertexBufferAttribute *attrs);
 
 	std::unique_ptr<VulkanDescriptorSetLayout> DynamicSetLayout;
@@ -86,9 +91,4 @@ private:
 	void CreateDescriptorPool();
 	void CreateDynamicSet();
 
-	VkRenderPassSetup *GetRenderPass(const VkRenderPassKey &key);
-
-	VulkanImageView *mRenderTargetView = nullptr;
-	int mRenderTargetWidth = 0;
-	int mRenderTargetHeight = 0;
 };

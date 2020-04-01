@@ -66,6 +66,7 @@
 #include "i_time.h"
 #include "i_system.h"
 #include "vm.h"
+#include "gstrings.h"
 
 EXTERN_CVAR (Int, disableautosave)
 EXTERN_CVAR (Int, autosavecount)
@@ -144,18 +145,7 @@ static int	oldentertics;
 
 extern	bool	 advancedemo;
 
-CUSTOM_CVAR (Bool, cl_capfps, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
-{
-	// Do not use the separate FPS limit timer if we are limiting FPS with this.
-	if (self)
-	{
-		I_SetFPSLimit(0);
-	}
-	else
-	{
-		I_SetFPSLimit(-1);
-	}
-}
+CVAR (Bool, cl_capfps, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
 
 CVAR(Bool, net_ticbalance, false, CVAR_SERVERINFO | CVAR_NOSAVE)
 CUSTOM_CVAR(Int, net_extratic, 0, CVAR_SERVERINFO | CVAR_NOSAVE)
@@ -2169,7 +2159,7 @@ void Net_DoCommand (int type, uint8_t **stream, int player)
 
 	case DEM_CENTERPRINT:
 		s = ReadString (stream);
-		C_MidPrint (SmallFont, s);
+		C_MidPrint (nullptr, s);
 		break;
 
 	case DEM_UINFCHANGED:
@@ -2187,6 +2177,13 @@ void Net_DoCommand (int type, uint8_t **stream, int player)
 	case DEM_GIVECHEAT:
 		s = ReadString (stream);
 		cht_Give (&players[player], s, ReadLong (stream));
+		if (player != consoleplayer)
+		{
+			FString message = GStrings("TXT_X_CHEATS");
+			message.Substitute("%s", players[player].userinfo.GetName());
+			Printf("%s: give %s\n", message.GetChars(), s);
+		}
+
 		break;
 
 	case DEM_TAKECHEAT:

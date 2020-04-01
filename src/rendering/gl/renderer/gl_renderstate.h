@@ -39,20 +39,10 @@ namespace OpenGLRenderer
 {
 
 class FShader;
-struct GLSectorPlane;
-
-enum EPassType
-{
-	NORMAL_PASS,
-	GBUFFER_PASS,
-	MAX_PASS_TYPES
-};
-
+struct HWSectorPlane;
 
 class FGLRenderState : public FRenderState
 {
-	uint64_t firstFrame = 0;
-
 	uint8_t mLastDepthClamp : 1;
 
 	float mGlossiness, mSpecularLevel;
@@ -69,7 +59,6 @@ class FGLRenderState : public FRenderState
 
 	FShader *activeShader;
 
-	EPassType mPassType = NORMAL_PASS;
 	int mNumDrawBuffers = 1;
 
 	bool ApplyShader();
@@ -105,7 +94,6 @@ public:
 	void Apply();
 	void ApplyBuffers();
 	void ApplyBlendMode();
-	void CheckTimer(uint64_t ShaderStartTime);
 
 	void ResetVertexBuffer()
 	{
@@ -120,17 +108,7 @@ public:
 		mSpecularLevel = specularLevel;
 	}
 
-	void SetPassType(EPassType passType)
-	{
-		mPassType = passType;
-	}
-
-	EPassType GetPassType()
-	{
-		return mPassType;
-	}
-
-	void EnableDrawBuffers(int count)
+	void EnableDrawBuffers(int count) override
 	{
 		count = MIN(count, 3);
 		if (mNumDrawBuffers != count)
@@ -139,11 +117,6 @@ public:
 			glDrawBuffers(count, buffers);
 			mNumDrawBuffers = count;
 		}
-	}
-
-	int GetPassDrawBufferCount()
-	{
-		return mPassType == GBUFFER_PASS ? 3 : 1;
 	}
 
 	void ToggleState(int state, bool on);
@@ -157,7 +130,6 @@ public:
 	void SetDepthFunc(int func) override;
 	void SetDepthRange(float min, float max) override;
 	void SetColorMask(bool r, bool g, bool b, bool a) override;
-	void EnableDrawBufferAttachments(bool on) override;
 	void SetStencil(int offs, int op, int flags) override;
 	void SetCulling(int mode) override;
 	void EnableClipDistance(int num, bool state) override;

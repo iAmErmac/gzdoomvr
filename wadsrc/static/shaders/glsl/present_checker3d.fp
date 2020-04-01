@@ -23,11 +23,11 @@ void main()
 		) % 2 == 0;
 	vec4 inputColor;
 	if (isLeftEye) {
-		inputColor = texture(LeftEyeTexture, TexCoord);
+		inputColor = texture(LeftEyeTexture, UVOffset + TexCoord * UVScale);
 	}
 	else {
 		// inputColor = vec4(0, 1, 0, 1);
-		inputColor = texture(RightEyeTexture, TexCoord);
+		inputColor = texture(RightEyeTexture, UVOffset + TexCoord * UVScale);
 	}
 	FragColor = ApplyGamma(inputColor);
 }

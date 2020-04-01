@@ -384,8 +384,11 @@ if( ZD_CMAKE_COMPILER_IS_GNUCXX_COMPATIBLE )
 	# Remove extra warnings when using the official DirectX headers.
 	# Also, TDM-GCC 4.4.0 no longer accepts glibc-style printf formats as valid,
 	# which is a royal pain. The previous version I had been using was fine with them.
+	# MinGW: switch to the Windows Unicode API.
 	if( WIN32 )
 		set( CMAKE_CXX_FLAGS "-Wno-unknown-pragmas -Wno-comment -Wno-format ${CMAKE_CXX_FLAGS}" )
+		set( CMAKE_CXX_FLAGS "-D_UNICODE -DUNICODE ${CMAKE_CXX_FLAGS}" )
+		set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -municode" )
 	endif()
 
 	# Detect FreeBSD and add flags
@@ -460,7 +463,10 @@ add_custom_target( revision_check ALL
 # Libraries ZDoom needs
 
 message( STATUS "Fluid synth libs: ${FLUIDSYNTH_LIBRARIES}" )
-set( ZDOOM_LIBS ${ZDOOM_LIBS} "${ZLIB_LIBRARIES}" "${JPEG_LIBRARIES}" "${BZIP2_LIBRARIES}" "${GME_LIBRARIES}" "${CMAKE_DL_LIBS}" "glslang" "SPIRV" "OGLCompiler" )
+set( ZDOOM_LIBS ${ZDOOM_LIBS} "${ZLIB_LIBRARIES}" "${JPEG_LIBRARIES}" "${BZIP2_LIBRARIES}" "${GME_LIBRARIES}" "${CMAKE_DL_LIBS}" )
+if (HAVE_VULKAN)
+	set( ZDOOM_LIBS ${ZDOOM_LIBS} "glslang" "SPIRV" "OGLCompiler")
+endif()
 include_directories( "${ZLIB_INCLUDE_DIR}" "${BZIP2_INCLUDE_DIR}" "${LZMA_INCLUDE_DIR}" "${JPEG_INCLUDE_DIR}" "${GME_INCLUDE_DIR}" )
 
 if( ${HAVE_VM_JIT} )
@@ -571,8 +577,12 @@ set( PLAT_WIN32_SOURCES
 	win32/gl_sysfb.cpp
 	win32/base_sysfb.cpp
 	win32/win32basevideo.cpp
-	win32/win32glvideo.cpp
-	win32/win32vulkanvideo.cpp )
+	win32/win32glvideo.cpp)
+	
+if (HAVE_VULKAN)
+	set (PLAT_WIN32_SOURCES ${PLAT_WIN32_SOURCES} win32/win32vulkanvideo.cpp )
+endif()
+	
 set( PLAT_POSIX_SOURCES
 	posix/i_cd.cpp
 	posix/i_steam.cpp )
@@ -959,9 +969,10 @@ set( FASTMATH_SOURCES
 	sound/opnmidi/opnmidi_midiplay.cpp
 	sound/opnmidi/opnmidi_opn2.cpp
 	sound/opnmidi/opnmidi_private.cpp
-	sound/opnmidi/wopn/wopn_file.c
-
-	#Vulkan stuff must go into a separate list later because it needs to be disabled for some platforms
+	sound/opnmidi/wopn/wopn_file.c)
+	
+#Vulkan stuff must go into a separate list later because it needs to be disabled for some platforms
+set (VULKAN_SOURCES
 	rendering/vulkan/system/vk_device.cpp
 	rendering/vulkan/system/vk_swapchain.cpp
 	rendering/vulkan/system/vk_builders.cpp
@@ -977,6 +988,10 @@ set( FASTMATH_SOURCES
 	rendering/vulkan/thirdparty/volk/volk.c
 	rendering/vulkan/thirdparty/vk_mem_alloc/vk_mem_alloc.cpp
 )
+
+if (HAVE_VULKAN)
+	set (FASTMATH_SOURCES ${FASTMATH_SOURCES} ${VULKAN_SOURCES})
+endif()
 
 set (PCH_SOURCES
 	am_map.cpp
@@ -1141,9 +1156,6 @@ set (PCH_SOURCES
 	rendering/hwrenderer/postprocessing/hw_postprocess.cpp
 	rendering/hwrenderer/postprocessing/hw_postprocess_cvars.cpp
 	rendering/hwrenderer/postprocessing/hw_postprocessshader.cpp
-	rendering/hwrenderer/postprocessing/hw_shadowmapshader.cpp
-	rendering/hwrenderer/postprocessing/hw_presentshader.cpp
-	rendering/hwrenderer/postprocessing/hw_present3dRowshader.cpp
 	rendering/hwrenderer/textures/hw_material.cpp
 	rendering/hwrenderer/textures/hw_precache.cpp
 	rendering/hwrenderer/utility/hw_clock.cpp
@@ -1214,6 +1226,7 @@ set (PCH_SOURCES
 	gamedata/fonts/singlepicfont.cpp
 	gamedata/fonts/specialfont.cpp
 	gamedata/fonts/font.cpp
+	gamedata/fonts/hexfont.cpp
 	gamedata/fonts/v_font.cpp
 	gamedata/fonts/v_text.cpp	
 	gamedata/p_xlat.cpp
@@ -1405,13 +1418,6 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	utility/math/tan.c
 	utility/math/tanh.c
 	utility/math/fastsin.cpp
-	utility/xlsxread/xlsxio_read.cpp
-	utility/xlsxread/expat/xmlparse.c
-	utility/xlsxread/expat/xmlrole.c
-	utility/xlsxread/expat/xmltok.c
-	utility/xlsxread/expat/xmltok_impl.c
-	utility/xlsxread/expat/xmltok_ns.c
-
 	zzautozend.cpp
 )
 

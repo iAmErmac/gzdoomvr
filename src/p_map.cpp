@@ -100,7 +100,7 @@ CVAR(Int, sv_smartaim, 0, CVAR_ARCHIVE | CVAR_SERVERINFO)
 CVAR(Bool, cl_doautoaim, false, CVAR_ARCHIVE)
 
 static void CheckForPushSpecial(line_t *line, int side, AActor *mobj, DVector2 * posforwindowcheck = NULL);
-static void SpawnShootDecal(AActor *t1, const FTraceResults &trace);
+static void SpawnShootDecal(AActor *t1, AActor *defaults, const FTraceResults &trace);
 static void SpawnDeepSplash(AActor *t1, const FTraceResults &trace, AActor *puff);
 
 static FRandom pr_tracebleed("TraceBleed");
@@ -978,7 +978,7 @@ bool PIT_CheckLine(FMultiBlockLinesIterator &mit, FMultiBlockLinesIterator::Chec
 		// better than Strife's handling of rails, which lets you jump into rails
 		// from either side. How long until somebody reports this as a bug and I'm
 		// forced to say, "It's not a bug. It's a feature?" Ugh.
-		(!(tm.thing->Level->flags2 & LEVEL2_RAILINGHACK) ||
+		(!(tm.thing->Level->i_compatflags2 & COMPATF2_RAILING) ||
 		open.bottom == tm.thing->Sector->floorplane.ZatPoint(ref)))
 	{
 		open.bottom += 32;
@@ -4589,20 +4589,20 @@ AActor *P_LineAttack(AActor *t1, DAngle angle, double distance,
 				{
 					// [ZK] If puff has FORCEDECAL set, do not use the weapon's decal
 					if (puffDefaults->flags7 & MF7_FORCEDECAL && puff != NULL && puff->DecalGenerator)
-						SpawnShootDecal(puff, trace);
+						SpawnShootDecal(puff,  puff, trace);
 					else
-						SpawnShootDecal(t1, trace);
+						SpawnShootDecal(t1, t1, trace);
 				}
 
 				// Else, look if the bulletpuff has a decal defined.
 				else if (puff != NULL && puff->DecalGenerator)
 				{
-					SpawnShootDecal(puff, trace);
+					SpawnShootDecal(puff, puff, trace);
 				}
 
 				else
 				{
-					SpawnShootDecal(t1, trace);
+					SpawnShootDecal(t1, t1, trace);
 				}
 			}
 			else if (puff != NULL &&
@@ -5289,9 +5289,9 @@ void P_RailAttack(FRailParams *p)
 				puff->Destroy();
 		}
 		if (puffDefaults != nullptr && puffDefaults->flags7 & MF7_FORCEDECAL && puffDefaults->DecalGenerator)
-			SpawnShootDecal(puffDefaults, trace);
+			SpawnShootDecal(source, puffDefaults, trace);
 		else
-			SpawnShootDecal(source, trace);
+			SpawnShootDecal(source, source, trace);
 
 	}
 	if (trace.HitType == TRACE_HitFloor || trace.HitType == TRACE_HitCeiling)
@@ -5910,7 +5910,8 @@ int P_RadiusAttack(AActor *bombspot, AActor *bombsource, int bombdamage, int bom
 		// them far too "active." BossBrains also use the old code
 		// because some user levels require they have a height of 16,
 		// which can make them near impossible to hit with the new code.
-		if (((flags & RADF_NODAMAGE) || !((bombspot->flags5 | thing->flags5) & MF5_OLDRADIUSDMG)) && !(flags & RADF_OLDRADIUSDAMAGE))
+		if ((flags & RADF_NODAMAGE) || (!((bombspot->flags5 | thing->flags5) & MF5_OLDRADIUSDMG) && 
+			!(flags & RADF_OLDRADIUSDAMAGE) && !(thing->Level->i_compatflags2 & COMPATF2_EXPLODE2)))
 		{
 			double points = GetRadiusDamage(false, bombspot, thing, bombdamage, bombdistance, fulldamagedistance, bombsource == thing);
 			double check = int(points) * bombdamage;
@@ -5960,7 +5961,10 @@ int P_RadiusAttack(AActor *bombspot, AActor *bombsource, int bombdamage, int bom
 								}
 								thing->Thrust(bombspot->AngleTo(thing), thrust);
 								if (!(flags & RADF_NODAMAGE) || (flags & RADF_THRUSTZ))
-									thing->Vel.Z += vz;	// this really doesn't work well
+								{
+									if (!(thing->Level->i_compatflags2 & COMPATF2_EXPLODE1) || (flags & RADF_THRUSTZ))
+										thing->Vel.Z += vz;	// this really doesn't work well
+								}
 							}
 						}
 					}
@@ -6767,19 +6771,19 @@ bool P_ChangeSector(sector_t *sector, int crunch, double amt, int floorOrCeil, b
 //
 //==========================================================================
 
-void SpawnShootDecal(AActor *t1, const FTraceResults &trace)
+void SpawnShootDecal(AActor *t1, AActor *defaults, const FTraceResults &trace)
 {
-	FDecalBase *decalbase = NULL;
+	FDecalBase *decalbase = nullptr;
 
-	if (t1->player != NULL && t1->player->ReadyWeapon != NULL)
+	if (defaults->player != nullptr && defaults->player->ReadyWeapon != nullptr)
 	{
-		decalbase = t1->player->ReadyWeapon->DecalGenerator;
+		decalbase = defaults->player->ReadyWeapon->DecalGenerator;
 	}
 	else
 	{
-		decalbase = t1->DecalGenerator;
+		decalbase = defaults->DecalGenerator;
 	}
-	if (decalbase != NULL)
+	if (decalbase != nullptr)
 	{
 		DImpactDecal::StaticCreate(t1->Level, decalbase->GetDecal(),
 			trace.HitPos, trace.Line->sidedef[trace.Side], trace.ffloor);

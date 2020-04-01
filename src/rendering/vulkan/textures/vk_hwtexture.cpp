@@ -35,6 +35,7 @@
 #include "vulkan/system/vk_framebuffer.h"
 #include "vulkan/textures/vk_samplers.h"
 #include "vulkan/renderer/vk_renderpass.h"
+#include "vulkan/renderer/vk_postprocess.h"
 #include "vk_hwtexture.h"
 
 VkHardwareTexture *VkHardwareTexture::First = nullptr;
@@ -51,6 +52,21 @@ VkHardwareTexture::~VkHardwareTexture()
 	if (Next) Next->Prev = Prev;
 	if (Prev) Prev->Next = Next;
 	else First = Next;
+
+	auto fb = GetVulkanFrameBuffer();
+	if (fb)
+	{
+		auto &deleteList = fb->FrameDeleteList;
+		for (auto &it : mDescriptorSets)
+		{
+			deleteList.Descriptors.push_back(std::move(it.descriptor));
+			it.descriptor = nullptr;
+		}
+		mDescriptorSets.clear();
+		if (mImage) deleteList.Images.push_back(std::move(mImage));
+		if (mImageView) deleteList.ImageViews.push_back(std::move(mImageView));
+		if (mStagingBuffer) deleteList.Buffers.push_back(std::move(mStagingBuffer));
+	}
 }
 
 void VkHardwareTexture::Reset()
@@ -61,6 +77,23 @@ void VkHardwareTexture::Reset()
 	mStagingBuffer.reset();
 }
 
+void VkHardwareTexture::ResetDescriptors()
+{
+	mDescriptorSets.clear();
+}
+
+void VkHardwareTexture::Precache(FMaterial *mat, int translation, int flags)
+{
+	int numLayers = mat->GetLayers();
+	GetImageView(mat->tex, translation, flags);
+	for (int i = 1; i < numLayers; i++)
+	{
+		FTexture *layer;
+		auto systex = static_cast<VkHardwareTexture*>(mat->GetLayer(i, 0, &layer));
+		systex->GetImageView(layer, 0, mat->isExpanded() ? CTF_Expand : 0);
+	}
+}
+
 VulkanDescriptorSet *VkHardwareTexture::GetDescriptorSet(const FMaterialState &state)
 {
 	FMaterial *mat = state.mMaterial;
@@ -68,75 +101,106 @@ VulkanDescriptorSet *VkHardwareTexture::GetDescriptorSet(const FMaterialState &s
 	int clampmode = state.mClampMode;
 	int translation = state.mTranslation;
 
-	//if (tex->UseType == ETextureType::SWCanvas) clampmode = CLAMP_NOFILTER;
-	//if (tex->isHardwareCanvas()) clampmode = CLAMP_CAMTEX;
-	//else if ((tex->isWarped() || tex->shaderindex >= FIRST_USER_SHADER) && clampmode <= CLAMP_XY) clampmode = CLAMP_NONE;
+	if (tex->UseType == ETextureType::SWCanvas) clampmode = CLAMP_NOFILTER;
+	if (tex->isHardwareCanvas()) clampmode = CLAMP_CAMTEX;
+	else if ((tex->isWarped() || tex->shaderindex >= FIRST_USER_SHADER) && clampmode <= CLAMP_XY) clampmode = CLAMP_NONE;
 
 	// Textures that are already scaled in the texture lump will not get replaced by hires textures.
 	int flags = state.mMaterial->isExpanded() ? CTF_Expand : (gl_texture_usehires && !tex->isScaled() && clampmode <= CLAMP_XY) ? CTF_CheckHires : 0;
 
-	DescriptorKey key;
-	key.clampmode = clampmode;
-	key.translation = translation;
-	key.flags = flags;
-	auto &descriptorSet = mDescriptorSets[key];
-	if (!descriptorSet)
+	if (tex->isHardwareCanvas()) static_cast<FCanvasTexture*>(tex)->NeedUpdate();
+
+	for (auto &set : mDescriptorSets)
 	{
-		auto fb = GetVulkanFrameBuffer();
-
-		descriptorSet = fb->GetRenderPassManager()->DescriptorPool->allocate(fb->GetRenderPassManager()->TextureSetLayout.get());
-
-		VulkanSampler *sampler = fb->GetSamplerManager()->Get(clampmode);
-		int numLayers = mat->GetLayers();
-
-		WriteDescriptors update;
-		update.addCombinedImageSampler(descriptorSet.get(), 0, GetImageView(tex, clampmode, translation, flags), sampler, mImageLayout);
-		for (int i = 1; i < numLayers; i++)
-		{
-			FTexture *layer;
-			auto systex = static_cast<VkHardwareTexture*>(mat->GetLayer(i, 0, &layer));
-			update.addCombinedImageSampler(descriptorSet.get(), i, systex->GetImageView(layer, clampmode, 0, mat->isExpanded() ? CTF_Expand : 0), sampler, mImageLayout);
-		}
-		update.updateSets(fb->device);
+		if (set.descriptor && set.clampmode == clampmode && set.flags == flags) return set.descriptor.get();
 	}
 
-	return descriptorSet.get();
+	auto fb = GetVulkanFrameBuffer();
+	auto descriptor = fb->GetRenderPassManager()->DescriptorPool->allocate(fb->GetRenderPassManager()->TextureSetLayout.get());
+
+	descriptor->SetDebugName("VkHardwareTexture.mDescriptorSets");
+
+	VulkanSampler *sampler = fb->GetSamplerManager()->Get(clampmode);
+	int numLayers = mat->GetLayers();
+
+	//int maxTextures = 6;
+	auto baseView = GetImageView(tex, translation, flags);
+	//numLayers = clamp(numLayers, 1, maxTextures);
+
+	WriteDescriptors update;
+	update.addCombinedImageSampler(descriptor.get(), 0, baseView, sampler, mImageLayout);
+	for (int i = 1; i < numLayers; i++)
+	{
+		FTexture *layer;
+		auto systex = static_cast<VkHardwareTexture*>(mat->GetLayer(i, 0, &layer));
+		update.addCombinedImageSampler(descriptor.get(), i, systex->GetImageView(layer, 0, mat->isExpanded() ? CTF_Expand : 0), sampler, systex->mImageLayout);
+	}
+	update.updateSets(fb->device);
+	mDescriptorSets.emplace_back(clampmode, flags, std::move(descriptor));
+	return mDescriptorSets.back().descriptor.get();
 }
 
-VulkanImageView *VkHardwareTexture::GetImageView(FTexture *tex, int clampmode, int translation, int flags)
+VulkanImage *VkHardwareTexture::GetImage(FTexture *tex, int translation, int flags)
 {
 	if (!mImage)
 	{
-		if (!tex->isHardwareCanvas())
+		CreateImage(tex, translation, flags);
+	}
+	return mImage.get();
+}
+
+VulkanImageView *VkHardwareTexture::GetImageView(FTexture *tex, int translation, int flags)
+{
+	if (!mImageView)
+	{
+		CreateImage(tex, translation, flags);
+	}
+	return mImageView.get();
+}
+
+void VkHardwareTexture::CreateImage(FTexture *tex, int translation, int flags)
+{
+	if (!tex->isHardwareCanvas())
+	{
+		if (translation <= 0)
 		{
-			if (translation <= 0)
-			{
-				translation = -translation;
-			}
-			else
-			{
-				auto remap = TranslationToTable(translation);
-				translation = remap == nullptr ? 0 : remap->GetUniqueIndex();
-			}
-
-			bool needmipmap = (clampmode <= CLAMP_XY);
-
-			FTextureBuffer texbuffer = tex->CreateTexBuffer(translation, flags | CTF_ProcessData);
-			CreateTexture(texbuffer.mWidth, texbuffer.mHeight, 4, VK_FORMAT_B8G8R8A8_UNORM, texbuffer.mBuffer);
+			translation = -translation;
 		}
 		else
 		{
-			static const uint32_t testpixels[4 * 4] =
-			{
-				0xff0000ff, 0xff0000ff, 0xffff00ff, 0xffff00ff,
-				0xff0000ff, 0xff0000ff, 0xffff00ff, 0xffff00ff,
-				0xff00ff00, 0xff00ff00, 0x0000ffff, 0xff00ffff,
-				0xff00ff00, 0xff00ff00, 0x0000ffff, 0xff00ffff,
-			};
-			CreateTexture(4, 4, 4, VK_FORMAT_R8G8B8A8_UNORM, testpixels);
+			auto remap = TranslationToTable(translation);
+			translation = remap == nullptr ? 0 : remap->GetUniqueIndex();
 		}
+
+		FTextureBuffer texbuffer = tex->CreateTexBuffer(translation, flags | CTF_ProcessData);
+		CreateTexture(texbuffer.mWidth, texbuffer.mHeight, 4, VK_FORMAT_B8G8R8A8_UNORM, texbuffer.mBuffer);
 	}
-	return mImageView.get();
+	else
+	{
+		auto fb = GetVulkanFrameBuffer();
+
+		VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+		int w = tex->GetWidth();
+		int h = tex->GetHeight();
+
+		ImageBuilder imgbuilder;
+		imgbuilder.setFormat(format);
+		imgbuilder.setSize(w, h);
+		imgbuilder.setUsage(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+		mImage = imgbuilder.create(fb->device);
+		mImage->SetDebugName("VkHardwareTexture.mImage");
+
+		ImageViewBuilder viewbuilder;
+		viewbuilder.setImage(mImage.get(), format);
+		mImageView = viewbuilder.create(fb->device);
+		mImageView->SetDebugName("VkHardwareTexture.mImageView");
+
+		auto cmdbuffer = fb->GetTransferCommands();
+
+		PipelineBarrier imageTransition;
+		imageTransition.addImage(mImage.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, VK_ACCESS_SHADER_READ_BIT);
+		imageTransition.execute(cmdbuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+	}
 }
 
 void VkHardwareTexture::CreateTexture(int w, int h, int pixelsize, VkFormat format, const void *pixels)
@@ -149,6 +213,7 @@ void VkHardwareTexture::CreateTexture(int w, int h, int pixelsize, VkFormat form
 	bufbuilder.setSize(totalSize);
 	bufbuilder.setUsage(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 	mStagingBuffer = bufbuilder.create(fb->device);
+	mStagingBuffer->SetDebugName("VkHardwareTexture.mStagingBuffer");
 
 	uint8_t *data = (uint8_t*)mStagingBuffer->Map(0, totalSize);
 	memcpy(data, pixels, totalSize);
@@ -159,12 +224,14 @@ void VkHardwareTexture::CreateTexture(int w, int h, int pixelsize, VkFormat form
 	imgbuilder.setSize(w, h, GetMipLevels(w, h));
 	imgbuilder.setUsage(VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 	mImage = imgbuilder.create(fb->device);
+	mImage->SetDebugName("VkHardwareTexture.mImage");
 
 	ImageViewBuilder viewbuilder;
 	viewbuilder.setImage(mImage.get(), format);
 	mImageView = viewbuilder.create(fb->device);
+	mImageView->SetDebugName("VkHardwareTexture.mImageView");
 
-	auto cmdbuffer = fb->GetUploadCommands();
+	auto cmdbuffer = fb->GetTransferCommands();
 
 	PipelineBarrier imageTransition0;
 	imageTransition0.addImage(mImage.get(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, VK_ACCESS_TRANSFER_WRITE_BIT);
@@ -250,14 +317,16 @@ void VkHardwareTexture::AllocateBuffer(int w, int h, int texelsize)
 		imgbuilder.setUsage(VK_IMAGE_USAGE_SAMPLED_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT);
 		imgbuilder.setLinearTiling();
 		mImage = imgbuilder.create(fb->device);
+		mImage->SetDebugName("VkHardwareTexture.mImage");
 		mImageLayout = VK_IMAGE_LAYOUT_GENERAL;
 		mTexelsize = texelsize;
 
 		ImageViewBuilder viewbuilder;
 		viewbuilder.setImage(mImage.get(), format);
 		mImageView = viewbuilder.create(fb->device);
+		mImageView->SetDebugName("VkHardwareTexture.mImageView");
 
-		auto cmdbuffer = fb->GetUploadCommands();
+		auto cmdbuffer = fb->GetTransferCommands();
 
 		PipelineBarrier imageTransition;
 		imageTransition.addImage(mImage.get(), VK_IMAGE_LAYOUT_UNDEFINED, mImageLayout, 0, VK_ACCESS_SHADER_READ_BIT);
@@ -276,198 +345,25 @@ unsigned int VkHardwareTexture::CreateTexture(unsigned char * buffer, int w, int
 	return 0;
 }
 
-#if 0
-
-//===========================================================================
-// 
-//	Creates the low level texture object
-//
-//===========================================================================
-
-VkResult VkHardwareTexture::CreateTexture(unsigned char * buffer, int w, int h, bool mipmap, int translation)
+void VkHardwareTexture::CreateWipeTexture(int w, int h, const char *name)
 {
-	int rh,rw;
-	bool deletebuffer=false;
-	auto tTex = GetTexID(translation);
+	auto fb = GetVulkanFrameBuffer();
 
-	// We cannot determine if the old texture is still needed, so if something is trying to recreate a still existing texture this must fail.
-	// Normally it should never occur that a texture needs to be recreated in the middle of a frame.
-	if (tTex->vkTexture != nullptr) return VK_ERROR_INITIALIZATION_FAILED;
+	VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
 
-	tTex->vkTexture = new VkTexture(vDevice);;
+	ImageBuilder imgbuilder;
+	imgbuilder.setFormat(format);
+	imgbuilder.setSize(w, h);
+	imgbuilder.setUsage(VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	mImage = imgbuilder.create(fb->device);
+	mImage->SetDebugName(name);
+	mImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	mTexelsize = 4;
 
-	rw = vDevice->GetTexDimension(w);
-	rh = vDevice->GetTexDimension(h);
-	if (rw < w || rh < h)
-	{
-		// The texture is larger than what the hardware can handle so scale it down.
-		unsigned char * scaledbuffer=(unsigned char *)calloc(4,rw * (rh+1));
-		if (scaledbuffer)
-		{
-			ResizeTexture(w, h, rw, rh, buffer, scaledbuffer);
-			deletebuffer=true;
-			buffer=scaledbuffer;
-		}
-	}
+	ImageViewBuilder viewbuilder;
+	viewbuilder.setImage(mImage.get(), format);
+	mImageView = viewbuilder.create(fb->device);
+	mImageView->SetDebugName(name);
 
-	auto res = tTex->vkTexture->Create(buffer, w, h, mipmap, vkTextureBytes);
-	if (res != VK_SUCCESS)
-	{
-		delete tTex->vkTexture;
-		tTex->vkTexture = nullptr;
-	}
-	return res;
+	fb->GetPostprocess()->BlitCurrentToImage(mImage.get(), &mImageLayout);
 }
-
-//===========================================================================
-// 
-//	Creates a texture
-//
-//===========================================================================
-
-VkHardwareTexture::VkHardwareTexture(VulkanDevice *dev, bool nocompression)
-{
-	forcenocompression = nocompression;
-
-	vkDefTex.vkTexture = nullptr;
-	vkDefTex.translation = 0;
-	vkDefTex.mipmapped = false;
-	vDevice = dev;
-}
-
-
-//===========================================================================
-// 
-//	Deletes a texture id and unbinds it from the texture units
-//
-//===========================================================================
-
-void VkHardwareTexture::TranslatedTexture::Delete()
-{
-	if (vkTexture != nullptr) 
-	{
-		delete vkTexture;
-		vkTexture = nullptr;
-		mipmapped = false;
-	}
-}
-
-//===========================================================================
-// 
-//	Frees all associated resources
-//
-//===========================================================================
-
-void VkHardwareTexture::Clean(bool all)
-{
-	int cm_arraysize = CM_FIRSTSPECIALCOLORMAP + SpecialColormaps.Size();
-
-	if (all)
-	{
-		vkDefTex.Delete();
-	}
-	for(unsigned int i=0;i<vkTex_Translated.Size();i++)
-	{
-		vkTex_Translated[i].Delete();
-	}
-	vkTex_Translated.Clear();
-}
-
-//===========================================================================
-// 
-// Deletes all allocated resources and considers translations
-// This will only be called for sprites
-//
-//===========================================================================
-
-void VkHardwareTexture::CleanUnused(SpriteHits &usedtranslations)
-{
-	if (usedtranslations.CheckKey(0) == nullptr)
-	{
-		vkDefTex.Delete();
-	}
-	for (int i = vkTex_Translated.Size()-1; i>= 0; i--)
-	{
-		if (usedtranslations.CheckKey(vkTex_Translated[i].translation) == nullptr)
-		{
-			vkTex_Translated[i].Delete();
-			vkTex_Translated.Delete(i);
-		}
-	}
-}
-
-//===========================================================================
-// 
-//	Destroys the texture
-//
-//===========================================================================
-VkHardwareTexture::~VkHardwareTexture() 
-{ 
-	Clean(true); 
-}
-
-
-//===========================================================================
-// 
-//	Gets a texture ID address and validates all required data
-//
-//===========================================================================
-
-VkHardwareTexture::TranslatedTexture *VkHardwareTexture::GetTexID(int translation)
-{
-	if (translation == 0)
-	{
-		return &vkDefTex;
-	}
-
-	// normally there aren't more than very few different 
-	// translations here so this isn't performance critical.
-	// Maps only start to pay off for larger amounts of elements.
-	for (auto &tex : vkTex_Translated)
-	{
-		if (tex.translation == translation)
-		{
-			return &tex;
-		}
-	}
-
-	int add = vkTex_Translated.Reserve(1);
-	vkTex_Translated[add].translation = translation;
-	vkTex_Translated[add].vkTexture = nullptr;
-	vkTex_Translated[add].mipmapped = false;
-	return &vkTex_Translated[add];
-}
-
-//===========================================================================
-// 
-//
-//
-//===========================================================================
-
-VkTexture *VkHardwareTexture::GetVkTexture(FTexture *tex, int translation, bool needmipmap, int flags)
-{
-	int usebright = false;
-
-	if (translation <= 0)
-	{
-		translation = -translation;
-	}
-	else
-	{
-		auto remap = TranslationToTable(translation);
-		translation = remap == nullptr ? 0 : remap->GetUniqueIndex();
-	}
-
-	TranslatedTexture *pTex = GetTexID(translation);
-
-	if (pTex->vkTexture == nullptr)
-	{
-		int w, h;
-		auto buffer = tex->CreateTexBuffer(translation, w, h, flags | CTF_ProcessData);
-		auto res = CreateTexture(buffer, w, h, needmipmap, translation);
-		delete[] buffer;
-	}
-	return pTex->vkTexture;
-}
-
-#endif

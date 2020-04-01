@@ -30,7 +30,6 @@ public:
 	void SetDepthFunc(int func) override;
 	void SetDepthRange(float min, float max) override;
 	void SetColorMask(bool r, bool g, bool b, bool a) override;
-	void EnableDrawBufferAttachments(bool on) override;
 	void SetStencil(int offs, int op, int flags = -1) override;
 	void SetCulling(int mode) override;
 	void EnableClipDistance(int num, bool state) override;
@@ -41,7 +40,10 @@ public:
 	void EnableDepthTest(bool on) override;
 	void EnableMultisampling(bool on) override;
 	void EnableLineSmooth(bool on) override;
+	void EnableDrawBuffers(int count) override;
 
+	void BeginFrame();
+	void SetRenderTarget(VulkanImageView *view, int width, int height, VkSampleCountFlagBits samples);
 	void Bind(int bindingpoint, uint32_t offset);
 	void EndRenderPass();
 	void EndFrame();
@@ -60,9 +62,12 @@ protected:
 	void ApplyVertexBuffers();
 	void ApplyMaterial();
 
+	void BeginRenderPass(const VkRenderPassKey &key, VulkanCommandBuffer *cmdbuffer);
+
 	bool mDepthClamp = true;
 	VulkanCommandBuffer *mCommandBuffer = nullptr;
 	VkRenderPassKey mRenderPassKey = {};
+	int mClearTargets = 0;
 	bool mNeedApply = true;
 
 	int mScissorX = 0, mScissorY = 0, mScissorWidth = -1, mScissorHeight = -1;
@@ -81,6 +86,8 @@ protected:
 	int mDepthFunc = 0;
 	int mColorMask = 15;
 	int mCullMode = 0;
+
+	float mShaderTimer = 0.0f;
 
 	MatricesUBO mMatrices = {};
 	StreamData mStreamData = {};
@@ -106,6 +113,15 @@ protected:
 	bool mLastSplitEnabled = true;
 	bool mLastModelMatrixEnabled = true;
 	bool mLastTextureMatrixEnabled = true;
+
+	struct RenderTarget
+	{
+		VulkanImageView *View = nullptr;
+		int Width = 0;
+		int Height = 0;
+		VkSampleCountFlagBits Samples = VK_SAMPLE_COUNT_1_BIT;
+		int DrawBuffers = 1;
+	} mRenderTarget;
 };
 
 class VkRenderStateMolten : public VkRenderState

@@ -47,10 +47,8 @@
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/renderer/gl_renderbuffers.h"
+#include "gl/shaders/gl_shaderprogram.h"
 #include "hwrenderer/utility/hw_vrmodes.h"
-#include "hwrenderer/postprocessing/hw_presentshader.h"
-#include "hwrenderer/postprocessing/hw_present3dRowshader.h"
-#include "hwrenderer/postprocessing/hw_shadowmapshader.h"
 #include "hwrenderer/data/flatvertices.h"
 #include "hwrenderer/scene/hw_skydome.h"
 #include "hwrenderer/scene/hw_fakeflat.h"
@@ -67,6 +65,8 @@ EXTERN_CVAR(Int, screenblocks)
 EXTERN_CVAR(Bool, cl_capfps)
 
 extern bool NoInterpolateView;
+
+void DoWriteSavePic(FileWriter *file, ESSType ssformat, uint8_t *scr, int width, int height, sector_t *viewsector, bool upsidedown);
 
 namespace OpenGLRenderer
 {
@@ -207,7 +207,7 @@ void FGLRenderer::UpdateShadowMap()
 
 		mBuffers->BindShadowMapFB();
 
-		mShadowMapShader->Bind(NOQUEUE);
+		mShadowMapShader->Bind();
 		mShadowMapShader->Uniforms->ShadowmapQuality = gl_shadowmap_quality;
 		mShadowMapShader->Uniforms.Set();
 
@@ -377,9 +377,11 @@ void FGLRenderer::WriteSavePic(player_t *player, FileWriter *file, int width, in
     // strictly speaking not needed as the glReadPixels should block until the scene is rendered, but this is to safeguard against shitty drivers
     glFinish();
     
-    uint8_t * scr = (uint8_t *)M_Malloc(width * height * 3);
+	int numpixels = width * height;
+    uint8_t * scr = (uint8_t *)M_Malloc(numpixels * 3);
     glReadPixels(0,0,width, height,GL_RGB,GL_UNSIGNED_BYTE,scr);
-    M_CreatePNG (file, scr + ((height-1) * width * 3), NULL, SS_RGB, width, height, -width * 3, Gamma);
+
+	DoWriteSavePic(file, SS_RGB, scr, width, height, viewsector, true);
     M_Free(scr);
     
     // Switch back the screen render buffers

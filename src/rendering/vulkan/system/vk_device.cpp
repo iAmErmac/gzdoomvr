@@ -32,6 +32,7 @@
 #include <array>
 #include <set>
 #include <string>
+#include <algorithm>
 
 #include "vk_device.h"
 #include "vk_swapchain.h"
@@ -43,15 +44,12 @@
 #include "doomerrors.h"
 #include "gamedata/fonts/v_text.h"
 
-void I_GetVulkanDrawableSize(int *width, int *height);
 bool I_GetVulkanPlatformExtensions(unsigned int *count, const char **names);
 bool I_CreateVulkanSurface(VkInstance instance, VkSurfaceKHR *surface);
 
 // Physical device info
 static std::vector<VulkanPhysicalDevice> AvailableDevices;
 static std::vector<VulkanCompatibleDevice> SupportedDevices;
-
-EXTERN_CVAR(Bool, vid_vsync);
 
 CUSTOM_CVAR(Bool, vk_debug, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_NOINITCALL)
 {
@@ -78,22 +76,10 @@ VulkanDevice::VulkanDevice()
 		InitVolk();
 		CreateInstance();
 		CreateSurface();
-
-		UsedDeviceFeatures.samplerAnisotropy = VK_TRUE;
-		UsedDeviceFeatures.shaderClipDistance = VK_TRUE;
-		UsedDeviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
-		UsedDeviceFeatures.depthClamp = VK_TRUE;
-		UsedDeviceFeatures.shaderClipDistance = VK_TRUE;
-
 		SelectPhysicalDevice();
+		SelectFeatures();
 		CreateDevice();
 		CreateAllocator();
-
-		int width, height;
-		I_GetVulkanDrawableSize(&width, &height);
-		swapChain = std::make_unique<VulkanSwapChain>(this, width, height, vid_vsync);
-
-		CreateSemaphores();
 	}
 	catch (...)
 	{
@@ -107,14 +93,20 @@ VulkanDevice::~VulkanDevice()
 	ReleaseResources();
 }
 
-bool VulkanDevice::CheckFeatures(const VkPhysicalDeviceFeatures &f)
+void VulkanDevice::SelectFeatures()
+{
+	UsedDeviceFeatures.samplerAnisotropy = PhysicalDevice.Features.samplerAnisotropy;
+	UsedDeviceFeatures.fragmentStoresAndAtomics = PhysicalDevice.Features.fragmentStoresAndAtomics;
+	UsedDeviceFeatures.depthClamp = PhysicalDevice.Features.depthClamp;
+	UsedDeviceFeatures.shaderClipDistance = PhysicalDevice.Features.shaderClipDistance;
+}
+
+bool VulkanDevice::CheckRequiredFeatures(const VkPhysicalDeviceFeatures &f)
 {
 	return
 		f.samplerAnisotropy == VK_TRUE &&
-		f.shaderClipDistance == VK_TRUE &&
 		f.fragmentStoresAndAtomics == VK_TRUE &&
-		f.depthClamp == VK_TRUE &&
-		f.shaderClipDistance == VK_TRUE;
+		f.depthClamp == VK_TRUE;
 }
 
 void VulkanDevice::SelectPhysicalDevice()
@@ -125,30 +117,8 @@ void VulkanDevice::SelectPhysicalDevice()
 	{
 		const auto &info = AvailableDevices[idx];
 
-		if (!CheckFeatures(info.Features))
+		if (!CheckRequiredFeatures(info.Features))
 			continue;
-
-		VulkanCompatibleDevice dev;
-		dev.device = &AvailableDevices[idx];
-
-		int i = 0;
-		for (const auto& queueFamily : info.QueueFamilies)
-		{
-			// Only accept a decent GPU for now..
-			VkQueueFlags gpuFlags = (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT);
-			if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & gpuFlags) == gpuFlags)
-			{
-				dev.graphicsFamily = i;
-				dev.transferFamily = i;
-			}
-
-			VkBool32 presentSupport = false;
-			VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(info.Device, i, surface, &presentSupport);
-			if (result == VK_SUCCESS && queueFamily.queueCount > 0 && presentSupport)
-				dev.presentFamily = i;
-
-			i++;
-		}
 
 		std::set<std::string> requiredExtensionSearch(EnabledDeviceExtensions.begin(), EnabledDeviceExtensions.end());
 		for (const auto &ext : info.Extensions)
@@ -156,7 +126,37 @@ void VulkanDevice::SelectPhysicalDevice()
 		if (!requiredExtensionSearch.empty())
 			continue;
 
-		if (dev.graphicsFamily != -1 && dev.presentFamily != -1 && dev.transferFamily != -1)
+		VulkanCompatibleDevice dev;
+		dev.device = &AvailableDevices[idx];
+
+		// Figure out what can present
+		for (int i = 0; i < (int)info.QueueFamilies.size(); i++)
+		{
+			VkBool32 presentSupport = false;
+			VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(info.Device, i, surface, &presentSupport);
+			if (result == VK_SUCCESS && info.QueueFamilies[i].queueCount > 0 && presentSupport)
+			{
+				dev.presentFamily = i;
+				break;
+			}
+		}
+
+		// The vulkan spec states that graphics and compute queues can always do transfer.
+		// Furthermore the spec states that graphics queues always can do compute.
+		// Last, the spec makes it OPTIONAL whether the VK_QUEUE_TRANSFER_BIT is set for such queues, but they MUST support transfer.
+		//
+		// In short: pick the first graphics queue family for everything.
+		for (int i = 0; i < (int)info.QueueFamilies.size(); i++)
+		{
+			const auto &queueFamily = info.QueueFamilies[i];
+			if (queueFamily.queueCount > 0 && (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+			{
+				dev.graphicsFamily = i;
+				break;
+			}
+		}
+
+		if (dev.graphicsFamily != -1 && dev.presentFamily != -1)
 		{
 			SupportedDevices.push_back(dev);
 		}
@@ -172,8 +172,8 @@ void VulkanDevice::SelectPhysicalDevice()
 		static const int typeSort[] = { 4, 1, 0, 2, 3 };
 		int sortA = a.device->Properties.deviceType < 5 ? typeSort[a.device->Properties.deviceType] : (int)a.device->Properties.deviceType;
 		int sortB = b.device->Properties.deviceType < 5 ? typeSort[b.device->Properties.deviceType] : (int)b.device->Properties.deviceType;
-		if (sortA < sortB)
-			return true;
+		if (sortA != sortB)
+			return sortA < sortB;
 
 		// Then sort by the device's unique ID so that vk_device uses a consistent order
 		int sortUUID = memcmp(a.device->Properties.pipelineCacheUUID, b.device->Properties.pipelineCacheUUID, VK_UUID_SIZE);
@@ -184,66 +184,38 @@ void VulkanDevice::SelectPhysicalDevice()
 	if (selected >= SupportedDevices.size())
 		selected = 0;
 
+	// Enable optional extensions we are interested in, if they are available on this device
+	for (const auto &ext : SupportedDevices[selected].device->Extensions)
+	{
+		for (const auto &opt : OptionalDeviceExtensions)
+		{
+			if (strcmp(ext.extensionName, opt) == 0)
+			{
+				EnabledDeviceExtensions.push_back(opt);
+			}
+		}
+	}
+
 	PhysicalDevice = *SupportedDevices[selected].device;
 	graphicsFamily = SupportedDevices[selected].graphicsFamily;
 	presentFamily = SupportedDevices[selected].presentFamily;
-	transferFamily = SupportedDevices[selected].transferFamily;
 }
 
-void VulkanDevice::WindowResized()
+bool VulkanDevice::SupportsDeviceExtension(const char *ext) const
 {
-	int width, height;
-	I_GetVulkanDrawableSize(&width, &height);
-
-	swapChain.reset();
-	swapChain = std::make_unique<VulkanSwapChain>(this, width, height, vid_vsync);
-}
-
-void VulkanDevice::WaitPresent()
-{
-	vkWaitForFences(device, 1, &renderFinishedFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-	vkResetFences(device, 1, &renderFinishedFence->fence);
-}
-
-void VulkanDevice::BeginFrame()
-{
-	VkResult result = vkAcquireNextImageKHR(device, swapChain->swapChain, std::numeric_limits<uint64_t>::max(), imageAvailableSemaphore->semaphore, VK_NULL_HANDLE, &presentImageIndex);
-	if (result != VK_SUCCESS)
-		throw std::runtime_error("Failed to acquire next image!");
-}
-
-void VulkanDevice::PresentFrame()
-{
-	VkSemaphore waitSemaphores[] = { renderFinishedSemaphore->semaphore };
-	VkSwapchainKHR swapChains[] = { swapChain->swapChain };
-
-	VkPresentInfoKHR presentInfo = {};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = waitSemaphores;
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = swapChains;
-	presentInfo.pImageIndices = &presentImageIndex;
-	presentInfo.pResults = nullptr;
-	vkQueuePresentKHR(presentQueue, &presentInfo);
+	return std::find(EnabledDeviceExtensions.begin(), EnabledDeviceExtensions.end(), ext) != EnabledDeviceExtensions.end();
 }
 
 void VulkanDevice::CreateAllocator()
 {
 	VmaAllocatorCreateInfo allocinfo = {};
-	// allocinfo.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT; // To do: enable this for better performance
+	if (SupportsDeviceExtension(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME) && SupportsDeviceExtension(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME))
+		allocinfo.flags = VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
 	allocinfo.physicalDevice = PhysicalDevice.Device;
 	allocinfo.device = device;
 	allocinfo.preferredLargeHeapBlockSize = 64 * 1024 * 1024;
 	if (vmaCreateAllocator(&allocinfo, &allocator) != VK_SUCCESS)
 		throw std::runtime_error("Unable to create allocator");
-}
-
-void VulkanDevice::CreateSemaphores()
-{
-	imageAvailableSemaphore.reset(new VulkanSemaphore(this));
-	renderFinishedSemaphore.reset(new VulkanSemaphore(this));
-	renderFinishedFence.reset(new VulkanFence(this));
 }
 
 void VulkanDevice::CreateDevice()
@@ -254,7 +226,6 @@ void VulkanDevice::CreateDevice()
 	std::set<int> neededFamilies;
 	neededFamilies.insert(graphicsFamily);
 	neededFamilies.insert(presentFamily);
-	neededFamilies.insert(transferFamily);
 
 	for (int index : neededFamilies)
 	{
@@ -283,7 +254,6 @@ void VulkanDevice::CreateDevice()
 
 	vkGetDeviceQueue(device, graphicsFamily, 0, &graphicsQueue);
 	vkGetDeviceQueue(device, presentFamily, 0, &presentQueue);
-	vkGetDeviceQueue(device, transferFamily, 0, &transferQueue);
 }
 
 void VulkanDevice::CreateSurface()
@@ -310,6 +280,18 @@ void VulkanDevice::CreateInstance()
 			EnabledValidationLayers.push_back(debugLayer.c_str());
 			EnabledExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 			debugLayerFound = true;
+		}
+	}
+
+	// Enable optional instance extensions we are interested in
+	for (const auto &ext : Extensions)
+	{
+		for (const auto &opt : OptionalExtensions)
+		{
+			if (strcmp(ext.extensionName, opt) == 0)
+			{
+				EnabledExtensions.push_back(opt);
+			}
 		}
 	}
 
@@ -353,6 +335,8 @@ void VulkanDevice::CreateInstance()
 		result = vkCreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger);
 		if (result != VK_SUCCESS)
 			throw std::runtime_error("vkCreateDebugUtilsMessengerEXT failed");
+
+		DebugLayerActive = true;
 	}
 }
 
@@ -367,10 +351,22 @@ VkBool32 VulkanDevice::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT mess
 	std::unique_lock<std::mutex> lock(mtx);
 
 	FString msg = callbackData->pMessage;
+
+	// For patent-pending reasons the validation layer apparently can't do this itself..
+	for (uint32_t i = 0; i < callbackData->objectCount; i++)
+	{
+		if (callbackData->pObjects[i].pObjectName)
+		{
+			FString hexname;
+			hexname.Format("0x%llx", callbackData->pObjects[i].objectHandle);
+			msg.Substitute(hexname.GetChars(), callbackData->pObjects[i].pObjectName);
+		}
+	}
+
 	bool found = seenMessages.find(msg) != seenMessages.end();
 	if (!found)
 	{
-		if (totalMessages < 100)
+		if (totalMessages < 20)
 		{
 			totalMessages++;
 			seenMessages.insert(msg);
@@ -399,7 +395,7 @@ VkBool32 VulkanDevice::DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT mess
 
 			Printf("\n");
 			Printf(TEXTCOLOR_RED "[%s] ", typestr);
-			Printf(TEXTCOLOR_WHITE "%s\n", callbackData->pMessage);
+			Printf(TEXTCOLOR_WHITE "%s\n", msg.GetChars());
 		}
 	}
 
@@ -492,11 +488,6 @@ void VulkanDevice::ReleaseResources()
 {
 	if (device)
 		vkDeviceWaitIdle(device);
-
-	imageAvailableSemaphore.reset();
-	renderFinishedSemaphore.reset();
-	renderFinishedFence.reset();
-	swapChain.reset();
 
 	if (allocator)
 		vmaDestroyAllocator(allocator);

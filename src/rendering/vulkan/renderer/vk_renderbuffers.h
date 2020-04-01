@@ -35,7 +35,12 @@ public:
 	static const int NumPipelineImages = 2;
 	std::unique_ptr<VulkanImage> PipelineImage[NumPipelineImages];
 	std::unique_ptr<VulkanImageView> PipelineView[NumPipelineImages];
-	VkImageLayout PipelineLayout[NumPipelineImages];
+	VkImageLayout PipelineLayout[NumPipelineImages] = { VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
+
+	std::unique_ptr<VulkanImage> Shadowmap;
+	std::unique_ptr<VulkanImageView> ShadowmapView;
+	std::unique_ptr<VulkanSampler> ShadowmapSampler;
+	VkImageLayout ShadowmapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 private:
 	void CreatePipeline(int width, int height);
@@ -44,6 +49,7 @@ private:
 	void CreateSceneDepthStencil(int width, int height, VkSampleCountFlagBits samples);
 	void CreateSceneFog(int width, int height, VkSampleCountFlagBits samples);
 	void CreateSceneNormal(int width, int height, VkSampleCountFlagBits samples);
+	void CreateShadowmap();
 	VkSampleCountFlagBits GetBestSampleCount();
 
 	int mWidth = 0;

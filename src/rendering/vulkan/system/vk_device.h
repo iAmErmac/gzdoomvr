@@ -28,7 +28,6 @@ class VulkanCompatibleDevice
 public:
 	VulkanPhysicalDevice *device = nullptr;
 	int graphicsFamily = -1;
-	int transferFamily = -1;
 	int presentFamily = -1;
 };
 
@@ -38,11 +37,17 @@ public:
 	VulkanDevice();
 	~VulkanDevice();
 
-	void WindowResized();
-	void WaitPresent();
+	void SetDebugObjectName(const char *name, uint64_t handle, VkObjectType type)
+	{
+		if (!DebugLayerActive) return;
 
-	void BeginFrame();
-	void PresentFrame();
+		VkDebugUtilsObjectNameInfoEXT info = {};
+		info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+		info.objectHandle = handle;
+		info.objectType = type;
+		info.pObjectName = name;
+		vkSetDebugUtilsObjectNameEXT(device, &info);
+	}
 
 	uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
@@ -50,12 +55,15 @@ public:
 	std::vector<VkLayerProperties> AvailableLayers;
 	std::vector<VkExtensionProperties> Extensions;
 	std::vector<const char *> EnabledExtensions;
+	std::vector<const char *> OptionalExtensions = { VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME };
 	std::vector<const char*> EnabledValidationLayers;
 
 	// Device setup
 	VkPhysicalDeviceFeatures UsedDeviceFeatures = {};
 	std::vector<const char *> EnabledDeviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+	std::vector<const char *> OptionalDeviceExtensions = { VK_EXT_HDR_METADATA_EXTENSION_NAME, VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME, VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME };
 	VulkanPhysicalDevice PhysicalDevice;
+	bool DebugLayerActive = false;
 
 	VkInstance instance = VK_NULL_HANDLE;
 	VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -64,29 +72,22 @@ public:
 
 	VkQueue graphicsQueue = VK_NULL_HANDLE;
 	VkQueue presentQueue = VK_NULL_HANDLE;
-	VkQueue transferQueue = VK_NULL_HANDLE;
 
 	int graphicsFamily = -1;
-	int transferFamily = -1;
 	int presentFamily = -1;
-
-	std::unique_ptr<VulkanSwapChain> swapChain;
-	uint32_t presentImageIndex = 0;
-
-	std::unique_ptr<VulkanSemaphore> imageAvailableSemaphore;
-	std::unique_ptr<VulkanSemaphore> renderFinishedSemaphore;
-	std::unique_ptr<VulkanFence> renderFinishedFence;
 
 private:
 	void CreateInstance();
 	void CreateSurface();
 	void SelectPhysicalDevice();
+	void SelectFeatures();
 	void CreateDevice();
 	void CreateAllocator();
-	void CreateSemaphores();
 	void ReleaseResources();
 
-	static bool CheckFeatures(const VkPhysicalDeviceFeatures &f);
+	bool SupportsDeviceExtension(const char *ext) const;
+
+	static bool CheckRequiredFeatures(const VkPhysicalDeviceFeatures &f);
 
 	VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
 

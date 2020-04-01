@@ -189,6 +189,7 @@ public:
 	void setTopology(VkPrimitiveTopology topology);
 	void setViewport(float x, float y, float width, float height, float minDepth = 0.0f, float maxDepth = 1.0f);
 	void setScissor(int x, int y, int width, int height);
+	void setRasterizationSamples(VkSampleCountFlagBits samples);
 
 	void setCull(VkCullModeFlags cullMode, VkFrontFace frontFace);
 	void setDepthStencilEnable(bool test, bool write, bool stencil);
@@ -256,9 +257,8 @@ class RenderPassBuilder
 public:
 	RenderPassBuilder();
 
-	void addRgba16fAttachment(bool clear, VkImageLayout layout) { addColorAttachment(clear, VK_FORMAT_R16G16B16A16_SFLOAT, layout); }
-	void addColorAttachment(bool clear, VkFormat format, VkImageLayout layout);
-	void addDepthStencilAttachment(bool clear, VkFormat format, VkImageLayout layout);
+	void addAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp load, VkAttachmentStoreOp store, VkImageLayout initialLayout, VkImageLayout finalLayout);
+	void addDepthStencilAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp load, VkAttachmentStoreOp store, VkAttachmentLoadOp stencilLoad, VkAttachmentStoreOp stencilStore, VkImageLayout initialLayout, VkImageLayout finalLayout);
 
 	void addExternalSubpassDependency(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
 
@@ -292,6 +292,8 @@ public:
 	void addBuffer(VulkanBuffer *buffer, VkDeviceSize offset, VkDeviceSize size, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
 	void addImage(VulkanImage *image, VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, int baseMipLevel = 0, int levelCount = 1);
 	void addImage(VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, int baseMipLevel = 0, int levelCount = 1);
+	void addQueueTransfer(int srcFamily, int dstFamily, VulkanBuffer *buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
+	void addQueueTransfer(int srcFamily, int dstFamily, VulkanImage *image, VkImageLayout layout, VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, int baseMipLevel = 0, int levelCount = 1);
 
 	void execute(VulkanCommandBuffer *commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags = 0);
 
@@ -299,6 +301,24 @@ private:
 	FixedSizeVector<VkMemoryBarrier, 8> memoryBarriers;
 	FixedSizeVector<VkBufferMemoryBarrier, 8> bufferMemoryBarriers;
 	FixedSizeVector<VkImageMemoryBarrier, 8> imageMemoryBarriers;
+};
+
+class QueueSubmit
+{
+public:
+	QueueSubmit();
+
+	void addCommandBuffer(VulkanCommandBuffer *buffer);
+	void addWait(VkPipelineStageFlags waitStageMask, VulkanSemaphore *semaphore);
+	void addSignal(VulkanSemaphore *semaphore);
+	void execute(VulkanDevice *device, VkQueue queue, VulkanFence *fence = nullptr);
+
+private:
+	VkSubmitInfo submitInfo = {};
+	FixedSizeVector<VkSemaphore, 8> waitSemaphores;
+	FixedSizeVector<VkPipelineStageFlags, 8> waitStages;
+	FixedSizeVector<VkSemaphore, 8> signalSemaphores;
+	FixedSizeVector<VkCommandBuffer, 8> commandBuffers;
 };
 
 class WriteDescriptors
@@ -743,6 +763,11 @@ inline GraphicsPipelineBuilder::GraphicsPipelineBuilder()
 	dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 }
 
+inline void GraphicsPipelineBuilder::setRasterizationSamples(VkSampleCountFlagBits samples)
+{
+	multisampling.rasterizationSamples = samples;
+}
+
 inline void GraphicsPipelineBuilder::setSubpass(int subpass)
 {
 	pipelineInfo.subpass = subpass;
@@ -992,36 +1017,34 @@ inline RenderPassBuilder::RenderPassBuilder()
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 }
 
-inline void RenderPassBuilder::addColorAttachment(bool clear, VkFormat format, VkImageLayout layout)
+inline void RenderPassBuilder::addAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp load, VkAttachmentStoreOp store, VkImageLayout initialLayout, VkImageLayout finalLayout)
 {
-	VkAttachmentDescription rgba16fAttachment = {};
-	rgba16fAttachment.format = format;
-	rgba16fAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	rgba16fAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-	rgba16fAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	rgba16fAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	rgba16fAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	rgba16fAttachment.initialLayout = clear ? VK_IMAGE_LAYOUT_UNDEFINED : layout;
-	rgba16fAttachment.finalLayout = layout;
-
-	attachments.push_back(rgba16fAttachment);
+	VkAttachmentDescription attachment = {};
+	attachment.format = format;
+	attachment.samples = samples;
+	attachment.loadOp = load;
+	attachment.storeOp = store;
+	attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachment.initialLayout = initialLayout;
+	attachment.finalLayout = finalLayout;
+	attachments.push_back(attachment);
 	renderPassInfo.pAttachments = attachments.data();
 	renderPassInfo.attachmentCount = (uint32_t)attachments.size();
 }
 
-inline void RenderPassBuilder::addDepthStencilAttachment(bool clear, VkFormat format, VkImageLayout layout)
+inline void RenderPassBuilder::addDepthStencilAttachment(VkFormat format, VkSampleCountFlagBits samples, VkAttachmentLoadOp load, VkAttachmentStoreOp store, VkAttachmentLoadOp stencilLoad, VkAttachmentStoreOp stencilStore, VkImageLayout initialLayout, VkImageLayout finalLayout)
 {
-	VkAttachmentDescription depthAttachment = {};
-	depthAttachment.format = format;
-	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-	depthAttachment.loadOp = clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE/*VK_ATTACHMENT_STORE_OP_DONT_CARE*/;
-	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.initialLayout = clear ? VK_IMAGE_LAYOUT_UNDEFINED : layout;
-	depthAttachment.finalLayout = layout;
-
-	attachments.push_back(depthAttachment);
+	VkAttachmentDescription attachment = {};
+	attachment.format = format;
+	attachment.samples = samples;
+	attachment.loadOp = load;
+	attachment.storeOp = store;
+	attachment.stencilLoadOp = stencilLoad;
+	attachment.stencilStoreOp = stencilStore;
+	attachment.initialLayout = initialLayout;
+	attachment.finalLayout = finalLayout;
+	attachments.push_back(attachment);
 	renderPassInfo.pAttachments = attachments.data();
 	renderPassInfo.attachmentCount = (uint32_t)attachments.size();
 }
@@ -1137,6 +1160,37 @@ inline void PipelineBarrier::addImage(VkImage image, VkImageLayout oldLayout, Vk
 	imageMemoryBarriers.push_back(barrier);
 }
 
+inline void PipelineBarrier::addQueueTransfer(int srcFamily, int dstFamily, VulkanBuffer *buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask)
+{
+	VkBufferMemoryBarrier barrier = { };
+	barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+	barrier.srcAccessMask = srcAccessMask;
+	barrier.dstAccessMask = dstAccessMask;
+	barrier.srcQueueFamilyIndex = srcFamily;
+	barrier.dstQueueFamilyIndex = dstFamily;
+	barrier.buffer = buffer->buffer;
+	barrier.offset = 0;
+	barrier.size = buffer->size;
+	bufferMemoryBarriers.push_back(barrier);
+}
+
+inline void PipelineBarrier::addQueueTransfer(int srcFamily, int dstFamily, VulkanImage *image, VkImageLayout layout, VkImageAspectFlags aspectMask, int baseMipLevel, int levelCount)
+{
+	VkImageMemoryBarrier barrier = { };
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = layout;
+	barrier.newLayout = layout;
+	barrier.srcQueueFamilyIndex = srcFamily;
+	barrier.dstQueueFamilyIndex = dstFamily;
+	barrier.image = image->image;
+	barrier.subresourceRange.aspectMask = aspectMask;
+	barrier.subresourceRange.baseMipLevel = baseMipLevel;
+	barrier.subresourceRange.levelCount = levelCount;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+	imageMemoryBarriers.push_back(barrier);
+}
+
 inline void PipelineBarrier::execute(VulkanCommandBuffer *commandBuffer, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags)
 {
 	commandBuffer->pipelineBarrier(
@@ -1144,6 +1198,44 @@ inline void PipelineBarrier::execute(VulkanCommandBuffer *commandBuffer, VkPipel
 		(uint32_t)memoryBarriers.size(), memoryBarriers.data(),
 		(uint32_t)bufferMemoryBarriers.size(), bufferMemoryBarriers.data(),
 		(uint32_t)imageMemoryBarriers.size(), imageMemoryBarriers.data());
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
+inline QueueSubmit::QueueSubmit()
+{
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+}
+
+inline void QueueSubmit::addCommandBuffer(VulkanCommandBuffer *buffer)
+{
+	commandBuffers.push_back(buffer->buffer);
+	submitInfo.pCommandBuffers = commandBuffers.data();
+	submitInfo.commandBufferCount = (uint32_t)commandBuffers.size();
+}
+
+inline void QueueSubmit::addWait(VkPipelineStageFlags waitStageMask, VulkanSemaphore *semaphore)
+{
+	waitStages.push_back(waitStageMask);
+	waitSemaphores.push_back(semaphore->semaphore);
+
+	submitInfo.pWaitDstStageMask = waitStages.data();
+	submitInfo.pWaitSemaphores = waitSemaphores.data();
+	submitInfo.waitSemaphoreCount = (uint32_t)waitSemaphores.size();
+}
+
+inline void QueueSubmit::addSignal(VulkanSemaphore *semaphore)
+{
+	signalSemaphores.push_back(semaphore->semaphore);
+	submitInfo.pSignalSemaphores = signalSemaphores.data();
+	submitInfo.signalSemaphoreCount = (uint32_t)signalSemaphores.size();
+}
+
+inline void QueueSubmit::execute(VulkanDevice *device, VkQueue queue, VulkanFence *fence)
+{
+	VkResult result = vkQueueSubmit(device->graphicsQueue, 1, &submitInfo, fence ? fence->fence : VK_NULL_HANDLE);
+	if (result < VK_SUCCESS)
+		throw std::runtime_error("Failed to submit command buffer");
 }
 
 /////////////////////////////////////////////////////////////////////////////

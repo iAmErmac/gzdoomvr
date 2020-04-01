@@ -51,7 +51,7 @@ CVAR(Bool, gl_light_models, true, CVAR_ARCHIVE)
 EXTERN_CVAR(Float, gl_weaponOfsY)
 EXTERN_CVAR(Float, gl_weaponOfsZ)
 
-VSMatrix FGLModelRenderer::GetViewToWorldMatrix()
+VSMatrix FHWModelRenderer::GetViewToWorldMatrix()
 {
 	VSMatrix objectToWorldMatrix;
 	di->VPUniforms.mViewMatrix.inverseMatrix(objectToWorldMatrix);
@@ -60,7 +60,7 @@ VSMatrix FGLModelRenderer::GetViewToWorldMatrix()
 
 
 
-void FGLModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix)
+void FHWModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix)
 {
 	auto vrmode = VRMode::GetVRMode(true);
 	if (vrmode->mEyeCount > 1)
@@ -113,7 +113,7 @@ void FGLModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame
 	}
 }
 
-void FGLModelRenderer::BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored)
+void FHWModelRenderer::BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored)
 {
 	state.SetDepthFunc(DF_LEqual);
 	state.EnableTexture(true);
@@ -130,7 +130,7 @@ void FGLModelRenderer::BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, con
 	state.EnableModelMatrix(true);
 }
 
-void FGLModelRenderer::EndDrawModel(AActor *actor, FSpriteModelFrame *smf)
+void FHWModelRenderer::EndDrawModel(AActor *actor, FSpriteModelFrame *smf)
 {
 	state.EnableModelMatrix(false);
 	state.SetDepthFunc(DF_Less);
@@ -138,7 +138,7 @@ void FGLModelRenderer::EndDrawModel(AActor *actor, FSpriteModelFrame *smf)
 		state.SetCulling(Cull_None);
 }
 
-void FGLModelRenderer::BeginDrawHUDModel(AActor *actor, const VSMatrix &objectToWorldMatrix, bool mirrored)
+void FHWModelRenderer::BeginDrawHUDModel(AActor *actor, const VSMatrix &objectToWorldMatrix, bool mirrored)
 {
 	state.SetDepthFunc(DF_LEqual);
 
@@ -154,7 +154,7 @@ void FGLModelRenderer::BeginDrawHUDModel(AActor *actor, const VSMatrix &objectTo
 	state.EnableModelMatrix(true);
 }
 
-void FGLModelRenderer::EndDrawHUDModel(AActor *actor)
+void FHWModelRenderer::EndDrawHUDModel(AActor *actor)
 {
 	state.EnableModelMatrix(false);
 
@@ -163,29 +163,29 @@ void FGLModelRenderer::EndDrawHUDModel(AActor *actor)
 		state.SetCulling(Cull_None);
 }
 
-IModelVertexBuffer *FGLModelRenderer::CreateVertexBuffer(bool needindex, bool singleframe)
+IModelVertexBuffer *FHWModelRenderer::CreateVertexBuffer(bool needindex, bool singleframe)
 {
 	return new FModelVertexBuffer(needindex, singleframe);
 }
 
-void FGLModelRenderer::SetInterpolation(double inter)
+void FHWModelRenderer::SetInterpolation(double inter)
 {
 	state.SetInterpolationFactor((float)inter);
 }
 
-void FGLModelRenderer::SetMaterial(FTexture *skin, bool clampNoFilter, int translation)
+void FHWModelRenderer::SetMaterial(FTexture *skin, bool clampNoFilter, int translation)
 {
 	FMaterial * tex = FMaterial::ValidateTexture(skin, false);
 	state.SetMaterial(tex, clampNoFilter ? CLAMP_NOFILTER : CLAMP_NONE, translation, -1);
 	state.SetLightIndex(modellightindex);
 }
 
-void FGLModelRenderer::DrawArrays(int start, int count)
+void FHWModelRenderer::DrawArrays(int start, int count)
 {
 	state.Draw(DT_Triangles, start, count);
 }
 
-void FGLModelRenderer::DrawElements(int numIndices, size_t offset)
+void FHWModelRenderer::DrawElements(int numIndices, size_t offset)
 {
 	state.DrawIndexed(DT_Triangles, int(offset / sizeof(unsigned int)), numIndices);
 }
@@ -277,7 +277,7 @@ void FModelVertexBuffer::UnlockIndexBuffer()
 
 void FModelVertexBuffer::SetupFrame(FModelRenderer *renderer, unsigned int frame1, unsigned int frame2, unsigned int size)
 {
-	auto &state = static_cast<FGLModelRenderer*>(renderer)->state;
+	auto &state = static_cast<FHWModelRenderer*>(renderer)->state;
 	state.SetVertexBuffer(mVertexBuffer, frame1, frame2);
 	if (mIndexBuffer) state.SetIndexBuffer(mIndexBuffer);
 }
