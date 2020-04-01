@@ -416,16 +416,14 @@ void FGLRenderer::gl_FillScreen()
 // Draws a blend over the entire view
 //
 //==========================================================================
-void FGLRenderer::DrawBlend(FVector4* blend)
+void FGLRenderer::DrawBlend(FVector4* blend, PalEntry* modulateColor)
 {
-	
-
-	/*if (blendinfo.multiplicativeBlend)
+	if (*modulateColor != 0xffffffff)
 	{
 		gl_RenderState.SetRenderStyle(STYLE_Multiply);
-		gl_RenderState.SetColor(extra_red, extra_green, extra_blue, 1.0f);
+		gl_RenderState.SetColor(*modulateColor);
 		gl_FillScreen();
-	}*/
+	}
 
 	gl_RenderState.SetTextureMode(TM_NORMAL);
 	gl_RenderState.SetRenderStyle(STYLE_Translucent);

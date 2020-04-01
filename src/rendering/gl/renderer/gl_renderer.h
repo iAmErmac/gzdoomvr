@@ -95,7 +95,7 @@ public:
 	void RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV);
 	void WriteSavePic(player_t *player, FileWriter *file, int width, int height);
 	sector_t *RenderView(player_t *player);
-	void DrawBlend(FVector4* blend);
+	void DrawBlend(FVector4* blend, PalEntry* modulateColor);
 	void BeginFrame();
     
     sector_t *RenderViewpoint (FRenderViewpoint &mainvp, AActor * camera, IntRect * bounds, float fov, float ratio, float fovratio, bool mainview, bool toscreen);

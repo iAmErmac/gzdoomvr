@@ -227,8 +227,9 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 			PostProcessScene(cm, [&]() { di->DrawEndScene2D(mainvp.sector, gl_RenderState); });
 
 			eye->AdjustBlend(di);
-			auto blend = screen->CalcBlend(mainvp.sector);
-			GLRenderer->DrawBlend(&blend);
+			PalEntry modulateColor;
+			auto blend = screen->CalcBlend(mainvp.sector, &modulateColor);
+			GLRenderer->DrawBlend(&blend, &modulateColor);
 			PostProcess.Unclock();
 		}
 		di->EndDrawInfo();
