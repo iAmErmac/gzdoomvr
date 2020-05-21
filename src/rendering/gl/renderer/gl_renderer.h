@@ -27,7 +27,7 @@ class FGLRenderBuffers;
 class FGL2DDrawer;
 class FHardwareTexture;
 class SWSceneDrawer;
-class GLViewpointBuffer;
+class HWViewpointBuffer;
 struct FRenderViewpoint;
 
 namespace OpenGLRenderer
@@ -101,11 +101,10 @@ public:
 	void EndOffscreen();
 	void UpdateShadowMap();
 
-	private: void FGLRenderer::gl_FillScreen();
 	void BindToFrameBuffer(FMaterial *mat);
 
 private:
-
+	void gl_FillScreen();
 	void DrawScene(HWDrawInfo *di, int drawmode);
 	bool QuadStereoCheckInitialRenderContextState();
 	void PresentAnaglyph(bool r, bool g, bool b);

@@ -1366,6 +1366,7 @@ set (PCH_SOURCES
 	utility/nodebuilder/nodebuild_utility.cpp
 	utility/sc_man.cpp
 	utility/stats.cpp
+	utility/atterm.cpp
 	utility/cmdlib.cpp
 	utility/colormatcher.cpp
 	utility/configfile.cpp
