@@ -327,12 +327,6 @@ void VkHardwareTexture::AllocateBuffer(int w, int h, int texelsize)
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		mImage.Image = imgbuilder.create(fb->device, &allocatedBytes);
 		mImage.Image->SetDebugName("VkHardwareTexture.mImage");
-		mTexelsize = texelsize;
-
-		ImageViewBuilder viewbuilder;
-		viewbuilder.setImage(mImage.Image.get(), format);
-		mImage.View = viewbuilder.create(fb->device);
-		mImage.View->SetDebugName("VkHardwareTexture.mImageView");
 
 		auto cmdbuffer = fb->GetTransferCommands();
 
