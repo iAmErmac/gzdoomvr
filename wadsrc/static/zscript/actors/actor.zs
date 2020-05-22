@@ -1165,7 +1165,7 @@ class Actor : Thinker native
 	
 	action native bool A_AttachLightDef(Name lightid, Name lightdef);
 	action native bool A_AttachLight(Name lightid, int type, Color lightcolor, int radius1, int radius2, int flags, Vector3 ofs, double param, double spoti, double spoto, double spotp);
-	action mative bool A_RemoveLight(Name lightid);
+	action native bool A_RemoveLight(Name lightid);
 
 	int ACS_NamedExecute(name script, int mapnum=0, int arg1=0, int arg2=0, int arg3=0)
 	{
