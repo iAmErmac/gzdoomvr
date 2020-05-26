@@ -83,3 +83,6 @@ config.h
 /build_vc2019-64
 /glslang/glslang/OSDependent/Windows/
 /build_vc2019-32
+/out
+/libraries/glslang
+/libraries/game-music-emu
