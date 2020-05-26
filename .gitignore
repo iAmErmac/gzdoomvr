@@ -86,3 +86,5 @@ config.h
 /out
 /libraries/glslang
 /libraries/game-music-emu
+.kdev4
+*.kdev4
