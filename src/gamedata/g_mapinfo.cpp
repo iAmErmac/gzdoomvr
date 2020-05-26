@@ -242,6 +242,7 @@ void level_info_t::Reset()
 	flags3 = 0;
 	Music = "";
 	LevelName = "";
+	AuthorName = "";
 	FadeTable = "COLORMAP";
 	WallHorizLight = -8;
 	WallVertLight = +8;
@@ -923,6 +924,13 @@ DEFINE_MAP_OPTION(next, true)
 	parse.ParseNextMap(info->NextMap);
 }
 
+DEFINE_MAP_OPTION(author, true)
+{
+	parse.ParseAssign();
+	parse.sc.MustGetString();
+	info->AuthorName = parse.sc.String;
+}
+
 DEFINE_MAP_OPTION(secretnext, true)
 {
 	parse.ParseAssign();
@@ -1012,6 +1020,15 @@ DEFINE_MAP_OPTION(titlepatch, true)
 {
 	parse.ParseAssign();
 	parse.ParseLumpOrTextureName(info->PName);
+	if (parse.format_type == FMapInfoParser::FMT_New)
+	{
+		if (parse.sc.CheckString(","))
+		{
+			parse.sc.MustGetNumber();
+			if (parse.sc.Number) info->flags3 |= LEVEL3_HIDEAUTHORNAME;
+			else info->flags3 &= ~LEVEL3_HIDEAUTHORNAME;
+		}
+	}
 }
 
 DEFINE_MAP_OPTION(partime, true)

@@ -41,11 +41,11 @@ const char *GetVersionString();
 
 /** Lots of different version numbers **/
 
-#define VERSIONSTR "4.2pre"
+#define VERSIONSTR "4.2.0"
 
 // The version as seen in the Windows resource
-#define RC_FILEVERSION 4,1,9999,0
-#define RC_PRODUCTVERSION 4,1,9999,0
+#define RC_FILEVERSION 4,2,0,0
+#define RC_PRODUCTVERSION 4,2,0,0
 #define RC_PRODUCTVERSION2 VERSIONSTR
 // These are for content versioning.
 #define VER_MAJOR 4
@@ -89,7 +89,7 @@ const char *GetVersionString();
 // This is so that derivates can use the same savegame versions without worrying about engine compatibility
 #define GAMESIG "GZDOOM"
 #define BASEWAD "gzdoom.pk3"
-#define OPTIONALWAD "zd_extra.pk3"
+#define OPTIONALWAD "game_support.pk3"
 
 // More stuff that needs to be different for derivatives.
 #define GAMENAME "GZDoom"
