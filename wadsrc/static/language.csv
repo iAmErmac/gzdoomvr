@@ -3601,6 +3601,31 @@ Use standard font for log display,FONTMNU_LOG,,,,Použít standardní písmo pro
 Use standard font for dialogues,FONTMNU_DLG,,,,Použít standardní písmo pro dialogy,Benutze Standardzeichensatz für Dialoge,,Uzi norman tiparon por dialogoj,Usar la fuente estándar para los diálogos,,Käytä oletusfonttia keskustelulle,Police standard pour dialogues,,Usa font standard per la visualizzazione dei dialoghi,ダイアログに標準フォントを使用,대화에서 기본 폰트 사용,Gebruik het standaardlettertype voor dialoogweergave,Użyj standardowej czcionki do dialogów,Usar fonte padrão para diálogos,,,Использовать стандартный шрифт для диалогов,Користи стандардни фонт за дијалоге
 Standard,OPTVAL_YES_STANDARD,copied from elsewhere,,,Standardní,,,Norma,Estándar,,Normaali,,,,標準,기본,Standaard,Standard,Padrão,,,Стандартный,Стандардни
 Enhanced,OPTVAL_YES_ENHANCED,,,,Vylepšené,Verbessert,,Bonigita,Mejorado,,Paranneltu,Amélioré,,Migliorata,強化,고급,Verbeterd,Ulepszone,Melhorado,,,Улучшенный,Побољшани
+VR Options,VRPREFMNU,,,,,,,,,,,,,,,,,,,,,,
+Handedness,VRPREFMNU_HANDED,,,,,,,,,,,,,,,,,,,,,,
+Move follows,VRPREFMNU_MOVEFOLLOW,,,,,,,,,,,,,,,,,,,,,,
+Weapon Angle,VRPREFMNU_WEAPONANGLE,,,,,,,,,,,,,,,,,,,,,,
+Look Freedom,VRPREFMNU_LOOKFREEDOM,,,,,,,,,,,,,,,,,,,,,,
+World Scale,VRPREFMNU_WORLDSCALE,,,,,,,,,,,,,,,,,,,,,,
+Floor Offset,VRPREFMNU_FLOOROFFSET,,,,,,,,,,,,,,,,,,,,,,
+Sprite Weapon Mode,VRPREFMNU_SPRITEWEAPON3D,,,,,,,,,,,,,,,,,,,,,,
+Fat Item Width,VRPREFMNU_FATITEMWIDTH,,,,,,,,,,,,,,,,,,,,,,
+Left,VRPREFMNU_LEFT,,,,,,,,,,,,,,,,,,,,,,
+Right,VRPREFMNU_RIGHT,,,,,,,,,,,,,,,,,,,,,,
+Head,VRPREFMNU_HEAD,,,,,,,,,,,,,,,,,,,,,,
+Off Hand,VRPREFMNU_OFF_HAND,,,,,,,,,,,,,,,,,,,,,,
+Weapon Scale,VRPREFMNU_WEAPONSCALE,,,,,,,,,,,,,,,,,,,,,,
+HUD Distance,VRPREFMNU_HUDDISTANCE,,,,,,,,,,,,,,,,,,,,,,
+HUD Pitch,VRPREFMNU_HUDPITCH,,,,,,,,,,,,,,,,,,,,,,
+Lock HUD Roll,VRPREFMNU_UNFIXROLL,,,,,,,,,,,,,,,,,,,,,,
+Lock HUD Pitch,VRPREFMNU_UNFIXPITCH,,,,,,,,,,,,,,,,,,,,,,
+Draw controllers,VRPREFMNU_DRAWCONTROLLERS,,,,,,,,,,,,,,,,,,,,,,
+Crossed,VRPREFMNU_CROSSED,,,,,,,,,,,,,,,,,,,,,,
+Sprite only,VRPREFMNU_BACK_ONLY,,,,,,,,,,,,,,,,,,,,,,
+Item only,VRPREFMNU_ITEM_ONLY,,,,,,,,,,,,,,,,,,,,,,
+Fat item,VRPREFMNU_FAT_ITEM,,,,,,,,,,,,,,,,,,,,,,
+Item Pickup Haptic Level,VRPREFMNU_PICKUPHAPTIC,,,,,,,,,,,,,,,,,,,,,,
+Quake Haptic Level,VRPREFMNU_QUAKEHAPTIC,,,,,,,,,,,,,,,,,,,,,,
 ,USE_GENERIC_FONT,This is not a text to be translated but an engine switch for complex languages.,,,,,,,,,,,,,1,1,,,,,,,
 ,REQUIRED_CHARACTERS,This should list all uppercase characters that are REQUIRED for proper language display. If it is acceptable that accents get omitted a character should NOT be listed here!,,,ÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ,ÄÖÜẞ,ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩς,ĈĜĤĴŜŬ,ÁÉÍÓÚÑÜ,,ÄÖ,ÀÂÇÉÈÊËÎÏÔŒÙÛŸ,ÁÉÍÓÖÚÜŐŰ,ÀÈÉÌÒÙ,,,"ÉËÖ
 ",ĄĆĘŁŃÓŚŹŻ,ÁÉÍÓÚÀÃÕÂÊÔÇ,,,АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ,АБВГДЂЕЖЗИЈКЛЉМНЊОПРСТЋУФХЦЧЏШ
