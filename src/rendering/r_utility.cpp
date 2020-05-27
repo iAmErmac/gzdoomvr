@@ -64,7 +64,6 @@
 #include "actorinlines.h"
 #include "g_game.h"
 #include "i_system.h"
-#include "atterm.h"
 #include "rendering\hwrenderer\utility\hw_vrmodes.h"
 
 // EXTERNAL DATA DECLARATIONS ----------------------------------------------
@@ -158,7 +157,6 @@ DAngle viewpitch;
 DEFINE_GLOBAL(LocalViewPitch);
 
 // CODE --------------------------------------------------------------------
-static void R_Shutdown ();
 
 //==========================================================================
 //
@@ -384,8 +382,6 @@ FRenderer *CreateSWRenderer();
 
 void R_Init ()
 {
-	atterm (R_Shutdown);
-
 	StartScreen->Progress();
 	R_InitTranslationTables ();
 	R_SetViewSize (screenblocks);
@@ -404,12 +400,10 @@ void R_Init ()
 //
 //==========================================================================
 
-static void R_Shutdown ()
+void R_Shutdown ()
 {
 	if (SWRenderer != nullptr) delete SWRenderer;
 	SWRenderer = nullptr;
-	R_DeinitTranslationTables();
-	R_DeinitColormaps ();
 }
 
 //==========================================================================
