@@ -903,7 +903,7 @@ void HWSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 		gltexture = nullptr;
 	}
 
-	depth = FloatToFixed((x - vp.CenterPos.X) * vp.TanCos + (y - vp.CenterPos.Y) * vp.TanSin);
+	depth = (float)((x - vp.CenterPos.X) * vp.TanCos + (y - vp.CenterPos.Y) * vp.TanSin);
 
 	// light calculation
 
