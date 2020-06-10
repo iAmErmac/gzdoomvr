@@ -112,7 +112,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 	{
 		if (vrmode->mEyeCount == 1 || (r_PlayerSprites3DMode != ITEM_ONLY && r_PlayerSprites3DMode != FAT_ITEM))
 		{
-			float thresh = (huds->texture->GetTranslucency() || huds->OverrideShader != -1) ? 0.f : gl_mask_sprite_threshold;
+			float thresh = (!r_transparentPlayerSprites && (huds->texture->GetTranslucency() || huds->OverrideShader != -1)) ? 0.f : gl_mask_sprite_threshold;
 			state.AlphaFunc(Alpha_GEqual, thresh);
 			state.SetMaterial(huds->texture, UF_Sprite, CTF_Expand, CLAMP_XY_NOMIP, (huds->weapon->Flags & PSPF_PLAYERTRANSLATED) ? huds->owner->Translation : 0, huds->OverrideShader);
 			state.Draw(DT_TriangleStrip, huds->mx, 4);
@@ -141,7 +141,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 			FTextureID lump = sprites[psp->GetSprite()].GetSpriteFrame(psp->GetFrame(), 0, 0., &mirror);
 			if (!lump.isValid()) return;
 
-			FMaterial* tex = FMaterial::ValidateTexture(lump, true, false);
+			FMaterial* tex = FMaterial::ValidateTexture(TexMan.GetGameTexture(lump, false), true, false);
 			if (!tex) return;
 
 			state.SetMaterial(tex, CLAMP_XY_NOMIP, 0, huds->OverrideShader);
@@ -154,7 +154,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 			lump = sprites[spawn->sprite].GetSpriteFrame(0, 0, 0., &mirror);
 			if (!lump.isValid()) return;
 
-			tex = FMaterial::ValidateTexture(lump, true, false);
+			tex = FMaterial::ValidateTexture(TexMan.GetGameTexture(lump, false), true, false);
 			if (!tex) return;
 
 			state.AlphaFunc(Alpha_GEqual, 1);
@@ -162,23 +162,24 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 			//TODO Remove explicit calling GL renderstate
 			//gl_RenderState.Apply();
 			
+			auto spi = TexMan.GetGameTexture(lump, false)->GetSpritePositioning(0);
 
 			float z1 = 0.0f;
-			float z2 = (huds->y2 - huds->y1) * MIN(3, tex->GetWidth() / tex->GetHeight());
+			float z2 = (huds->y2 - huds->y1) * MIN(3, spi.spriteWidth / spi.spriteHeight);
 
 			if (!(mirror) != !(psp->Flags & PSPF_FLIP))
 			{
-				fU2 = tex->GetSpriteUL();
-				fV1 = tex->GetSpriteVT();
-				fU1 = tex->GetSpriteUR();
-				fV2 = tex->GetSpriteVB();
+				fU2 = spi.GetSpriteUL();
+				fV1 = spi.GetSpriteVT();
+				fU1 = spi.GetSpriteUR();
+				fV2 = spi.GetSpriteVB();
 			}
 			else
 			{
-				fU1 = tex->GetSpriteUL();
-				fV1 = tex->GetSpriteVT();
-				fU2 = tex->GetSpriteUR();
-				fV2 = tex->GetSpriteVB();
+				fU1 = spi.GetSpriteUL();
+				fV1 = spi.GetSpriteVT();
+				fU2 = spi.GetSpriteUR();
+				fV2 = spi.GetSpriteVB();
 			}
 
 			if (r_PlayerSprites3DMode == FAT_ITEM)

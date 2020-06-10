@@ -233,7 +233,7 @@ sector_t * FGLRenderer::RenderViewpoint (FRenderViewpoint &mainvp, AActor * came
 
 			eye->AdjustBlend(di);
 			PalEntry modulateColor;
-			auto blend = screen->CalcBlend(mainvp.sector, &modulateColor);
+			auto blend = V_CalcBlend(mainvp.sector, &modulateColor);
 			GLRenderer->DrawBlend(&blend, &modulateColor);
 			PostProcess.Unclock();
 		}

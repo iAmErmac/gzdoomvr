@@ -53,6 +53,7 @@
 #include "i_time.h"
 #include "hwrenderer/data/flatvertices.h"
 #include "hwrenderer/data/hw_viewpointbuffer.h"
+#include "texturemanager.h"
 
 #include "gl_openvr.h"
 #include "openvr_include.h"
@@ -277,11 +278,11 @@ namespace s3d
 			return 0;
 		}
 
-		virtual void RenderFrame(FModelRenderer* renderer, FTexture* skin, int frame, int frame2, double inter, int translation = 0)  override
+		virtual void RenderFrame(FModelRenderer* renderer, FGameTexture* skin, int frame, int frame2, double inter, int translation = 0)  override
 		{
 			if (!isLoaded())
 				return;
-			FMaterial* tex = FMaterial::ValidateTexture(pFTex, false);
+			FMaterial* tex = FMaterial::ValidateTexture(pFTex, false, false);
 			auto vbuf = GetVertexBuffer(renderer);
 			vbuf->SetupFrame(renderer, 0, 0, 0);
 			renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
@@ -360,7 +361,8 @@ namespace s3d
 			if (eError == EVRRenderModelError_VRRenderModelError_None) {
 				loadState = LOADSTATE_LOADED;
 
-				pFTex = new FControllerTexture(pTexture);
+				auto tex = new FControllerTexture(pTexture);
+				pFTex = MakeGameTexture(tex, "Controllers", ::ETextureType::Any);
 
 				auto* di = HWDrawInfo::StartDrawInfo(r_viewpoint.ViewLevel, nullptr, r_viewpoint, nullptr);
 				FHWModelRenderer renderer(di, gl_RenderState, -1);
@@ -375,7 +377,7 @@ namespace s3d
 	private:
 		RenderModel_t* pModel;
 		RenderModel_TextureMap_t* pTexture;
-		FTexture* pFTex;
+		FGameTexture* pFTex;
 		LoadState loadState;
 		std::string modelName;
 		VR_IVRRenderModels_FnTable* vrRenderModels;
