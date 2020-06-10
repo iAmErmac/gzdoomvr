@@ -39,7 +39,7 @@
 #include "engineerrors.h"
 #include "actor.h"
 #include "a_pickups.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "g_levellocals.h"
 #include "maploader.h"
 
@@ -563,7 +563,7 @@ public:
 	bool Parse(MapLoader *loader,int lumpnum, FileReader &lump, int lumplen)
 	{
 		Level = loader->Level;
-		sc.OpenMem(Wads.GetLumpFullName(lumpnum), lump.Read(lumplen));
+		sc.OpenMem(fileSystem.GetFileFullName(lumpnum), lump.Read(lumplen));
 		sc.SetCMode(true);
 		// Namespace must be the first field because everything else depends on it.
 		if (sc.CheckString("namespace"))

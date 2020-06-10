@@ -50,7 +50,7 @@
 #include "c_console.h"
 #include "c_bind.h"
 #include "c_dispatch.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "p_local.h" 
 #include "gstrings.h"
 #include "r_sky.h"
@@ -1765,7 +1765,7 @@ static bool CheckSingleWad (const char *name, bool &printRequires, bool printwar
 	{
 		return true;
 	}
-	if (Wads.CheckIfWadLoaded (name) < 0)
+	if (fileSystem.CheckIfResourceFileLoaded (name) < 0)
 	{
 		if (printwarn)
 		{
@@ -1840,7 +1840,7 @@ void G_DoLoadGame ()
 
 	SaveVersion = 0;
 
-	void *data = info->CacheLump();
+	void *data = info->Lock();
 	FSerializer arc(nullptr);
 	if (!arc.OpenReader((const char *)data, info->LumpSize))
 	{
@@ -1916,7 +1916,7 @@ void G_DoLoadGame ()
 		return;
 	}
 
-	data = info->CacheLump();
+	data = info->Lock();
 	if (!arc.OpenReader((const char *)data, info->LumpSize))
 	{
 		LoadGameError("TXT_SGINFOERR");
@@ -2129,13 +2129,13 @@ static void PutSaveWads (FSerializer &arc)
 	const char *name;
 
 	// Name of IWAD
-	name = Wads.GetWadName (Wads.GetIwadNum());
+	name = fileSystem.GetResourceFileName (fileSystem.GetIwadNum());
 	arc.AddString("Game WAD", name);
 
 	// Name of wad the map resides in
-	if (Wads.GetLumpFile (primaryLevel->lumpnum) > Wads.GetIwadNum())
+	if (fileSystem.GetFileContainer (primaryLevel->lumpnum) > fileSystem.GetIwadNum())
 	{
-		name = Wads.GetWadName (Wads.GetLumpFile (primaryLevel->lumpnum));
+		name = fileSystem.GetResourceFileName (fileSystem.GetFileContainer (primaryLevel->lumpnum));
 		arc.AddString("Map WAD", name);
 	}
 }
@@ -2773,12 +2773,12 @@ void G_DoPlayDemo (void)
 	gameaction = ga_nothing;
 
 	// [RH] Allow for demos not loaded as lumps
-	demolump = Wads.CheckNumForFullName (defdemoname, true);
+	demolump = fileSystem.CheckNumForFullName (defdemoname, true);
 	if (demolump >= 0)
 	{
-		int demolen = Wads.LumpLength (demolump);
+		int demolen = fileSystem.FileLength (demolump);
 		demobuffer = (uint8_t *)M_Malloc(demolen);
-		Wads.ReadLump (demolump, demobuffer);
+		fileSystem.ReadFile (demolump, demobuffer);
 	}
 	else
 	{

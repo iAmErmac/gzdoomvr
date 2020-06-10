@@ -40,7 +40,7 @@
 #include "doomtype.h"
 #include "engineerrors.h"
 #include "sc_man.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "cmdlib.h"
 #include "templates.h"
 #include "doomstat.h"
@@ -203,7 +203,7 @@ FScanner &FScanner::operator=(const FScanner &other)
 
 void FScanner::Open (const char *name)
 {
-	int lump = Wads.CheckNumForFullName(name, true);
+	int lump = fileSystem.CheckNumForFullName(name, true);
 	if (lump == -1)
 	{
 		I_Error("Could not find script lump '%s'\n", name);
@@ -279,10 +279,10 @@ void FScanner :: OpenLumpNum (int lump)
 {
 	Close ();
 	{
-		FMemLump mem = Wads.ReadLump(lump);
+		FileData mem = fileSystem.ReadFile(lump);
 		ScriptBuffer = mem.GetString();
 	}
-	ScriptName = Wads.GetLumpFullPath(lump);
+	ScriptName = fileSystem.GetFileFullPath(lump);
 	LumpNum = lump;
 	PrepareScript ();
 }

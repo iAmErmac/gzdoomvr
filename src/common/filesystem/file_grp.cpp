@@ -1,9 +1,9 @@
 /*
-** automaptexture.cpp
-** Texture class for Raven's automap parchment
+** file_grp.cpp
 **
 **---------------------------------------------------------------------------
-** Copyright 2004-2006 Randy Heit
+** Copyright 1998-2009 Randy Heit
+** Copyright 2005-2009 Christoph Oelckers
 ** All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
@@ -30,84 +30,123 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **---------------------------------------------------------------------------
 **
-** This texture type is only used as a last resort when everything else has failed for creating 
-** the AUTOPAGE texture. That's because Raven used a raw lump of non-standard proportions to define it.
 **
 */
 
-#include "doomtype.h"
-#include "files.h"
-#include "filesystem.h"
-#include "textures/textures.h"
-#include "imagehelpers.h"
-#include "image.h"
+#include "resourcefile.h"
+#include "printf.h"
 
 //==========================================================================
 //
-// A raw 320x? graphic used by Heretic and Hexen for the automap parchment
+//
 //
 //==========================================================================
 
-class FAutomapTexture : public FImageSource
+struct GrpInfo
 {
-public:
-	FAutomapTexture(int lumpnum);
-	TArray<uint8_t> CreatePalettedPixels(int conversion) override;
+	uint32_t		Magic[3];
+	uint32_t		NumLumps;
+};
+
+struct GrpLump
+{
+	union
+	{
+		struct
+		{
+			char		Name[12];
+			uint32_t		Size;
+		};
+		char NameWithZero[13];
+	};
 };
 
 
-
 //==========================================================================
 //
-// This texture type will only be used for the AUTOPAGE lump if no other
-// format matches.
+// Build GRP file
 //
 //==========================================================================
 
-FImageSource *AutomapImage_TryCreate(FileReader &data, int lumpnum)
+class FGrpFile : public FUncompressedFile
 {
-	if (data.GetLength() < 320) return nullptr;
-	if (!fileSystem.CheckFileName(lumpnum, "AUTOPAGE")) return nullptr;
-	return new FAutomapTexture(lumpnum);
+public:
+	FGrpFile(const char * filename, FileReader &file);
+	bool Open(bool quiet, LumpFilterInfo* filter);
+};
+
+
+//==========================================================================
+//
+// Initializes a Build GRP file
+//
+//==========================================================================
+
+FGrpFile::FGrpFile(const char *filename, FileReader &file)
+: FUncompressedFile(filename, file)
+{
 }
 
 //==========================================================================
 //
-//
+// Open it
 //
 //==========================================================================
 
-FAutomapTexture::FAutomapTexture (int lumpnum)
-: FImageSource(lumpnum)
+bool FGrpFile::Open(bool quiet, LumpFilterInfo*)
 {
-	Width = 320;
-	Height = uint16_t(fileSystem.FileLength(lumpnum) / 320);
-	bUseGamePalette = true;
-}
+	GrpInfo header;
 
-//==========================================================================
-//
-//
-//
-//==========================================================================
+	Reader.Read(&header, sizeof(header));
+	NumLumps = LittleLong(header.NumLumps);
+	
+	GrpLump *fileinfo = new GrpLump[NumLumps];
+	Reader.Read (fileinfo, NumLumps * sizeof(GrpLump));
 
-TArray<uint8_t> FAutomapTexture::CreatePalettedPixels(int conversion)
-{
-	int x, y;
-	FileData data = fileSystem.ReadFile (SourceLump);
-	const uint8_t *indata = (const uint8_t *)data.GetMem();
+	Lumps.Resize(NumLumps);
 
-	TArray<uint8_t> Pixels(Width * Height, true);
+	int Position = sizeof(GrpInfo) + NumLumps * sizeof(GrpLump);
 
-	const uint8_t *remap = ImageHelpers::GetRemap(conversion == luminance);
-	for (x = 0; x < Width; ++x)
+	for(uint32_t i = 0; i < NumLumps; i++)
 	{
-		for (y = 0; y < Height; ++y)
+		Lumps[i].Owner = this;
+		Lumps[i].Position = Position;
+		Lumps[i].LumpSize = LittleLong(fileinfo[i].Size);
+		Position += fileinfo[i].Size;
+		Lumps[i].Flags = 0;
+		fileinfo[i].NameWithZero[12] = '\0';	// Be sure filename is null-terminated
+		Lumps[i].LumpNameSetup(fileinfo[i].NameWithZero);
+	}
+	GenerateHash();
+	delete[] fileinfo;
+	return true;
+}
+
+
+//==========================================================================
+//
+// File open
+//
+//==========================================================================
+
+FResourceFile *CheckGRP(const char *filename, FileReader &file, bool quiet, LumpFilterInfo* filter)
+{
+	char head[12];
+
+	if (file.GetLength() >= 12)
+	{
+		file.Seek(0, FileReader::SeekSet);
+		file.Read(&head, 12);
+		file.Seek(0, FileReader::SeekSet);
+		if (!memcmp(head, "KenSilverman", 12))
 		{
-			auto p = indata[x + 320 * y];
-			Pixels[x*Height + y] = remap[p];
+			FResourceFile *rf = new FGrpFile(filename, file);
+			if (rf->Open(quiet, filter)) return rf;
+
+			file = std::move(rf->Reader); // to avoid destruction of reader
+			delete rf;
 		}
 	}
-	return Pixels;
+	return NULL;
 }
 

@@ -1,5 +1,5 @@
 /*
-** file_pak.cpp
+** file_lump.cpp
 **
 **---------------------------------------------------------------------------
 ** Copyright 2009 Christoph Oelckers
@@ -33,52 +33,30 @@
 */
 
 #include "resourcefile.h"
-#include "w_wad.h"
-#include "doomtype.h"
+#include "cmdlib.h"
+#include "printf.h"
 
 //==========================================================================
 //
-//
-//
-//==========================================================================
-
-struct dpackfile_t
-{
-	char	name[56];
-	int		filepos, filelen;
-} ;
-
-struct dpackheader_t
-{
-	int		ident;		// == IDPAKHEADER
-	int		dirofs;
-	int		dirlen;
-} ;
-
-
-//==========================================================================
-//
-// Wad file
+// Single lump
 //
 //==========================================================================
 
-class FPakFile : public FUncompressedFile
+class FLumpFile : public FUncompressedFile
 {
 public:
-	FPakFile(const char * filename, FileReader &file);
-	bool Open(bool quiet);
+	FLumpFile(const char * filename, FileReader &file);
+	bool Open(bool quiet, LumpFilterInfo* filter);
 };
 
 
 //==========================================================================
 //
-// FWadFile::FWadFile
-//
-// Initializes a WAD file
+// FLumpFile::FLumpFile
 //
 //==========================================================================
 
-FPakFile::FPakFile(const char *filename, FileReader &file) 
+FLumpFile::FLumpFile(const char *filename, FileReader &file) 
 	: FUncompressedFile(filename, file)
 {
 }
@@ -89,35 +67,23 @@ FPakFile::FPakFile(const char *filename, FileReader &file)
 //
 //==========================================================================
 
-bool FPakFile::Open(bool quiet)
+bool FLumpFile::Open(bool quiet, LumpFilterInfo*)
 {
-	dpackheader_t header;
+	FString name(ExtractFileBase(FileName, true));
 
-	Reader.Read(&header, sizeof(header));
-	NumLumps = LittleLong(header.dirlen) / sizeof(dpackfile_t);
-	header.dirofs = LittleLong(header.dirofs);
-	
-	TArray<dpackfile_t> fileinfo(NumLumps, true);
-	Reader.Seek (header.dirofs, FileReader::SeekSet);
-	Reader.Read (fileinfo.Data(), NumLumps * sizeof(dpackfile_t));
-
-	Lumps.Resize(NumLumps);
-
-	if (!quiet && !batchrun) Printf(", %d lumps\n", NumLumps);
-
-	for(uint32_t i = 0; i < NumLumps; i++)
+	Lumps.Resize(1);
+	Lumps[0].LumpNameSetup(name);
+	Lumps[0].Owner = this;
+	Lumps[0].Position = 0;
+	Lumps[0].LumpSize = (int)Reader.GetLength();
+	Lumps[0].Flags = 0;
+	NumLumps = 1;
+	if (!quiet)
 	{
-		Lumps[i].LumpNameSetup(fileinfo[i].name);
-		Lumps[i].Flags = LUMPF_FULLPATH;
-		Lumps[i].Owner = this;
-		Lumps[i].Position = LittleLong(fileinfo[i].filepos);
-		Lumps[i].LumpSize = LittleLong(fileinfo[i].filelen);
-		Lumps[i].CheckEmbedded();
+		Printf("\n");
 	}
-	GenerateHash();
 	return true;
 }
-
 
 //==========================================================================
 //
@@ -125,24 +91,13 @@ bool FPakFile::Open(bool quiet)
 //
 //==========================================================================
 
-FResourceFile *CheckPak(const char *filename, FileReader &file, bool quiet)
+FResourceFile *CheckLump(const char *filename, FileReader &file, bool quiet, LumpFilterInfo* filter)
 {
-	char head[4];
-
-	if (file.GetLength() >= 12)
-	{
-		file.Seek(0, FileReader::SeekSet);
-		file.Read(&head, 4);
-		file.Seek(0, FileReader::SeekSet);
-		if (!memcmp(head, "PACK", 4))
-		{
-			FResourceFile *rf = new FPakFile(filename, file);
-			if (rf->Open(quiet)) return rf;
-
-			file = std::move(rf->Reader); // to avoid destruction of reader
-			delete rf;
-		}
-	}
+	// always succeeds
+	FResourceFile *rf = new FLumpFile(filename, file);
+	if (rf->Open(quiet, filter)) return rf;
+	file = std::move(rf->Reader); // to avoid destruction of reader
+	delete rf;
 	return NULL;
 }
 

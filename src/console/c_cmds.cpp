@@ -54,7 +54,7 @@
 #include "s_sound.h"
 #include "g_game.h"
 #include "g_level.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "gi.h"
 #include "r_defs.h"
 #include "d_player.h"
@@ -848,17 +848,17 @@ CCMD (wdir)
 		Printf ("usage: wdir <wadfile>\n");
 		return;
 	}
-	int wadnum = Wads.CheckIfWadLoaded (argv[1]);
+	int wadnum = fileSystem.CheckIfResourceFileLoaded (argv[1]);
 	if (wadnum < 0)
 	{
 		Printf ("%s must be loaded to view its directory.\n", argv[1]);
 		return;
 	}
-	for (int i = 0; i < Wads.GetNumLumps(); ++i)
+	for (int i = 0; i < fileSystem.GetNumEntries(); ++i)
 	{
-		if (Wads.GetLumpFile(i) == wadnum)
+		if (fileSystem.GetFileContainer(i) == wadnum)
 		{
-			Printf ("%s\n", Wads.GetLumpFullName(i));
+			Printf ("%s\n", fileSystem.GetFileFullName(i));
 		}
 	}
 }
@@ -1221,10 +1221,10 @@ CCMD(secret)
 	bool thislevel = !stricmp(mapname, primaryLevel->MapName);
 	bool foundsome = false;
 
-	int lumpno=Wads.CheckNumForName("SECRETS");
+	int lumpno=fileSystem.CheckNumForName("SECRETS");
 	if (lumpno < 0) return;
 
-	auto lump = Wads.OpenLumpReader(lumpno);
+	auto lump = fileSystem.OpenFileReader(lumpno);
 	FString maphdr;
 	maphdr.Format("[%s]", mapname);
 

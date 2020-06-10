@@ -36,9 +36,24 @@
 #include <ctype.h>
 #include "resourcefile.h"
 #include "v_text.h"
-#include "w_wad.h"
-#include "gi.h"
+#include "filesystem.h"
 #include "engineerrors.h"
+
+
+struct wadinfo_t
+{
+	// Should be "IWAD" or "PWAD".
+	uint32_t		Magic;
+	uint32_t		NumLumps;
+	uint32_t		InfoTableOfs;
+};
+
+struct wadlump_t
+{
+	uint32_t		FilePos;
+	uint32_t		Size;
+	char		Name[8];
+};
 
 //==========================================================================
 //
@@ -116,7 +131,7 @@ class FWadFile : public FResourceFile
 public:
 	FWadFile(const char * filename, FileReader &file);
 	FResourceLump *GetLump(int lump) { return &Lumps[lump]; }
-	bool Open(bool quiet);
+	bool Open(bool quiet, LumpFilterInfo* filter);
 };
 
 
@@ -139,7 +154,7 @@ FWadFile::FWadFile(const char *filename, FileReader &file)
 //
 //==========================================================================
 
-bool FWadFile::Open(bool quiet)
+bool FWadFile::Open(bool quiet, LumpFilterInfo*)
 {
 	wadinfo_t header;
 	uint32_t InfoTableOfs;
@@ -176,7 +191,13 @@ bool FWadFile::Open(bool quiet)
 		char n[9];
 		uppercopy(n, fileinfo[i].Name);
 		n[8] = 0;
+		// This needs to be done differently. We cannot simply assume that all lumps where the first character's high bit is set are compressed without verification.
+		// This requires explicit toggling for precisely the files that need it.
+#if 0
 		Lumps[i].Compressed = !(gameinfo.flags & GI_SHAREWARE) && (n[0] & 0x80) == 0x80;
+#else
+		Lumps[i].Compressed = false;
+#endif
 		n[0] &= ~0x80;
 		Lumps[i].LumpNameSetup(n);
 
@@ -202,8 +223,6 @@ bool FWadFile::Open(bool quiet)
 
 	if (!quiet)	// don't bother with namespaces in quiet mode. We won't need them.
 	{
-		if (!batchrun) Printf(", %d lumps\n", NumLumps);
-
 		SetNamespace("S_START", "S_END", ns_sprites);
 		SetNamespace("F_START", "F_END", ns_flats, true);
 		SetNamespace("C_START", "C_END", ns_colormaps);
@@ -442,7 +461,7 @@ void FWadFile::SkinHack ()
 //
 //==========================================================================
 
-FResourceFile *CheckWad(const char *filename, FileReader &file, bool quiet)
+FResourceFile *CheckWad(const char *filename, FileReader &file, bool quiet, LumpFilterInfo* filter)
 {
 	char head[4];
 
@@ -454,7 +473,7 @@ FResourceFile *CheckWad(const char *filename, FileReader &file, bool quiet)
 		if (!memcmp(head, "IWAD", 4) || !memcmp(head, "PWAD", 4))
 		{
 			FResourceFile *rf = new FWadFile(filename, file);
-			if (rf->Open(quiet)) return rf;
+			if (rf->Open(quiet, filter)) return rf;
 
 			file = std::move(rf->Reader); // to avoid destruction of reader
 			delete rf;

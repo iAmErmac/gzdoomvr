@@ -46,7 +46,7 @@
 #include "d_main.h"
 #include "c_console.h"
 #include "version.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "g_level.h"
 #include "g_levellocals.h"
 #include "cmdlib.h"
@@ -115,7 +115,7 @@ static int DoomSpecificInfo (char *buffer, char *end)
 		}
 		p += snprintf(buffer + p, size - p, "\n");
 
-		for (i = 0; (arg = Wads.GetWadName(i)) != NULL; ++i)
+		for (i = 0; (arg = fileSystem.GetResourceFileName(i)) != NULL; ++i)
 		{
 			p += snprintf(buffer + p, size - p, "\nWad %d: %s", i, arg);
 		}

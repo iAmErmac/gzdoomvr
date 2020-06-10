@@ -28,7 +28,7 @@
 #include "m_random.h"
 #include "s_sound.h"
 #include "s_sndseq.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "cmdlib.h"
 #include "p_local.h"
 #include "po_man.h"
@@ -581,7 +581,7 @@ void S_ParseSndSeq (int levellump)
 	memset (SeqTrans, -1, sizeof(SeqTrans));
 	lastlump = 0;
 
-	while (((lump = Wads.FindLump ("SNDSEQ", &lastlump)) != -1 || levellump != -1) && levellump != -2)
+	while (((lump = fileSystem.FindLump ("SNDSEQ", &lastlump)) != -1 || levellump != -1) && levellump != -2)
 	{
 		if (lump == -1)
 		{

@@ -5,6 +5,17 @@
 
 #include "files.h"
 
+struct LumpFilterInfo
+{
+	TArray<FString> gameTypeFilter;	// this can contain multiple entries
+	FString dotFilter;
+
+	// The following are for checking if the root directory of a zip can be removed.
+	TArray<FString> reservedFolders;
+	TArray<FString> requiredPrefixes;
+	std::function<void()> postprocessFunc;
+};
+
 class FResourceFile;
 class FTexture;
 
@@ -76,11 +87,11 @@ struct FResourceLump
 	friend class FWadFile;	// this still needs direct access.
 
 	int				LumpSize;
+	int				RefCount;
 protected:
-	FString			FullName;		// only valid for files loaded from a non-wad archive
+	FString			FullName;
 public:
 	uint8_t			Flags;
-	int8_t			RefCount;
 	char *			Cache;
 	FResourceFile *	Owner;
 
@@ -102,9 +113,11 @@ public:
 	void CheckEmbedded();
 	virtual FCompressedBuffer GetRawData();
 
-	void *CacheLump();
-	int ReleaseCache();
+	void *Lock(); // validates the cache and increases the refcount.
+	int Unlock(); // decreases the refcount and frees the buffer
 
+	unsigned Size() const{ return LumpSize; }
+	int LockCount() const { return RefCount; }
 	const char* getName() { return FullName.GetChars(); }
 
 protected:
@@ -126,32 +139,31 @@ protected:
 
 	// for archives that can contain directories
 	void GenerateHash();
-	void PostProcessArchive(void *lumps, size_t lumpsize);
+	void PostProcessArchive(void *lumps, size_t lumpsize, LumpFilterInfo *filter);
 
 private:
 	uint32_t FirstLump;
 
 	int FilterLumps(FString filtername, void *lumps, size_t lumpsize, uint32_t max);
-	int FilterLumpsByGameType(int gametype, void *lumps, size_t lumpsize, uint32_t max);
+	int FilterLumpsByGameType(LumpFilterInfo *filter, void *lumps, size_t lumpsize, uint32_t max);
 	bool FindPrefixRange(FString filter, void *lumps, size_t lumpsize, uint32_t max, uint32_t &start, uint32_t &end);
 	void JunkLeftoverFilters(void *lumps, size_t lumpsize, uint32_t max);
-	static FResourceFile *DoOpenResourceFile(const char *filename, FileReader &file, bool quiet, bool containeronly);
+	static FResourceFile *DoOpenResourceFile(const char *filename, FileReader &file, bool quiet, bool containeronly, LumpFilterInfo* filter);
 
 public:
-	static FResourceFile *OpenResourceFile(const char *filename, FileReader &file, bool quiet = false, bool containeronly = false);
-	static FResourceFile *OpenResourceFile(const char *filename, bool quiet = false, bool containeronly = false);
-	static FResourceFile *OpenResourceFileFromLump(int lumpnum, bool quiet = false, bool containeronly = false);
-	static FResourceFile *OpenDirectory(const char *filename, bool quiet = false);
+	static FResourceFile *OpenResourceFile(const char *filename, FileReader &file, bool quiet = false, bool containeronly = false, LumpFilterInfo* filter = nullptr);
+	static FResourceFile *OpenResourceFile(const char *filename, bool quiet = false, bool containeronly = false, LumpFilterInfo* filter = nullptr);
+	static FResourceFile *OpenDirectory(const char *filename, bool quiet = false, LumpFilterInfo* filter = nullptr);
 	virtual ~FResourceFile();
     // If this FResourceFile represents a directory, the Reader object is not usable so don't return it.
     FileReader *GetReader() { return Reader.isOpen()? &Reader : nullptr; }
 	uint32_t LumpCount() const { return NumLumps; }
-	uint32_t GetFirstLump() const { return FirstLump; }
+	uint32_t GetFirstEntry() const { return FirstLump; }
 	void SetFirstLump(uint32_t f) { FirstLump = f; }
 	const FString &GetHash() const { return Hash; }
 
 
-	virtual bool Open(bool quiet) = 0;
+	virtual bool Open(bool quiet, LumpFilterInfo* filter) = 0;
 	virtual FResourceLump *GetLump(int no) = 0;
 	FResourceLump *FindLump(const char *name);
 };
@@ -188,18 +200,23 @@ struct FExternalLump : public FResourceLump
 
 };
 
-struct FMemoryFile : public FUncompressedFile
+struct FMemoryLump : public FResourceLump
 {
-	FMemoryFile(const char *_filename, const void *sdata, int length)
-		: FUncompressedFile(_filename)
+	FMemoryLump(const void* data, int length)
 	{
-		Reader.OpenMemoryArray(sdata, length);
+		RefCount = INT_MAX / 2;
+		LumpSize = length;
+		Cache = new char[length];
+		memcpy(Cache, data, length);
 	}
 
-    bool Open(bool quiet);
-
-
+	virtual int FillCache() override
+	{
+		RefCount = INT_MAX / 2; // Make sure it never counts down to 0 by resetting it to something high each time it is used.
+		return 1;
+	}
 };
+
 
 
 

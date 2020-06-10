@@ -46,7 +46,7 @@
 #include "r_data/r_interpolate.h"
 #include "r_state.h"
 #include "p_lnspec.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "p_terrain.h"
 #include "p_setup.h"
 #include "p_conversation.h"
@@ -1473,9 +1473,9 @@ FSerializer &Serialize(FSerializer &arc, const char *key, FTextureID &value, FTe
 			FTexture *pic = TexMan.GetTexture(chk);
 			const char *name;
 
-			if (Wads.GetLinkedTexture(pic->SourceLump) == pic)
+			if (fileSystem.GetLinkedTexture(pic->SourceLump) == pic)
 			{
-				name = Wads.GetLumpFullName(pic->SourceLump);
+				name = fileSystem.GetFileFullName(pic->SourceLump);
 			}
 			else
 			{

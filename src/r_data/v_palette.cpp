@@ -42,7 +42,7 @@
 
 #include "templates.h"
 #include "v_video.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "i_video.h"
 #include "c_dispatch.h"
 #include "st_stuff.h"
@@ -284,7 +284,7 @@ int ReadPalette(int lumpnum, uint8_t *buffer)
 	{
 		return 0;
 	}
-	FMemLump lump = Wads.ReadLump(lumpnum);
+	FileData lump = fileSystem.ReadFile(lumpnum);
 	uint8_t *lumpmem = (uint8_t*)lump.GetMem();
 	memset(buffer, 0, 768);
 
@@ -314,13 +314,13 @@ int ReadPalette(int lumpnum, uint8_t *buffer)
 			id = MAKE_ID('I', 'E', 'N', 'D');
 			fr.Read(&id, 4);
 		}
-		I_Error("%s contains no palette", Wads.GetLumpFullName(lumpnum));
+		I_Error("%s contains no palette", fileSystem.GetFileFullName(lumpnum));
 	}
 	if (memcmp(lumpmem, "JASC-PAL", 8) == 0)
 	{
 		FScanner sc;
 		
-		sc.OpenMem(Wads.GetLumpFullName(lumpnum), (char*)lumpmem, int(lump.GetSize()));
+		sc.OpenMem(fileSystem.GetFileFullName(lumpnum), (char*)lumpmem, int(lump.GetSize()));
 		sc.MustGetString();
 		sc.MustGetNumber();	// version - ignore
 		sc.MustGetNumber();	
@@ -403,7 +403,7 @@ void InitPalette ()
 {
 	uint8_t pal[768];
 	
-	ReadPalette(Wads.GetNumForName("PLAYPAL"), pal);
+	ReadPalette(fileSystem.GetNumForName("PLAYPAL"), pal);
 
 	GPalette.SetPalette (pal);
 	GPalette.MakeGoodRemap ();

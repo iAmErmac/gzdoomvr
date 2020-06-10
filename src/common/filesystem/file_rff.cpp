@@ -35,8 +35,7 @@
 
 #include "resourcefile.h"
 #include "templates.h"
-#include "w_wad.h"
-#include "doomtype.h"
+#include "printf.h"
 
 //==========================================================================
 //
@@ -112,7 +111,7 @@ class FRFFFile : public FResourceFile
 public:
 	FRFFFile(const char * filename, FileReader &file);
 	virtual ~FRFFFile();
-	virtual bool Open(bool quiet);
+	virtual bool Open(bool quiet, LumpFilterInfo* filter);
 	virtual FResourceLump *GetLump(int no) { return ((unsigned)no < NumLumps)? &Lumps[no] : NULL; }
 };
 
@@ -135,7 +134,7 @@ FRFFFile::FRFFFile(const char *filename, FileReader &file)
 //
 //==========================================================================
 
-bool FRFFFile::Open(bool quiet)
+bool FRFFFile::Open(bool quiet, LumpFilterInfo*)
 {
 	RFFLump *lumps;
 	RFFInfo header;
@@ -151,7 +150,6 @@ bool FRFFFile::Open(bool quiet)
 
 	Lumps = new FRFFLump[NumLumps];
 
-	if (!quiet && !batchrun) Printf(", %d lumps\n", NumLumps);
 	for (uint32_t i = 0; i < NumLumps; ++i)
 	{
 		Lumps[i].Position = LittleLong(lumps[i].FilePos);
@@ -239,7 +237,7 @@ int FRFFLump::FillCache()
 //
 //==========================================================================
 
-FResourceFile *CheckRFF(const char *filename, FileReader &file, bool quiet)
+FResourceFile *CheckRFF(const char *filename, FileReader &file, bool quiet, LumpFilterInfo* filter)
 {
 	char head[4];
 
@@ -251,7 +249,7 @@ FResourceFile *CheckRFF(const char *filename, FileReader &file, bool quiet)
 		if (!memcmp(head, "RFF\x1a", 4))
 		{
 			FResourceFile *rf = new FRFFFile(filename, file);
-			if (rf->Open(quiet)) return rf;
+			if (rf->Open(quiet, filter)) return rf;
 
 			file = std::move(rf->Reader); // to avoid destruction of reader
 			delete rf;

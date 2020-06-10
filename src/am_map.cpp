@@ -34,7 +34,7 @@
 #include "st_stuff.h"
 #include "p_local.h"
 #include "p_lnspec.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "a_sharedglobal.h"
 #include "d_event.h"
 #include "gi.h"
@@ -831,7 +831,7 @@ static void AM_ParseArrow(TArray<mline_t> &Arrow, const char *lumpname)
 {
 	const int R = int((8 * PLAYERRADIUS) / 7);
 	FScanner sc;
-	int lump = Wads.CheckNumForFullName(lumpname, true);
+	int lump = fileSystem.CheckNumForFullName(lumpname, true);
 	if (lump >= 0)
 	{
 		sc.OpenLumpNum(lump);

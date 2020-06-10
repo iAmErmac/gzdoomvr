@@ -43,7 +43,7 @@
 #include "engineerrors.h"
 #include "doomstat.h"
 #include "wi_stuff.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "am_map.h"
 #include "c_dispatch.h"
 
@@ -895,8 +895,8 @@ bool FLevelLocals::DoCompleted (FString nextlevel, wbstartstruct_t &wminfo)
 				FTexture *tex = TexMan.GetTexture(*texids[i]);
 				if (tex != nullptr)
 				{
-					int filenum = Wads.GetLumpFile(tex->GetSourceLump());
-					if (filenum >= 0 && filenum <= Wads.GetMaxIwadNum())
+					int filenum = fileSystem.GetFileContainer(tex->GetSourceLump());
+					if (filenum >= 0 && filenum <= fileSystem.GetMaxIwadNum())
 					{
 						texids[i]->SetInvalid();
 					}

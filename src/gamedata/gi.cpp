@@ -36,7 +36,7 @@
 #include "info.h"
 #include "gi.h"
 #include "sc_man.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "v_video.h"
 #include "g_level.h"
 #include "vm.h"
@@ -171,7 +171,7 @@ const char* GameInfoBorders[] =
 	{ \
 		sc.MustGetToken(TK_StringConst); \
 		gameinfo.key = sc.String; \
-		gameinfo.stampvar = Wads.GetLumpFile(sc.LumpNum); \
+		gameinfo.stampvar = fileSystem.GetFileContainer(sc.LumpNum); \
 	}
 
 #define GAMEINFOKEY_INT(key, variable) \

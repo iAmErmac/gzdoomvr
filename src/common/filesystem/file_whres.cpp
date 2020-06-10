@@ -1,9 +1,10 @@
 /*
-** file_grp.cpp
+** file_whres.cpp
+**
+** reads a Witchaven/TekWar sound resource file
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2009 Randy Heit
-** Copyright 2005-2009 Christoph Oelckers
+** Copyright 2009-2019 Christoph Oelckers
 ** All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
@@ -34,8 +35,8 @@
 */
 
 #include "resourcefile.h"
-#include "w_wad.h"
-#include "doomtype.h"
+#include "printf.h"
+#include "cmdlib.h"
 
 //==========================================================================
 //
@@ -43,49 +44,46 @@
 //
 //==========================================================================
 
-struct GrpInfo
+struct whresentry
 {
-	uint32_t		Magic[3];
-	uint32_t		NumLumps;
-};
+	int		filepospage, filelen, priority;
+} ;
 
-struct GrpLump
+struct dpackheader_t
 {
-	union
-	{
-		struct
-		{
-			char		Name[12];
-			uint32_t		Size;
-		};
-		char NameWithZero[13];
-	};
-};
+	int		ident;		// == IDPAKHEADER
+	int		dirofs;
+	int		dirlen;
+} ;
 
 
 //==========================================================================
 //
-// Build GRP file
+// Wad file
 //
 //==========================================================================
 
-class FGrpFile : public FUncompressedFile
+class FWHResFile : public FUncompressedFile
 {
+	FString basename;
 public:
-	FGrpFile(const char * filename, FileReader &file);
-	bool Open(bool quiet);
+	FWHResFile(const char * filename, FileReader &file);
+	bool Open(bool quiet, LumpFilterInfo* filter);
 };
 
 
 //==========================================================================
 //
-// Initializes a Build GRP file
+// FWadFile::FWadFile
+//
+// Initializes a WAD file
 //
 //==========================================================================
 
-FGrpFile::FGrpFile(const char *filename, FileReader &file)
-: FUncompressedFile(filename, file)
+FWHResFile::FWHResFile(const char *filename, FileReader &file) 
+	: FUncompressedFile(filename, file)
 {
+	basename = ExtractFileBase(filename, false);
 }
 
 //==========================================================================
@@ -94,33 +92,33 @@ FGrpFile::FGrpFile(const char *filename, FileReader &file)
 //
 //==========================================================================
 
-bool FGrpFile::Open(bool quiet)
+bool FWHResFile::Open(bool quiet, LumpFilterInfo*)
 {
-	GrpInfo header;
-
-	Reader.Read(&header, sizeof(header));
-	NumLumps = LittleLong(header.NumLumps);
+	int directory[1024];
 	
-	GrpLump *fileinfo = new GrpLump[NumLumps];
-	Reader.Read (fileinfo, NumLumps * sizeof(GrpLump));
+	Reader.Seek(-4096, FileReader::SeekEnd);
+	Reader.Read(directory, 4096);
+	
+	int nl =1024/3;
+	Lumps.Resize(nl);
 
-	Lumps.Resize(NumLumps);
 
-	int Position = sizeof(GrpInfo) + NumLumps * sizeof(GrpLump);
-
-	for(uint32_t i = 0; i < NumLumps; i++)
+	int i = 0;
+	for(int k = 0; k < nl; k++)
 	{
+		int offset = LittleLong(directory[k*3]) * 4096;
+		int length = LittleLong(directory[k*3+1]);
+		if (length <= 0) break;
+		FStringf synthname("%s/%04d", basename.GetChars(), k);
+		Lumps[i].LumpNameSetup(synthname);
 		Lumps[i].Owner = this;
-		Lumps[i].Position = Position;
-		Lumps[i].LumpSize = LittleLong(fileinfo[i].Size);
-		Position += fileinfo[i].Size;
-		Lumps[i].Flags = 0;
-		fileinfo[i].NameWithZero[12] = '\0';	// Be sure filename is null-terminated
-		Lumps[i].LumpNameSetup(fileinfo[i].NameWithZero);
+		Lumps[i].Position = offset;
+		Lumps[i].LumpSize = length;
+		i++;
 	}
-	if (!quiet && !batchrun) Printf(", %d lumps\n", NumLumps);
-	GenerateHash();
-	delete[] fileinfo;
+	NumLumps = i;
+	Lumps.Clamp(NumLumps);
+	Lumps.ShrinkToFit();
 	return true;
 }
 
@@ -131,24 +129,30 @@ bool FGrpFile::Open(bool quiet)
 //
 //==========================================================================
 
-FResourceFile *CheckGRP(const char *filename, FileReader &file, bool quiet)
+FResourceFile *CheckWHRes(const char *filename, FileReader &file, bool quiet, LumpFilterInfo* filter)
 {
-	char head[12];
-
-	if (file.GetLength() >= 12)
+	if (file.GetLength() >= 8192) // needs to be at least 8192 to contain one file and the directory.
 	{
-		file.Seek(0, FileReader::SeekSet);
-		file.Read(&head, 12);
-		file.Seek(0, FileReader::SeekSet);
-		if (!memcmp(head, "KenSilverman", 12))
+		int directory[1024];
+		int nl =1024/3;
+		
+		file.Seek(-4096, FileReader::SeekEnd);
+		file.Read(directory, 4096);
+		
+		int checkpos = 0;
+		for(int k = 0; k < nl; k++)
 		{
-			FResourceFile *rf = new FGrpFile(filename, file);
-			if (rf->Open(quiet)) return rf;
-
-			file = std::move(rf->Reader); // to avoid destruction of reader
-			delete rf;
+			int offset = LittleLong(directory[k*3]);
+			int length = LittleLong(directory[k*3+1]);
+			if (length <= 0 && offset == 0) break;
+			if (offset != checkpos || length <= 0) return nullptr;
+			checkpos += (length+4095) / 4096;
 		}
+		FResourceFile *rf = new FWHResFile(filename, file);
+		if (rf->Open(quiet, filter)) return rf;
+		file = std::move(rf->Reader); // to avoid destruction of reader
+		delete rf;
 	}
 	return NULL;
 }
-
+ 

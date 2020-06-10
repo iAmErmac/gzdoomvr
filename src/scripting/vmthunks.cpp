@@ -3143,6 +3143,85 @@ DEFINE_ACTION_FUNCTION_NATIVE(_AltHUD, GetLatency, Net_GetLatency)
 
 //==========================================================================
 //
+// file system
+//
+//==========================================================================
+
+//==========================================================================
+//
+// W_NumLumps
+//
+//==========================================================================
+
+DEFINE_ACTION_FUNCTION(_Wads, GetNumEntries)
+{
+	PARAM_PROLOGUE;
+	ACTION_RETURN_INT(fileSystem.GetNumEntries());
+}
+
+DEFINE_ACTION_FUNCTION(_Wads, CheckNumForName)
+{
+	PARAM_PROLOGUE;
+	PARAM_STRING(name);
+	PARAM_INT(ns);
+	PARAM_INT(wadnum);
+	PARAM_BOOL(exact);
+	ACTION_RETURN_INT(fileSystem.CheckNumForName(name, ns, wadnum, exact));
+}
+
+DEFINE_ACTION_FUNCTION(_Wads, CheckNumForFullName)
+{
+	PARAM_PROLOGUE;
+	PARAM_STRING(name);
+	ACTION_RETURN_INT(fileSystem.CheckNumForFullName(name));
+}
+
+DEFINE_ACTION_FUNCTION(_Wads, FindLump)
+{
+	PARAM_PROLOGUE;
+	PARAM_STRING(name);
+	PARAM_INT(startlump);
+	PARAM_INT(ns);
+	const bool isLumpValid = startlump >= 0 && startlump < fileSystem.GetNumEntries();
+	ACTION_RETURN_INT(isLumpValid ? fileSystem.FindLump(name, &startlump, 0 != ns) : -1);
+}
+
+DEFINE_ACTION_FUNCTION(_Wads, GetLumpName)
+{
+	PARAM_PROLOGUE;
+	PARAM_INT(lump);
+	FString lumpname;
+	fileSystem.GetFileShortName(lumpname, lump);
+	ACTION_RETURN_STRING(lumpname);
+}
+
+DEFINE_ACTION_FUNCTION(_Wads, GetLumpFullName)
+{
+	PARAM_PROLOGUE;
+	PARAM_INT(lump);
+	ACTION_RETURN_STRING(fileSystem.GetFileFullName(lump));
+}
+
+DEFINE_ACTION_FUNCTION(_Wads, GetLumpNamespace)
+{
+	PARAM_PROLOGUE;
+	PARAM_INT(lump);
+	ACTION_RETURN_INT(fileSystem.GetFileNamespace(lump));
+}
+
+DEFINE_ACTION_FUNCTION(_Wads, ReadLump)
+{
+	PARAM_PROLOGUE;
+	PARAM_INT(lump);
+	const bool isLumpValid = lump >= 0 && lump < fileSystem.GetNumEntries();
+	ACTION_RETURN_STRING(isLumpValid ? fileSystem.ReadFile(lump).GetString() : FString());
+}
+
+
+
+
+//==========================================================================
+//
 //
 //
 //==========================================================================

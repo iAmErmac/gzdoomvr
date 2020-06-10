@@ -53,7 +53,7 @@
 #include "v_text.h"
 #include "sc_man.h"
 
-#include "w_wad.h"
+#include "filesystem.h"
 
 #include "c_dispatch.h"
 #include "cmdlib.h"
@@ -380,16 +380,16 @@ normal:
 
 FString V_GetColorStringByName (const char *name, FScriptPosition *sc)
 {
-	FMemLump rgbNames;
+	FileData rgbNames;
 	char *rgbEnd;
 	char *rgb, *endp;
 	int rgblump;
 	int c[3], step;
 	size_t namelen;
 
-	if (Wads.GetNumLumps()==0) return FString();
+	if (fileSystem.GetNumEntries()==0) return FString();
 
-	rgblump = Wads.CheckNumForName ("X11R6RGB");
+	rgblump = fileSystem.CheckNumForName ("X11R6RGB");
 	if (rgblump == -1)
 	{
 		if (!sc) Printf ("X11R6RGB lump not found\n");
@@ -397,9 +397,9 @@ FString V_GetColorStringByName (const char *name, FScriptPosition *sc)
 		return FString();
 	}
 
-	rgbNames = Wads.ReadLump (rgblump);
+	rgbNames = fileSystem.ReadFile (rgblump);
 	rgb = (char *)rgbNames.GetMem();
-	rgbEnd = rgb + Wads.LumpLength (rgblump);
+	rgbEnd = rgb + fileSystem.FileLength (rgblump);
 	step = 0;
 	namelen = strlen (name);
 

@@ -41,7 +41,7 @@
 #include "d_netinf.h"
 #include "sc_man.h"
 #include "engineerrors.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "serializer.h"
 #include "d_player.h"
 #include "r_data/sprites.h"
@@ -490,7 +490,7 @@ static void R_CreatePlayerTranslation (float h, float s, float v, const FPlayerC
 	bases = s;
 	basev = v;
 
-	if (colorset != NULL && colorset->Lump >= 0 && Wads.LumpLength(colorset->Lump) < 256)
+	if (colorset != NULL && colorset->Lump >= 0 && fileSystem.FileLength(colorset->Lump) < 256)
 	{ // Bad table length. Ignore it.
 		colorset = NULL;
 	}
@@ -511,7 +511,7 @@ static void R_CreatePlayerTranslation (float h, float s, float v, const FPlayerC
 		}
 		else
 		{
-			FMemLump translump = Wads.ReadLump(colorset->Lump);
+			FileData translump = fileSystem.ReadFile(colorset->Lump);
 			const uint8_t *trans = (const uint8_t *)translump.GetMem();
 			for (i = start; i <= end; ++i)
 			{
@@ -762,7 +762,7 @@ void R_ParseTrnslate()
 
 	int lump;
 	int lastlump = 0;
-	while (-1 != (lump = Wads.FindLump("TRNSLATE", &lastlump)))
+	while (-1 != (lump = fileSystem.FindLump("TRNSLATE", &lastlump)))
 	{
 		FScanner sc(lump);
 		while (sc.GetToken())
@@ -803,7 +803,7 @@ void R_ParseTrnslate()
 			do
 			{
 				sc.MustGetToken(TK_StringConst);
-				int pallump = Wads.CheckNumForFullName(sc.String, true, ns_global);
+				int pallump = fileSystem.CheckNumForFullName(sc.String, true, ns_global);
 				if (pallump >= 0)	// 
 				{
 					int start = 0;

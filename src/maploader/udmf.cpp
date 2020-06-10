@@ -42,7 +42,7 @@
 #include "g_level.h"
 #include "udmf.h"
 #include "r_state.h"
-#include "w_wad.h"
+#include "filesystem.h"
 #include "p_tags.h"
 #include "p_terrain.h"
 #include "p_spec.h"
@@ -2161,7 +2161,7 @@ public:
 		isExtended = false;
 		floordrop = false;
 
-		sc.OpenMem(Wads.GetLumpFullName(map->lumpnum), map->Read(ML_TEXTMAP));
+		sc.OpenMem(fileSystem.GetFileFullName(map->lumpnum), map->Read(ML_TEXTMAP));
 		sc.SetCMode(true);
 		if (sc.CheckString("namespace"))
 		{
