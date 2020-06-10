@@ -2,7 +2,7 @@
 #define ZCC_COMPILE_H
 
 #include <memory>
-#include "backend/codegen.h"
+#include "codegen.h"
 
 struct Baggage;
 struct FPropertyInfo;
@@ -106,11 +106,14 @@ class ZCCCompiler
 {
 public:
 	ZCCCompiler(ZCC_AST &tree, DObject *outer, PSymbolTable &symbols, PNamespace *outnamespace, int lumpnum, const VersionInfo & ver);
-	~ZCCCompiler();
-	int Compile();
+	virtual ~ZCCCompiler();
+	virtual int Compile();
 
-private:
+protected:
 	const char * GetStringConst(FxExpression *ex, FCompileContext &ctx);
+	virtual int CheckActionKeyword(ZCC_FuncDeclarator* f, uint32_t &varflags, int useflags, ZCC_StructWork *c) { return -1; } // stock implementation does not support this.
+	virtual bool PrepareMetaData(PClass *type) { return false; }
+	virtual void SetImplicitArgs(TArray<PType*>* args, TArray<uint32_t>* argflags, TArray<FName>* argnames, PContainerType* cls, uint32_t funcflags, int useflags);
 
 	int IntConstFromNode(ZCC_TreeNode *node, PContainerType *cls);
 	FString StringConstFromNode(ZCC_TreeNode *node, PContainerType *cls);
@@ -128,25 +131,15 @@ private:
 
 	void CompileAllFields();
 	bool CompileFields(PContainerType *type, TArray<ZCC_VarDeclarator *> &Fields, PClass *Outer, PSymbolTable *TreeNodes, bool forstruct, bool hasnativechildren = false);
-	void CompileAllProperties();
-	bool CompileProperties(PClass *type, TArray<ZCC_Property *> &Properties, FName prefix);
-	bool CompileFlagDefs(PClass *type, TArray<ZCC_FlagDef *> &FlagDefs, FName prefix);
 	FString FlagsToString(uint32_t flags);
 	PType *DetermineType(PType *outertype, ZCC_TreeNode *field, FName name, ZCC_Type *ztype, bool allowarraytypes, bool formember);
 	PType *ResolveArraySize(PType *baseType, ZCC_Expression *arraysize, PContainerType *cls, bool *nosize);
 	PType *ResolveUserType(ZCC_BasicType *type, PSymbolTable *sym, bool nativetype);
 
-	void InitDefaults();
-	void ProcessDefaultFlag(PClassActor *cls, ZCC_FlagStmt *flg);
-	void ProcessDefaultProperty(PClassActor *cls, ZCC_PropertyStmt *flg, Baggage &bag);
-	void DispatchProperty(FPropertyInfo *prop, ZCC_PropertyStmt *pex, AActor *defaults, Baggage &bag);
-	void DispatchScriptProperty(PProperty *prop, ZCC_PropertyStmt *pex, AActor *defaults, Baggage &bag);
 	void CompileFunction(ZCC_StructWork *c, ZCC_FuncDeclarator *f, bool forclass);
 
 	void InitFunctions();
-	void CompileStates();
-	FxExpression *SetupActionFunction(PClass *cls, ZCC_TreeNode *sl, int stateflags);
-
+	
 	TArray<ZCC_ConstantDef *> Constants;
 	TArray<ZCC_StructWork *> Structs;
 	TArray<ZCC_ClassWork *> Classes;
