@@ -38,48 +38,25 @@
 #include "files.h"
 #include "filesystem.h"
 #include "templates.h"
-
-#include "r_data/r_translate.h"
+#include "textures.h"
 #include "bitmap.h"
 #include "colormatcher.h"
 #include "c_dispatch.h"
-#include "v_video.h"
 #include "m_fixed.h"
-#include "hwrenderer/textures/hw_material.h"
-#include "hwrenderer/textures/hw_ihwtexture.h"
-#include "swrenderer/textures/r_swtexture.h"
 #include "imagehelpers.h"
 #include "image.h"
 #include "formats/multipatchtexture.h"
-#include "g_levellocals.h"
+#include "texturemanager.h"
+
+// Wrappers to keep the definitions of these classes out of here.
+void DeleteMaterial(FMaterial* mat);
+void DeleteSoftwareTexture(FSoftwareTexture *swtex);
+
 
 FTexture *CreateBrightmapTexture(FImageSource*);
 
 // Make sprite offset adjustment user-configurable per renderer.
 int r_spriteadjustSW, r_spriteadjustHW;
-CUSTOM_CVAR(Int, r_spriteadjust, 2, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
-{
-	r_spriteadjustHW = !!(self & 2);
-	r_spriteadjustSW = !!(self & 1);
-	TexMan.SpriteAdjustChanged();
-}
-
-//==========================================================================
-//
-// 
-//
-//==========================================================================
-
-uint8_t ImageHelpers::GrayMap[256];
-
-void FTexture::InitGrayMap()
-{
-	for (int i = 0; i < 256; ++i)
-	{
-		ImageHelpers::GrayMap[i] = ColorMatcher.Pick(i, i, i);
-	}
-}
-
 
 //==========================================================================
 //
@@ -178,25 +155,14 @@ FTexture::~FTexture ()
 
 	for (int i = 0; i < 2; i++)
 	{
-		if (Material[i] != nullptr) delete Material[i];
+		if (Material[i] != nullptr) DeleteMaterial(Material[i]);
 		Material[i] = nullptr;
 	}
 	if (SoftwareTexture != nullptr)
 	{
-		delete SoftwareTexture;
+		DeleteSoftwareTexture(SoftwareTexture);
 		SoftwareTexture = nullptr;
 	}
-}
-
-//==========================================================================
-//
-// 
-//
-//==========================================================================
-
-void FTexture::SetFrontSkyLayer ()
-{
-	bNoRemap0 = true;
 }
 
 //===========================================================================
@@ -248,7 +214,7 @@ FTexture *FTexture::GetRawTexture()
 	return OffsetLess;
 }
 
-void FTexture::SetScaledSize(int fitwidth, int fitheight)
+void FTexture::SetDisplaySize(int fitwidth, int fitheight)
 {
 	Scale.X = double(Width) / fitwidth;
 	Scale.Y =double(Height) / fitheight;
@@ -770,21 +736,6 @@ bool FTexture::GetTranslucency()
 
 //===========================================================================
 // 
-// Sprite adjust has changed.
-// This needs to alter the material's sprite rect.
-//
-//===========================================================================
-
-void FTexture::SetSpriteAdjust()
-{
-	for (auto mat : Material)
-	{
-		if (mat != nullptr) mat->SetSpriteRect();
-	}
-}
-
-//===========================================================================
-// 
 // the default just returns an empty texture.
 //
 //===========================================================================
@@ -794,24 +745,6 @@ TArray<uint8_t> FTexture::Get8BitPixels(bool alphatex)
 	TArray<uint8_t> Pixels(Width * Height, true);
 	memset(Pixels.Data(), 0, Width * Height);
 	return Pixels;
-}
-
-//==========================================================================
-//
-// 
-//
-//==========================================================================
-
-FWrapperTexture::FWrapperTexture(int w, int h, int bits)
-{
-	Width = w;
-	Height = h;
-	Format = bits;
-	UseType = ETextureType::SWCanvas;
-	bNoCompress = true;
-	auto hwtex = screen->CreateHardwareTexture();
-	// todo: Initialize here.
-	SystemTextures.AddHardwareTexture(0, false, hwtex);
 }
 
 //===========================================================================

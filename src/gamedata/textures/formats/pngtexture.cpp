@@ -40,7 +40,7 @@
 #include "bitmap.h"
 #include "imagehelpers.h"
 #include "image.h"
-#include "textures.h"
+#include "printf.h"
 
 //==========================================================================
 //
@@ -248,12 +248,12 @@ FPNGTexture::FPNGTexture (FileReader &lump, int lumpnum, int width, int height,
 			bMasked = true;
 			PaletteSize = 256;
 			PaletteMap = (uint8_t*)ImageArena.Alloc(PaletteSize);
-			memcpy (PaletteMap, ImageHelpers::GrayMap, 256);
+			memcpy (PaletteMap, GPalette.GrayMap, 256);
 			PaletteMap[NonPaletteTrans[0]] = 0;
 		}
 		else
 		{
-			PaletteMap = ImageHelpers::GrayMap;
+			PaletteMap = GPalette.GrayMap;
 		}
 		break;
 
@@ -557,6 +557,7 @@ int FPNGTexture::CopyPixels(FBitmap *bmp, int conversion)
 }
 
 
+#include "textures.h"
 
 //==========================================================================
 //

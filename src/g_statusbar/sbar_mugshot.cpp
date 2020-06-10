@@ -40,6 +40,7 @@
 #include "r_utility.h"
 #include "actorinlines.h"
 #include "hwrenderer\utility\hw_vrmodes.h"
+#include "texturemanager.h"
 
 #define ST_RAMPAGEDELAY 		(2*TICRATE)
 #define ST_MUCHPAIN 			20

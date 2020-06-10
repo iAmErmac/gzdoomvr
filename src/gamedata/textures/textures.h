@@ -35,15 +35,19 @@
 #ifndef __TEXTURES_H
 #define __TEXTURES_H
 
-#include "doomtype.h"
+#include "basics.h"
 #include "vectors.h"
-#include "v_palette.h"
-#include "r_data/v_colortables.h"
 #include "colormatcher.h"
 #include "r_data/renderstyle.h"
-#include "r_data/r_translate.h"
-#include "hwrenderer/textures/hw_texcontainer.h"
+#include "textureid.h"
 #include <vector>
+#include "hwrenderer/textures/hw_texcontainer.h"
+
+/*
+#include "v_palette.h"
+#include "r_data/v_colortables.h"
+#include "r_data/r_translate.h"
+*/
 
 // 15 because 0th texture is our texture
 #define MAX_CUSTOM_HW_SHADER_TEXTURES 15
@@ -134,64 +138,6 @@ public:
 	FNullTextureID() : FTextureID(0) {}
 };
 
-//
-// Animating textures and planes
-//
-// [RH] Expanded to work with a Hexen ANIMDEFS lump
-//
-
-struct FAnimDef
-{
-	FTextureID 	BasePic;
-	uint16_t	NumFrames;
-	uint16_t	CurFrame;
-	uint8_t	AnimType;
-	bool	bDiscrete;			// taken out of AnimType to have better control
-	uint64_t	SwitchTime;			// Time to advance to next frame
-	struct FAnimFrame
-	{
-		uint32_t	SpeedMin;		// Speeds are in ms, not tics
-		uint32_t	SpeedRange;
-		FTextureID	FramePic;
-	} Frames[1];
-	enum
-	{
-		ANIM_Forward,
-		ANIM_Backward,
-		ANIM_OscillateUp,
-		ANIM_OscillateDown,
-		ANIM_Random
-	};
-
-	void SetSwitchTime (uint64_t mstime);
-};
-
-struct FSwitchDef
-{
-	FTextureID PreTexture;		// texture to switch from
-	FSwitchDef *PairDef;		// switch def to use to return to PreTexture
-	uint16_t NumFrames;		// # of animation frames
-	bool QuestPanel;	// Special texture for Strife mission
-	int Sound;			// sound to play at start of animation. Changed to int to avoiud having to include s_sound here.
-	struct frame		// Array of times followed by array of textures
-	{					//   actual length of each array is <NumFrames>
-		uint16_t TimeMin;
-		uint16_t TimeRnd;
-		FTextureID Texture;
-	} frames[1];
-};
-
-struct FDoorAnimation
-{
-	FTextureID BaseTexture;
-	FTextureID *TextureFrames;
-	int NumTextureFrames;
-	FName OpenSound;
-	FName CloseSound;
-};
-
-// All FTextures present their data to the world in 8-bit format, but if
-// the source data is something else, this is it.
 enum FTextureFormat : uint32_t
 {
 	TEX_Pal,
@@ -306,6 +252,8 @@ public:
 	
 	int GetTexelWidth() { return Width; }
 	int GetTexelHeight() { return Height; }
+	int GetTexelLeftOffset(int adjusted) { return _LeftOffset[adjusted]; }
+	int GetTexelTopOffset(int adjusted) { return _TopOffset[adjusted]; }
 
 	
 	bool isValid() const { return UseType != ETextureType::Null; }
@@ -321,9 +269,12 @@ public:
 	bool isSprite() const { return UseType == ETextureType::Sprite || UseType == ETextureType::SkinSprite || UseType == ETextureType::Decal; }
 	
 	const FString &GetName() const { return Name; }
+	void SetNoDecals(bool on) { bNoDecals = on;  }
+	void SetWarpStyle(int style) { bWarped = style; }
 	bool allowNoDecals() const { return bNoDecals; }
 	bool isScaled() const { return Scale.X != 1 || Scale.Y != 1; }
 	bool isMasked() const { return bMasked; }
+	void SetSkyOffset(int offs) { SkyOffset = offs; }
 	int GetSkyOffset() const { return SkyOffset; }
 	FTextureID GetID() const { return id; }
 	PalEntry GetSkyCapColor(bool bottom);
@@ -339,6 +290,12 @@ public:
 	void SetUseType(ETextureType type) { UseType = type; }
 	int GetSourceLump() const { return SourceLump;  }
 	ETextureType GetUseType() const { return UseType; }
+	void SetSpeed(float fac) { shaderspeed = fac; }
+	void SetWorldPanning(bool on) { bWorldPanning = on; }
+	void SetDisplaySize(int fitwidth, int fitheight);
+	void SetFrontSkyLayer(bool on = true) { bNoRemap0 = on; }
+	bool IsFrontSkyLayer() { return bNoRemap0; }
+
 
 	void CopySize(FTexture* BaseTexture)
 	{
@@ -349,6 +306,13 @@ public:
 		_LeftOffset[0] = BaseTexture->_LeftOffset[0];
 		_LeftOffset[1] = BaseTexture->_LeftOffset[1];
 		Scale = BaseTexture->Scale;
+	}
+
+	// This is only used for the null texture and for Heretic's skies.
+	void SetSize(int w, int h)
+	{
+		Width = w;
+		Height = h;
 	}
 
 
@@ -429,15 +393,6 @@ protected:
 	float shaderspeed = 1.f;
 	int shaderindex = 0;
 
-	// This is only used for the null texture and for Heretic's skies.
-	void SetSize(int w, int h)
-	{
-		Width = w;
-		Height = h;
-	}
-
-	void SetSpeed(float fac) { shaderspeed = fac; }
-
 	int GetScaledWidth () { int foo = int((Width * 2) / Scale.X); return (foo >> 1) + (foo & 1); }
 	int GetScaledHeight () { int foo = int((Height * 2) / Scale.Y); return (foo >> 1) + (foo & 1); }
 	double GetScaledWidthDouble () { return Width / Scale.X; }
@@ -461,11 +416,6 @@ protected:
 
 	virtual void ResolvePatches() {}
 
-	void SetFrontSkyLayer();
-
-	static void InitGrayMap();
-
-	void SetScaledSize(int fitwidth, int fitheight);
 	void SetScale(const DVector2 &scale)
 	{
 		Scale = scale;
@@ -480,6 +430,14 @@ protected:
 public:
 	FTextureBuffer CreateTexBuffer(int translation, int flags = 0);
 	bool GetTranslucency();
+	FMaterial* GetMaterial(int num)
+	{
+		return Material[num];
+	}
+	FTexture* GetPalVersion()
+	{
+		return PalVersion;
+	}
 
 private:
 	int CheckDDPK3();
@@ -494,221 +452,17 @@ public:
 	void CheckTrans(unsigned char * buffer, int size, int trans);
 	bool ProcessData(unsigned char * buffer, int w, int h, bool ispatch);
 	int CheckRealHeight();
-	void SetSpriteAdjust();
 
 	friend class FTextureManager;
 };
 
 
-class FxAddSub;
-// Texture manager
-class FTextureManager
-{
-	friend class FxAddSub;	// needs access to do a bounds check on the texture ID.
-public:
-	FTextureManager ();
-	~FTextureManager ();
-	
-private:
-	int ResolveLocalizedTexture(int texnum);
-	int PalCheck(int tex);
-
-	FTexture *InternalGetTexture(int texnum, bool animate, bool localize, bool palettesubst)
-	{
-		if ((unsigned)texnum >= Textures.Size()) return nullptr;
-		if (animate) texnum = Translation[texnum];
-		if (localize && Textures[texnum].HasLocalization) texnum = ResolveLocalizedTexture(texnum);
-		if (palettesubst) texnum = PalCheck(texnum);
-		return Textures[texnum].Texture;
-	}
-public:
-	// This only gets used in UI code so we do not need PALVERS handling.
-	FTexture *GetTextureByName(const char *name, bool animate = false)
-	{
-		FTextureID texnum = GetTextureID (name, ETextureType::MiscPatch);
-		return InternalGetTexture(texnum.GetIndex(), animate, true, false);
-	}
-	
-	FTexture *GetTexture(FTextureID texnum, bool animate = false)
-	{
-		return InternalGetTexture(texnum.GetIndex(), animate, true, false);
-	}
-	
-	// This is the only access function that should be used inside the software renderer.
-	FTexture *GetPalettedTexture(FTextureID texnum, bool animate)
-	{
-		return InternalGetTexture(texnum.GetIndex(), animate, true, true);
-	}
-	
-	FTexture *ByIndex(int i, bool animate = false)
-	{
-		return InternalGetTexture(i, animate, true, false);
-	}
-	
-	FTexture *FindTexture(const char *texname, ETextureType usetype = ETextureType::MiscPatch, BITFIELD flags = TEXMAN_TryAny);
-	bool OkForLocalization(FTextureID texnum, const char *substitute);
-
-	void FlushAll();
-
-
-	enum
-	{
-		TEXMAN_TryAny = 1,
-		TEXMAN_Overridable = 2,
-		TEXMAN_ReturnFirst = 4,
-		TEXMAN_AllowSkins = 8,
-		TEXMAN_ShortNameOnly = 16,
-		TEXMAN_DontCreate = 32,
-		TEXMAN_Localize = 64
-	};
-
-	enum
-	{
-		HIT_Wall = 1,
-		HIT_Flat = 2,
-		HIT_Sky = 4,
-		HIT_Sprite = 8,
-
-		HIT_Columnmode = HIT_Wall|HIT_Sky|HIT_Sprite
-	};
-
-	FTextureID CheckForTexture (const char *name, ETextureType usetype, BITFIELD flags=TEXMAN_TryAny);
-	FTextureID GetTextureID (const char *name, ETextureType usetype, BITFIELD flags=0);
-	int ListTextures (const char *name, TArray<FTextureID> &list, bool listall = false);
-
-	void AddGroup(int wadnum, int ns, ETextureType usetype);
-	void AddPatches (int lumpnum);
-	void AddHiresTextures (int wadnum);
-	void LoadTextureDefs(int wadnum, const char *lumpname, FMultipatchTextureBuilder &build);
-	void ParseColorization(FScanner& sc);
-	void ParseTextureDef(int remapLump, FMultipatchTextureBuilder &build);
-	void SortTexturesByType(int start, int end);
-	bool AreTexturesCompatible (FTextureID picnum1, FTextureID picnum2);
-	void AddLocalizedVariants();
-
-	FTextureID CreateTexture (int lumpnum, ETextureType usetype=ETextureType::Any);	// Also calls AddTexture
-	FTextureID AddTexture (FTexture *texture);
-	FTextureID GetDefaultTexture() const { return DefaultTexture; }
-
-	void LoadTextureX(int wadnum, FMultipatchTextureBuilder &build);
-	void AddTexturesForWad(int wadnum, FMultipatchTextureBuilder &build);
-	void Init();
-	void DeleteAll();
-	void SpriteAdjustChanged();
-
-	void ReplaceTexture (FTextureID picnum, FTexture *newtexture, bool free);
-
-	int NumTextures () const { return (int)Textures.Size(); }
-
-	void UpdateAnimations (uint64_t mstime);
-	int GuesstimateNumTextures ();
-
-	FSwitchDef *FindSwitch (FTextureID texture);
-	FDoorAnimation *FindAnimatedDoor (FTextureID picnum);
-
-	TextureManipulation* GetTextureManipulation(FName name)
-	{
-		return tmanips.CheckKey(name);
-	}
-	void InsertTextureManipulation(FName cname, TextureManipulation tm)
-	{
-		tmanips.Insert(cname, tm);
-	}
-	void RemoveTextureManipulation(FName cname)
-	{
-		tmanips.Remove(cname);
-	}
-
-private:
-
-	// texture counting
-	int CountTexturesX ();
-	int CountLumpTextures (int lumpnum);
-	void AdjustSpriteOffsets();
-
-	// Build tiles
-	//int CountBuildTiles ();
-
-	// Animation stuff
-	FAnimDef *AddAnim (FAnimDef *anim);
-	void FixAnimations ();
-	void InitAnimated ();
-	void InitAnimDefs ();
-public:
-	FAnimDef *AddSimpleAnim (FTextureID picnum, int animcount, uint32_t speedmin, uint32_t speedrange=0);
-	FAnimDef *AddComplexAnim (FTextureID picnum, const TArray<FAnimDef::FAnimFrame> &frames);
-
-	TArray<uint8_t>& GetNewBuildTileData()
-	{
-		BuildTileData.Reserve(1);
-		return BuildTileData.Last();
-	}
-
-private:
-	void ParseAnim (FScanner &sc, ETextureType usetype);
-	FAnimDef *ParseRangeAnim (FScanner &sc, FTextureID picnum, ETextureType usetype, bool missing);
-	void ParsePicAnim (FScanner &sc, FTextureID picnum, ETextureType usetype, bool missing, TArray<FAnimDef::FAnimFrame> &frames);
-	void ParseWarp(FScanner &sc);
-	void ParseCameraTexture(FScanner &sc);
-	FTextureID ParseFramenum (FScanner &sc, FTextureID basepicnum, ETextureType usetype, bool allowMissing);
-	void ParseTime (FScanner &sc, uint32_t &min, uint32_t &max);
-	FTexture *Texture(FTextureID id) { return Textures[id.GetIndex()].Texture; }
-	void SetTranslation (FTextureID fromtexnum, FTextureID totexnum);
-	void ParseAnimatedDoor(FScanner &sc);
-
-	void InitPalettedVersions();
-	
-	// Switches
-
-	void InitSwitchList ();
-	void ProcessSwitchDef (FScanner &sc);
-	FSwitchDef *ParseSwitchDef (FScanner &sc, bool ignoreBad);
-	void AddSwitchPair (FSwitchDef *def1, FSwitchDef *def2);
-
-	struct TextureHash
-	{
-		FTexture *Texture;
-		int HashNext;
-		bool HasLocalization;
-	};
-	enum { HASH_END = -1, HASH_SIZE = 1027 };
-	TArray<TextureHash> Textures;
-	TMap<uint64_t, int> LocalizedTextures;
-	TArray<int> Translation;
-	int HashFirst[HASH_SIZE];
-	FTextureID DefaultTexture;
-	TArray<int> FirstTextureForFile;
-	TArray<TArray<uint8_t> > BuildTileData;
-
-	TArray<FSwitchDef *> mSwitchDefs;
-	TArray<FDoorAnimation> mAnimatedDoors;
-	TMap<FName, TextureManipulation> tmanips;
-
-public:
-	TArray<FAnimDef *> mAnimations;
-
-	short sintable[2048];	// for texture warping
-	enum
-	{
-		SINMASK = 2047
-	};
-
-	FTextureID glLight;
-	FTextureID glPart2;
-	FTextureID glPart;
-	FTextureID mirrorTexture;
-
-};
-
-
 // A texture that can be drawn to.
-class DCanvas;
-class AActor;
 
 class FCanvasTexture : public FTexture
 {
 public:
-	FCanvasTexture(const char *name, int width, int height)
+	FCanvasTexture(const char* name, int width, int height)
 	{
 		Name = name;
 		Width = width;
@@ -733,6 +487,7 @@ public:
 
 	friend struct FCanvasTextureInfo;
 };
+
 
 // A wrapper around a hardware texture, to allow using it in the 2D drawing interface.
 class FWrapperTexture : public FTexture
@@ -768,9 +523,6 @@ public:
 
 };
 
-
-extern FTextureManager TexMan;
-
 struct FTexCoordInfo
 {
 	int mRenderWidth;
@@ -787,7 +539,6 @@ struct FTexCoordInfo
 	float TextureAdjustWidth() const;
 	void GetFromTexture(FTexture *tex, float x, float y, bool forceworldpanning);
 };
-
 
 
 #endif

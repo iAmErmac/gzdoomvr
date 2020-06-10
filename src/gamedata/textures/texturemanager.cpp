@@ -38,32 +38,16 @@
 #include "doomstat.h"
 #include "filesystem.h"
 #include "templates.h"
-#include "i_system.h"
 #include "gstrings.h"
-
-#include "r_data/r_translate.h"
-#include "r_data/sprites.h"
+#include "textures.h"
+#include "texturemanager.h"
 #include "c_dispatch.h"
-#include "v_text.h"
 #include "sc_man.h"
-#include "gi.h"
-#include "st_start.h"
-#include "cmdlib.h"
-#include "g_level.h"
-#include "v_video.h"
-#include "r_sky.h"
-#include "vm.h"
 #include "image.h"
 #include "formats/multipatchtexture.h"
-#include "swrenderer/textures/r_swtexture.h"
 
 FTextureManager TexMan;
 
-CUSTOM_CVAR(Bool, vid_nopalsubstitutions, false, CVAR_ARCHIVE|CVAR_NOINITCALL)
-{
-	// This is in case the sky texture has been substituted.
-	R_InitSkyMap ();
-}
 
 //==========================================================================
 //
@@ -111,35 +95,6 @@ void FTextureManager::DeleteAll()
 	memset (HashFirst, -1, sizeof(HashFirst));
 	DefaultTexture.SetInvalid();
 
-	for (unsigned i = 0; i < mAnimations.Size(); i++)
-	{
-		if (mAnimations[i] != NULL)
-		{
-			M_Free (mAnimations[i]);
-			mAnimations[i] = NULL;
-		}
-	}
-	mAnimations.Clear();
-
-	for (unsigned i = 0; i < mSwitchDefs.Size(); i++)
-	{
-		if (mSwitchDefs[i] != NULL)
-		{
-			M_Free (mSwitchDefs[i]);
-			mSwitchDefs[i] = NULL;
-		}
-	}
-	mSwitchDefs.Clear();
-
-	for (unsigned i = 0; i < mAnimatedDoors.Size(); i++)
-	{
-		if (mAnimatedDoors[i].TextureFrames != NULL)
-		{
-			delete[] mAnimatedDoors[i].TextureFrames;
-			mAnimatedDoors[i].TextureFrames = NULL;
-		}
-	}
-	mAnimatedDoors.Clear();
 	BuildTileData.Clear();
 	tmanips.Clear();
 }
@@ -155,6 +110,7 @@ void FTextureManager::DeleteAll()
 // main reason to call this outside of the destruction code.
 //
 //==========================================================================
+void DeleteSoftwareTexture(FSoftwareTexture* swtex);
 
 void FTextureManager::FlushAll()
 {
@@ -163,7 +119,7 @@ void FTextureManager::FlushAll()
 		for (int j = 0; j < 2; j++)
 		{
 			Textures[i].Texture->SystemTextures.Clean(true, true);
-			delete Textures[i].Texture->SoftwareTexture;
+			DeleteSoftwareTexture(Textures[i].Texture->SoftwareTexture);
 			Textures[i].Texture->SoftwareTexture = nullptr;
 		}
 	}
@@ -291,20 +247,6 @@ FTextureID FTextureManager::CheckForTexture (const char *name, ETextureType uset
 	return FTextureID(-1);
 }
 
-static int CheckForTexture(const FString &name, int type, int flags)
-{
-	return TexMan.CheckForTexture(name, static_cast<ETextureType>(type), flags).GetIndex();
-}
-
-DEFINE_ACTION_FUNCTION_NATIVE(_TexMan, CheckForTexture, CheckForTexture)
-{
-	PARAM_PROLOGUE;
-	PARAM_STRING(name);
-	PARAM_INT(type);
-	PARAM_INT(flags);
-	ACTION_RETURN_INT(CheckForTexture(name, type, flags));
-}
-
 //==========================================================================
 //
 // FTextureManager :: ListTextures
@@ -396,36 +338,12 @@ FTexture *FTextureManager::FindTexture(const char *texname, ETextureType usetype
 
 //==========================================================================
 //
-// Defines how graphics substitution is handled.
-// 0: Never replace a text-containing graphic with a font-based text.
-// 1: Always replace, regardless of any missing information. Useful for testing the substitution without providing full data.
-// 2: Only replace for non-default texts, i.e. if some language redefines the string's content, use it instead of the graphic. Never replace a localized graphic.
-// 3: Only replace if the string is not the default and the graphic comes from the IWAD. Never replace a localized graphic.
-// 4: Like 1, but lets localized graphics pass.
-//
-// The default is 3, which only replaces known content with non-default texts.
-//
-//==========================================================================
-
-CUSTOM_CVAR(Int, cl_gfxlocalization, 3, CVAR_ARCHIVE)
-{
-	if (self < 0 || self > 4) self = 0;
-}
-
-//==========================================================================
-//
 // FTextureManager :: OkForLocalization
 //
 //==========================================================================
 
-bool FTextureManager::OkForLocalization(FTextureID texnum, const char *substitute)
+bool FTextureManager::OkForLocalization(FTextureID texnum, const char *substitute, int locmode)
 {
-	if (!texnum.isValid()) return false;
-	
-	// First the unconditional settings, 0='never' and 1='always'.
-	if (cl_gfxlocalization == 1 || gameinfo.forcetextinmenus) return false;
-	if (cl_gfxlocalization == 0 || gameinfo.forcenogfxsubstitution) return true;
-	
 	uint32_t langtable = 0;
 	if (*substitute == '$') substitute = GStrings.GetString(substitute+1, &langtable);
 	else return true;	// String literals from the source data should never override graphics from the same definition.
@@ -436,30 +354,17 @@ bool FTextureManager::OkForLocalization(FTextureID texnum, const char *substitut
 	if (localizedTex != texnum.GetIndex()) return true;	// Do not substitute a localized variant of the graphics patch.
 	
 	// For mode 4 we are done now.
-	if (cl_gfxlocalization == 4) return false;
+	if (locmode == 4) return false;
 	
 	// Mode 2 and 3 must reject any text replacement from the default language tables.
 	if ((langtable & MAKE_ID(255,0,0,0)) == MAKE_ID('*', 0, 0, 0)) return true;	// Do not substitute if the string comes from the default table.
-	if (cl_gfxlocalization == 2) return false;
+	if (locmode == 2) return false;
 	
 	// Mode 3 must also reject substitutions for non-IWAD content.
 	int file = fileSystem.GetFileContainer(Textures[texnum.GetIndex()].Texture->SourceLump);
 	if (file > fileSystem.GetMaxIwadNum()) return true;
 
 	return false;
-}
-
-static int OkForLocalization(int index, const FString &substitute)
-{
-	return TexMan.OkForLocalization(FSetTextureID(index), substitute);
-}
-
-DEFINE_ACTION_FUNCTION_NATIVE(_TexMan, OkForLocalization, OkForLocalization)
-{
-	PARAM_PROLOGUE;
-	PARAM_INT(name);
-	PARAM_STRING(subst)
-	ACTION_RETURN_INT(OkForLocalization(name, subst));
 }
 
 //==========================================================================
@@ -605,7 +510,7 @@ void FTextureManager::AddGroup(int wadnum, int ns, ETextureType usetype)
 			{
 				CreateTexture (firsttx, usetype);
 			}
-			StartScreen->Progress();
+			progressFunc();
 		}
 		else if (ns == ns_flats && fileSystem.GetFileFlags(firsttx) & LUMPF_MAYBEFLAT)
 		{
@@ -613,7 +518,7 @@ void FTextureManager::AddGroup(int wadnum, int ns, ETextureType usetype)
 			{
 				CreateTexture (firsttx, usetype);
 			}
-			StartScreen->Progress();
+			progressFunc();
 		}
 	}
 }
@@ -668,7 +573,7 @@ void FTextureManager::AddHiresTextures (int wadnum)
 
 							// Replace the entire texture and adjust the scaling and offset factors.
 							newtex->bWorldPanning = true;
-							newtex->SetScaledSize(oldtex->GetScaledWidth(), oldtex->GetScaledHeight());
+							newtex->SetDisplaySize(oldtex->GetDisplayWidth(), oldtex->GetDisplayHeight());
 							newtex->_LeftOffset[0] = int(oldtex->GetScaledLeftOffset(0) * newtex->Scale.X);
 							newtex->_LeftOffset[1] = int(oldtex->GetScaledLeftOffset(1) * newtex->Scale.X);
 							newtex->_TopOffset[0] = int(oldtex->GetScaledTopOffset(0) * newtex->Scale.Y);
@@ -677,7 +582,7 @@ void FTextureManager::AddHiresTextures (int wadnum)
 						}
 					}
 				}
-				StartScreen->Progress();
+				progressFunc();
 			}
 		}
 	}
@@ -765,7 +670,7 @@ void FTextureManager::ParseTextureDef(int lump, FMultipatchTextureBuilder &build
 						{
 							// Replace the entire texture and adjust the scaling and offset factors.
 							newtex->bWorldPanning = true;
-							newtex->SetScaledSize(oldtex->GetScaledWidth(), oldtex->GetScaledHeight());
+							newtex->SetDisplaySize(oldtex->GetDisplayWidth(), oldtex->GetDisplayHeight());
 							newtex->_LeftOffset[0] = int(oldtex->GetScaledLeftOffset(0) * newtex->Scale.X);
 							newtex->_LeftOffset[1] = int(oldtex->GetScaledLeftOffset(1) * newtex->Scale.X);
 							newtex->_TopOffset[0] = int(oldtex->GetScaledTopOffset(0) * newtex->Scale.Y);
@@ -805,7 +710,7 @@ void FTextureManager::ParseTextureDef(int lump, FMultipatchTextureBuilder &build
 					{
 						// Replace the entire texture and adjust the scaling and offset factors.
 						newtex->bWorldPanning = true;
-						newtex->SetScaledSize(width, height);
+						newtex->SetDisplaySize(width, height);
 
 						FTextureID oldtex = TexMan.CheckForTexture(src, ETextureType::MiscPatch);
 						if (oldtex.isValid()) 
@@ -884,7 +789,7 @@ void FTextureManager::AddPatches (int lumpnum)
 		{
 			CreateTexture (fileSystem.CheckNumForName (name, ns_patches), ETextureType::WallPatch);
 		}
-		StartScreen->Progress();
+		progressFunc();
 	}
 }
 
@@ -1178,12 +1083,11 @@ void FTextureManager::AddLocalizedVariants()
 FTexture *CreateShaderTexture(bool, bool);
 void InitBuildTiles();
 
-void FTextureManager::Init()
+void FTextureManager::Init(void (*progressFunc_)(), void (*checkForHacks)(BuildInfo&))
 {
+	progressFunc = progressFunc_;
 	DeleteAll();
-	SpriteFrames.Clear();
 	//if (BuildTileFiles.Size() == 0) CountBuildTiles ();
-	FTexture::InitGrayMap();
 
 	// Texture 0 is a dummy texture used to indicate "no texture"
 	auto nulltex = new FImageTexture(nullptr, "");
@@ -1197,7 +1101,7 @@ void FTextureManager::Init()
 
 	int wadcnt = fileSystem.GetNumWads();
 
-	FMultipatchTextureBuilder build(*this);
+	FMultipatchTextureBuilder build(*this, progressFunc_, checkForHacks);
 
 	for(int i = 0; i< wadcnt; i++)
 	{
@@ -1213,38 +1117,6 @@ void FTextureManager::Init()
 
 	DefaultTexture = CheckForTexture ("-NOFLAT-", ETextureType::Override, 0);
 
-	// The Hexen scripts use BLANK as a blank texture, even though it's really not.
-	// I guess the Doom renderer must have clipped away the line at the bottom of
-	// the texture so it wasn't visible. Change its use type to a blank null texture to really make it blank.
-	if (gameinfo.gametype == GAME_Hexen)
-	{
-		FTextureID tex = CheckForTexture ("BLANK", ETextureType::Wall, false);
-		if (tex.Exists())
-		{
-			auto texture = GetTexture(tex, false);
-			texture->UseType = ETextureType::Null;
-		}
-	}
-
-	// Hexen parallax skies use color 0 to indicate transparency on the front
-	// layer, so we must not remap color 0 on these textures. Unfortunately,
-	// the only way to identify these textures is to check the MAPINFO.
-	for (unsigned int i = 0; i < wadlevelinfos.Size(); ++i)
-	{
-		if (wadlevelinfos[i].flags & LEVEL_DOUBLESKY)
-		{
-			FTextureID picnum = CheckForTexture (wadlevelinfos[i].SkyPic1, ETextureType::Wall, false);
-			if (picnum.isValid())
-			{
-				Textures[picnum.GetIndex()].Texture->SetFrontSkyLayer ();
-			}
-		}
-	}
-
-	InitAnimated();
-	InitAnimDefs();
-	FixAnimations();
-	InitSwitchList();
 	InitPalettedVersions();
 	AdjustSpriteOffsets();
 	// Add auto materials to each texture after everything has been set up.
@@ -1256,7 +1128,6 @@ void FTextureManager::Init()
 		Textures[i].Texture->AddAutoMaterials();
 	}
 
-	glLight = TexMan.CheckForTexture("glstuff/gllight.png", ETextureType::MiscPatch);
 	glPart2 = TexMan.CheckForTexture("glstuff/glpart2.png", ETextureType::MiscPatch);
 	glPart = TexMan.CheckForTexture("glstuff/glpart.png", ETextureType::MiscPatch);
 	mirrorTexture = TexMan.CheckForTexture("glstuff/mirror.png", ETextureType::MiscPatch);
@@ -1303,22 +1174,7 @@ void FTextureManager::InitPalettedVersions()
 
 //==========================================================================
 //
-// FTextureManager :: PalCheck
 //
-//==========================================================================
-
-int FTextureManager::PalCheck(int tex)
-{
-	// In any true color mode this shouldn't do anything.
-	if (vid_nopalsubstitutions || V_IsTrueColor()) return tex;
-	auto ftex = Textures[tex].Texture;
-	if (ftex != nullptr && ftex->PalVersion != nullptr) return ftex->PalVersion->id.GetIndex();
-	return tex;
-}
-
-//==========================================================================
-//
-// FTextureManager :: PalCheck
 //
 //==========================================================================
 EXTERN_CVAR(String, language)
@@ -1515,163 +1371,28 @@ void FTextureManager::AdjustSpriteOffsets()
 	}
 }
 
-//-----------------------------------------------------------------------------
-//
-//
-//
-//-----------------------------------------------------------------------------
 
-void FTextureManager::SpriteAdjustChanged()
+//==========================================================================
+//
+// FTextureAnimator :: SetTranslation
+//
+// Sets animation translation for a texture
+//
+//==========================================================================
+
+void FTextureManager::SetTranslation(FTextureID fromtexnum, FTextureID totexnum)
 {
-	for (auto &texi : Textures)
+	if ((size_t)fromtexnum.texnum < Translation.Size())
 	{
-		auto tex = texi.Texture;
-		if (tex->GetLeftOffset(0) != tex->GetLeftOffset(1) || tex->GetTopOffset(0) != tex->GetTopOffset(1))
+		if ((size_t)totexnum.texnum >= Textures.Size())
 		{
-			tex->SetSpriteAdjust();
+			totexnum.texnum = fromtexnum.texnum;
 		}
+		Translation[fromtexnum.texnum] = totexnum.texnum;
 	}
 }
 
-//==========================================================================
-//
-//
-//
-//==========================================================================
 
-DEFINE_ACTION_FUNCTION(_TexMan, GetName)
-{
-	PARAM_PROLOGUE;
-	PARAM_INT(texid);
-	auto tex = TexMan.ByIndex(texid);
-	FString retval;
-
-	if (tex != nullptr)
-	{
-		if (tex->GetName().IsNotEmpty()) retval = tex->GetName();
-		else
-		{
-			// Textures for full path names do not have their own name, they merely link to the source lump.
-			auto lump = tex->GetSourceLump();
-			if (fileSystem.GetLinkedTexture(lump) == tex)
-				retval = fileSystem.GetFileFullName(lump);
-		}
-	}
-	ACTION_RETURN_STRING(retval);
-}
-
-//==========================================================================
-//
-//
-//
-//==========================================================================
-
-static int GetTextureSize(int texid, int *py)
-{
-	auto tex = TexMan.ByIndex(texid);
-	int x, y;
-	if (tex != nullptr)
-	{
-		x = tex->GetDisplayWidth();
-		y = tex->GetDisplayHeight();
-	}
-	else x = y = -1;
-	if (py) *py = y;
-	return x;
-}
-
-DEFINE_ACTION_FUNCTION_NATIVE(_TexMan, GetSize, GetTextureSize)
-{
-	PARAM_PROLOGUE;
-	PARAM_INT(texid);
-	int x, y;
-	x = GetTextureSize(texid, &y);
-	if (numret > 0) ret[0].SetInt(x);
-	if (numret > 1) ret[1].SetInt(y);
-	return MIN(numret, 2);
-}
-
-//==========================================================================
-//
-//
-//
-//==========================================================================
-static void GetScaledSize(int texid, DVector2 *pvec)
-{
-	auto tex = TexMan.ByIndex(texid);
-	double x, y;
-	if (tex != nullptr)
-	{
-		x = tex->GetDisplayWidthDouble();
-		y = tex->GetDisplayHeightDouble();
-	}
-	else x = y = -1;
-	if (pvec)
-	{
-		pvec->X = x;
-		pvec->Y = y;
-	}
-}
-
-DEFINE_ACTION_FUNCTION_NATIVE(_TexMan, GetScaledSize, GetScaledSize)
-{
-	PARAM_PROLOGUE;
-	PARAM_INT(texid);
-	DVector2 vec;
-	GetScaledSize(texid, &vec);
-	ACTION_RETURN_VEC2(vec);
-}
-
-//==========================================================================
-//
-//
-//
-//==========================================================================
-static void GetScaledOffset(int texid, DVector2 *pvec)
-{
-	auto tex = TexMan.ByIndex(texid);
-	double x, y;
-	if (tex != nullptr)
-	{
-		x = tex->GetDisplayLeftOffsetDouble();
-		y = tex->GetDisplayTopOffsetDouble();
-	}
-	else x = y = -1;
-	if (pvec)
-	{
-		pvec->X = x;
-		pvec->Y = y;
-	}
-}
-
-DEFINE_ACTION_FUNCTION_NATIVE(_TexMan, GetScaledOffset, GetScaledOffset)
-{
-	PARAM_PROLOGUE;
-	PARAM_INT(texid);
-	DVector2 vec;
-	GetScaledOffset(texid, &vec);
-	ACTION_RETURN_VEC2(vec);
-}
-
-//==========================================================================
-//
-//
-//
-//==========================================================================
-
-static int CheckRealHeight(int texid)
-{
-	auto tex = TexMan.ByIndex(texid);
-	if (tex != nullptr) return tex->CheckRealHeight();
-	else return -1;
-}
-
-DEFINE_ACTION_FUNCTION_NATIVE(_TexMan, CheckRealHeight, CheckRealHeight)
-{
-	PARAM_PROLOGUE;
-	PARAM_INT(texid);
-	ACTION_RETURN_INT(CheckRealHeight(texid));
-}
 
 //==========================================================================
 //

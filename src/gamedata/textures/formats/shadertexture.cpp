@@ -34,7 +34,6 @@
 **
 */
 
-#include "menu/menu.h"
 #include "filesystem.h"
 #include "bitmap.h"
 #include "imagehelpers.h"
@@ -112,7 +111,7 @@ public:
 			// even if it makes little sense.
 			for (int i = 0; i < 512; i++)
 			{
-				Pix[i] = ImageHelpers::GrayMap[Pixels[i]];
+				Pix[i] = GPalette.GrayMap[Pixels[i]];
 			}
 		}
 		return Pix;
@@ -120,7 +119,7 @@ public:
 
 	int CopyPixels(FBitmap *bmp, int conversion) override
 	{
-		bmp->CopyPixelData(0, 0, Pixels, Width, Height, Height, 1, 0, GPalette.GetTranslation(TRANSLATION_Standard, STD_Gray)->Palette);
+		bmp->CopyPixelData(0, 0, Pixels, Width, Height, Height, 1, 0, GPalette.GrayRamp.Palette);
 		return 0;
 	}
 
@@ -132,6 +131,6 @@ private:
 FTexture *CreateShaderTexture(bool vertical, bool reverse)
 {
 	FStringf name("BarShader%c%c", vertical ? 'v' : 'h', reverse ? 'r' : 'f');
-	return new FImageTexture(new FBarShader(vertical, reverse), name.GetChars());
+	return CreateImageTexture(new FBarShader(vertical, reverse), name.GetChars());
 
 }
