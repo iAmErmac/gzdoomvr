@@ -65,6 +65,7 @@
 #include "vm.h"
 #include "utf8.h"
 #include "s_music.h"
+#include "i_time.h"
 
 
 #include "gi.h"
@@ -108,7 +109,7 @@ int			ConWidth;
 bool		vidactive = false;
 bool		cursoron = false;
 int			ConBottom, ConScroll, RowAdjust;
-int			CursorTicker;
+uint64_t	CursorTicker;
 constate_e	ConsoleState = c_up;
 
 
@@ -513,6 +514,7 @@ static int HistSize;
 struct FNotifyText
 {
 	int TimeOut;
+	int Ticker;
 	int PrintLevel;
 	FString Text;
 };
@@ -717,6 +719,7 @@ void C_DeinitConsole ()
 	// Make sure all tab commands are cleared before the memory for
 	// their names is deallocated.
 	C_ClearTabCommands ();
+	C_ClearDynCCmds();
 
 	// Free AddToConsole()'s work buffer
 	if (work != NULL)
@@ -817,7 +820,8 @@ void FNotifyBuffer::AddString(int printlevel, FString source)
 		FNotifyText newline;
 
 		newline.Text = line.Text;
-		newline.TimeOut = gametic + int(con_notifytime * TICRATE);
+		newline.TimeOut = int(con_notifytime * GameTicRate);
+		newline.Ticker = 0;
 		newline.PrintLevel = printlevel;
 		if (AddType == NEWLINE || Text.Size() == 0)
 		{
@@ -1036,12 +1040,6 @@ void C_Ticker()
 		}
 	}
 
-	if (--CursorTicker <= 0)
-	{
-		cursoron ^= 1;
-		CursorTicker = C_BLINKRATE;
-	}
-
 	lasttic = consoletic;
 	NotifyStrings.Tick();
 }
@@ -1061,12 +1059,19 @@ void FNotifyBuffer::Tick()
 	unsigned i;
 	for (i = 0; i < Text.Size(); ++i)
 	{
-		if (Text[i].TimeOut != 0 && Text[i].TimeOut > gametic)
+		Text[i].Ticker++;
+	}
+	
+	for (i = 0; i < Text.Size(); ++i)
+	{
+		if (Text[i].TimeOut != 0 && Text[i].TimeOut > Text[i].Ticker)
 			break;
 	}
 	if (i > 0)
 	{
 		Text.Delete(0, i);
+		FFont* font = generic_ui ? NewSmallFont : AlternativeSmallFont;
+		Top += font->GetHeight();
 	}
 }
 
@@ -1076,7 +1081,7 @@ void FNotifyBuffer::Draw()
 	int line, lineadv, color, j;
 	bool canskip;
 	
-	if (gamestate == GS_FULLCONSOLE || gamestate == GS_DEMOSCREEN/* || menuactive != MENU_Off*/)
+	if (gamestate == GS_FULLCONSOLE || gamestate == GS_DEMOSCREEN)
 		return;
 
 	FFont* font = generic_ui ? NewSmallFont : AlternativeSmallFont;
@@ -1093,7 +1098,7 @@ void FNotifyBuffer::Draw()
 		if (notify.TimeOut == 0)
 			continue;
 
-		j = notify.TimeOut - gametic;
+		j = notify.TimeOut - notify.Ticker;
 		if (j > 0)
 		{
 			if (!show_messages && notify.PrintLevel != 128)
@@ -1126,11 +1131,6 @@ void FNotifyBuffer::Draw()
 		}
 		else
 		{
-			if (canskip)
-			{
-				Top += lineadv;
-				line += lineadv;
-			}
 			notify.TimeOut = 0;
 		}
 	}
@@ -1239,6 +1239,12 @@ void C_DrawConsole ()
 		{
 			if (gamestate != GS_STARTUP)
 			{
+				auto now = I_msTime();
+				if (now > CursorTicker)
+				{
+					CursorTicker = now + 500;
+					cursoron = !cursoron;
+				}
 				CmdLine.Draw(left, bottomline, textScale, cursoron);
 			}
 			if (RowAdjust && ConBottom >= CurrentConsoleFont->GetHeight()*7/2)
@@ -1313,22 +1319,6 @@ void C_HideConsole ()
 		ConBottom = 0;
 		HistPos = NULL;
 	}
-}
-
-DEFINE_ACTION_FUNCTION(_Console, HideConsole)
-{
-	C_HideConsole();
-	return 0;
-}
-
-DEFINE_ACTION_FUNCTION(_Console, Printf)
-{
-	PARAM_PROLOGUE;
-	PARAM_VA_POINTER(va_reginfo)	// Get the hidden type information array
-
-	FString s = FStringFormat(VM_ARGS_NAMES);
-	Printf("%s\n", s.GetChars());
-	return 0;
 }
 
 static bool C_HandleKey (event_t *ev, FCommandBuffer &buffer)
@@ -1712,7 +1702,7 @@ static bool C_HandleKey (event_t *ev, FCommandBuffer &buffer)
 	buffer.AppendToYankBuffer = keepappending;
 
 	// Ensure that the cursor is always visible while typing
-	CursorTicker = C_BLINKRATE;
+	CursorTicker = I_msTime() + 500;
 	cursoron = 1;
 	return true;
 }
@@ -1790,18 +1780,6 @@ void C_MidPrint (FFont *font, const char *msg, bool bold)
 	{
 		StatusBar->DetachMessage (MAKE_ID('C','N','T','R'));
 	}
-}
-
-DEFINE_ACTION_FUNCTION(_Console, MidPrint)
-{
-	PARAM_PROLOGUE;
-	PARAM_POINTER(fnt, FFont);
-	PARAM_STRING(text);
-	PARAM_BOOL(bold);
-
-	const char *txt = text[0] == '$'? GStrings(&text[1]) : text.GetChars();
-	C_MidPrint(fnt, txt, bold);
-	return 0;
 }
 
 /****** Tab completion code ******/

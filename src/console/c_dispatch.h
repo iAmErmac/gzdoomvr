@@ -52,10 +52,11 @@ struct FExecList
 
 	void AddCommand(const char *cmd, const char *file = nullptr);
 	void ExecCommands() const;
-	void AddPullins(TArray<FString> &wads) const;
+	void AddPullins(TArray<FString> &wads, FConfigFile *config) const;
 };
 
 extern bool ParsingKeyConf, UnsafeExecutionContext;
+extern	FString			StoredWarp;			// [RH] +warp at the command line
 
 
 extern bool CheckCheatmode (bool printmsg = true);
