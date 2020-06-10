@@ -101,7 +101,7 @@ void Draw2D(F2DDrawer *drawer, FRenderState &state, bool outside2D)
 	{
 		const auto &mScreenViewport = screen->mScreenViewport;
 		state.SetViewport(mScreenViewport.left, mScreenViewport.top, mScreenViewport.width, mScreenViewport.height);
-		screen->mViewpoints->Set2D(state, screen->GetWidth(), screen->GetHeight());
+		screen->mViewpoints->Set2D(state, twod->GetWidth(), twod->GetHeight());
 	}
 
 	state.EnableDepthTest(false);

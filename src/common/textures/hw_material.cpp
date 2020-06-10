@@ -28,7 +28,6 @@
 #include "texturemanager.h"
 #include "c_cvars.h"
 
-EXTERN_CVAR(Bool, gl_texture_usehires)
 IHardwareTexture* CreateHardwareTexture();
 
 //===========================================================================

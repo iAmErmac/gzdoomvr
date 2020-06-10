@@ -668,18 +668,21 @@ file( GLOB HEADER_FILES
 	common/audio/sound/thirdparty/*.h
 	common/audio/sound/*.h
 	common/audio/music/*.h*
+	common/2d/*.h
 	common/console/*.h
 	common/utility/*.h
 	common/engine/*.h
 	common/fonts/*.h
 	common/objects/*.h
 	common/filesystem/*.h
+	common/textures/*.h
 	common/textures/hires/hqnx/*.h
 	common/textures/hires/hqnx_asm/*.h
 	common/textures/hires/xbr/*.h
 	common/thirdparty/*.h
 	common/thirdparty/rapidjson/*.h
 	common/thirdparty/math/*h
+	common/rendering/gl_load/*.h
 	common/scripting/core/*h
 	common/scripting/vm/*h
 	common/scripting/jit/*h
@@ -726,7 +729,6 @@ file( GLOB HEADER_FILES
 	rendering/gl/shaders/*.h
 	rendering/gl/system/*.h
 	rendering/gl/textures/*.h
-	rendering/gl_load/*.h
 	*.h
 )
 
@@ -830,7 +832,7 @@ set( FASTMATH_SOURCES
 	common/textures/hires/hqnx/hq4x.cpp
 	common/textures/hires/xbr/xbrz.cpp
 	common/textures/hires/xbr/xbrz_old.cpp
-	rendering/gl_load/gl_load.c
+	common/rendering/gl_load/gl_load.c
 	rendering/hwrenderer/postprocessing/hw_postprocess_cvars.cpp
 	rendering/hwrenderer/postprocessing/hw_postprocessshader.cpp
 	rendering/hwrenderer/dynlights/hw_dynlightdata.cpp
@@ -1005,10 +1007,7 @@ set (PCH_SOURCES
 	g_statusbar/sbar_mugshot.cpp
 	g_statusbar/shared_sbar.cpp
 	rendering/2d/f_wipe.cpp
-	rendering/2d/v_2ddrawer.cpp
-	rendering/2d/v_drawtext.cpp
 	rendering/2d/v_blend.cpp
-	rendering/2d/v_draw.cpp
 	rendering/gl/renderer/gl_renderer.cpp
 	rendering/gl/renderer/gl_renderstate.cpp
 	rendering/gl/renderer/gl_renderbuffers.cpp
@@ -1019,7 +1018,6 @@ set (PCH_SOURCES
 	rendering/gl/shaders/gl_shader.cpp
 	rendering/gl/shaders/gl_shaderprogram.cpp
 	rendering/gl/stereo3d/gl_openvr.cpp
-	rendering/gl_load/gl_interface.cpp
 	rendering/gl/system/gl_framebuffer.cpp
 	rendering/gl/system/gl_debug.cpp
 	rendering/gl/system/gl_buffers.cpp
@@ -1124,6 +1122,9 @@ set (PCH_SOURCES
 	common/audio/music/i_music.cpp
 	common/audio/music/i_soundfont.cpp
 	common/audio/music/music_config.cpp
+	common/2d/v_2ddrawer.cpp
+	common/2d/v_drawtext.cpp
+	common/2d/v_draw.cpp
 	common/thirdparty/sfmt/SFMT.cpp
 	common/fonts/singlelumpfont.cpp
 	common/fonts/singlepicfont.cpp
@@ -1199,6 +1200,7 @@ set (PCH_SOURCES
 	common/filesystem/file_whres.cpp
 	common/filesystem/file_directory.cpp
 	common/filesystem/resourcefile.cpp
+	common/engine/stats.cpp
 	common/engine/sc_man.cpp
 	common/engine/palettecontainer.cpp
 	common/engine/stringtable.cpp
@@ -1210,6 +1212,7 @@ set (PCH_SOURCES
 	common/objects/dobject.cpp
 	common/objects/dobjgc.cpp
 	common/objects/dobjtype.cpp
+	common/rendering/gl_load/gl_interface.cpp
 	common/scripting/core/dictionary.cpp
 	common/scripting/core/dynarrays.cpp
 	common/scripting/core/symbols.cpp
@@ -1233,7 +1236,6 @@ set (PCH_SOURCES
 	utility/nodebuilder/nodebuild_extract.cpp
 	utility/nodebuilder/nodebuild_gl.cpp
 	utility/nodebuilder/nodebuild_utility.cpp
-	utility/stats.cpp
 	utility/m_bbox.cpp
 	utility/v_collection.cpp
 )
@@ -1307,15 +1309,20 @@ target_link_libraries( zdoom ${ZDOOM_LIBS} gdtoa lzma ${ZMUSIC_LIBRARIES} )
 include_directories( .
 	common/audio/sound
 	common/audio/music
+	common/2d
 	common/thirdparty
+	common/textures
 	common/textures/formats
 	common/textures/hires
+	common/textures
 	common/filesystem
 	common/utility
 	common/console
 	common/engine
 	common/fonts
 	common/objects
+	common/rendering
+	common/rendering/gl_load
 	common/scripting/vm
 	common/scripting/jit
 	common/scripting/core
@@ -1479,7 +1486,6 @@ source_group("Rendering\\Vulkan Renderer\\Textures" REGULAR_EXPRESSION "^${CMAKE
 source_group("Rendering\\Vulkan Renderer\\Third Party" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/vulkan/thirdparty/.+")
 source_group("Rendering\\Vulkan Renderer\\Third Party\\Volk" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/vulkan/thirdparty/volk/.+")
 source_group("Rendering\\Vulkan Renderer\\Third Party\\Vk_Mem_Alloc" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/vulkan/thirdparty/vk_mem_alloc.+")
-source_group("Rendering\\OpenGL Loader" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/gl_load/.+")
 source_group("Rendering\\OpenGL Renderer" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/gl/.+")
 source_group("Rendering\\OpenGL Renderer\\Data" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/gl/data/.+")
 source_group("Rendering\\OpenGL Renderer\\Dynamic Lights" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/gl/dynlights/.+")
@@ -1523,6 +1529,7 @@ source_group("Common\\Audio\\Music" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_
 source_group("Common\\Console" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/console/.+")
 source_group("Common\\Utility" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/utility/.+")
 source_group("Common\\Engine" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/engine/.+")
+source_group("Common\\2D" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/2d/.+")
 source_group("Common\\Objects" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/objects/.+")
 source_group("Common\\Fonts" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/fonts/.+")
 source_group("Common\\File System" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/filesystem/.+")
@@ -1533,6 +1540,8 @@ source_group("Common\\Scripting\\Backend" REGULAR_EXPRESSION "^${CMAKE_CURRENT_S
 source_group("Common\\Scripting\\Core" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/scripting/core/.+")
 source_group("Common\\Scripting\\JIT" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/scripting/jit/.+")
 source_group("Common\\Scripting\\VM" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/scripting/vm/.+")
+source_group("Common\\Rendering" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/.+")
+source_group("Common\\Rendering\\OpenGL Loader" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/rendering/gl_load/.+")
 source_group("Common\\Textures" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/textures/.+")
 source_group("Common\\Textures\\Hires" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/textures/hires/.+")
 source_group("Common\\Textures\\Hires\\HQ Resize" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/textures/hires/hqnx/.+")

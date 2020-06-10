@@ -50,6 +50,7 @@
 #include "i_system.h"
 #include "utf8.h"
 #include "texturemanager.h"
+#include "v_palette.h"
 
 #define ARTIFLASH_OFFSET (statusBar->invBarOffset+6)
 enum
@@ -964,11 +965,11 @@ void Popup::close()
 inline void adjustRelCenter(bool relX, bool relY, const double &x, const double &y, double &outX, double &outY, double ScaleX, double ScaleY)
 {
 	if(relX)
-		outX = x + (SCREENWIDTH/(ScaleX*2));
+		outX = x + (twod->GetWidth()/(ScaleX*2));
 	else
 		outX = x;
 	if(relY)
-		outY = y + (SCREENHEIGHT/(ScaleY*2));
+		outY = y + (twod->GetHeight()/(ScaleY*2));
 	else
 		outY = y;
 }
@@ -1233,12 +1234,12 @@ public:
 			wrapper->StatusbarToRealCoords(dx, dy, w, h);
 
 			if(clearDontDraw)
-				screen->Clear(static_cast<int>(MAX<double>(dx, dcx)), static_cast<int>(MAX<double>(dy, dcy)), static_cast<int>(MIN<double>(dcr,w+MAX<double>(dx, dcx))), static_cast<int>(MIN<double>(dcb,MAX<double>(dy, dcy)+h)), GPalette.BlackIndex, 0);
+				ClearRect(twod, static_cast<int>(MAX<double>(dx, dcx)), static_cast<int>(MAX<double>(dy, dcy)), static_cast<int>(MIN<double>(dcr,w+MAX<double>(dx, dcx))), static_cast<int>(MIN<double>(dcb,MAX<double>(dy, dcy)+h)), GPalette.BlackIndex, 0);
 			else
 			{
 				if(alphaMap)
 				{
-					screen->DrawTexture(texture, dx, dy,
+					DrawTexture(twod, texture, dx, dy,
 						DTA_DestWidthF, w,
 						DTA_DestHeightF, h,
 						DTA_ClipLeft, static_cast<int>(dcx),
@@ -1255,7 +1256,7 @@ public:
 				}
 				else
 				{
-					screen->DrawTexture(texture, dx, dy,
+					DrawTexture(twod, texture, dx, dy,
 						DTA_DestWidthF, w,
 						DTA_DestHeightF, h,
 						DTA_ClipLeft, static_cast<int>(dcx),
@@ -1293,9 +1294,9 @@ public:
 			h *= Scale.Y;
 
 			if(xright)
-				rx = SCREENWIDTH + rx;
+				rx = twod->GetWidth() + rx;
 			if(ybot)
-				ry = SCREENHEIGHT + ry;
+				ry = twod->GetHeight() + ry;
 
 			// Check for clipping
 			if(clip[0] != 0 || clip[1] != 0 || clip[2] != 0 || clip[3] != 0)
@@ -1307,12 +1308,12 @@ public:
 			}
 
 			if(clearDontDraw)
-				screen->Clear(static_cast<int>(rcx), static_cast<int>(rcy), static_cast<int>(MIN<double>(rcr, rcx+w)), static_cast<int>(MIN<double>(rcb, rcy+h)), GPalette.BlackIndex, 0);
+				ClearRect(twod, static_cast<int>(rcx), static_cast<int>(rcy), static_cast<int>(MIN<double>(rcr, rcx+w)), static_cast<int>(MIN<double>(rcb, rcy+h)), GPalette.BlackIndex, 0);
 			else
 			{
 				if(alphaMap)
 				{
-					screen->DrawTexture(texture, rx, ry,
+					DrawTexture(twod, texture, rx, ry,
 						DTA_DestWidthF, w,
 						DTA_DestHeightF, h,
 						DTA_ClipLeft, static_cast<int>(rcx),
@@ -1329,7 +1330,7 @@ public:
 				}
 				else
 				{
-					screen->DrawTexture(texture, rx, ry,
+					DrawTexture(twod, texture, rx, ry,
 						DTA_DestWidthF, w,
 						DTA_DestHeightF, h,
 						DTA_ClipLeft, static_cast<int>(rcx),
@@ -1441,23 +1442,23 @@ public:
 				rh *= Scale.Y;
 
 				if(xright)
-					rx = SCREENWIDTH + rx;
+					rx = twod->GetWidth() + rx;
 				if(ybot)
-					ry = SCREENHEIGHT + ry;
+					ry = twod->GetHeight() + ry;
 			}
 			if(drawshadow)
 			{
 				double salpha = (Alpha *HR_SHADOW);
 				double srx = rx + (shadowX*Scale.X);
 				double sry = ry + (shadowY*Scale.Y);
-				screen->DrawChar(font, CR_UNTRANSLATED, srx, sry, ch,
+				DrawChar(twod, font, CR_UNTRANSLATED, srx, sry, ch,
 					DTA_DestWidthF, rw,
 					DTA_DestHeightF, rh,
 					DTA_Alpha, salpha,
 					DTA_FillColor, 0,
 					TAG_DONE);
 			}
-			screen->DrawChar(font, fontcolor, rx, ry, ch,
+			DrawChar(twod, font, fontcolor, rx, ry, ch,
 				DTA_DestWidthF, rw,
 				DTA_DestHeightF, rh,
 				DTA_Alpha, Alpha,

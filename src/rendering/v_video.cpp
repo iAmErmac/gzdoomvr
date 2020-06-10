@@ -69,6 +69,8 @@
 #include "version.h"
 #include "g_levellocals.h"
 #include "am_map.h"
+#include "texturemanager.h"
+#include "v_palette.h"
 
 EXTERN_CVAR(Int, menu_resolution_custom_width)
 EXTERN_CVAR(Int, menu_resolution_custom_height)
@@ -137,6 +139,21 @@ CUSTOM_CVAR(Int, vid_preferbackend, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG | CVAR_N
 
 CVAR(Int, vid_renderer, 1, 0)	// for some stupid mods which threw caution out of the window...
 
+CUSTOM_CVAR(Int, uiscale, 0, CVAR_ARCHIVE | CVAR_NOINITCALL)
+{
+	if (self < 0)
+	{
+		self = 0;
+		return;
+	}
+	if (StatusBar != NULL)
+	{
+		StatusBar->CallScreenSizeChanged();
+	}
+	setsizeneeded = true;
+}
+
+
 
 EXTERN_CVAR(Bool, r_blendmethod)
 
@@ -156,10 +173,10 @@ public:
 		SetVirtualSize(width, height);
 	}
 	// These methods should never be called.
-	void Update() { DBGBREAK; }
-	bool IsFullscreen() { DBGBREAK; return 0; }
-	int GetClientWidth() { DBGBREAK; return 0; }
-	int GetClientHeight() { DBGBREAK; return 0; }
+	void Update() override { DBGBREAK; }
+	bool IsFullscreen() override { DBGBREAK; return 0; }
+	int GetClientWidth() override { DBGBREAK; return 0; }
+	int GetClientHeight() override { DBGBREAK; return 0; }
 	void InitializeState() override {}
 
 	float Gamma;
@@ -427,85 +444,9 @@ CUSTOM_CVAR (Int, vid_aspect, 0, CVAR_GLOBALCONFIG|CVAR_ARCHIVE)
 	}
 }
 
-// Helper for ActiveRatio and CheckRatio. Returns the forced ratio type, or -1 if none.
-int ActiveFakeRatio(int width, int height)
-{
-	int fakeratio = -1;
-	if ((vid_aspect >= 1) && (vid_aspect <= 6))
-	{
-		// [SP] User wants to force aspect ratio; let them.
-		fakeratio = int(vid_aspect);
-		if (fakeratio == 3)
-		{
-			fakeratio = 0;
-		}
-		else if (fakeratio == 5)
-		{
-			fakeratio = 3;
-		}
-	}
-	return fakeratio;
-}
-
-// Active screen ratio based on cvars and size
-float ActiveRatio(int width, int height, float *trueratio)
-{
-	static float forcedRatioTypes[] =
-	{
-		4 / 3.0f,
-		16 / 9.0f,
-		16 / 10.0f,
-		17 / 10.0f,
-		5 / 4.0f,
-		17 / 10.0f,
-		21 / 9.0f
-	};
-
-	float ratio = width / (float)height;
-	int fakeratio = ActiveFakeRatio(width, height);
-
-	if (trueratio)
-		*trueratio = ratio;
-	return (fakeratio != -1) ? forcedRatioTypes[fakeratio] : (ratio / ViewportPixelAspect());
-}
-
 DEFINE_ACTION_FUNCTION(_Screen, GetAspectRatio)
 {
 	ACTION_RETURN_FLOAT(ActiveRatio(screen->GetWidth(), screen->GetHeight(), nullptr));
-}
-
-int AspectBaseWidth(float aspect)
-{
-	return (int)round(240.0f * aspect * 3.0f);
-}
-
-int AspectBaseHeight(float aspect)
-{
-	if (!AspectTallerThanWide(aspect))
-		return (int)round(200.0f * (320.0f / (AspectBaseWidth(aspect) / 3.0f)) * 3.0f);
-	else
-		return (int)round((200.0f * (4.0f / 3.0f)) / aspect * 3.0f);
-}
-
-double AspectPspriteOffset(float aspect)
-{
-	if (!AspectTallerThanWide(aspect))
-		return 0.0;
-	else
-		return ((4.0 / 3.0) / aspect - 1.0) * 97.5;
-}
-
-int AspectMultiplier(float aspect)
-{
-	if (!AspectTallerThanWide(aspect))
-		return (int)round(320.0f / (AspectBaseWidth(aspect) / 3.0f) * 48.0f);
-	else
-		return (int)round(200.0f / (AspectBaseHeight(aspect) / 3.0f) * 48.0f);
-}
-
-bool AspectTallerThanWide(float aspect)
-{
-	return aspect < 1.333f;
 }
 
 CCMD(vid_setsize)
@@ -570,3 +511,53 @@ IHardwareTexture* CreateHardwareTexture()
 	return screen->CreateHardwareTexture();
 }
 
+//==========================================================================
+//
+// V_DrawFrame
+//
+// Draw a frame around the specified area using the view border
+// frame graphics. The border is drawn outside the area, not in it.
+//
+//==========================================================================
+
+void DrawFrame(F2DDrawer* drawer, int left, int top, int width, int height)
+{
+	FTexture* p;
+	const gameborder_t* border = &gameinfo.Border;
+	// Sanity check for incomplete gameinfo
+	if (border == NULL)
+		return;
+	int offset = border->offset;
+	int right = left + width;
+	int bottom = top + height;
+
+	// Draw top and bottom sides.
+	p = TexMan.GetTextureByName(border->t);
+	drawer->AddFlatFill(left, top - p->GetDisplayHeight(), right, top, p, true);
+	p = TexMan.GetTextureByName(border->b);
+	drawer->AddFlatFill(left, bottom, right, bottom + p->GetDisplayHeight(), p, true);
+
+	// Draw left and right sides.
+	p = TexMan.GetTextureByName(border->l);
+	drawer->AddFlatFill(left - p->GetDisplayWidth(), top, left, bottom, p, true);
+	p = TexMan.GetTextureByName(border->r);
+	drawer->AddFlatFill(right, top, right + p->GetDisplayWidth(), bottom, p, true);
+
+	// Draw beveled corners.
+	DrawTexture(drawer, TexMan.GetTextureByName(border->tl), left - offset, top - offset, TAG_DONE);
+	DrawTexture(drawer, TexMan.GetTextureByName(border->tr), left + width, top - offset, TAG_DONE);
+	DrawTexture(drawer, TexMan.GetTextureByName(border->bl), left - offset, top + height, TAG_DONE);
+	DrawTexture(drawer, TexMan.GetTextureByName(border->br), left + width, top + height, TAG_DONE);
+}
+
+DEFINE_ACTION_FUNCTION(_Screen, DrawFrame)
+{
+	PARAM_PROLOGUE;
+	PARAM_INT(x);
+	PARAM_INT(y);
+	PARAM_INT(w);
+	PARAM_INT(h);
+	if (!twod->HasBegun2D()) ThrowAbortException(X_OTHER, "Attempt to draw to screen outside a draw function");
+	DrawFrame(twod, x, y, w, h);
+	return 0;
+}

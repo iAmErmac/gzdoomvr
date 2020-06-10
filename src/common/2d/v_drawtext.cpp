@@ -39,17 +39,10 @@
 
 #include "v_text.h"
 #include "utf8.h"
-
-
-#include "v_video.h"
-#include "filesystem.h"
-#include "image.h"
-#include "multipatchtexture.h"
-
+#include "v_draw.h"
 #include "gstrings.h"
 #include "vm.h"
-#include "serializer.h"
-
+#include "printf.h"
 
 int ListGetInt(VMVa_List &tags);
 
@@ -169,7 +162,7 @@ FTexture * BuildTextTexture(FFont *font, const char *string, int textcolor)
 //
 //==========================================================================
 
-void DFrameBuffer::DrawChar (FFont *font, int normalcolor, double x, double y, int character, int tag_first, ...)
+void DrawChar(F2DDrawer *drawer, FFont* font, int normalcolor, double x, double y, int character, int tag_first, ...)
 {
 	if (font == NULL)
 		return;
@@ -177,29 +170,29 @@ void DFrameBuffer::DrawChar (FFont *font, int normalcolor, double x, double y, i
 	if (normalcolor >= NumTextColors)
 		normalcolor = CR_UNTRANSLATED;
 
-	FTexture *pic;
+	FTexture* pic;
 	int dummy;
 	bool redirected;
 
-	if (NULL != (pic = font->GetChar (character, normalcolor, &dummy, &redirected)))
+	if (NULL != (pic = font->GetChar(character, normalcolor, &dummy, &redirected)))
 	{
 		DrawParms parms;
 		Va_List tags;
 		va_start(tags.list, tag_first);
-		bool res = ParseDrawTextureTags(pic, x, y, tag_first, tags, &parms, false);
+		bool res = ParseDrawTextureTags(drawer, pic, x, y, tag_first, tags, &parms, false);
 		va_end(tags.list);
 		if (!res)
 		{
 			return;
 		}
 		PalEntry color = 0xffffffff;
-		parms.TranslationId = redirected? -1 : font->GetColorTranslation((EColorRange)normalcolor, &color);
+		parms.TranslationId = redirected ? -1 : font->GetColorTranslation((EColorRange)normalcolor, &color);
 		parms.color = PalEntry((color.a * parms.color.a) / 255, (color.r * parms.color.r) / 255, (color.g * parms.color.g) / 255, (color.b * parms.color.b) / 255);
-		DrawTextureParms(pic, parms);
+		drawer->AddTexture(pic, parms);
 	}
 }
 
-void DFrameBuffer::DrawChar(FFont *font, int normalcolor, double x, double y, int character, VMVa_List &args)
+void DrawChar(F2DDrawer *drawer,  FFont *font, int normalcolor, double x, double y, int character, VMVa_List &args)
 {
 	if (font == NULL)
 		return;
@@ -215,12 +208,12 @@ void DFrameBuffer::DrawChar(FFont *font, int normalcolor, double x, double y, in
 	{
 		DrawParms parms;
 		uint32_t tag = ListGetInt(args);
-		bool res = ParseDrawTextureTags(pic, x, y, tag, args, &parms, false);
+		bool res = ParseDrawTextureTags(drawer, pic, x, y, tag, args, &parms, false);
 		if (!res) return;
 		PalEntry color = 0xffffffff;
 		parms.TranslationId = redirected ? -1 : font->GetColorTranslation((EColorRange)normalcolor, &color);
 		parms.color = PalEntry((color.a * parms.color.a) / 255, (color.r * parms.color.r) / 255, (color.g * parms.color.g) / 255, (color.b * parms.color.b) / 255);
-		DrawTextureParms(pic, parms);
+		drawer->AddTexture(pic, parms);
 	}
 }
 
@@ -235,9 +228,9 @@ DEFINE_ACTION_FUNCTION(_Screen, DrawChar)
 
 	PARAM_VA_POINTER(va_reginfo)	// Get the hidden type information array
 
-	if (!screen->HasBegun2D()) ThrowAbortException(X_OTHER, "Attempt to draw to screen outside a draw function");
+	if (!twod->HasBegun2D()) ThrowAbortException(X_OTHER, "Attempt to draw to screen outside a draw function");
 	VMVa_List args = { param + 5, 0, numparam - 6, va_reginfo + 5 };
-	screen->DrawChar(font, cr, x, y, chr, args);
+	DrawChar(twod, font, cr, x, y, chr, args);
 	return 0;
 }
 
@@ -253,7 +246,7 @@ DEFINE_ACTION_FUNCTION(_Screen, DrawChar)
 EColorRange V_ParseFontColor(const char32_t *&color_value, int normalcolor, int boldcolor) { return CR_UNTRANSLATED; } 
 
 template<class chartype>
-void DFrameBuffer::DrawTextCommon(FFont *font, int normalcolor, double x, double y, const chartype *string, DrawParms &parms)
+void DrawTextCommon(F2DDrawer *drawer, FFont *font, int normalcolor, double x, double y, const chartype *string, DrawParms &parms)
 {
 	int 		w;
 	const chartype *ch;
@@ -319,7 +312,7 @@ void DFrameBuffer::DrawTextCommon(FFont *font, int normalcolor, double x, double
 		if (NULL != (pic = font->GetChar(c, currentcolor, &w, &redirected)))
 		{
 			parms.TranslationId = redirected? -1 : trans;
-			SetTextureParms(&parms, pic, cx, cy);
+			SetTextureParms(drawer, &parms, pic, cx, cy);
 			if (parms.cellx)
 			{
 				w = parms.cellx;
@@ -333,7 +326,7 @@ void DFrameBuffer::DrawTextCommon(FFont *font, int normalcolor, double x, double
 			else if (parms.monospace == EMonospacing::CellRight)
 				parms.left = w;
 
-			DrawTextureParms(pic, parms);
+			drawer->AddTexture(pic, parms);
 		}
 		if (parms.monospace == EMonospacing::Off)
 		{
@@ -347,7 +340,9 @@ void DFrameBuffer::DrawTextCommon(FFont *font, int normalcolor, double x, double
 	}
 }
 
-void DFrameBuffer::DrawText(FFont *font, int normalcolor, double x, double y, const char *string, int tag_first, ...)
+
+// For now the 'drawer' parameter is a placeholder - this should be the way to handle it later to allow different drawers.
+void DrawText(F2DDrawer *drawer, FFont* font, int normalcolor, double x, double y, const char* string, int tag_first, ...)
 {
 	Va_List tags;
 	DrawParms parms;
@@ -356,16 +351,17 @@ void DFrameBuffer::DrawText(FFont *font, int normalcolor, double x, double y, co
 		return;
 
 	va_start(tags.list, tag_first);
-	bool res = ParseDrawTextureTags(nullptr, 0, 0, tag_first, tags, &parms, true);
+	bool res = ParseDrawTextureTags(drawer, nullptr, 0, 0, tag_first, tags, &parms, true);
 	va_end(tags.list);
 	if (!res)
 	{
 		return;
 	}
-	DrawTextCommon(font, normalcolor, x, y, (const uint8_t*)string, parms);
+	DrawTextCommon(drawer, font, normalcolor, x, y, (const uint8_t*)string, parms);
 }
 
-void DFrameBuffer::DrawText(FFont *font, int normalcolor, double x, double y, const char32_t *string, int tag_first, ...)
+
+void DrawText(F2DDrawer *drawer, FFont* font, int normalcolor, double x, double y, const char32_t* string, int tag_first, ...)
 {
 	Va_List tags;
 	DrawParms parms;
@@ -374,16 +370,17 @@ void DFrameBuffer::DrawText(FFont *font, int normalcolor, double x, double y, co
 		return;
 
 	va_start(tags.list, tag_first);
-	bool res = ParseDrawTextureTags(nullptr, 0, 0, tag_first, tags, &parms, true);
+	bool res = ParseDrawTextureTags(drawer, nullptr, 0, 0, tag_first, tags, &parms, true);
 	va_end(tags.list);
 	if (!res)
 	{
 		return;
 	}
-	DrawTextCommon(font, normalcolor, x, y, string, parms);
+	DrawTextCommon(drawer, font, normalcolor, x, y, string, parms);
 }
 
-void DFrameBuffer::DrawText(FFont *font, int normalcolor, double x, double y, const char *string, VMVa_List &args)
+
+void DrawText(F2DDrawer *drawer, FFont *font, int normalcolor, double x, double y, const char *string, VMVa_List &args)
 {
 	DrawParms parms;
 
@@ -391,12 +388,12 @@ void DFrameBuffer::DrawText(FFont *font, int normalcolor, double x, double y, co
 		return;
 
 	uint32_t tag = ListGetInt(args);
-	bool res = ParseDrawTextureTags(nullptr, 0, 0, tag, args, &parms, true);
+	bool res = ParseDrawTextureTags(drawer, nullptr, 0, 0, tag, args, &parms, true);
 	if (!res)
 	{
 		return;
 	}
-	DrawTextCommon(font, normalcolor, x, y, (const uint8_t*)string, parms);
+	DrawTextCommon(drawer, font, normalcolor, x, y, (const uint8_t*)string, parms);
 }
 
 DEFINE_ACTION_FUNCTION(_Screen, DrawText)
@@ -410,10 +407,10 @@ DEFINE_ACTION_FUNCTION(_Screen, DrawText)
 
 	PARAM_VA_POINTER(va_reginfo)	// Get the hidden type information array
 
-	if (!screen->HasBegun2D()) ThrowAbortException(X_OTHER, "Attempt to draw to screen outside a draw function");
+	if (!twod->HasBegun2D()) ThrowAbortException(X_OTHER, "Attempt to draw to screen outside a draw function");
 	VMVa_List args = { param + 5, 0, numparam - 6, va_reginfo + 5 };
 	const char *txt = chr[0] == '$' ? GStrings(&chr[1]) : chr.GetChars();
-	screen->DrawText(font, cr, x, y, txt, args);
+	DrawText(twod, font, cr, x, y, txt, args);
 	return 0;
 }
 
