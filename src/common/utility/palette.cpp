@@ -39,6 +39,8 @@
 #include "files.h"
 #include "filesystem.h"
 #include "printf.h"
+#include "templates.h"
+#include "m_png.h"
 
 /****************************/
 /* Palette management stuff */
@@ -692,5 +694,219 @@ int V_GetColor(const uint32_t* palette, FScanner& sc)
 {
 	FScriptPosition scc = sc;
 	return V_GetColor(palette, sc.String, &scc);
+}
+
+//==========================================================================
+//
+// Special colormaps
+//
+//==========================================================================
+
+
+TArray<FSpecialColormap> SpecialColormaps;
+uint8_t DesaturateColormap[31][256];
+
+// These default tables are needed for texture composition.
+static FSpecialColormapParameters SpecialColormapParms[] =
+{
+	// Doom invulnerability is an inverted grayscale.
+	// Strife uses it when firing the Sigil
+	{ { 1, 1, 1 }, {    0,    0,   0 } },
+
+	// Heretic invulnerability is a golden shade.
+	{ { 0, 0, 0 }, {  1.5, 0.75,   0 }, },
+
+	// [BC] Build the Doomsphere colormap. It is red!
+	{ { 0, 0, 0 }, {  1.5,    0,   0 } },
+
+	// [BC] Build the Guardsphere colormap. It's a greenish-white kind of thing.
+	{ { 0, 0, 0 }, { 1.25,  1.5,   1 } },
+
+	// Build a blue colormap.
+	{ { 0, 0, 0 }, {    0,    0, 1.5 } },
+
+	// Repeated to get around the overridability of the other one
+	{ { 1, 1, 1 }, {    0,    0,   0 } },
+
+};
+
+//==========================================================================
+//
+//
+//
+//==========================================================================
+
+void UpdateSpecialColormap(PalEntry* BaseColors, unsigned int index, float r1, float g1, float b1, float r2, float g2, float b2)
+{
+	assert(index < SpecialColormaps.Size());
+
+	FSpecialColormap* cm = &SpecialColormaps[index];
+	cm->ColorizeStart[0] = float(r1);
+	cm->ColorizeStart[1] = float(g1);
+	cm->ColorizeStart[2] = float(b1);
+	cm->ColorizeEnd[0] = float(r2);
+	cm->ColorizeEnd[1] = float(g2);
+	cm->ColorizeEnd[2] = float(b2);
+
+	r2 -= r1;
+	g2 -= g1;
+	b2 -= b1;
+	r1 *= 255;
+	g1 *= 255;
+	b1 *= 255;
+
+	if (BaseColors)	// only create this table if needed
+	{
+		for (int c = 0; c < 256; c++)
+		{
+			double intensity = (BaseColors[c].r * 77 +
+				BaseColors[c].g * 143 +
+				BaseColors[c].b * 37) / 256.0;
+
+			PalEntry pe = PalEntry(std::min(255, int(r1 + intensity * r2)),
+				std::min(255, int(g1 + intensity * g2)),
+				std::min(255, int(b1 + intensity * b2)));
+
+			cm->Colormap[c] = BestColor((uint32_t*)BaseColors, pe.r, pe.g, pe.b);
+		}
+	}
+
+	// This table is used by the texture composition code
+	for (int i = 0; i < 256; i++)
+	{
+		cm->GrayscaleToColor[i] = PalEntry(std::min(255, int(r1 + i * r2)),
+			std::min(255, int(g1 + i * g2)),
+			std::min(255, int(b1 + i * b2)));
+	}
+}
+
+//==========================================================================
+//
+//
+//
+//==========================================================================
+
+int AddSpecialColormap(PalEntry *BaseColors, float r1, float g1, float b1, float r2, float g2, float b2)
+{
+	// Clamp these in range for the hardware shader.
+	r1 = clamp(r1, 0.0f, 2.0f);
+	g1 = clamp(g1, 0.0f, 2.0f);
+	b1 = clamp(b1, 0.0f, 2.0f);
+	r2 = clamp(r2, 0.0f, 2.0f);
+	g2 = clamp(g2, 0.0f, 2.0f);
+	b2 = clamp(b2, 0.0f, 2.0f);
+
+	for (unsigned i = 1; i < SpecialColormaps.Size(); i++)
+	{
+		// Avoid precision issues here when trying to find a proper match.
+		if (fabs(SpecialColormaps[i].ColorizeStart[0] - r1) < FLT_EPSILON &&
+			fabs(SpecialColormaps[i].ColorizeStart[1] - g1) < FLT_EPSILON &&
+			fabs(SpecialColormaps[i].ColorizeStart[2] - b1) < FLT_EPSILON &&
+			fabs(SpecialColormaps[i].ColorizeEnd[0] - r2) < FLT_EPSILON &&
+			fabs(SpecialColormaps[i].ColorizeEnd[1] - g2) < FLT_EPSILON &&
+			fabs(SpecialColormaps[i].ColorizeEnd[2] - b2) < FLT_EPSILON)
+		{
+			return i;	// The map already exists
+		}
+	}
+
+	UpdateSpecialColormap(BaseColors, SpecialColormaps.Reserve(1), r1, g1, b1, r2, g2, b2);
+	return SpecialColormaps.Size() - 1;
+}
+
+void InitSpecialColormaps(PalEntry *pe)
+{
+	for (unsigned i = 0; i < countof(SpecialColormapParms); ++i)
+	{
+		AddSpecialColormap(pe, SpecialColormapParms[i].Start[0], SpecialColormapParms[i].Start[1],
+			SpecialColormapParms[i].Start[2], SpecialColormapParms[i].End[0],
+			SpecialColormapParms[i].End[1], SpecialColormapParms[i].End[2]);
+	}
+
+	// desaturated colormaps. These are used for texture composition
+	for (int m = 0; m < 31; m++)
+	{
+		uint8_t* shade = DesaturateColormap[m];
+		for (int c = 0; c < 256; c++)
+		{
+			int intensity = pe[c].Luminance();
+
+			int r = (pe[c].r * (31 - m) + intensity * m) / 31;
+			int g = (pe[c].g * (31 - m) + intensity * m) / 31;
+			int b = (pe[c].b * (31 - m) + intensity * m) / 31;
+			shade[c] = BestColor((uint32_t*)pe, r, g, b);
+		}
+	}
+}
+
+//==========================================================================
+//
+//
+//
+//==========================================================================
+
+int ReadPalette(int lumpnum, uint8_t* buffer)
+{
+	if (lumpnum < 0)
+	{
+		return 0;
+	}
+	FileData lump = fileSystem.ReadFile(lumpnum);
+	uint8_t* lumpmem = (uint8_t*)lump.GetMem();
+	memset(buffer, 0, 768);
+
+	FileReader fr;
+	fr.OpenMemory(lumpmem, lump.GetSize());
+	auto png = M_VerifyPNG(fr);
+	if (png)
+	{
+		uint32_t id, len;
+		fr.Seek(33, FileReader::SeekSet);
+		fr.Read(&len, 4);
+		fr.Read(&id, 4);
+		bool succeeded = false;
+		while (id != MAKE_ID('I', 'D', 'A', 'T') && id != MAKE_ID('I', 'E', 'N', 'D'))
+		{
+			len = BigLong((unsigned int)len);
+			if (id != MAKE_ID('P', 'L', 'T', 'E'))
+				fr.Seek(len, FileReader::SeekCur);
+			else
+			{
+				int PaletteSize = MIN<int>(len, 768);
+				fr.Read(buffer, PaletteSize);
+				return PaletteSize / 3;
+			}
+			fr.Seek(4, FileReader::SeekCur);	// Skip CRC
+			fr.Read(&len, 4);
+			id = MAKE_ID('I', 'E', 'N', 'D');
+			fr.Read(&id, 4);
+		}
+		I_Error("%s contains no palette", fileSystem.GetFileFullName(lumpnum));
+	}
+	if (memcmp(lumpmem, "JASC-PAL", 8) == 0)
+	{
+		FScanner sc;
+
+		sc.OpenMem(fileSystem.GetFileFullName(lumpnum), (char*)lumpmem, int(lump.GetSize()));
+		sc.MustGetString();
+		sc.MustGetNumber();	// version - ignore
+		sc.MustGetNumber();
+		int colors = MIN(256, sc.Number) * 3;
+		for (int i = 0; i < colors; i++)
+		{
+			sc.MustGetNumber();
+			if (sc.Number < 0 || sc.Number > 255)
+			{
+				sc.ScriptError("Color %d value out of range.", sc.Number);
+			}
+			buffer[i] = sc.Number;
+		}
+		return colors / 3;
+	}
+	else
+	{
+		memcpy(buffer, lumpmem, MIN<size_t>(768, lump.GetSize()));
+		return 256;
+	}
 }
 

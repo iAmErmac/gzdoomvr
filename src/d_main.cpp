@@ -2549,6 +2549,7 @@ static const char *DoomButtons[] =
 	"moveup" };
 
 CVAR(Bool, lookspring, true, CVAR_ARCHIVE);	// Generate centerview when -mlook encountered?
+EXTERN_CVAR(String, language)
 
 void Mlook_ReleaseHandler()
 {
@@ -2556,6 +2557,17 @@ void Mlook_ReleaseHandler()
 	{
 		Net_WriteByte(DEM_CENTERVIEW);
 	}
+}
+
+int StrTable_GetGender()
+{
+	return players[consoleplayer].userinfo.GetGender();
+}
+
+bool StrTable_ValidFilter(const char* str)
+{
+	if (gameinfo.gametype == GAME_Strife && (gameinfo.flags & GI_SHAREWARE) && !stricmp(str, "strifeteaser")) return true;
+	return stricmp(str, GameNames[gameinfo.gametype]) == 0;
 }
 
 //==========================================================================
@@ -2580,7 +2592,12 @@ static int D_DoomMain_Internal (void)
 	buttonMap.GetButton(Button_Mlook)->bReleaseLock = true;
 	buttonMap.GetButton(Button_Klook)->bReleaseLock = true;
 
-	// button != &Button_Mlook && button != &Button_Klook)
+	static StringtableCallbacks stblcb =
+	{
+		StrTable_ValidFilter,
+		StrTable_GetGender
+	};
+	GStrings.SetCallbacks(&stblcb);
 	
 	std::set_new_handler(NewFailure);
 	const char *batchout = Args->CheckValue("-errorlog");
@@ -2788,7 +2805,7 @@ static int D_DoomMain_Internal (void)
 		}
 
 		// [RH] Initialize localizable strings.
-		GStrings.LoadStrings ();
+		GStrings.LoadStrings (language);
 
 		V_InitFontColors ();
 
@@ -2865,7 +2882,7 @@ static int D_DoomMain_Internal (void)
 		C_InitConback();
 
 		StartScreen->Progress();
-		palMgr.Init(NUM_TRANSLATION_TABLES);
+		GPalette.Init(NUM_TRANSLATION_TABLES);
 		V_InitFonts();
 
 		// [CW] Parse any TEAMINFO lumps.
