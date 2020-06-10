@@ -384,7 +384,7 @@ void FTexture::CreateDefaultBrightmap()
 		// Check for brightmaps
 		if (GetImage() && GetImage()->UseGamePalette() && GPalette.HasGlobalBrightmap &&
 			UseType != ETextureType::Decal && UseType != ETextureType::MiscPatch && UseType != ETextureType::FontChar &&
-			Brightmap == NULL && bWarped == 0)
+			Brightmap == NULL)
 		{
 			// May have one - let's check when we use this texture
 			auto texbuf = Get8BitPixels(false);
