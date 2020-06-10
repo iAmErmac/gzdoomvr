@@ -79,6 +79,7 @@
 #include "g_hub.h"
 #include "g_levellocals.h"
 #include "events.h"
+#include "c_buttons.h"
 
 
 static FRandom pr_dmspawn ("DMSpawn");
@@ -422,11 +423,11 @@ DEFINE_ACTION_FUNCTION_NATIVE(AActor, DisplayNameTag, DisplayNameTag)
 
 CCMD (invnext)
 {
-	if (who != NULL)
+	if (players[consoleplayer].mo != nullptr)
 	{
 		IFVM(PlayerPawn, InvNext)
 		{
-			VMValue param = who;
+			VMValue param = players[consoleplayer].mo;
 			VMCall(func, &param, 1, nullptr, 0);
 		}
 	}
@@ -434,11 +435,11 @@ CCMD (invnext)
 
 CCMD(invprev)
 {
-	if (who != NULL)
+	if (players[consoleplayer].mo != nullptr)
 	{
 		IFVM(PlayerPawn, InvPrev)
 		{
-			VMValue param = who;
+			VMValue param = players[consoleplayer].mo;
 			VMCall(func, &param, 1, nullptr, 0);
 		}
 	}
@@ -469,9 +470,9 @@ CCMD(invquery)
 
 CCMD (use)
 {
-	if (argv.argc() > 1 && who != NULL)
+	if (argv.argc() > 1 && players[consoleplayer].mo != NULL)
 	{
-		SendItemUse = who->FindInventory(argv[1]);
+		SendItemUse = players[consoleplayer].mo->FindInventory(argv[1]);
 	}
 }
 
@@ -492,19 +493,19 @@ CCMD (weapdrop)
 
 CCMD (drop)
 {
-	if (argv.argc() > 1 && who != NULL)
+	if (argv.argc() > 1 && players[consoleplayer].mo != NULL)
 	{
-		SendItemDrop = who->FindInventory(argv[1]);
+		SendItemDrop = players[consoleplayer].mo->FindInventory(argv[1]);
 		SendItemDropAmount = argv.argc() > 2 ? atoi(argv[2]) : -1;
 	}
 }
 
 CCMD (useflechette)
 { 
-	if (who == nullptr) return;
-	IFVIRTUALPTRNAME(who, NAME_PlayerPawn, GetFlechetteItem)
+	if (players[consoleplayer].mo == nullptr) return;
+	IFVIRTUALPTRNAME(players[consoleplayer].mo, NAME_PlayerPawn, GetFlechetteItem)
 	{
-		VMValue params[] = { who };
+		VMValue params[] = { players[consoleplayer].mo };
 		AActor *cls;
 		VMReturn ret((void**)&cls);
 		VMCall(func, params, 1, &ret, 1);
@@ -515,15 +516,17 @@ CCMD (useflechette)
 
 CCMD (select)
 {
+	if (!players[consoleplayer].mo) return;
+	auto user = players[consoleplayer].mo;
 	if (argv.argc() > 1)
 	{
-		auto item = who->FindInventory(argv[1]);
+		auto item = user->FindInventory(argv[1]);
 		if (item != NULL)
 		{
-			who->PointerVar<AActor>(NAME_InvSel) = item;
+			user->PointerVar<AActor>(NAME_InvSel) = item;
 		}
 	}
-	who->player->inventorytics = 5*TICRATE;
+	user->player->inventorytics = 5*TICRATE;
 }
 
 static inline int joyint(double val)

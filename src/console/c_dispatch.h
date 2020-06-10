@@ -35,29 +35,14 @@
 #define __C_DISPATCH_H__
 
 #include <stdint.h>
+#include <functional>
+#include "c_console.h"
 #include "tarray.h"
+#include "c_commandline.h"
 #include "zstring.h"
 
 class FConfigFile;
 
-// Class that can parse command lines
-class FCommandLine
-{
-public:
-	FCommandLine (const char *commandline, bool no_escapes = false);
-	~FCommandLine ();
-	int argc ();
-	char *operator[] (int i);
-	const char *args () { return cmd; }
-	void Shift();
-
-private:
-	const char *cmd;
-	int _argc;
-	char **_argv;
-	long argsize;
-	bool noescapes;
-};
 
 // Contains the contents of an exec'ed file
 struct FExecList
@@ -69,6 +54,8 @@ struct FExecList
 	void ExecCommands() const;
 	void AddPullins(TArray<FString> &wads) const;
 };
+
+extern bool ParsingKeyConf, UnsafeExecutionContext;
 
 
 extern bool CheckCheatmode (bool printmsg = true);
@@ -90,6 +77,7 @@ void C_DoCommand (const char *cmd, int keynum=0);
 FExecList *C_ParseExecFile(const char *file, FExecList *source);
 void C_SearchForPullins(FExecList *exec, const char *file, class FCommandLine &args);
 bool C_ExecFile(const char *file);
+void C_ClearDynCCmds();
 
 // Write out alias commands to a file for all current aliases.
 void C_ArchiveAliases (FConfigFile *f);
@@ -100,8 +88,7 @@ void C_ClearAliases ();
 // build a single string out of multiple strings
 FString BuildString (int argc, FString *argv);
 
-class AActor;
-typedef void (*CCmdRun) (FCommandLine &argv, AActor *instigator, int key);
+typedef std::function<void(FCommandLine & argv, int key)> CCmdRun;;
 
 class FConsoleCommand
 {
@@ -111,11 +98,11 @@ public:
 	virtual bool IsAlias ();
 	void PrintCommand();
 
-	virtual void Run (FCommandLine &args, AActor *instigator, int key);
+	virtual void Run (FCommandLine &args, int key);
 	static FConsoleCommand* FindByName (const char* name);
 
 	FConsoleCommand *m_Next, **m_Prev;
-	char *m_Name;
+	FString m_Name;
 
 	enum { HASH_SIZE = 251 };	// Is this prime?
 
@@ -128,9 +115,9 @@ protected:
 };
 
 #define CCMD(n) \
-	void Cmd_##n (FCommandLine &, AActor *, int key); \
+	void Cmd_##n (FCommandLine &, int key); \
 	FConsoleCommand Cmd_##n##_Ref (#n, Cmd_##n); \
-	void Cmd_##n (FCommandLine &argv, AActor *who, int key)
+	void Cmd_##n (FCommandLine &argv, int key)
 
 class FUnsafeConsoleCommand : public FConsoleCommand
 {
@@ -140,13 +127,13 @@ public:
 	{
 	}
 
-	virtual void Run (FCommandLine &args, AActor *instigator, int key) override;
+	virtual void Run (FCommandLine &args, int key) override;
 };
 
 #define UNSAFE_CCMD(n) \
-	static void Cmd_##n (FCommandLine &, AActor *, int key); \
+	static void Cmd_##n (FCommandLine &, int key); \
 	static FUnsafeConsoleCommand Cmd_##n##_Ref (#n, Cmd_##n); \
-	void Cmd_##n (FCommandLine &argv, AActor *who, int key)
+	void Cmd_##n (FCommandLine &argv, int key)
 
 const int KEY_DBLCLICKED = 0x8000;
 
@@ -155,7 +142,7 @@ class FConsoleAlias : public FConsoleCommand
 public:
 	FConsoleAlias (const char *name, const char *command, bool noSave);
 	~FConsoleAlias ();
-	void Run (FCommandLine &args, AActor *instigator, int key);
+	void Run (FCommandLine &args, int key);
 	bool IsAlias ();
 	void PrintAlias ();
 	void Archive (FConfigFile *f);
@@ -176,42 +163,51 @@ public:
 	{
 	}
 
-	virtual void Run (FCommandLine &args, AActor *instigator, int key) override;
+	virtual void Run (FCommandLine &args, int key) override;
 };
 
-// Actions
-struct FButtonStatus
+class UnsafeExecutionScope
 {
-	enum { MAX_KEYS = 6 };	// Maximum number of keys that can press this button
+	const bool wasEnabled;
 
-	uint16_t Keys[MAX_KEYS];
-	uint8_t bDown;				// Button is down right now
-	uint8_t bWentDown;			// Button went down this tic
-	uint8_t bWentUp;			// Button went up this tic
-	uint8_t padTo16Bytes;
+public:
+	explicit UnsafeExecutionScope(const bool enable = true)
+		: wasEnabled(UnsafeExecutionContext)
+	{
+		UnsafeExecutionContext = enable;
+	}
 
-	bool PressKey (int keynum);		// Returns true if this key caused the button to be pressed.
-	bool ReleaseKey (int keynum);	// Returns true if this key is no longer pressed.
-	void ResetTriggers () { bWentDown = bWentUp = false; }
-	void Reset () { bDown = bWentDown = bWentUp = false; }
+	~UnsafeExecutionScope()
+	{
+		UnsafeExecutionContext = wasEnabled;
+	}
 };
 
-extern FButtonStatus Button_Mlook, Button_Klook, Button_Use, Button_AltAttack,
-	Button_Attack, Button_Speed, Button_MoveRight, Button_MoveLeft,
-	Button_Strafe, Button_LookDown, Button_LookUp, Button_Back,
-	Button_Forward, Button_Right, Button_Left, Button_MoveDown,
-	Button_MoveUp, Button_Jump, Button_ShowScores, Button_Crouch,
-	Button_Zoom, Button_Reload,
-	Button_User1, Button_User2, Button_User3, Button_User4,
-	Button_AM_PanLeft, Button_AM_PanRight, Button_AM_PanDown, Button_AM_PanUp,
-	Button_AM_ZoomIn, Button_AM_ZoomOut;
-extern bool ParsingKeyConf, UnsafeExecutionContext;
 
-void ResetButtonTriggers ();	// Call ResetTriggers for all buttons
-void ResetButtonStates ();		// Same as above, but also clear bDown
-
-#include "superfasthash.h"
 
 void execLogfile(const char *fn, bool append = false);
+
+enum
+{
+	CCMD_OK = 0,
+	CCMD_SHOWHELP = 1
+};
+
+struct CCmdFuncParm
+{
+	int32_t numparms;
+	const char* name;
+	const char** parms;
+	const char* raw;
+};
+
+using CCmdFuncPtr = CCmdFuncParm const* const;
+
+// registers a function
+//   name = name of the function
+//   help = a short help string
+//   func = the entry point to the function
+int C_RegisterFunction(const char* name, const char* help, int (*func)(CCmdFuncPtr));
+
 
 #endif //__C_DISPATCH_H__

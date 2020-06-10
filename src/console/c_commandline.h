@@ -1,8 +1,9 @@
+#pragma once
 /*
-** m_alloc.h
+** c_dispatch.h
 **
 **---------------------------------------------------------------------------
-** Copyright 1998-2008 Randy Heit
+** Copyright 1998-2006 Randy Heit
 ** All rights reserved.
 **
 ** Redistribution and use in source and binary forms, with or without
@@ -31,53 +32,27 @@
 **
 */
 
-#ifndef __M_ALLOC_H__
-#define __M_ALLOC_H__
+class FConfigFile;
+struct CCmdFuncParm;
 
-#include <stdlib.h>
-#include <string.h>
 
-#if defined(__APPLE__)
-#include <malloc/malloc.h>
-#define _msize(p)				malloc_size(p)
-#elif defined(__solaris__) || defined(__OpenBSD__)
-#define _msize(p)				(*((size_t*)(p)-1))
-#elif !defined(_WIN32)
-#include <malloc.h>
-#define _msize(p)				malloc_usable_size(p)	// from glibc/FreeBSD
-#endif
-
-// These are the same as the same stdlib functions,
-// except they bomb out with a fatal error
-// when they can't get the memory.
-
-#if defined(_DEBUG)
-#define M_Calloc(s,t)		M_Calloc_Dbg(s, t, __FILE__, __LINE__)
-#define M_Malloc(s)		M_Malloc_Dbg(s, __FILE__, __LINE__)
-#define M_Realloc(p,s)	M_Realloc_Dbg(p, s, __FILE__, __LINE__)
-
-void *M_Malloc_Dbg (size_t size, const char *file, int lineno);
-void *M_Realloc_Dbg (void *memblock, size_t size, const char *file, int lineno);
-inline void* M_Calloc_Dbg(size_t v1, size_t v2, const char* file, int lineno)
+// Class that can parse command lines
+class FCommandLine
 {
-	auto p = M_Malloc_Dbg(v1 * v2, file, lineno);
-	memset(p, 0, v1 * v2);
-	return p;
-}
+	friend int C_RegisterFunction(const char* name, const char* help, int (*func)(CCmdFuncParm const* const));
+public:
+	FCommandLine (const char *commandline, bool no_escapes = false);
+	~FCommandLine ();
+	int argc ();
+	char *operator[] (int i);
+	const char *args () { return cmd; }
+	void Shift();
 
-#else
-void *M_Malloc (size_t size);
-void *M_Realloc (void *memblock, size_t size);
-inline void* M_Calloc(size_t v1, size_t v2)
-{
-	auto p = M_Malloc(v1 * v2);
-	memset(p, 0, v1 * v2);
-	return p;
-}
+private:
+	const char *cmd;
+	int _argc;
+	char **_argv;
+	long argsize;
+	bool noescapes;
+};
 
-#endif
-
-
-void M_Free (void *memblock);
-
-#endif //__M_ALLOC_H__

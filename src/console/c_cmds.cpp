@@ -354,13 +354,13 @@ CCMD (hxvisit)
 
 CCMD (changemap)
 {
-	if (who == NULL || !usergame)
+	if (!players[consoleplayer].mo || !usergame)
 	{
 		Printf ("Use the map command when not in a game.\n");
 		return;
 	}
 
-	if (!players[who->player - players].settings_controller && netgame)
+	if (!players[consoleplayer].settings_controller && netgame)
 	{
 		Printf ("Only setting controllers can change the map.\n");
 		return;
