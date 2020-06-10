@@ -8,6 +8,46 @@
 class FResourceFile;
 class FTexture;
 
+// [RH] Namespaces from BOOM.
+// These are needed here in the low level part so that WAD files can be properly set up.
+typedef enum {
+	ns_hidden = -1,
+
+	ns_global = 0,
+	ns_sprites,
+	ns_flats,
+	ns_colormaps,
+	ns_acslibrary,
+	ns_newtextures,
+	ns_bloodraw,	// no longer used - kept for ZScript.
+	ns_bloodsfx,	// no longer used - kept for ZScript.
+	ns_bloodmisc,	// no longer used - kept for ZScript.
+	ns_strifevoices,
+	ns_hires,
+	ns_voxels,
+
+	// These namespaces are only used to mark lumps in special subdirectories
+	// so that their contents doesn't interfere with the global namespace.
+	// searching for data in these namespaces works differently for lumps coming
+	// from Zips or other files.
+	ns_specialzipdirectory,
+	ns_sounds,
+	ns_patches,
+	ns_graphics,
+	ns_music,
+
+	ns_firstskin,
+} namespace_t;
+
+enum ELumpFlags
+{
+	LUMPF_MAYBEFLAT = 1,	// might be a flat outside F_START/END
+	LUMPF_FULLPATH = 2,		// contains a full path. This will trigger extended namespace checks when looking up short names.
+	LUMPF_EMBEDDED = 4,		// marks an embedded resource file for later processing.
+	LUMPF_SHORTNAME = 8,	// the stored name is a short extension-less name
+	LUMPF_COMPRESSED = 16,	// compressed or encrypted, i.e. cannot be read with the container file's reader.
+};
+
 // This holds a compresed Zip entry with all needed info to decompress it.
 struct FCompressedBuffer
 {
@@ -33,22 +73,16 @@ struct FCompressedBuffer
 struct FResourceLump
 {
 	friend class FResourceFile;
+	friend class FWadFile;	// this still needs direct access.
 
 	int				LumpSize;
+protected:
 	FString			FullName;		// only valid for files loaded from a non-wad archive
-	union
-	{
-		char		Name[9];
-
-		uint32_t		dwName;			// These are for accessing the first 4 or 8 chars of
-		uint64_t		qwName;			// Name as a unit without breaking strict aliasing rules
-	};
+public:
 	uint8_t			Flags;
 	int8_t			RefCount;
 	char *			Cache;
 	FResourceFile *	Owner;
-	FTexture *		LinkedTexture;
-	int				Namespace;
 
 	FResourceLump()
 	{
@@ -56,9 +90,6 @@ struct FResourceLump
 		Owner = NULL;
 		Flags = 0;
 		RefCount = 0;
-		Namespace = 0;	// ns_global
-		*Name = 0;
-		LinkedTexture = NULL;
 	}
 
 	virtual ~FResourceLump();
@@ -66,12 +97,15 @@ struct FResourceLump
 	virtual FileReader NewReader();
 	virtual int GetFileOffset() { return -1; }
 	virtual int GetIndexNum() const { return 0; }
+	virtual int GetNamespace() const { return 0; }
 	void LumpNameSetup(FString iname);
 	void CheckEmbedded();
 	virtual FCompressedBuffer GetRawData();
 
 	void *CacheLump();
 	int ReleaseCache();
+
+	const char* getName() { return FullName.GetChars(); }
 
 protected:
 	virtual int FillCache() { return -1; }
@@ -117,7 +151,6 @@ public:
 	const FString &GetHash() const { return Hash; }
 
 
-	virtual void FindStrifeTeaserVoices ();
 	virtual bool Open(bool quiet) = 0;
 	virtual FResourceLump *GetLump(int no) = 0;
 	FResourceLump *FindLump(const char *name);

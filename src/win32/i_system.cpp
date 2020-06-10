@@ -107,8 +107,6 @@ void DestroyCustomCursor();
 
 // PRIVATE FUNCTION PROTOTYPES ---------------------------------------------
 
-static void CalculateCPUSpeed();
-
 static HCURSOR CreateCompatibleCursor(FBitmap &cursorpic, int leftofs, int topofs);
 static HCURSOR CreateAlphaCursor(FBitmap &cursorpic, int leftofs, int topofs);
 static HCURSOR CreateBitmapCursor(int xhot, int yhot, HBITMAP and_mask, HBITMAP color_mask);
@@ -308,20 +306,6 @@ void CalculateCPUSpeed()
 
 	if (!batchrun) Printf ("CPU speed: %.0f MHz\n", 0.001 / PerfToMillisec);
 }
-
-//==========================================================================
-//
-// I_Init
-//
-//==========================================================================
-
-void I_Init()
-{
-	CheckCPUID(&CPU);
-	CalculateCPUSpeed();
-	DumpCPUInfo(&CPU);
-}
-
 
 //==========================================================================
 //
@@ -563,7 +547,7 @@ BOOL CALLBACK IWADBoxCallback(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 
 		// Check the current video settings.
 		//SendDlgItemMessage( hDlg, vid_renderer ? IDC_WELCOME_OPENGL : IDC_WELCOME_SOFTWARE, BM_SETCHECK, BST_CHECKED, 0 );
-		SendDlgItemMessage( hDlg, IDC_WELCOME_FULLSCREEN, BM_SETCHECK, fullscreen ? BST_CHECKED : BST_UNCHECKED, 0 );
+		SendDlgItemMessage( hDlg, IDC_WELCOME_FULLSCREEN, BM_SETCHECK, vid_fullscreen ? BST_CHECKED : BST_UNCHECKED, 0 );
 		switch (vid_preferbackend)
 		{
 		case 1:
@@ -621,7 +605,7 @@ BOOL CALLBACK IWADBoxCallback(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
 		{
 			SetQueryIWad(hDlg);
 			// [SP] Upstreamed from Zandronum
-			fullscreen = SendDlgItemMessage( hDlg, IDC_WELCOME_FULLSCREEN, BM_GETCHECK, 0, 0 ) == BST_CHECKED;
+			vid_fullscreen = SendDlgItemMessage( hDlg, IDC_WELCOME_FULLSCREEN, BM_GETCHECK, 0, 0 ) == BST_CHECKED;
 			if (SendDlgItemMessage(hDlg, IDC_WELCOME_VULKAN3, BM_GETCHECK, 0, 0) == BST_CHECKED)
 				vid_preferbackend = 2;
 			else if (SendDlgItemMessage(hDlg, IDC_WELCOME_VULKAN2, BM_GETCHECK, 0, 0) == BST_CHECKED)
@@ -816,7 +800,7 @@ static HCURSOR CreateAlphaCursor(FBitmap &source, int leftofs, int topofs)
 	// Find closest integer scale factor for the monitor DPI
 	HDC screenDC = GetDC(0);
 	int dpi = GetDeviceCaps(screenDC, LOGPIXELSX);
-	int scale = MAX((dpi + 96 / 2 - 1) / 96, 1);
+	int scale = std::max((dpi + 96 / 2 - 1) / 96, 1);
 	ReleaseDC(0, screenDC);
 
 	memset(&bi, 0, sizeof(bi));

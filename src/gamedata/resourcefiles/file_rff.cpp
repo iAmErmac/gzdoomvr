@@ -159,7 +159,7 @@ bool FRFFFile::Open(bool quiet)
 		Lumps[i].Owner = this;
 		if (lumps[i].Flags & 0x10)
 		{
-			Lumps[i].Flags |= LUMPF_BLOODCRYPT;
+			Lumps[i].Flags |= LUMPF_COMPRESSED;	// flags the lump as not directly usable
 		}
 		Lumps[i].IndexNum = LittleLong(lumps[i].IndexNum);
 		// Rearrange the name and extension to construct the fullname.
@@ -174,14 +174,6 @@ bool FRFFFile::Open(bool quiet)
 		name[len+3] = lumps[i].Extension[2];
 		name[len+4] = 0;
 		Lumps[i].LumpNameSetup(name);
-		if (name[len+1] == 'S' && name[len+2] == 'F' && name[len+3] == 'X')
-		{
-			Lumps[i].Namespace = ns_bloodsfx;
-		}
-		else if (name[len+1] == 'R' && name[len+2] == 'A' && name[len+3] == 'W')
-		{
-			Lumps[i].Namespace = ns_bloodraw;
-		}
 	}
 	delete[] lumps;
 	GenerateHash();
@@ -207,7 +199,7 @@ FileReader *FRFFLump::GetReader()
 {
 	// Don't return the reader if this lump is encrypted
 	// In that case always force caching of the lump
-	if (!(Flags & LUMPF_BLOODCRYPT))
+	if (!(Flags & LUMPF_COMPRESSED))
 	{
 		return FUncompressedLump::GetReader();
 	}
@@ -227,7 +219,7 @@ int FRFFLump::FillCache()
 {
 	int res = FUncompressedLump::FillCache();
 
-	if (Flags & LUMPF_BLOODCRYPT)
+	if (Flags & LUMPF_COMPRESSED)
 	{
 		int cryptlen = MIN<int> (LumpSize, 256);
 		uint8_t *data = (uint8_t *)Cache;

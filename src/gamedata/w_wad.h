@@ -13,6 +13,7 @@
 #include "doomdef.h"
 #include "tarray.h"
 #include "zstring.h"
+#include "resourcefiles/resourcefile.h"
 
 class FResourceFile;
 struct FResourceLump;
@@ -35,47 +36,6 @@ struct wadlump_t
 
 #define IWAD_ID		MAKE_ID('I','W','A','D')
 #define PWAD_ID		MAKE_ID('P','W','A','D')
-
-
-// [RH] Namespaces from BOOM.
-typedef enum {
-	ns_hidden = -1,
-
-	ns_global = 0,
-	ns_sprites,
-	ns_flats,
-	ns_colormaps,
-	ns_acslibrary,
-	ns_newtextures,
-	ns_bloodraw,
-	ns_bloodsfx,
-	ns_bloodmisc,
-	ns_strifevoices,
-	ns_hires,
-	ns_voxels,
-
-	// These namespaces are only used to mark lumps in special subdirectories
-	// so that their contents doesn't interfere with the global namespace.
-	// searching for data in these namespaces works differently for lumps coming
-	// from Zips or other files.
-	ns_specialzipdirectory,
-	ns_sounds,
-	ns_patches,
-	ns_graphics,
-	ns_music,
-
-	ns_firstskin,
-} namespace_t;
-
-enum ELumpFlags
-{
-	LUMPF_MAYBEFLAT=1,		// might be a flat outside F_START/END
-	LUMPF_ZIPFILE=2,		// contains a full path
-	LUMPF_EMBEDDED=4,		// from an embedded WAD
-	LUMPF_BLOODCRYPT = 8,	// encrypted
-	LUMPF_COMPRESSED = 16,	// compressed
-	LUMPF_SEQUENTIAL = 32,	// compressed but a sequential reader can be retrieved.
-};
 
 
 // [RH] Copy an 8-char string and uppercase it.
@@ -121,8 +81,9 @@ public:
 	int GetMaxIwadNum() { return MaxIwadIndex; }
 	void SetMaxIwadNum(int x) { MaxIwadIndex = x; }
 
-	void InitMultipleFiles (TArray<FString> &filenames, const TArray<FString> &deletelumps);
-	void AddFile (const char *filename, FileReader *wadinfo = NULL);
+	void InitSingleFile(const char *filename, bool quiet = false);
+	void InitMultipleFiles (TArray<FString> &filenames, const TArray<FString> &deletelumps, bool quiet = false);
+	void AddFile (const char *filename, FileReader *wadinfo = NULL, bool quiet = false);
 	int CheckIfWadLoaded (const char *name);
 
 	const char *GetWadName (int wadnum) const;
@@ -176,7 +137,8 @@ public:
 	int GetLumpFlags (int lump);					// Return the flags for this lump
 	void GetLumpName (char *to, int lump) const;	// [RH] Copies the lump name to to using uppercopy
 	void GetLumpName (FString &to, int lump) const;
-	const char *GetLumpFullName (int lump) const;	// [RH] Returns the lump's full name
+	const char* GetLumpName(int lump) const;
+	const char *GetLumpFullName (int lump, bool returnshort = true) const;	// [RH] Returns the lump's full name
 	FString GetLumpFullPath (int lump) const;		// [RH] Returns wad's name + lump's full name
 	int GetLumpFile (int lump) const;				// [RH] Returns wadnum for a specified lump
 	int GetLumpNamespace (int lump) const;			// [RH] Returns the namespace a lump belongs to
@@ -185,10 +147,15 @@ public:
 	bool CheckLumpName (int lump, const char *name) const;	// [RH] Returns true if the names match
 	unsigned GetLumpsInFolder(const char *path, TArray<FolderEntry> &result, bool atomic) const;
 
-	bool IsEncryptedFile(int lump) const;
+	int GetNumLumps() const
+	{
+		return NumLumps;
+	}
 
-	int GetNumLumps () const;
-	int GetNumWads () const;
+	int GetNumWads() const
+	{
+		return Files.Size();
+	}
 
 	int AddExternalFile(const char *filename);
 

@@ -60,10 +60,116 @@
 //
 // WADFILE I/O related stuff.
 //
+
+union LumpShortName
+{
+	char		String[9];
+
+	uint32_t		dword;			// These are for accessing the first 4 or 8 chars of
+	uint64_t		qword;			// Name as a unit without breaking strict aliasing rules
+};
+
+
 struct FWadCollection::LumpRecord
 {
-	int			wadnum;
 	FResourceLump *lump;
+	FTexture* linkedTexture;
+	LumpShortName shortName;
+	FString		longName;
+	int			wadnum;
+	int			Namespace;
+	int			resourceId;
+
+	void SetFromLump(int filenum, FResourceLump* lmp)
+	{
+		lump = lmp;
+		wadnum = filenum;
+		linkedTexture = nullptr;
+
+		if (lump->Flags & LUMPF_SHORTNAME)
+		{
+			uppercopy(shortName.String, lump->getName());
+			shortName.String[8] = 0;
+			longName = "";
+			Namespace = lump->GetNamespace();
+			resourceId = 0;
+
+			if (gameinfo.gametype == GAME_Strife && gameinfo.flags & GI_SHAREWARE && filenum == Wads.GetIwadNum())
+			{
+				if (shortName.String[0] == 'V' &&
+					shortName.String[1] == 'O' &&
+					shortName.String[2] == 'C')
+				{
+					int j;
+
+					for (j = 3; j < 8; ++j)
+					{
+						if (shortName.String[j] != 0 && !isdigit(shortName.String[j]))
+							break;
+					}
+					if (j == 8)
+					{
+						Namespace = ns_strifevoices;
+					}
+				}
+			}
+
+		}
+		else if ((lump->Flags & LUMPF_EMBEDDED) || !lump->getName() || !*lump->getName())
+		{
+			shortName.qword = 0;
+			longName = "";
+			Namespace = ns_hidden;
+			resourceId = 0;
+		}
+		else
+		{
+			longName = lump->getName();
+			resourceId = lump->GetIndexNum();
+
+			// Map some directories to WAD namespaces.
+			// Note that some of these namespaces don't exist in WADS.
+			// CheckNumForName will handle any request for these namespaces accordingly.
+			Namespace = !strncmp(longName.GetChars(), "flats/", 6) ? ns_flats :
+				!strncmp(longName.GetChars(), "textures/", 9) ? ns_newtextures :
+				!strncmp(longName.GetChars(), "hires/", 6) ? ns_hires :
+				!strncmp(longName.GetChars(), "sprites/", 8) ? ns_sprites :
+				!strncmp(longName.GetChars(), "voxels/", 7) ? ns_voxels :
+				!strncmp(longName.GetChars(), "colormaps/", 10) ? ns_colormaps :
+				!strncmp(longName.GetChars(), "acs/", 4) ? ns_acslibrary :
+				!strncmp(longName.GetChars(), "voices/", 7) ? ns_strifevoices :
+				!strncmp(longName.GetChars(), "patches/", 8) ? ns_patches :
+				!strncmp(longName.GetChars(), "graphics/", 9) ? ns_graphics :
+				!strncmp(longName.GetChars(), "sounds/", 7) ? ns_sounds :
+				!strncmp(longName.GetChars(), "music/", 6) ? ns_music :
+				!strchr(longName.GetChars(), '/') ? ns_global :
+				ns_hidden;
+
+			if (Namespace == ns_hidden) shortName.qword = 0;
+			else
+			{
+				long slash = longName.LastIndexOf('/');
+				FString base = (slash >= 0) ? longName.Mid(slash + 1) : longName;
+				auto dot = base.LastIndexOf('.');
+				if (dot >= 0) base.Truncate(dot);
+				uppercopy(shortName.String, base);
+				shortName.String[8] = 0;
+
+				// Since '\' can't be used as a file name's part inside a ZIP
+				// we have to work around this for sprites because it is a valid
+				// frame character.
+				if (Namespace == ns_sprites || Namespace == ns_voxels || Namespace == ns_hires)
+				{
+					char* c;
+
+					while ((c = (char*)memchr(shortName.String, '^', 8)))
+					{
+						*c = '\\';
+					}
+				}
+			}
+		}
+	}
 };
 
 // EXTERNAL FUNCTION PROTOTYPES --------------------------------------------
@@ -149,7 +255,15 @@ void FWadCollection::DeleteAll ()
 //
 //==========================================================================
 
-void FWadCollection::InitMultipleFiles (TArray<FString> &filenames, const TArray<FString> &deletelumps)
+void FWadCollection::InitSingleFile(const char* filename, bool quiet)
+{
+	TArray<FString> filenames;
+	TArray<FString> deletes;
+	filenames.Push(filename);
+	InitMultipleFiles(filenames, deletes, true);
+}
+
+void FWadCollection::InitMultipleFiles (TArray<FString> &filenames, const TArray<FString> &deletelumps, bool quiet)
 {
 	int numfiles;
 
@@ -160,7 +274,7 @@ void FWadCollection::InitMultipleFiles (TArray<FString> &filenames, const TArray
 	for(unsigned i=0;i<filenames.Size(); i++)
 	{
 		int baselump = NumLumps;
-		AddFile (filenames[i]);
+		AddFile (filenames[i], nullptr, quiet);
 		
 		if (i == (unsigned)MaxIwadIndex) MoveLumpsInFolder("after_iwad/");
 		FStringf path("filter/%s", Files.Last()->GetHash().GetChars());
@@ -170,7 +284,8 @@ void FWadCollection::InitMultipleFiles (TArray<FString> &filenames, const TArray
 	NumLumps = LumpInfo.Size();
 	if (NumLumps == 0)
 	{
-		I_FatalError ("W_InitMultipleFiles: no files found");
+		if (!quiet) I_FatalError("W_InitMultipleFiles: no files found");
+		else return;
 	}
 	RenameNerve();
 	RenameSprites(deletelumps);
@@ -202,8 +317,7 @@ int FWadCollection::AddExternalFile(const char *filename)
 	FResourceLump *lump = new FExternalLump(filename);
 
 	FWadCollection::LumpRecord *lumprec = &LumpInfo[LumpInfo.Reserve(1)];
-	lumprec->lump = lump;
-	lumprec->wadnum = -1;
+	lumprec->SetFromLump(-1, lump);
 	return LumpInfo.Size()-1;	// later
 }
 
@@ -217,7 +331,7 @@ int FWadCollection::AddExternalFile(const char *filename)
 // [RH] Removed reload hack
 //==========================================================================
 
-void FWadCollection::AddFile (const char *filename, FileReader *wadr)
+void FWadCollection::AddFile (const char *filename, FileReader *wadr, bool quiet)
 {
 	int startlump;
 	bool isdir = false;
@@ -228,8 +342,11 @@ void FWadCollection::AddFile (const char *filename, FileReader *wadr)
 		// Does this exist? If so, is it a directory?
 		if (!DirEntryExists(filename, &isdir))
 		{
-			Printf(TEXTCOLOR_RED "%s: File or Directory not found\n", filename);
-			PrintLastError();
+			if (!quiet)
+			{
+				Printf(TEXTCOLOR_RED "%s: File or Directory not found\n", filename);
+				PrintLastError();
+			}
 			return;
 		}
 
@@ -237,23 +354,26 @@ void FWadCollection::AddFile (const char *filename, FileReader *wadr)
 		{
 			if (!wadreader.OpenFile(filename))
 			{ // Didn't find file
-				Printf (TEXTCOLOR_RED "%s: File not found\n", filename);
-				PrintLastError ();
+				if (!quiet)
+				{
+					Printf(TEXTCOLOR_RED "%s: File not found\n", filename);
+					PrintLastError();
+				}
 				return;
 			}
 		}
 	}
 	else wadreader = std::move(*wadr);
 
-	if (!batchrun) Printf (" adding %s", filename);
+	if (!batchrun && !quiet) Printf (" adding %s", filename);
 	startlump = NumLumps;
 
 	FResourceFile *resfile;
 	
 	if (!isdir)
-		resfile = FResourceFile::OpenResourceFile(filename, wadreader);
+		resfile = FResourceFile::OpenResourceFile(filename, wadreader, quiet);
 	else
-		resfile = FResourceFile::OpenDirectory(filename);
+		resfile = FResourceFile::OpenDirectory(filename, quiet);
 
 	if (resfile != NULL)
 	{
@@ -264,15 +384,9 @@ void FWadCollection::AddFile (const char *filename, FileReader *wadr)
 		{
 			FResourceLump *lump = resfile->GetLump(i);
 			FWadCollection::LumpRecord *lump_p = &LumpInfo[LumpInfo.Reserve(1)];
-
-			lump_p->lump = lump;
-			lump_p->wadnum = Files.Size();
+			lump_p->SetFromLump(Files.Size(), lump);
 		}
 
-		if (static_cast<int>(Files.Size()) == GetIwadNum() && gameinfo.gametype == GAME_Strife && gameinfo.flags & GI_SHAREWARE)
-		{
-			resfile->FindStrifeTeaserVoices();
-		}
 		Files.Push(resfile);
 
 		for (uint32_t i=0; i < resfile->LumpCount(); i++)
@@ -281,13 +395,13 @@ void FWadCollection::AddFile (const char *filename, FileReader *wadr)
 			if (lump->Flags & LUMPF_EMBEDDED)
 			{
 				FString path;
-				path.Format("%s:%s", filename, lump->FullName.GetChars());
+				path.Format("%s:%s", filename, lump->getName());
 				auto embedded = lump->NewReader();
 				AddFile(path, &embedded);
 			}
 		}
 
-		if (hashfile)
+		if (hashfile && !quiet)
 		{
 			uint8_t cksum[16];
 			char cksumout[33];
@@ -327,9 +441,7 @@ void FWadCollection::AddFile (const char *filename, FileReader *wadr)
 						sprintf(cksumout + (j * 2), "%02X", cksum[j]);
 					}
 
-					fprintf(hashfile, "file: %s, lump: %s, hash: %s, size: %d\n", filename,
-						lump->FullName.IsNotEmpty() ? lump->FullName.GetChars() : lump->Name,
-						cksumout, lump->LumpSize);
+					fprintf(hashfile, "file: %s, lump: %s, hash: %s, size: %d\n", filename, lump->getName(), cksumout, lump->LumpSize);
 				}
 			}
 		}
@@ -381,26 +493,10 @@ int FWadCollection::CheckIfWadLoaded (const char *name)
 //
 //==========================================================================
 
-int FWadCollection::GetNumLumps () const
-{
-	return NumLumps;
-}
-
 DEFINE_ACTION_FUNCTION(_Wads, GetNumLumps)
 {
 	PARAM_PROLOGUE;
 	ACTION_RETURN_INT(Wads.GetNumLumps());
-}
-
-//==========================================================================
-//
-// GetNumFiles
-//
-//==========================================================================
-
-int FWadCollection::GetNumWads () const
-{
-	return Files.Size();
 }
 
 //==========================================================================
@@ -440,18 +536,18 @@ int FWadCollection::CheckNumForName (const char *name, int space)
 
 	while (i != NULL_INDEX)
 	{
-		FResourceLump *lump = LumpInfo[i].lump;
 
-		if (lump->qwName == qname)
+		if (LumpInfo[i].shortName.qword == qname)
 		{
-			if (lump->Namespace == space) break;
+			auto &lump = LumpInfo[i];
+			if (lump.Namespace == space) break;
 			// If the lump is from one of the special namespaces exclusive to Zips
 			// the check has to be done differently:
 			// If we find a lump with this name in the global namespace that does not come
 			// from a Zip return that. WADs don't know these namespaces and single lumps must
 			// work as well.
-			if (space > ns_specialzipdirectory && lump->Namespace == ns_global && 
-				!(lump->Flags & LUMPF_ZIPFILE)) break;
+			if (space > ns_specialzipdirectory && lump.Namespace == ns_global && 
+				!(lump.lump->Flags & LUMPF_FULLPATH)) break;
 		}
 		i = NextLumpIndex[i];
 	}
@@ -461,7 +557,6 @@ int FWadCollection::CheckNumForName (const char *name, int space)
 
 int FWadCollection::CheckNumForName (const char *name, int space, int wadnum, bool exact)
 {
-	FResourceLump *lump;
 	union
 	{
 		char uname[8];
@@ -481,8 +576,7 @@ int FWadCollection::CheckNumForName (const char *name, int space, int wadnum, bo
 	// also those in earlier WADs.
 
 	while (i != NULL_INDEX &&
-		(lump = LumpInfo[i].lump, lump->qwName != qname ||
-		lump->Namespace != space ||
+		(LumpInfo[i].shortName.qword != qname || LumpInfo[i].Namespace != space ||
 		 (exact? (LumpInfo[i].wadnum != wadnum) : (LumpInfo[i].wadnum > wadnum)) ))
 	{
 		i = NextLumpIndex[i];
@@ -545,12 +639,12 @@ int FWadCollection::CheckNumForFullName (const char *name, bool trynormal, int n
 
 	for (i = fli[MakeKey(name) % NumLumps]; i != NULL_INDEX; i = nli[i])
 	{
-		if (strnicmp(name, LumpInfo[i].lump->FullName, len)) continue;
-		if (LumpInfo[i].lump->FullName[len] == 0) break;	// this is a full match
-		if (ignoreext && LumpInfo[i].lump->FullName[len] == '.') 
+		if (strnicmp(name, LumpInfo[i].longName, len)) continue;
+		if (LumpInfo[i].longName[len] == 0) break;	// this is a full match
+		if (ignoreext && LumpInfo[i].longName[len] == '.') 
 		{
 			// is this the last '.' in the last path element, indicating that the remaining part of the name is only an extension?
-			if (strpbrk(LumpInfo[i].lump->FullName.GetChars() + len + 1, "./") == nullptr) break;	
+			if (strpbrk(LumpInfo[i].longName.GetChars() + len + 1, "./") == nullptr) break;	
 		}
 	}
 
@@ -582,7 +676,7 @@ int FWadCollection::CheckNumForFullName (const char *name, int wadnum)
 	i = FirstLumpIndex_FullName[MakeKey (name) % NumLumps];
 
 	while (i != NULL_INDEX && 
-		(stricmp(name, LumpInfo[i].lump->FullName) || LumpInfo[i].wadnum != wadnum))
+		(stricmp(name, LumpInfo[i].longName) || LumpInfo[i].wadnum != wadnum))
 	{
 		i = NextLumpIndex_FullName[i];
 	}
@@ -620,8 +714,7 @@ void FWadCollection::SetLinkedTexture(int lump, FTexture *tex)
 {
 	if ((size_t)lump < NumLumps)
 	{
-		FResourceLump *reslump = LumpInfo[lump].lump;
-		reslump->LinkedTexture = tex;
+		LumpInfo[lump].linkedTexture = tex;
 	}
 }
 
@@ -635,8 +728,7 @@ FTexture *FWadCollection::GetLinkedTexture(int lump)
 {
 	if ((size_t)lump < NumLumps)
 	{
-		FResourceLump *reslump = LumpInfo[lump].lump;
-		return reslump->LinkedTexture;
+		return LumpInfo[lump].linkedTexture;
 	}
 	return NULL;
 }
@@ -730,7 +822,6 @@ uint32_t FWadCollection::LumpNameHash (const char *s)
 
 void FWadCollection::InitHashChains (void)
 {
-	char name[8];
 	unsigned int i, j;
 
 	// Mark all buckets as empty
@@ -744,19 +835,18 @@ void FWadCollection::InitHashChains (void)
 	// Now set up the chains
 	for (i = 0; i < (unsigned)NumLumps; i++)
 	{
-		uppercopy (name, LumpInfo[i].lump->Name);
-		j = LumpNameHash (name) % NumLumps;
+		j = LumpNameHash (LumpInfo[i].shortName.String) % NumLumps;
 		NextLumpIndex[i] = FirstLumpIndex[j];
 		FirstLumpIndex[j] = i;
 
 		// Do the same for the full paths
-		if (LumpInfo[i].lump->FullName.IsNotEmpty())
+		if (LumpInfo[i].longName.IsNotEmpty())
 		{
-			j = MakeKey(LumpInfo[i].lump->FullName) % NumLumps;
+			j = MakeKey(LumpInfo[i].longName) % NumLumps;
 			NextLumpIndex_FullName[i] = FirstLumpIndex_FullName[j];
 			FirstLumpIndex_FullName[j] = i;
 
-			FString nameNoExt = LumpInfo[i].lump->FullName;
+			FString nameNoExt = LumpInfo[i].longName;
 			auto dot = nameNoExt.LastIndexOf('.');
 			auto slash = nameNoExt.LastIndexOf('/');
 			if (dot > slash) nameNoExt.Truncate(dot);
@@ -860,9 +950,9 @@ void FWadCollection::RenameSprites (const TArray<FString> &deletelumps)
 	{
 		// check for full Minotaur animations. If this is not found
 		// some frames need to be renamed.
-		if (LumpInfo[i].lump->Namespace == ns_sprites)
+		if (LumpInfo[i].Namespace == ns_sprites)
 		{
-			if (LumpInfo[i].lump->dwName == MAKE_ID('M', 'N', 'T', 'R') && LumpInfo[i].lump->Name[4] == 'Z' )
+			if (LumpInfo[i].shortName.dword == MAKE_ID('M', 'N', 'T', 'R') && LumpInfo[i].shortName.String[4] == 'Z' )
 			{
 				MNTRZfound = true;
 				break;
@@ -874,37 +964,37 @@ void FWadCollection::RenameSprites (const TArray<FString> &deletelumps)
 	
 	for (uint32_t i = 0; i < LumpInfo.Size(); i++)
 	{
-		if (LumpInfo[i].lump->Namespace == ns_sprites)
+		if (LumpInfo[i].Namespace == ns_sprites)
 		{
 			// Only sprites in the IWAD normally get renamed
 			if (renameAll || LumpInfo[i].wadnum == GetIwadNum())
 			{
 				for (int j = 0; j < numrenames; ++j)
 				{
-					if (LumpInfo[i].lump->dwName == renames[j*2])
+					if (LumpInfo[i].shortName.dword == renames[j*2])
 					{
-						LumpInfo[i].lump->dwName = renames[j*2+1];
+						LumpInfo[i].shortName.dword = renames[j*2+1];
 					}
 				}
 				if (gameinfo.gametype == GAME_Hexen)
 				{
-					if (CheckLumpName (i, "ARTIINVU"))
+					if (CheckLumpName(i, "ARTIINVU"))
 					{
-						LumpInfo[i].lump->Name[4]='D'; LumpInfo[i].lump->Name[5]='E';
-						LumpInfo[i].lump->Name[6]='F'; LumpInfo[i].lump->Name[7]='N';
+						LumpInfo[i].shortName.String[4] = 'D'; LumpInfo[i].shortName.String[5] = 'E';
+						LumpInfo[i].shortName.String[6] = 'F'; LumpInfo[i].shortName.String[7] = 'N';
 					}
 				}
 			}
 
 			if (!MNTRZfound)
 			{
-				if (LumpInfo[i].lump->dwName == MAKE_ID('M', 'N', 'T', 'R'))
+				if (LumpInfo[i].shortName.dword == MAKE_ID('M', 'N', 'T', 'R'))
 				{
 					for (size_t fi : {4, 6})
 					{
-						if (LumpInfo[i].lump->Name[fi] >= 'F' && LumpInfo[i].lump->Name[fi] <= 'K')
+						if (LumpInfo[i].shortName.String[fi] >= 'F' && LumpInfo[i].shortName.String[fi] <= 'K')
 						{
-							LumpInfo[i].lump->Name[fi] += 'U' - 'F';
+							LumpInfo[i].shortName.String[fi] += 'U' - 'F';
 						}
 					}
 				}
@@ -914,22 +1004,22 @@ void FWadCollection::RenameSprites (const TArray<FString> &deletelumps)
 			// the same blood states can be used everywhere
 			if (!(gameinfo.gametype & GAME_DoomChex))
 			{
-				if (LumpInfo[i].lump->dwName == MAKE_ID('B', 'L', 'O', 'D'))
+				if (LumpInfo[i].shortName.dword == MAKE_ID('B', 'L', 'O', 'D'))
 				{
-					LumpInfo[i].lump->dwName = MAKE_ID('B', 'L', 'U', 'D');
+					LumpInfo[i].shortName.dword = MAKE_ID('B', 'L', 'U', 'D');
 				}
 			}
 		}
-		else if (LumpInfo[i].lump->Namespace == ns_global)
+		else if (LumpInfo[i].Namespace == ns_global)
 		{
-			if (LumpInfo[i].wadnum >= GetIwadNum() && LumpInfo[i].wadnum <= GetMaxIwadNum() && deletelumps.Find(LumpInfo[i].lump->Name) < deletelumps.Size())
+			if (LumpInfo[i].wadnum >= GetIwadNum() && LumpInfo[i].wadnum <= GetMaxIwadNum() && deletelumps.Find(LumpInfo[i].shortName.String) < deletelumps.Size())
 			{
-				LumpInfo[i].lump->Name[0] = 0;	// Lump must be deleted from directory.
+				LumpInfo[i].shortName.String[0] = 0;	// Lump must be deleted from directory.
 			}
 			// Rename the game specific big font lumps so that the font manager does not have to do problematic special checks for them.
-			else if (!strcmp(LumpInfo[i].lump->Name, altbigfont))
+			else if (!strcmp(LumpInfo[i].shortName.String, altbigfont))
 			{
-				strcpy(LumpInfo[i].lump->Name, "BIGFONT");
+				strcpy(LumpInfo[i].shortName.String, "BIGFONT");
 			}
 		}
 	}
@@ -997,16 +1087,16 @@ void FWadCollection::RenameNerve ()
 	{
 		// Only rename the maps from NERVE.WAD
 		assert(LumpInfo[i].wadnum == w);
-		if (LumpInfo[i].lump->dwName == MAKE_ID('C', 'W', 'I', 'L'))
+		if (LumpInfo[i].shortName.dword == MAKE_ID('C', 'W', 'I', 'L'))
 		{
-			LumpInfo[i].lump->Name[0] = 'N';
+			LumpInfo[i].shortName.String[0] = 'N';
 		}
-		else if (LumpInfo[i].lump->dwName == MAKE_ID('M', 'A', 'P', '0'))
+		else if (LumpInfo[i].shortName.dword == MAKE_ID('M', 'A', 'P', '0'))
 		{
-			LumpInfo[i].lump->Name[6] = LumpInfo[i].lump->Name[4];
-			LumpInfo[i].lump->Name[5] = '0';
-			LumpInfo[i].lump->Name[4] = 'L';
-			LumpInfo[i].lump->dwName = MAKE_ID('L', 'E', 'V', 'E');
+			LumpInfo[i].shortName.String[6] = LumpInfo[i].shortName.String[4];
+			LumpInfo[i].shortName.String[5] = '0';
+			LumpInfo[i].shortName.String[4] = 'L';
+			LumpInfo[i].shortName.dword = MAKE_ID('L', 'E', 'V', 'E');
 		}
 	}
 }
@@ -1088,7 +1178,7 @@ void FWadCollection::FixMacHexen()
 
 	for (int i = lastLump - EXTRA_LUMPS + 1; i <= lastLump; ++i)
 	{
-		LumpInfo[i].lump->Name[0] = '\0';
+		LumpInfo[i].shortName.String[0] = '\0';
 	}
 }
 
@@ -1117,13 +1207,13 @@ void FWadCollection::MoveLumpsInFolder(const char *path)
 	{
 		auto& li = LumpInfo[i];
 		if (li.wadnum >= GetIwadNum()) break;
-		if (li.lump->FullName.Left(len).CompareNoCase(path) == 0)
+		if (li.longName.Left(len).CompareNoCase(path) == 0)
 		{
 			LumpInfo.Push(li);
 			li.lump = &placeholderLump;			// Make the old entry point to something empty. We cannot delete the lump record here because it'd require adjustment of all indices in the list.
 			auto &ln = LumpInfo.Last();
-			ln.wadnum = wadnum;					// pretend this is from the WAD this is injected into.
-			ln.lump->LumpNameSetup(ln.lump->FullName.Mid(len));
+			ln.lump->LumpNameSetup(ln.longName.Mid(len));
+			ln.SetFromLump(wadnum, ln.lump);
 		}
 	}
 }
@@ -1152,9 +1242,7 @@ int FWadCollection::FindLump (const char *name, int *lastlump, bool anyns)
 	lump_p = &LumpInfo[*lastlump];
 	while (lump_p < &LumpInfo[NumLumps])
 	{
-		FResourceLump *lump = lump_p->lump;
-
-		if ((anyns || lump->Namespace == ns_global) && lump->qwName == qname)
+		if ((anyns || lump_p->Namespace == ns_global) && lump_p->shortName.qword == qname)
 		{
 			int lump = int(lump_p - &LumpInfo[0]);
 			*lastlump = lump + 1;
@@ -1194,14 +1282,12 @@ int FWadCollection::FindLumpMulti (const char **names, int *lastlump, bool anyns
 	lump_p = &LumpInfo[*lastlump];
 	while (lump_p < &LumpInfo[NumLumps])
 	{
-		FResourceLump *lump = lump_p->lump;
-
-		if (anyns || lump->Namespace == ns_global)
+		if (anyns || lump_p->Namespace == ns_global)
 		{
 			
 			for(const char **name = names; *name != NULL; name++)
 			{
-				if (!strnicmp(*name, lump->Name, 8))
+				if (!strnicmp(*name, lump_p->shortName.String, 8))
 				{
 					int lump = int(lump_p - &LumpInfo[0]);
 					*lastlump = lump + 1;
@@ -1228,7 +1314,7 @@ bool FWadCollection::CheckLumpName (int lump, const char *name)
 	if ((size_t)lump >= NumLumps)
 		return false;
 
-	return !strnicmp (LumpInfo[lump].lump->Name, name, 8);
+	return !strnicmp (LumpInfo[lump].shortName.String, name, 8);
 }
 
 //==========================================================================
@@ -1242,7 +1328,15 @@ void FWadCollection::GetLumpName (char *to, int lump) const
 	if ((size_t)lump >= NumLumps)
 		*to = 0;
 	else
-		uppercopy (to, LumpInfo[lump].lump->Name);
+		uppercopy (to, LumpInfo[lump].shortName.String);
+}
+
+const char* FWadCollection::GetLumpName(int lump) const
+{
+	if ((size_t)lump >= NumLumps)
+		return nullptr;
+	else
+		return LumpInfo[lump].shortName.String;
 }
 
 void FWadCollection::GetLumpName(FString &to, int lump) const
@@ -1250,7 +1344,7 @@ void FWadCollection::GetLumpName(FString &to, int lump) const
 	if ((size_t)lump >= NumLumps)
 		to = FString();
 	else {
-		to = LumpInfo[lump].lump->Name;
+		to = LumpInfo[lump].shortName.String;
 		to.ToUpper();
 	}
 }
@@ -1272,14 +1366,15 @@ DEFINE_ACTION_FUNCTION(_Wads, GetLumpName)
 //
 //==========================================================================
 
-const char *FWadCollection::GetLumpFullName (int lump) const
+const char *FWadCollection::GetLumpFullName (int lump, bool returnshort) const
 {
 	if ((size_t)lump >= NumLumps)
 		return NULL;
-	else if (LumpInfo[lump].lump->FullName.IsNotEmpty())
-		return LumpInfo[lump].lump->FullName;
-	else
-		return LumpInfo[lump].lump->Name;
+	else if (LumpInfo[lump].longName.IsNotEmpty())
+		return LumpInfo[lump].longName;
+	else if (returnshort)
+		return LumpInfo[lump].shortName.String;
+	else return nullptr;
 }
 
 DEFINE_ACTION_FUNCTION(_Wads, GetLumpFullName)
@@ -1319,7 +1414,7 @@ int FWadCollection::GetLumpNamespace (int lump) const
 	if ((size_t)lump >= NumLumps)
 		return ns_global;
 	else
-		return LumpInfo[lump].lump->Namespace;
+		return LumpInfo[lump].Namespace;
 }
 
 DEFINE_ACTION_FUNCTION(_Wads, GetLumpNamespace)
@@ -1344,7 +1439,7 @@ int FWadCollection::GetLumpIndexNum(int lump) const
 	if ((size_t)lump >= NumLumps)
 		return 0;
 	else
-		return LumpInfo[lump].lump->GetIndexNum();
+		return LumpInfo[lump].resourceId;
 }
 
 //==========================================================================
@@ -1399,12 +1494,12 @@ unsigned FWadCollection::GetLumpsInFolder(const char *inpath, TArray<FolderEntry
 	result.Clear();
 	for (unsigned i = 0; i < LumpInfo.Size(); i++)
 	{
-		if (LumpInfo[i].lump->FullName.IndexOf(path) == 0)
+		if (LumpInfo[i].longName.IndexOf(path) == 0)
 		{
 			// Only if it hasn't been replaced.
-			if ((unsigned)Wads.CheckNumForFullName(LumpInfo[i].lump->FullName) == i)
+			if ((unsigned)Wads.CheckNumForFullName(LumpInfo[i].longName) == i)
 			{
-				result.Push({ LumpInfo[i].lump->FullName.GetChars(), i });
+				result.Push({ LumpInfo[i].longName.GetChars(), i });
 			}
 		}
 	}
@@ -1515,7 +1610,7 @@ FileReader FWadCollection::OpenLumpReader(int lump)
 	auto rl = LumpInfo[lump].lump;
 	auto rd = rl->GetReader();
 
-	if (rl->RefCount == 0 && rd != nullptr && !rd->GetBuffer() && !(rl->Flags & (LUMPF_BLOODCRYPT | LUMPF_COMPRESSED)))
+	if (rl->RefCount == 0 && rd != nullptr && !rd->GetBuffer() && !(rl->Flags & LUMPF_COMPRESSED))
 	{
 		FileReader rdr;
 		rdr.OpenFilePart(*rd, rl->GetFileOffset(), rl->LumpSize);
@@ -1534,7 +1629,7 @@ FileReader FWadCollection::ReopenLumpReader(int lump, bool alwayscache)
 	auto rl = LumpInfo[lump].lump;
 	auto rd = rl->GetReader();
 
-	if (rl->RefCount == 0 && rd != nullptr && !rd->GetBuffer() && !alwayscache && !(rl->Flags & (LUMPF_BLOODCRYPT|LUMPF_COMPRESSED)))
+	if (rl->RefCount == 0 && rd != nullptr && !rd->GetBuffer() && !alwayscache && !(rl->Flags & LUMPF_COMPRESSED))
 	{
 		int fileno = Wads.GetLumpFile(lump);
 		const char *filename = Wads.GetWadFullName(fileno);
@@ -1650,24 +1745,6 @@ const char *FWadCollection::GetWadFullName (int wadnum) const
 	}
 
 	return Files[wadnum]->FileName;
-}
-
-
-//==========================================================================
-//
-// IsEncryptedFile
-//
-// Returns true if the first 256 bytes of the lump are encrypted for Blood.
-//
-//==========================================================================
-
-bool FWadCollection::IsEncryptedFile(int lump) const
-{
-	if ((unsigned)lump >= (unsigned)NumLumps)
-	{
-		return false;
-	}
-	return !!(LumpInfo[lump].lump->Flags & LUMPF_BLOODCRYPT);
 }
 
 

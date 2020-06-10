@@ -164,18 +164,7 @@ MapData *P_OpenMapData(const char * mapname, bool justcheck)
 			// As such any special handling for other types of lumps is skipped.
 			map->MapLumps[0].Reader = Wads.ReopenLumpReader(lump_name);
 			strncpy(map->MapLumps[0].Name, Wads.GetLumpFullName(lump_name), 8);
-			map->Encrypted = Wads.IsEncryptedFile(lump_name);
 			map->InWad = true;
-
-			if (map->Encrypted)
-			{ // If it's encrypted, then it's a Blood file, presumably a map.
-				if (!P_IsBuildMap(map))
-				{
-					delete map;
-					return NULL;
-				}
-				return map;
-			}
 
 			int index = 0;
 
@@ -284,11 +273,11 @@ MapData *P_OpenMapData(const char * mapname, bool justcheck)
 		int index=0;
 
 		map->MapLumps[0].Reader = map->resource->GetLump(0)->NewReader();
-		strncpy(map->MapLumps[0].Name, map->resource->GetLump(0)->Name, 8);
+		uppercopy(map->MapLumps[0].Name, map->resource->GetLump(0)->getName());
 
 		for(uint32_t i = 1; i < map->resource->LumpCount(); i++)
 		{
-			const char* lumpname = map->resource->GetLump(i)->Name;
+			const char* lumpname = map->resource->GetLump(i)->getName();
 
 			if (i == 1 && !strnicmp(lumpname, "TEXTMAP", 8))
 			{
@@ -297,7 +286,7 @@ MapData *P_OpenMapData(const char * mapname, bool justcheck)
 				strncpy(map->MapLumps[ML_TEXTMAP].Name, lumpname, 8);
 				for(int i = 2;; i++)
 				{
-					lumpname = map->resource->GetLump(i)->Name;
+					lumpname = map->resource->GetLump(i)->getName();
 					if (!strnicmp(lumpname, "ZNODES",8))
 					{
 						index = ML_GLZNODES;
