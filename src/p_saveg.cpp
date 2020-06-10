@@ -374,7 +374,7 @@ FSerializer &FLevelLocals::SerializeSubsectors(FSerializer &arc, const char *key
 	auto numsubsectors = subsectors.Size();
 	if (arc.isWriting())
 	{
-		TArray<char> encoded(1 + (numsubsectors + 5) / 6);
+		TArray<char> encoded(1 + (numsubsectors + 5) / 6, true);
 		int p = 0;
 		for (unsigned i = 0; i < numsubsectors; i += 6)
 		{
@@ -1025,7 +1025,7 @@ void FLevelLocals::Serialize(FSerializer &arc, bool hubload)
 	arc("polyobjs", Polyobjects);
 	SerializeSubsectors(arc, "subsectors");
 	StatusBar->SerializeMessages(arc);
-	FRemapTable::StaticSerializeTranslations(arc);
+	StaticSerializeTranslations(arc);
 	canvasTextureInfo.Serialize(arc);
 	SerializePlayers(arc, hubload);
 	SerializeSounds(arc);

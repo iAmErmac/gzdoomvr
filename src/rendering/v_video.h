@@ -39,6 +39,7 @@
 #include "vectors.h"
 
 #include "doomdef.h"
+#include "m_png.h"
 #include "dobject.h"
 #include "r_data/renderstyle.h"
 #include "c_cvars.h"
@@ -350,7 +351,6 @@ protected:
 	bool Bgra;
 };
 
-class FUniquePalette;
 class IHardwareTexture;
 class FTexture;
 
