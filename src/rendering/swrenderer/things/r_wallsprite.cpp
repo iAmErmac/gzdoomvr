@@ -69,9 +69,8 @@
 
 namespace swrenderer
 {
-	void RenderWallSprite::Project(RenderThread *thread, AActor *thing, const DVector3 &pos, FTexture *ppic, const DVector2 &scale, int renderflags, int lightlevel, bool foggy, FDynamicColormap *basecolormap)
+	void RenderWallSprite::Project(RenderThread *thread, AActor *thing, const DVector3 &pos, FSoftwareTexture *pic, const DVector2 &scale, int renderflags, int lightlevel, bool foggy, FDynamicColormap *basecolormap)
 	{
-		FSoftwareTexture *pic = ppic->GetSoftwareTexture();
 		FWallCoords wallc;
 		double x1, x2;
 		DVector2 left, right;
@@ -106,8 +105,8 @@ namespace swrenderer
 		// but right now, I just want to get them drawing.
 		tz = (pos.X - thread->Viewport->viewpoint.Pos.X) * thread->Viewport->viewpoint.TanCos + (pos.Y - thread->Viewport->viewpoint.Pos.Y) * thread->Viewport->viewpoint.TanSin;
 
-		int scaled_to = pic->GetScaledTopOffsetSW();
-		int scaled_bo = scaled_to - pic->GetScaledHeight();
+		double scaled_to = pic->GetScaledTopOffsetSW();
+		double scaled_bo = scaled_to - pic->GetScaledHeight();
 		gzt = pos.Z + scale.Y * scaled_to;
 		gzb = pos.Z + scale.Y * scaled_bo;
 

@@ -236,15 +236,15 @@ CUSTOM_CVAR (String, vid_cursor, "None", CVAR_ARCHIVE | CVAR_NOINITCALL)
 
 	if (!stricmp(self, "None" ) && gameinfo.CursorPic.IsNotEmpty())
 	{
-		res = I_SetCursor(TexMan.GetTextureByName(gameinfo.CursorPic));
+		res = I_SetCursor(TexMan.GetGameTextureByName(gameinfo.CursorPic));
 	}
 	else
 	{
-		res = I_SetCursor(TexMan.GetTextureByName(self));
+		res = I_SetCursor(TexMan.GetGameTextureByName(self));
 	}
 	if (!res)
 	{
-		I_SetCursor(TexMan.GetTextureByName("cursor"));
+		I_SetCursor(TexMan.GetGameTextureByName("cursor"));
 	}
 }
 
@@ -272,7 +272,7 @@ int eventhead;
 int eventtail;
 gamestate_t wipegamestate = GS_DEMOSCREEN;	// can be -1 to force a wipe
 bool PageBlank;
-FTexture *Advisory;
+FGameTexture *Advisory;
 FTextureID Page;
 const char *Subtitle;
 bool nospriterename;
@@ -806,7 +806,7 @@ CVAR(Bool, vid_activeinbackground, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
 void D_Display ()
 {
-	FTexture *wipe = nullptr;
+	FGameTexture *wipe = nullptr;
 	int wipe_type;
 	sector_t *viewsec;
 
@@ -881,7 +881,7 @@ void D_Display ()
 		if (vr_mode == 0 || vid_rendermode != 4)
 		{
 			// save the current screen if about to wipe
-			wipe = screen->WipeStartScreen ();
+			wipe = MakeGameTexture(screen->WipeStartScreen(), nullptr, ETextureType::SWCanvas);
 
 			switch (wipegamestate)
 			{
@@ -1015,11 +1015,8 @@ void D_Display ()
 		// draw pause pic
 		if ((paused || pauseext) && menuactive == MENU_Off)
 		{
-			FTexture *tex;
-			int x;
-
-			tex = TexMan.GetTextureByName(gameinfo.PauseSign, true);
-			x = (SCREENWIDTH - tex->GetDisplayWidth() * CleanXfac)/2 +
+			auto tex = TexMan.GetGameTextureByName(gameinfo.PauseSign, true);
+			double x = (SCREENWIDTH - tex->GetDisplayWidth() * CleanXfac)/2 +
 				tex->GetDisplayLeftOffset() * CleanXfac;
 			DrawTexture(twod, tex, x, 4, DTA_CleanNoMove, true, TAG_DONE);
 			if (paused && multiplayer)
@@ -1041,7 +1038,7 @@ void D_Display ()
 			D_DrawIcon = NULL;
 			if (picnum.isValid())
 			{
-				FTexture *tex = TexMan.GetTexture(picnum);
+				auto tex = TexMan.GetGameTexture(picnum);
 				DrawTexture(twod, tex, 160 - tex->GetDisplayWidth()/2, 100 - tex->GetDisplayHeight()/2,
 					DTA_320x200, true, TAG_DONE);
 			}
@@ -1076,7 +1073,7 @@ void D_Display ()
 		GSnd->SetSfxPaused(true, 1);
 		I_FreezeTime(true);
 		screen->End2D();
-		auto wipend = screen->WipeEndScreen ();
+		auto wipend = MakeGameTexture(screen->WipeEndScreen(), nullptr, ETextureType::SWCanvas);
 		auto wiper = Wiper::Create(wipe_type);
 		wiper->SetTextures(wipe, wipend);
 
@@ -1242,7 +1239,7 @@ void D_PageDrawer (void)
 	ClearRect(twod, 0, 0, SCREENWIDTH, SCREENHEIGHT, 0, 0);
 	if (Page.Exists())
 	{
-		DrawTexture(twod, TexMan.GetTexture(Page, true), 0, 0,
+		DrawTexture(twod, TexMan.GetGameTexture(Page, true), 0, 0,
 			DTA_Fullscreen, true,
 			DTA_Masked, false,
 			DTA_BilinearFilter, true,
@@ -1443,7 +1440,7 @@ void D_DoAdvanceDemo (void)
 	case 3:
 		if (gameinfo.advisoryTime)
 		{
-			Advisory = TexMan.GetTextureByName("ADVISOR");
+			Advisory = TexMan.GetGameTextureByName("ADVISOR");
 			demosequence = 1;
 			pagetic = (int)(gameinfo.advisoryTime * TICRATE);
 			break;
@@ -2655,26 +2652,10 @@ static void PatchTextures()
 		FTextureID tex = TexMan.CheckForTexture("BLANK", ETextureType::Wall, false);
 		if (tex.Exists())
 		{
-			auto texture = TexMan.GetTexture(tex, false);
+			auto texture = TexMan.GetGameTexture(tex, false);
 			texture->SetUseType(ETextureType::Null);
 		}
 	}
-
-	// Hexen parallax skies use color 0 to indicate transparency on the front
-	// layer, so we must not remap color 0 on these textures. Unfortunately,
-	// the only way to identify these textures is to check the MAPINFO.
-	for (unsigned int i = 0; i < wadlevelinfos.Size(); ++i)
-	{
-		if (wadlevelinfos[i].flags & LEVEL_DOUBLESKY)
-		{
-			FTextureID picnum = TexMan.CheckForTexture(wadlevelinfos[i].SkyPic1, ETextureType::Wall, false);
-			if (picnum.isValid())
-			{
-				TexMan.GetTexture(picnum)->SetFrontSkyLayer();
-			}
-		}
-	}
-
 }
 
 //==========================================================================
@@ -2699,10 +2680,13 @@ static void CheckForHacks(BuildInfo& buildinfo)
 		buildinfo.Name[2] == 'Y' &&
 		buildinfo.Name[3] >= '1' &&
 		buildinfo.Name[3] <= '3' &&
-		buildinfo.Height == 128)
-	{
-		buildinfo.Height = 200;
-		buildinfo.tex->SetSize(buildinfo.tex->GetTexelWidth(), 200);
+		buildinfo.Height == 128 &&
+		buildinfo.Parts.Size() == 1)
+	{ 
+		// This must alter the size of both the texture image and the game texture.
+		buildinfo.Height = buildinfo.Parts[0].TexImage->GetHeight();
+		buildinfo.texture->GetTexture()->SetSize(buildinfo.texture->GetTexelWidth(), buildinfo.Height);
+		buildinfo.texture->SetSize(buildinfo.texture->GetTexelWidth(), buildinfo.Height);
 		return;
 	}
 
@@ -2737,27 +2721,11 @@ static void CheckForHacks(BuildInfo& buildinfo)
 	}
 }
 
-CUSTOM_CVAR(Bool, vid_nopalsubstitutions, false, CVAR_ARCHIVE | CVAR_NOINITCALL)
-{
-	// This is in case the sky texture has been substituted.
-	R_InitSkyMap();
-}
-
 //==========================================================================
 //
-// FTextureManager :: PalCheck taken out of the texture manager because it ties it to other subsystems
-// todo: move elsewhere
+//
 //
 //==========================================================================
-
-int PalCheck(int tex)
-{
-	// In any true color mode this shouldn't do anything.
-	if (vid_nopalsubstitutions || V_IsTrueColor()) return tex;
-	FTexture *ftex = TexMan.ByIndex(tex);
-	if (ftex != nullptr && ftex->GetPalVersion() != nullptr) return ftex->GetPalVersion()->GetID().GetIndex();
-	return tex;
-}
 
 static void Doom_CastSpriteIDToString(FString* a, unsigned int b) 
 { 
@@ -3107,6 +3075,7 @@ static int D_DoomMain_Internal (void)
 		S_ParseMusInfo();
 
 		if (!batchrun) Printf ("Texman.Init: Init texture manager.\n");
+		UpdateUpscaleMask();
 		SpriteFrames.Clear();
 		TexMan.Init([]() { StartScreen->Progress(); }, CheckForHacks);
 		PatchTextures();
@@ -3442,6 +3411,7 @@ void D_Cleanup()
 	DeinitMenus();
 	LightDefaults.DeleteAndClear();			// this can leak heap memory if it isn't cleared.
 	TexAnim.DeleteAll();
+	TexMan.DeleteAll();
 	
 	// delete DoomStartupInfo data
 	DoomStartupInfo.Name = "";

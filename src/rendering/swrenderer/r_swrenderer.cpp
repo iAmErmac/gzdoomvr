@@ -82,13 +82,13 @@ FRenderer *CreateSWRenderer()
 	return new FSoftwareRenderer;
 }
 
-void FSoftwareRenderer::PreparePrecache(FTexture *ttex, int cache)
+void FSoftwareRenderer::PreparePrecache(FGameTexture *ttex, int cache)
 {
 	bool isbgra = V_IsTrueColor();
 
-	if (ttex != nullptr && ttex->isValid() && !ttex->isCanvas())
+	if (ttex != nullptr && ttex->isValid() && !ttex->isSoftwareCanvas())
 	{
-		FSoftwareTexture *tex = ttex->GetSoftwareTexture();
+		FSoftwareTexture *tex = GetSoftwareTexture(ttex);
 
 		if (tex->CheckPixels())
 		{
@@ -96,18 +96,18 @@ void FSoftwareRenderer::PreparePrecache(FTexture *ttex, int cache)
 		}
 		else if (cache != 0)
 		{
-			FImageSource::RegisterForPrecache(ttex->GetImage(), V_IsTrueColor());
+			FImageSource::RegisterForPrecache(ttex->GetTexture()->GetImage(), V_IsTrueColor());
 		}
 	}
 }
 
-void FSoftwareRenderer::PrecacheTexture(FTexture *ttex, int cache)
+void FSoftwareRenderer::PrecacheTexture(FGameTexture *ttex, int cache)
 {
 	bool isbgra = V_IsTrueColor();
 
-	if (ttex != nullptr && ttex->isValid() && !ttex->isCanvas())
+	if (ttex != nullptr && ttex->isValid() && !ttex->isSoftwareCanvas())
 	{
-		FSoftwareTexture *tex = ttex->GetSoftwareTexture();
+		FSoftwareTexture *tex = GetSoftwareTexture(ttex);
 		if (cache & FTextureManager::HIT_Columnmode)
 		{
 			const FSoftwareTextureSpan *spanp;
@@ -173,12 +173,12 @@ void FSoftwareRenderer::Precache(uint8_t *texhitlist, TMap<PClassActor*, bool> &
 	FImageSource::BeginPrecaching();
 	for (int i = cnt - 1; i >= 0; i--)
 	{
-		PreparePrecache(TexMan.ByIndex(i), texhitlist[i]);
+		PreparePrecache(TexMan.GameByIndex(i), texhitlist[i]);
 	}
 
 	for (int i = cnt - 1; i >= 0; i--)
 	{
-		PrecacheTexture(TexMan.ByIndex(i), texhitlist[i]);
+		PrecacheTexture(TexMan.GameByIndex(i), texhitlist[i]);
 	}
 	FImageSource::EndPrecaching();
 }
@@ -227,6 +227,8 @@ void FSoftwareRenderer::SetClearColor(int color)
 	mScene.SetClearColor(color);
 }
 
+FSWCanvasTexture* GetSWCamTex(FCanvasTexture* camtex);
+
 void FSoftwareRenderer::RenderTextureView (FCanvasTexture *camtex, AActor *viewpoint, double fov)
 {
 	auto renderTarget = mScene.MainThread()->Viewport->RenderTarget;
@@ -237,7 +239,7 @@ void FSoftwareRenderer::RenderTextureView (FCanvasTexture *camtex, AActor *viewp
 	cameraViewpoint = r_viewpoint;
 	cameraViewwindow = r_viewwindow;
 
-	auto tex = static_cast<FSWCanvasTexture*>(camtex->GetSoftwareTexture());
+	auto tex = GetSWCamTex(camtex);
 	
 	DCanvas *Canvas = renderTarget->IsBgra() ? tex->GetCanvasBgra() : tex->GetCanvas();
 

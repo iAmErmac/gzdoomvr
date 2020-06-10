@@ -62,41 +62,6 @@ void PolyHardwareTexture::Reset()
 	}
 }
 
-void PolyHardwareTexture::Precache(FMaterial *mat, int translation, int flags)
-{
-	int numLayers = mat->GetLayers();
-	GetImage(mat->tex, translation, flags);
-	for (int i = 1; i < numLayers; i++)
-	{
-		FTexture *layer;
-		auto systex = static_cast<PolyHardwareTexture*>(mat->GetLayer(i, 0, &layer));
-		systex->GetImage(layer, 0, mat->isExpanded() ? CTF_Expand : 0);
-	}
-}
-
-DCanvas *PolyHardwareTexture::GetImage(const FMaterialState &state)
-{
-	FTexture *tex = state.mMaterial->tex;
-	if (tex->isHardwareCanvas()) static_cast<FCanvasTexture*>(tex)->NeedUpdate();
-
-	if (!mCanvas)
-	{
-		FMaterial *mat = state.mMaterial;
-		int clampmode = state.mClampMode;
-		int translation = state.mTranslation;
-
-		if (tex->UseType == ETextureType::SWCanvas) clampmode = CLAMP_NOFILTER;
-		if (tex->isHardwareCanvas()) clampmode = CLAMP_CAMTEX;
-		else if ((tex->isWarped() || tex->shaderindex >= FIRST_USER_SHADER) && clampmode <= CLAMP_XY) clampmode = CLAMP_NONE;
-
-		int flags = state.mMaterial->isExpanded() ? CTF_Expand : 0;
-
-		return GetImage(tex, translation, flags);
-	}
-
-	return mCanvas.get();
-}
-
 DCanvas *PolyHardwareTexture::GetImage(FTexture *tex, int translation, int flags)
 {
 	if (!mCanvas)
@@ -108,8 +73,8 @@ PolyDepthStencil *PolyHardwareTexture::GetDepthStencil(FTexture *tex)
 {
 	if (!mDepthStencil)
 	{
-		int w = tex->GetTexelWidth();
-		int h = tex->GetTexelHeight();
+		int w = tex->GetWidth();
+		int h = tex->GetHeight();
 		mDepthStencil.reset(new PolyDepthStencil(w, h));
 	}
 	return mDepthStencil.get();
@@ -172,8 +137,8 @@ void PolyHardwareTexture::CreateImage(FTexture *tex, int translation, int flags)
 	}
 	else
 	{
-		int w = tex->GetTexelWidth();
-		int h = tex->GetTexelHeight();
+		int w = tex->GetWidth();
+		int h = tex->GetHeight();
 		mCanvas->Resize(w, h, false);
 	}
 }

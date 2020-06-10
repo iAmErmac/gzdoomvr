@@ -522,7 +522,7 @@ public:
 		else mAlphaThreshold = thresh - 0.001f;
 	}
 
-	void SetPlaneTextureRotation(HWSectorPlane *plane, FMaterial *texture)
+	void SetPlaneTextureRotation(HWSectorPlane *plane, FGameTexture *texture)
 	{
 		if (hw_SetPlaneTextureRotation(plane, texture, mTextureMatrix))
 		{
@@ -567,6 +567,12 @@ public:
 		mMaterial.mOverrideShader = overrideshader;
 		mMaterial.mChanged = true;
 		mTextureModeFlags = mat->GetLayerFlags();
+	}
+
+	void SetMaterial(FGameTexture* tex, EUpscaleFlags upscalemask, int scaleflags, int clampmode, int translation, int overrideshader)
+	{
+		if (shouldUpscale(tex, upscalemask)) scaleflags |= CTF_Upscale;
+		SetMaterial(FMaterial::ValidateTexture(tex, scaleflags), clampmode, translation, overrideshader);
 	}
 
 	void SetClipSplit(float bottom, float top)

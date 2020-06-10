@@ -1138,6 +1138,7 @@ set (PCH_SOURCES
 	common/textures/bitmap.cpp
 	common/textures/m_png.cpp
 	common/textures/texture.cpp
+	common/textures/gametexture.cpp
 	common/textures/image.cpp
 	common/textures/imagetexture.cpp
 	common/textures/texturemanager.cpp

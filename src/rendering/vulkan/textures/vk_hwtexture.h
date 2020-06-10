@@ -11,25 +11,24 @@
 #include "hw_ihwtexture.h"
 #include "volk/volk.h"
 #include "vk_imagetransition.h"
+#include "hw_material.h"
 
 struct FMaterialState;
 class VulkanDescriptorSet;
 class VulkanImage;
 class VulkanImageView;
 class VulkanBuffer;
+class FGameTexture;
 
 class VkHardwareTexture : public IHardwareTexture
 {
+	friend class VkMaterial;
 public:
 	VkHardwareTexture();
 	~VkHardwareTexture();
 
 	static void ResetAll();
 	void Reset();
-
-	void Precache(FMaterial *mat, int translation, int flags);
-
-	VulkanDescriptorSet *GetDescriptorSet(const FMaterialState &state);
 
 	// Software renderer stuff
 	void AllocateBuffer(int w, int h, int texelsize) override;
@@ -39,12 +38,9 @@ public:
 	// Wipe screen
 	void CreateWipeTexture(int w, int h, const char *name);
 
-	void DeleteDescriptors() override { ResetDescriptors(); }
-
 	VkTextureImage *GetImage(FTexture *tex, int translation, int flags);
 	VkTextureImage *GetDepthStencil(FTexture *tex);
 
-	static void ResetAllDescriptors();
 
 private:
 	void CreateImage(FTexture *tex, int translation, int flags);
@@ -52,11 +48,24 @@ private:
 	void CreateTexture(int w, int h, int pixelsize, VkFormat format, const void *pixels);
 	static int GetMipLevels(int w, int h);
 
-	void ResetDescriptors();
-
 	static VkHardwareTexture *First;
 	VkHardwareTexture *Prev = nullptr;
 	VkHardwareTexture *Next = nullptr;
+
+	VkTextureImage mImage;
+	int mTexelsize = 4;
+
+	VkTextureImage mDepthStencil;
+
+	uint8_t* mappedSWFB = nullptr;
+};
+
+
+class VkMaterial : public FMaterial
+{
+	static VkMaterial* First;
+	VkMaterial* Prev = nullptr;
+	VkMaterial* Next = nullptr;
 
 	struct DescriptorEntry
 	{
@@ -64,7 +73,7 @@ private:
 		int flags;
 		std::unique_ptr<VulkanDescriptorSet> descriptor;
 
-		DescriptorEntry(int cm, int f, std::unique_ptr<VulkanDescriptorSet> &&d)
+		DescriptorEntry(int cm, int f, std::unique_ptr<VulkanDescriptorSet>&& d)
 		{
 			clampmode = cm;
 			flags = f;
@@ -73,10 +82,12 @@ private:
 	};
 
 	std::vector<DescriptorEntry> mDescriptorSets;
-	VkTextureImage mImage;
-	int mTexelsize = 4;
 
-	VkTextureImage mDepthStencil;
+public:
+	VkMaterial(FGameTexture *tex, int scaleflags);
+	~VkMaterial();
+	VulkanDescriptorSet* GetDescriptorSet(const FMaterialState& state);
+	void DeleteDescriptors() override;
+	static void ResetAllDescriptors();
 
-	uint8_t* mappedSWFB = nullptr;
 };

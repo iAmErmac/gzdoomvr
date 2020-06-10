@@ -56,7 +56,6 @@ static const int VID_MIN_UI_HEIGHT = 400;
 
 class player_t;
 struct sector_t;
-class FTexture;
 struct FPortalSceneState;
 class FSkyVertexBuffer;
 class IIndexBuffer;
@@ -66,6 +65,8 @@ class FFlatVertexBuffer;
 class HWViewpointBuffer;
 class FLightBuffer;
 struct HWDrawInfo;
+class FMaterial;
+class FGameTexture;
 
 enum EHWCaps
 {
@@ -148,7 +149,6 @@ inline bool V_IsTrueColor()
 }
 
 
-class FTexture;
 struct FColormap;
 class FileWriter;
 enum FTextureFormat : uint32_t;
@@ -268,6 +268,7 @@ public:
 	virtual IHardwareTexture *CreateHardwareTexture() { return nullptr; }
 	virtual void PrecacheMaterial(FMaterial *mat, int translation) {}
 	virtual FModelRenderer *CreateModelRenderer(int mli) { return nullptr; }
+	virtual FMaterial* CreateMaterial(FGameTexture* tex, int scaleflags);
 	virtual void TextureFilterChanged() {}
 	virtual void BeginFrame() {}
 	virtual void SetWindowSize(int w, int h) {}

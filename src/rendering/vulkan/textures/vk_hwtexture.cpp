@@ -64,8 +64,6 @@ void VkHardwareTexture::Reset()
 {
 	if (auto fb = GetVulkanFrameBuffer())
 	{
-		ResetDescriptors();
-
 		if (mappedSWFB)
 		{
 			mImage.Image->Unmap();
@@ -84,93 +82,6 @@ void VkHardwareTexture::Reset()
 	}
 }
 
-void VkHardwareTexture::ResetDescriptors()
-{
-	if (auto fb = GetVulkanFrameBuffer())
-	{
-		auto &deleteList = fb->FrameDeleteList;
-
-		for (auto &it : mDescriptorSets)
-		{
-			deleteList.Descriptors.push_back(std::move(it.descriptor));
-		}
-	}
-
-	mDescriptorSets.clear();
-}
-
-void VkHardwareTexture::ResetAllDescriptors()
-{
-	for (VkHardwareTexture *cur = First; cur; cur = cur->Next)
-		cur->ResetDescriptors();
-
-	auto fb = GetVulkanFrameBuffer();
-	if (fb)
-		fb->GetRenderPassManager()->TextureSetPoolReset();
-}
-
-void VkHardwareTexture::Precache(FMaterial *mat, int translation, int flags)
-{
-	int numLayers = mat->GetLayers();
-	GetImage(mat->tex, translation, flags);
-	for (int i = 1; i < numLayers; i++)
-	{
-		FTexture *layer;
-		auto systex = static_cast<VkHardwareTexture*>(mat->GetLayer(i, 0, &layer));
-		systex->GetImage(layer, 0, mat->isExpanded() ? CTF_Expand : 0);
-	}
-}
-
-VulkanDescriptorSet *VkHardwareTexture::GetDescriptorSet(const FMaterialState &state)
-{
-	FMaterial *mat = state.mMaterial;
-	FTexture *tex = state.mMaterial->tex;
-	int clampmode = state.mClampMode;
-	int translation = state.mTranslation;
-
-	if (tex->UseType == ETextureType::SWCanvas) clampmode = CLAMP_NOFILTER;
-	if (tex->isHardwareCanvas()) clampmode = CLAMP_CAMTEX;
-	else if ((tex->isWarped() || tex->shaderindex >= FIRST_USER_SHADER) && clampmode <= CLAMP_XY) clampmode = CLAMP_NONE;
-
-	// Textures that are already scaled in the texture lump will not get replaced by hires textures.
-	int flags = state.mMaterial->isExpanded() ? CTF_Expand : 0;
-
-	if (tex->isHardwareCanvas()) static_cast<FCanvasTexture*>(tex)->NeedUpdate();
-
-	for (auto &set : mDescriptorSets)
-	{
-		if (set.descriptor && set.clampmode == clampmode && set.flags == flags) return set.descriptor.get();
-	}
-
-	int numLayers = mat->GetLayers();
-
-	auto fb = GetVulkanFrameBuffer();
-	auto descriptor = fb->GetRenderPassManager()->AllocateTextureDescriptorSet(std::max(numLayers, SHADER_MIN_REQUIRED_TEXTURE_LAYERS));
-
-	descriptor->SetDebugName("VkHardwareTexture.mDescriptorSets");
-
-	VulkanSampler *sampler = fb->GetSamplerManager()->Get(clampmode);
-
-	WriteDescriptors update;
-	update.addCombinedImageSampler(descriptor.get(), 0, GetImage(tex, translation, flags)->View.get(), sampler, mImage.Layout);
-	for (int i = 1; i < numLayers; i++)
-	{
-		FTexture *layer;
-		auto systex = static_cast<VkHardwareTexture*>(mat->GetLayer(i, 0, &layer));
-		update.addCombinedImageSampler(descriptor.get(), i, systex->GetImage(layer, 0, mat->isExpanded() ? CTF_Expand : 0)->View.get(), sampler, systex->mImage.Layout);
-	}
-
-	auto dummyImage = fb->GetRenderPassManager()->GetNullTextureView();
-	for (int i = numLayers; i < SHADER_MIN_REQUIRED_TEXTURE_LAYERS; i++)
-	{
-		update.addCombinedImageSampler(descriptor.get(), i, dummyImage, sampler, mImage.Layout);
-	}
-
-	update.updateSets(fb->device);
-	mDescriptorSets.emplace_back(clampmode, flags, std::move(descriptor));
-	return mDescriptorSets.back().descriptor.get();
-}
-
 VkTextureImage *VkHardwareTexture::GetImage(FTexture *tex, int translation, int flags)
 {
 	if (!mImage.Image)
@@ -187,8 +98,8 @@ VkTextureImage *VkHardwareTexture::GetDepthStencil(FTexture *tex)
 		auto fb = GetVulkanFrameBuffer();
 
 		VkFormat format = fb->GetBuffers()->SceneDepthStencilFormat;
-		int w = tex->GetTexelWidth();
-		int h = tex->GetTexelHeight();
+		int w = tex->GetWidth();
+		int h = tex->GetHeight();
 
 		ImageBuilder builder;
 		builder.setSize(w, h);
@@ -223,8 +134,8 @@ void VkHardwareTexture::CreateImage(FTexture *tex, int translation, int flags)
 		auto fb = GetVulkanFrameBuffer();
 
 		VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
-		int w = tex->GetTexelWidth();
-		int h = tex->GetTexelHeight();
+		int w = tex->GetWidth();
+		int h = tex->GetHeight();
 
 		ImageBuilder imgbuilder;
 		imgbuilder.setFormat(format);
@@ -407,3 +318,94 @@ void VkHardwareTexture::CreateWipeTexture(int w, int h, const char *name)
 		transition1.execute(fb->GetTransferCommands());
 	}
 }
+
+
+VkMaterial* VkMaterial::First = nullptr;
+
+VkMaterial::VkMaterial(FGameTexture* tex, int scaleflags) : FMaterial(tex, scaleflags)
+{
+	Next = First;
+	First = this;
+	if (Next) Next->Prev = this;
+}
+
+VkMaterial::~VkMaterial()
+{
+	if (Next) Next->Prev = Prev;
+	if (Prev) Prev->Next = Next;
+	else First = Next;
+
+	DeleteDescriptors();
+}
+
+void VkMaterial::DeleteDescriptors()
+{
+	if (auto fb = GetVulkanFrameBuffer())
+	{
+		auto& deleteList = fb->FrameDeleteList;
+
+		for (auto& it : mDescriptorSets)
+		{
+			deleteList.Descriptors.push_back(std::move(it.descriptor));
+		}
+	}
+
+	mDescriptorSets.clear();
+}
+
+void VkMaterial::ResetAllDescriptors()
+{
+	for (VkMaterial* cur = First; cur; cur = cur->Next)
+		cur->DeleteDescriptors();
+
+	auto fb = GetVulkanFrameBuffer();
+	if (fb)
+		fb->GetRenderPassManager()->TextureSetPoolReset();
+}
+
+VulkanDescriptorSet* VkMaterial::GetDescriptorSet(const FMaterialState& state)
+{
+	auto base = Source();
+	int clampmode = state.mClampMode;
+	int translation = state.mTranslation;
+
+	auto remap = translation <= 0 ? nullptr : GPalette.TranslationToTable(translation);
+	if (remap) translation = remap->Index;
+
+	clampmode = base->GetClampMode(clampmode);
+
+	for (auto& set : mDescriptorSets)
+	{
+		if (set.descriptor && set.clampmode == clampmode && set.flags == translation) return set.descriptor.get();
+	}
+
+	int numLayers = NumLayers();
+
+	auto fb = GetVulkanFrameBuffer();
+	auto descriptor = fb->GetRenderPassManager()->AllocateTextureDescriptorSet(std::max(numLayers, SHADER_MIN_REQUIRED_TEXTURE_LAYERS));
+
+	descriptor->SetDebugName("VkHardwareTexture.mDescriptorSets");
+
+	VulkanSampler* sampler = fb->GetSamplerManager()->Get(clampmode);
+
+	WriteDescriptors update;
+	MaterialLayerInfo *layer;
+	auto systex = static_cast<VkHardwareTexture*>(GetLayer(0, translation, &layer));
+	update.addCombinedImageSampler(descriptor.get(), 0, systex->GetImage(layer->layerTexture, translation, layer->scaleFlags)->View.get(), sampler, systex->mImage.Layout);
+	for (int i = 1; i < numLayers; i++)
+	{
+		auto systex = static_cast<VkHardwareTexture*>(GetLayer(i, 0, &layer));
+		update.addCombinedImageSampler(descriptor.get(), i, systex->GetImage(layer->layerTexture, 0, layer->scaleFlags)->View.get(), sampler, systex->mImage.Layout);
+	}
+
+	auto dummyImage = fb->GetRenderPassManager()->GetNullTextureView();
+	for (int i = numLayers; i < SHADER_MIN_REQUIRED_TEXTURE_LAYERS; i++)
+	{
+		update.addCombinedImageSampler(descriptor.get(), i, dummyImage, sampler, systex->mImage.Layout);
+	}
+
+	update.updateSets(fb->device);
+	mDescriptorSets.emplace_back(clampmode, translation, std::move(descriptor));
+	return mDescriptorSets.back().descriptor.get();
+}
+

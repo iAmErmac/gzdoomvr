@@ -157,7 +157,7 @@ FVoxelModel::FVoxelModel(FVoxel *voxel, bool owned)
 {
 	mVoxel = voxel;
 	mOwningVoxel = owned;
-	mPalette = TexMan.AddTexture(new FImageTexture(new FVoxelTexture(voxel)));
+	mPalette = TexMan.AddGameTexture(MakeGameTexture(new FImageTexture(new FVoxelTexture(voxel)), nullptr, ETextureType::Override));
 }
 
 //===========================================================================
@@ -395,7 +395,7 @@ float FVoxelModel::getAspectFactor(FLevelLocals *Level)
 //
 //===========================================================================
 
-void FVoxelModel::RenderFrame(FModelRenderer *renderer, FTexture * skin, int frame, int frame2, double inter, int translation)
+void FVoxelModel::RenderFrame(FModelRenderer *renderer, FGameTexture * skin, int frame, int frame2, double inter, int translation)
 {
 	renderer->SetMaterial(skin, true, translation);
 	GetVertexBuffer(renderer)->SetupFrame(renderer, 0, 0, 0);

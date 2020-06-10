@@ -46,11 +46,14 @@ EXTERN_CVAR(Bool, gl_precache)
 //
 //==========================================================================
 
-static void PrecacheTexture(FTexture *tex, int cache)
+static void PrecacheTexture(FGameTexture *tex, int cache)
 {
 	if (cache & (FTextureManager::HIT_Wall | FTextureManager::HIT_Flat | FTextureManager::HIT_Sky))
 	{
-		FMaterial * gltex = FMaterial::ValidateTexture(tex, false);
+		int scaleflags = 0;
+		if (shouldUpscale(tex, UF_Texture)) scaleflags |= CTF_Upscale;
+
+		FMaterial * gltex = FMaterial::ValidateTexture(tex, scaleflags);
 		if (gltex) screen->PrecacheMaterial(gltex, 0);
 	}
 }
@@ -62,7 +65,6 @@ static void PrecacheTexture(FTexture *tex, int cache)
 //===========================================================================
 static void PrecacheList(FMaterial *gltex, SpriteHits& translations)
 {
-	gltex->tex->SystemTextures.CleanUnused(translations, gltex->isExpanded());
 	SpriteHits::Iterator it(translations);
 	SpriteHits::Pair* pair;
 	while (it.NextPair(pair)) screen->PrecacheMaterial(gltex, pair->Key);
@@ -74,9 +76,12 @@ static void PrecacheList(FMaterial *gltex, SpriteHits& translations)
 //
 //==========================================================================
 
-static void PrecacheSprite(FTexture *tex, SpriteHits &hits)
+static void PrecacheSprite(FGameTexture *tex, SpriteHits &hits)
 {
-	FMaterial * gltex = FMaterial::ValidateTexture(tex, true);
+	int scaleflags = CTF_Expand;
+	if (shouldUpscale(tex, UF_Sprite)) scaleflags |= CTF_Upscale;
+
+	FMaterial * gltex = FMaterial::ValidateTexture(tex, scaleflags);
 	if (gltex) PrecacheList(gltex, hits);
 }
 
@@ -88,26 +93,36 @@ static void PrecacheSprite(FTexture *tex, SpriteHits &hits)
 
 void hw_PrecacheTexture(uint8_t *texhitlist, TMap<PClassActor*, bool> &actorhitlist)
 {
-	SpriteHits *spritelist = new SpriteHits[sprites.Size()];
-	SpriteHits **spritehitlist = new SpriteHits*[TexMan.NumTextures()];
-	TMap<PClassActor*, bool>::Iterator it(actorhitlist);
-	TMap<PClassActor*, bool>::Pair *pair;
-	uint8_t *modellist = new uint8_t[Models.Size()];
-	memset(modellist, 0, Models.Size());
-	memset(spritehitlist, 0, sizeof(SpriteHits**) * TexMan.NumTextures());
+	TMap<FTexture*, bool> allTextures;
+	TArray<FTexture*> layers;
 
-	// this isn't done by the main code so it needs to be done here first:
-	// check skybox textures and mark the separate faces as used
-	for (int i = 0; i<TexMan.NumTextures(); i++)
+	// First collect the potential max. texture set 
+	for (int i = 1; i < TexMan.NumTextures(); i++)
 	{
-		// HIT_Wall must be checked for MBF-style sky transfers. 
-		if (texhitlist[i] & (FTextureManager::HIT_Sky | FTextureManager::HIT_Wall))
+		auto gametex = TexMan.GameByIndex(i);
+		if (gametex &&
+			gametex->GetTexture()->GetImage() &&	// only image textures are subject to precaching
+			gametex->GetUseType() != ETextureType::FontChar &&	// We do not want to delete font characters here as they are very likely to be needed constantly.
+			gametex->GetUseType() < ETextureType::Special)		// Any texture marked as 'special' is also out.
 		{
-			FTexture *tex = TexMan.ByIndex(i);
-			if (tex->isSkybox())
+			gametex->GetLayers(layers);
+			for (auto layer : layers)
 			{
-				FSkyBox *sb = static_cast<FSkyBox*>(tex);
-				for (int i = 0; i<6; i++)
+				allTextures.Insert(layer, true);
+				layer->CleanPrecacheMarker();
+			}
+		}
+
+		// Mark the faces of a skybox as used.
+		// This isn't done by the main code so it needs to be done here.
+		// MBF sky transfers are being checked by the calling code to add HIT_Sky for them.
+		if (texhitlist[i] & (FTextureManager::HIT_Sky))
+		{
+			auto tex = TexMan.GameByIndex(i);
+			auto sb = dynamic_cast<FSkyBox*>(tex->GetTexture());
+			if (sb)
+			{
+				for (int i = 0; i < 6; i++)
 				{
 					if (sb->faces[i])
 					{
@@ -118,6 +133,14 @@ void hw_PrecacheTexture(uint8_t *texhitlist, TMap<PClassActor*, bool> &actorhitl
 			}
 		}
 	}
+
+	SpriteHits *spritelist = new SpriteHits[sprites.Size()];
+	SpriteHits **spritehitlist = new SpriteHits*[TexMan.NumTextures()];
+	TMap<PClassActor*, bool>::Iterator it(actorhitlist);
+	TMap<PClassActor*, bool>::Pair *pair;
+	uint8_t *modellist = new uint8_t[Models.Size()];
+	memset(modellist, 0, Models.Size());
+	memset(spritehitlist, 0, sizeof(SpriteHits**) * TexMan.NumTextures());
 
 	// Check all used actors.
 	// 1. mark all sprites associated with its states
@@ -190,49 +213,54 @@ void hw_PrecacheTexture(uint8_t *texhitlist, TMap<PClassActor*, bool> &actorhitl
 	screen->StartPrecaching();
 	int cnt = TexMan.NumTextures();
 
-	// prepare the textures for precaching. First collect all used layer textures so that we know which ones should not be deleted.
+	// prepare the textures for precaching. First mark all used layer textures so that we know which ones should not be deleted.
 	for (int i = cnt - 1; i >= 0; i--)
 	{
-		FTexture *tex = TexMan.ByIndex(i);
+		auto tex = TexMan.GameByIndex(i);
 		if (tex != nullptr)
 		{
-			FMaterial *mat = FMaterial::ValidateTexture(tex, false, false);
-			if (mat != nullptr)
+			if (texhitlist[i] & (FTextureManager::HIT_Wall | FTextureManager::HIT_Flat | FTextureManager::HIT_Sky))
 			{
-				for (auto ftex : mat->GetLayerArray())
+				int scaleflags = 0;
+				if (shouldUpscale(tex, UF_Texture)) scaleflags |= CTF_Upscale;
+
+				FMaterial* mat = FMaterial::ValidateTexture(tex, scaleflags, true);
+				if (mat != nullptr)
 				{
-					usedTextures.Insert(ftex, true);
+					for (auto &layer : mat->GetLayerArray())
+					{
+						if (layer.layerTexture) layer.layerTexture->MarkForPrecache(0, layer.scaleFlags);
+					}
 				}
 			}
 			if (spritehitlist[i] != nullptr && (*spritehitlist[i]).CountUsed() > 0)
 			{
-				FMaterial *mat = FMaterial::ValidateTexture(tex, true, false);
+				int scaleflags = CTF_Expand;
+				if (shouldUpscale(tex, UF_Sprite)) scaleflags |= CTF_Upscale;
+
+				FMaterial *mat = FMaterial::ValidateTexture(tex, true, true);
 				if (mat != nullptr)
 				{
-					for (auto ftex : mat->GetLayerArray())
+					SpriteHits::Iterator it(*spritehitlist[i]);
+					SpriteHits::Pair* pair;
+					while (it.NextPair(pair))
 					{
-						usedSprites.Insert(ftex, true);
+						for (auto& layer : mat->GetLayerArray())
+						{
+							if (layer.layerTexture) layer.layerTexture->MarkForPrecache(pair->Key, layer.scaleFlags);
+						}
 					}
 				}
 			}
 		}
 	}
 
-	// delete unused textures (i.e. those which didn't get referenced by any material in the cache list.
-	for (int i = cnt - 1; i >= 0; i--)
+	// delete unused hardware textures (i.e. those which didn't get referenced by any material in the cache list.)
+	decltype(allTextures)::Iterator ita(allTextures);
+	decltype(allTextures)::Pair* paira;
+	while (ita.NextPair(paira))
 	{
-		FTexture *tex = TexMan.ByIndex(i);
-		if (tex != nullptr && tex->GetUseType() != ETextureType::FontChar)
-		{
-			if (usedTextures.CheckKey(tex) == nullptr)
-			{
-				tex->SystemTextures.Clean(true, false);
-			}
-			if (usedSprites.CheckKey(tex) == nullptr)
-			{
-				tex->SystemTextures.Clean(false, true);
-			}
-		}
+		paira->Key->CleanUnused();
 	}
 
 	if (gl_precache)
@@ -243,21 +271,23 @@ void hw_PrecacheTexture(uint8_t *texhitlist, TMap<PClassActor*, bool> &actorhitl
 
 		FImageSource::BeginPrecaching();
 
-		// cache all used textures
+		// cache all used images
 		for (int i = cnt - 1; i >= 0; i--)
 		{
-			FTexture *tex = TexMan.ByIndex(i);
+			auto gtex = TexMan.GameByIndex(i);
+			auto tex = gtex->GetTexture();
 			if (tex != nullptr && tex->GetImage() != nullptr)
 			{
 				if (texhitlist[i] & (FTextureManager::HIT_Wall | FTextureManager::HIT_Flat | FTextureManager::HIT_Sky))
 				{
-					if (tex->GetImage() && tex->SystemTextures.GetHardwareTexture(0, false) == nullptr)
+					int flags = shouldUpscale(gtex, UF_Texture);
+					if (tex->GetImage() && tex->GetHardwareTexture(0, flags) == nullptr)
 					{
 						FImageSource::RegisterForPrecache(tex->GetImage(), V_IsTrueColor());
 					}
 				}
 
-				// Only register untranslated sprites. Translated ones are very unlikely to require data that can be reused.
+				// Only register untranslated sprite images. Translated ones are very unlikely to require data that can be reused so they can just be created on demand.
 				if (spritehitlist[i] != nullptr && (*spritehitlist[i]).CheckKey(0))
 				{
 					FImageSource::RegisterForPrecache(tex->GetImage(), V_IsTrueColor());
@@ -268,13 +298,13 @@ void hw_PrecacheTexture(uint8_t *texhitlist, TMap<PClassActor*, bool> &actorhitl
 		// cache all used textures
 		for (int i = cnt - 1; i >= 0; i--)
 		{
-			FTexture *tex = TexMan.ByIndex(i);
-			if (tex != nullptr)
+			auto gtex = TexMan.GameByIndex(i);
+			if (gtex != nullptr)
 			{
-				PrecacheTexture(tex, texhitlist[i]);
+				PrecacheTexture(gtex, texhitlist[i]);
 				if (spritehitlist[i] != nullptr && (*spritehitlist[i]).CountUsed() > 0)
 				{
-					PrecacheSprite(tex, *spritehitlist[i]);
+					PrecacheSprite(gtex, *spritehitlist[i]);
 				}
 			}
 		}
