@@ -1680,6 +1680,7 @@ OptionValue CompatModes
 	3, "$OPTVAL_BOOM"
 	6, "$OPTVAL_BOOMSTRICT"
 	5, "$OPTVAL_MBF"
+	7, "$OPTVAL_MBFSTRICT"
 	4, "$OPTVAL_ZDOOM2063"
 }
 
@@ -2536,7 +2537,6 @@ OptionMenu "GLTextureGLOptions" protected
 	Title "$GLTEXMNU_TITLE"
 	Option "$GLTEXMNU_TEXFILTER",		gl_texture_filter,				"FilterModes"
 	Option "$GLTEXMNU_ANISOTROPIC",		gl_texture_filter_anisotropic,	"Anisotropy"
-	Option "$GLTEXMNU_ENABLEHIRES",		gl_texture_usehires,			"YesNo"
 
 	ifOption(MMX)
 	{
