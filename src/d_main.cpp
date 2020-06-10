@@ -111,6 +111,7 @@
 #include "animations.h"
 #include "texturemanager.h"
 #include "formats/multipatchtexture.h"
+#include "scriptutil.h"
 
 EXTERN_CVAR(Bool, hud_althud)
 EXTERN_CVAR(Int, vr_mode)
@@ -118,6 +119,7 @@ EXTERN_CVAR(Bool, cl_customizeinvulmap)
 void DrawHUD();
 void D_DoAnonStats();
 void I_DetectOS();
+void UpdateGenericUI(bool cvar);
 
 
 // MACROS ------------------------------------------------------------------
@@ -2752,7 +2754,32 @@ int PalCheck(int tex)
 	return tex;
 }
 
+static void Doom_CastSpriteIDToString(FString* a, unsigned int b) 
+{ 
+	*a = (b >= sprites.Size()) ? "TNT1" : sprites[b].name; 
+}
 
+
+extern DThinker* NextToThink;
+
+static void GC_MarkGameRoots()
+{
+	GC::Mark(DIntermissionController::CurrentIntermission);
+	GC::Mark(staticEventManager.FirstEventHandler);
+	GC::Mark(staticEventManager.LastEventHandler);
+	for (auto Level : AllLevels())
+		Level->Mark();
+
+	// Mark players.
+	for (int i = 0; i < MAXPLAYERS; i++)
+	{
+		if (playeringame[i])
+			players[i].PropagateMark();
+	}
+
+	// NextToThink must not be freed while thinkers are ticking.
+	GC::Mark(NextToThink);
+}
 //==========================================================================
 //
 // D_DoomMain
@@ -2768,6 +2795,9 @@ static int D_DoomMain_Internal (void)
 	FString *args;
 	int argcount;	
 	FIWadManager *iwad_man;
+
+	GC::AddMarkerFunc(GC_MarkGameRoots);
+	VM_CastSpriteIDToString = Doom_CastSpriteIDToString;
 
 	// Set up the button list. Mlook and Klook need a bit of extra treatment.
 	buttonMap.SetButtons(DoomButtons, countof(DoomButtons));
@@ -3080,6 +3110,7 @@ static int D_DoomMain_Internal (void)
 
 		StartScreen->Progress();
 		V_InitFonts();
+		UpdateGenericUI(false);
 
 		// [CW] Parse any TEAMINFO lumps.
 		if (!batchrun) Printf ("ParseTeamInfo: Load team definitions.\n");
@@ -3423,6 +3454,12 @@ void D_Cleanup()
 	
 	GC::DelSoftRootHead();
 	
+	for (auto& p : players)
+	{
+		p.PendingWeapon = nullptr;
+	}
+	PClassActor::AllActorClasses.Clear();
+	ScriptUtil::Clear();
 	PClass::StaticShutdown();
 	
 	GC::FullGC();					// perform one final garbage collection after shutdown

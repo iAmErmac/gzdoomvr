@@ -6,6 +6,12 @@
 
 class FileReader;
 
+enum
+{
+	TRANSLATION_Internal = 0
+};
+
+
 struct FRemapTable
 {
 	FRemapTable(int count = 256) { NumEntries = count; }
@@ -28,6 +34,7 @@ struct FRemapTable
 	int Index;
 	int NumEntries;				// # of elements in this table (usually 256)
 	bool Inactive = false;				// This table is inactive and should be treated as if it was passed as NULL
+	bool ForFont = false;				// Mark font translations because they may require different handling than the ones for sprites-
 
 private:
 };
@@ -84,9 +91,10 @@ public:
 	FRemapTable IceMap;				// This is used by the texture compositor so it must be globally accessible.
 	uint8_t GrayMap[256];
 
+	TArray<FRemapTable*> uniqueRemaps;
+
 private:
 	FMemArena remapArena;
-	TArray<FRemapTable*> uniqueRemaps;
 	TArray<TAutoGrowArray<FRemapTablePtr, FRemapTable*>> TranslationTables;
 public:
 	void Init(int numslots);	// This cannot be a constructor!!!

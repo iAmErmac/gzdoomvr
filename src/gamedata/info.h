@@ -50,6 +50,7 @@ struct FActorInfo;
 class FIntCVar;
 class FStateDefinitions;
 class FInternalLightAssociation;
+struct FState;
 
 enum EStateDefineFlags
 {
@@ -306,6 +307,7 @@ public:
 	void SetDamageFactor(FName type, double factor);
 	void SetPainChance(FName type, int chance);
 	bool SetReplacement(FName replaceName);
+	void InitializeDefaults();
 
 	FActorInfo *ActorInfo() const
 	{
