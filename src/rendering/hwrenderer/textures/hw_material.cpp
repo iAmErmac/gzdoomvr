@@ -21,7 +21,7 @@
 //
 
 #include "filesystem.h"
-#include "m_png.h"
+#include "common/textures/m_png.h"
 #include "sbar.h"
 #include "stats.h"
 #include "r_utility.h"

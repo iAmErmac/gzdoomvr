@@ -48,7 +48,7 @@
 #include "st_stuff.h"
 #include "x86.h"
 #include "g_levellocals.h"
-#include "m_png.h"
+#include "common/textures/m_png.h"
 
 uint32_t Col2RGB8[65][256];
 uint32_t *Col2RGB8_LessPrecision[65];

@@ -27,7 +27,7 @@
 
 #include "gl_load/gl_system.h"
 #include "gi.h"
-#include "m_png.h"
+#include "common/textures/m_png.h"
 #include "doomstat.h"
 #include "g_level.h"
 #include "r_data/r_interpolate.h"

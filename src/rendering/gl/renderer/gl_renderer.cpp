@@ -28,7 +28,7 @@
 #include "gl_load/gl_system.h"
 #include "files.h"
 #include "v_video.h"
-#include "m_png.h"
+#include "common/textures/m_png.h"
 #include "filesystem.h"
 #include "doomstat.h"
 #include "i_time.h"

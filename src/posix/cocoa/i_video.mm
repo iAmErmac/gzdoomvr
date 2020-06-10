@@ -48,7 +48,7 @@
 #include "hardware.h"
 #include "i_system.h"
 #include "m_argv.h"
-#include "m_png.h"
+#include "common/textures/m_png.h"
 #include "swrenderer/r_swrenderer.h"
 #include "st_console.h"
 #include "v_text.h"

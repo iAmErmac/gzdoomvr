@@ -59,7 +59,7 @@
 #include "cmdlib.h"
 #include "sbar.h"
 #include "hardware.h"
-#include "m_png.h"
+#include "common/textures/m_png.h"
 #include "r_utility.h"
 #include "swrenderer/r_renderer.h"
 #include "menu/menu.h"
