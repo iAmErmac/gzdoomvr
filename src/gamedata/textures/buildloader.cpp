@@ -40,67 +40,13 @@
 #include "cmdlib.h"
 #include "colormatcher.h"
 #include "bitmap.h"
-#include "textures/textures.h"
+#include "textures.h"
 #include "resourcefile.h"
 #include "image.h"
 #include "animations.h"
 #include "texturemanager.h"
 #include "r_translate.h"
-
-
-//==========================================================================
-//
-// A texture defined in a Build TILESxxx.ART file
-//
-//==========================================================================
-
-class FBuildTexture : public FImageSource
-{
-public:
-	FBuildTexture (const FString &pathprefix, int tilenum, const uint8_t *pixels, int translation, int width, int height, int left, int top);
-	TArray<uint8_t> CreatePalettedPixels(int conversion) override;
-	int CopyPixels(FBitmap *bmp, int conversion) override;
-
-protected:
-	const uint8_t *RawPixels;
-	int Translation;
-};
-
-
-//==========================================================================
-//
-//
-//
-//==========================================================================
-
-FBuildTexture::FBuildTexture(const FString &pathprefix, int tilenum, const uint8_t *pixels, int translation, int width, int height, int left, int top)
-: RawPixels (pixels), Translation(translation)
-{
-	Width = width;
-	Height = height;
-	LeftOffset = left;
-	TopOffset = top;
-}
-
-TArray<uint8_t> FBuildTexture::CreatePalettedPixels(int conversion)
-{
-	TArray<uint8_t> Pixels(Width * Height, true);
-	FRemapTable *Remap = GPalette.GetTranslation(TRANSLATION_Standard, Translation);
-	for (int i = 0; i < Width*Height; i++)
-	{
-		auto c = RawPixels[i];
-		Pixels[i] = conversion == luminance ? Remap->Palette[c].Luminance() : Remap->Remap[c];
-	}
-	return Pixels;
-}
-
-int FBuildTexture::CopyPixels(FBitmap *bmp, int conversion)
-{
-	PalEntry *Remap = GPalette.GetTranslation(TRANSLATION_Standard, Translation)->Palette;
-	bmp->CopyPixelData(0, 0, RawPixels, Width, Height, Height, 1, 0, Remap);
-	return -1;
-
-}
+#include "r_data/sprites.h"
 
 //===========================================================================
 //
@@ -178,7 +124,6 @@ static int BuildPaletteTranslation(int lump)
 }
 
 
-#include "r_data/sprites.h"
 //===========================================================================
 //
 // AddTiles
@@ -187,7 +132,7 @@ static int BuildPaletteTranslation(int lump)
 //
 //===========================================================================
 
-void AddTiles(const FString& pathprefix, const void* tiles, int translation)
+void AddTiles(const FString& pathprefix, const void* tiles, FRemapTable *remap)
 {
 
 	//	int numtiles = LittleLong(((uint32_t *)tiles)[1]);	// This value is not reliable
@@ -213,7 +158,7 @@ void AddTiles(const FString& pathprefix, const void* tiles, int translation)
 		if (width <= 0 || height <= 0) continue;
 
 		FStringf name("%sBTIL%04d", pathprefix.GetChars(), i);
-		tex = new FImageTexture(new FBuildTexture(pathprefix, i, tiledata, translation, width, height, xoffs, yoffs), name);
+		tex = new FImageTexture(new FBuildTexture(pathprefix, i, tiledata, remap, width, height, xoffs, yoffs), name);
 		texnum = TexMan.AddTexture(tex);
 		tiledata += size;
 		tex->SetUseType(ETextureType::Override);
@@ -324,6 +269,8 @@ void InitBuildTiles()
 			if (path.IsNotEmpty() && path.Back() != '/') path += '/';
 
 			int translation = BuildPaletteTranslation(i);
+			auto remap = GPalette.GetTranslation(TRANSLATION_Standard, translation);
+
 			for (int numartfiles = 0; numartfiles < 1000; numartfiles++)
 			{
 				FStringf artpath("%stiles%03d.art", path.GetChars(), numartfiles);
@@ -342,7 +289,7 @@ void InitBuildTiles()
 
 				if ((numtiles = CountTiles(&artdata[0])) > 0)
 				{
-					AddTiles(path, &artdata[0], translation);
+					AddTiles(path, &artdata[0], remap);
 					totaltiles += numtiles;
 				}
 			}

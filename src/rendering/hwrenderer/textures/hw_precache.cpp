@@ -31,7 +31,7 @@
 #include "r_state.h"
 #include "actor.h"
 #include "r_data/models/models.h"
-#include "textures/skyboxtexture.h"
+#include "skyboxtexture.h"
 #include "hwrenderer/textures/hw_material.h"
 #include "image.h"
 #include "v_video.h"
@@ -51,8 +51,21 @@ static void PrecacheTexture(FTexture *tex, int cache)
 	if (cache & (FTextureManager::HIT_Wall | FTextureManager::HIT_Flat | FTextureManager::HIT_Sky))
 	{
 		FMaterial * gltex = FMaterial::ValidateTexture(tex, false);
-		if (gltex) gltex->Precache();
+		if (gltex) screen->PrecacheMaterial(gltex, 0);
 	}
+}
+
+//===========================================================================
+//
+//
+//
+//===========================================================================
+static void PrecacheList(FMaterial *gltex, SpriteHits& translations)
+{
+	gltex->tex->SystemTextures.CleanUnused(translations, gltex->isExpanded());
+	SpriteHits::Iterator it(translations);
+	SpriteHits::Pair* pair;
+	while (it.NextPair(pair)) screen->PrecacheMaterial(gltex, pair->Key);
 }
 
 //==========================================================================
@@ -64,7 +77,7 @@ static void PrecacheTexture(FTexture *tex, int cache)
 static void PrecacheSprite(FTexture *tex, SpriteHits &hits)
 {
 	FMaterial * gltex = FMaterial::ValidateTexture(tex, true);
-	if (gltex) gltex->PrecacheList(hits);
+	if (gltex) PrecacheList(gltex, hits);
 }
 
 //==========================================================================

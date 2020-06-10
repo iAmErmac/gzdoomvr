@@ -3,12 +3,9 @@
 #define __GL_MATERIAL_H
 
 #include "m_fixed.h"
-#include "textures/textures.h"
-
-#include "r_defs.h"
+#include "textures.h"
 
 struct FRemapTable;
-class FTextureShader;
 class IHardwareTexture;
 
 enum
@@ -56,8 +53,6 @@ public:
 	FMaterial(FTexture *tex, bool forceexpand);
 	~FMaterial();
 	void SetSpriteRect();
-	void Precache();
-	void PrecacheList(SpriteHits &translations);
 	int GetShaderIndex() const { return mShaderIndex; }
 	void AddTextureLayer(FTexture *tex)
 	{
