@@ -677,6 +677,7 @@ file( GLOB HEADER_FILES
 	win32/*.h
 	r_data/*.h
 	r_data/models/*.h
+	common/utility/*.h
 	common/thirdparty/*.h
 	common/thirdparty/rapidjson/*.h
 	common/thirdparty/math./*h
@@ -850,7 +851,7 @@ set( FASTMATH_SOURCES
 	rendering/hwrenderer/scene/hw_walls_vertex.cpp
 	rendering/hwrenderer/scene/hw_weapon.cpp
 	r_data/models/models.cpp
-	utility/matrix.cpp
+	common/utility/matrix.cpp
 )
 	
 #Vulkan stuff must go into a separate list later because it needs to be disabled for some platforms
@@ -1188,7 +1189,10 @@ set (PCH_SOURCES
 	rendering/swrenderer/textures/warptexture.cpp
 	rendering/swrenderer/textures/swcanvastexture.cpp
 	events.cpp
-	utility/i_module.cpp
+	common/utility/engineerrors.cpp
+	common/utility/i_module.cpp
+	common/utility/m_alloc.cpp
+	common/utility/utf8.cpp
 	utility/palette.cpp
 	utility/palettecontainer.cpp
 	utility/files.cpp
@@ -1207,13 +1211,11 @@ set (PCH_SOURCES
 	utility/cmdlib.cpp
 	utility/configfile.cpp
 	utility/i_time.cpp
-	utility/m_alloc.cpp
 	utility/m_argv.cpp
 	utility/m_bbox.cpp
 	utility/name.cpp
 	utility/s_playlist.cpp
 	utility/v_collection.cpp
-	utility/utf8.cpp
 	utility/zstrformat.cpp
 	common/thirdparty/md5.cpp
  	common/thirdparty/superfasthash.cpp
@@ -1286,6 +1288,7 @@ target_link_libraries( zdoom ${ZDOOM_LIBS} gdtoa lzma ${ZMUSIC_LIBRARIES} )
 
 include_directories( .
 	common/thirdparty
+	common/utility
 	g_statusbar
 	console
 	playsim
@@ -1492,6 +1495,7 @@ source_group("Scripting\\Compiler backend" REGULAR_EXPRESSION "^${CMAKE_CURRENT_
 source_group("Scripting\\VM" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/scripting/vm/.+")
 source_group("Scripting" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/scripting/.+")
 source_group("Common" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/.+")
+source_group("Common\\Utility" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/utility/.+")
 source_group("Common\\Third Party" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/thirdparty/.+")
 source_group("Common\\Third Party\\Math" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/thirdparty/math/.+")
 source_group("Common\\Third Party\\RapidJSON" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/thirdparty/rapidjson/.+")
