@@ -1,11 +1,8 @@
-#ifndef __BASICTYPES_H
-#define __BASICTYPES_H
+#ifndef __BASICS_H
+#define __BASICS_H
 
 #include <stddef.h>
 #include <stdint.h>
-
-typedef uint32_t				BITFIELD;
-typedef int						INTBOOL;
 
 //
 // fixed point, 32bit as 16.16.
@@ -37,12 +34,6 @@ typedef uint32_t			angle_t;
 #define GCCNOWARN
 #endif
 
-template <typename T, size_t N>
-char(&_ArraySizeHelper(T(&array)[N]))[N];
-
-#define countof( array ) (sizeof( _ArraySizeHelper( array ) ))
-
-
 #ifndef MAKE_ID
 #ifndef __BIG_ENDIAN__
 #define MAKE_ID(a,b,c,d)	((uint32_t)((a)|((b)<<8)|((c)<<16)|((d)<<24)))
@@ -51,4 +42,6 @@ char(&_ArraySizeHelper(T(&array)[N]))[N];
 #endif
 #endif
 
+using INTBOOL = int;
+using BITFIELD = uint32_t;
 #endif
