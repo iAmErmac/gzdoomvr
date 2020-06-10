@@ -46,7 +46,7 @@
 #include "c_cvars.h"
 #include "cmdlib.h"
 #include "LSMatrix.h"
-#include "w_wad.h"
+#include "common/filesystem/filesystem.h"
 #include "m_joy.h"
 #include "d_gui.h"
 #include "d_event.h"
