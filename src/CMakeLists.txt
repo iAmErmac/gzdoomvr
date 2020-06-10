@@ -1180,7 +1180,7 @@ set (PCH_SOURCES
 	scripting/zscript/ast.cpp
 	scripting/zscript/zcc_compile.cpp
 	scripting/zscript/zcc_parser.cpp
-	utility/sfmt/SFMT.cpp
+	common/thirdparty/sfmt/SFMT.cpp
 	sound/music/i_music.cpp
 	sound/music/i_soundfont.cpp
 	sound/backend/i_sound.cpp
@@ -1193,13 +1193,13 @@ set (PCH_SOURCES
 	common/utility/i_module.cpp
 	common/utility/m_alloc.cpp
 	common/utility/utf8.cpp
-	utility/palette.cpp
+	common/utility/palette.cpp
 	utility/palettecontainer.cpp
-	utility/files.cpp
-	utility/files_decompress.cpp
+	common/utility/files.cpp
+	common/utility/files_decompress.cpp
 	utility/m_png.cpp
 	utility/m_random.cpp
-	utility/memarena.cpp
+	common/utility/memarena.cpp
 	utility/nodebuilder/nodebuild.cpp
 	utility/nodebuilder/nodebuild_classify_nosse2.cpp
 	utility/nodebuilder/nodebuild_events.cpp
@@ -1208,15 +1208,15 @@ set (PCH_SOURCES
 	utility/nodebuilder/nodebuild_utility.cpp
 	utility/sc_man.cpp
 	utility/stats.cpp
-	utility/cmdlib.cpp
-	utility/configfile.cpp
-	utility/i_time.cpp
-	utility/m_argv.cpp
+	common/utility/cmdlib.cpp
+	common/utility/configfile.cpp
+	common/utility/i_time.cpp
+	common/utility/m_argv.cpp
 	utility/m_bbox.cpp
 	utility/name.cpp
-	utility/s_playlist.cpp
+	common/utility/s_playlist.cpp
 	utility/v_collection.cpp
-	utility/zstrformat.cpp
+	common/utility/zstrformat.cpp
 	common/thirdparty/md5.cpp
  	common/thirdparty/superfasthash.cpp
 )
@@ -1242,9 +1242,10 @@ add_executable( zdoom WIN32 MACOSX_BUNDLE
 	${FASTMATH_SOURCES}
 	${PCH_SOURCES}
 	${OPENVR_SOURCES}
-	utility/x86.cpp
+	common/utility/x86.cpp
 	common/thirdparty/strnatcmp.c
-	utility/zstring.cpp
+	common/utility/zstring.cpp
+	common/utility/findfile.cpp
 	common/thirdparty/math/asin.c
 	common/thirdparty/math/atan.c
 	common/thirdparty/math/const.c
@@ -1499,9 +1500,9 @@ source_group("Common\\Utility" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/
 source_group("Common\\Third Party" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/thirdparty/.+")
 source_group("Common\\Third Party\\Math" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/thirdparty/math/.+")
 source_group("Common\\Third Party\\RapidJSON" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/thirdparty/rapidjson/.+")
+source_group("Common\\Third Party\\SFMT" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/thirdparty/sfmt/.+")
 source_group("Utility" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/utility/.+")
 source_group("Utility\\Node Builder" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/utility/nodebuilder/.+")
-source_group("Utility\\SFMT" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/utility/sfmt/.+")
 source_group("Statusbar" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/g_statusbar/.+")
 source_group("Versioning" FILES version.h win32/zdoom.rc)
 source_group("Xlat" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/xlat/.+" FILES ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.c ${CMAKE_CURRENT_BINARY_DIR}/xlat_parser.h)

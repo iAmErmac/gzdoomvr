@@ -103,6 +103,7 @@
 #include <hwrenderer\utility\hw_vrmodes.h>
 #include "s_music.h"
 #include "swrenderer/r_swcolormaps.h"
+#include "findfile.h"
 
 EXTERN_CVAR(Bool, hud_althud)
 EXTERN_CVAR(Int, vr_mode)
@@ -1419,7 +1420,7 @@ void D_DoAdvanceDemo (void)
 		gamestate = GS_DEMOSCREEN;
 		if (gameinfo.creditPages.Size() > 0)
 		{
-			pagename = gameinfo.creditPages[pagecount];
+			pagename = gameinfo.creditPages[pagecount].GetChars();
 			pagecount = (pagecount+1) % gameinfo.creditPages.Size();
 		}
 		demosequence = 1;
