@@ -123,7 +123,7 @@ void FHWModelRenderer::BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, con
 	// TO-DO: Implement proper depth sorting.
 	if (!(actor->RenderStyle == DefaultRenderStyle()) && !(smf->flags & MDL_DONTCULLBACKFACES))
 	{
-		state.SetCulling((mirrored ^ screen->mPortalState->isMirrored()) ? Cull_CCW : Cull_CW);
+		state.SetCulling((mirrored ^ portalState.isMirrored()) ? Cull_CCW : Cull_CW);
 	}
 
 	state.mModelMatrix = objectToWorldMatrix;
@@ -147,7 +147,7 @@ void FHWModelRenderer::BeginDrawHUDModel(AActor *actor, const VSMatrix &objectTo
 	// TO-DO: Implement proper depth sorting.
 	if (!(actor->RenderStyle == DefaultRenderStyle()))
 	{
-		state.SetCulling((mirrored ^ screen->mPortalState->isMirrored()) ? Cull_CW : Cull_CCW);
+		state.SetCulling((mirrored ^ portalState.isMirrored()) ? Cull_CW : Cull_CCW);
 	}
 
 	state.mModelMatrix = objectToWorldMatrix;
