@@ -53,7 +53,6 @@
 #include "engineerrors.h"
 
 void Draw2D(F2DDrawer *drawer, FRenderState &state, bool outside2D = false);
-void DoWriteSavePic(FileWriter *file, ESSType ssformat, uint8_t *scr, int width, int height, sector_t *viewsector, bool upsidedown);
 
 EXTERN_CVAR(Bool, r_drawvoxels)
 EXTERN_CVAR(Int, gl_tonemap)
@@ -218,17 +217,6 @@ void PolyFrameBuffer::Update()
 }
 
 
-void PolyFrameBuffer::WriteSavePic(player_t *player, FileWriter *file, int width, int height)
-{
-	if (!V_IsHardwareRenderer())
-	{
-		Super::WriteSavePic(player, file, width, height);
-	}
-	else
-	{
-	}
-}
-
 sector_t *PolyFrameBuffer::RenderView(player_t *player)
 {
 	// To do: this is virtually identical to FGLRenderer::RenderView and should be merged.
@@ -273,7 +261,12 @@ sector_t *PolyFrameBuffer::RenderView(player_t *player)
 		{
 			Level->canvasTextureInfo.UpdateAll([&](AActor *camera, FCanvasTexture *camtex, double fov)
 			{
-				RenderTextureView(camtex, camera, fov);
+				RenderTextureView(camtex, [=](IntRect &bounds)
+					{
+						FRenderViewpoint texvp;
+						float ratio = camtex->aspectRatio;
+						RenderViewpoint(texvp, camera, &bounds, fov, ratio, ratio, false, false);
+				});
 			});
 		}
 		NoInterpolateView = saved_niv;
@@ -297,12 +290,10 @@ sector_t *PolyFrameBuffer::RenderView(player_t *player)
 }
 
 
-void PolyFrameBuffer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV)
+void PolyFrameBuffer::RenderTextureView(FCanvasTexture* tex, std::function<void(IntRect &)> renderFunc)
 {
-	// This doesn't need to clear the fake flat cache. It can be shared between camera textures and the main view of a scene.
 	auto BaseLayer = static_cast<PolyHardwareTexture*>(tex->GetHardwareTexture(0, 0));
 
-	float ratio = tex->aspectRatio;
 	DCanvas *image = BaseLayer->GetImage(tex, 0, 0);
 	PolyDepthStencil *depthStencil = BaseLayer->GetDepthStencil(tex);
 	mRenderState->SetRenderTarget(image, depthStencil, false);
@@ -312,8 +303,7 @@ void PolyFrameBuffer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, 
 	bounds.width = std::min(tex->GetWidth(), image->GetWidth());
 	bounds.height = std::min(tex->GetHeight(), image->GetHeight());
 
-	FRenderViewpoint texvp;
-	RenderViewpoint(texvp, Viewpoint, &bounds, FOV, ratio, ratio, false, false);
+	renderFunc(bounds);
 
 	FlushDrawCommands();
 	DrawerThreads::WaitForWorkers();

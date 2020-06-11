@@ -16,7 +16,7 @@ class OpenGLFrameBuffer : public SystemGLFrameBuffer
 {
 	typedef SystemGLFrameBuffer Super;
 
-	void RenderTextureView(FCanvasTexture* tex, AActor* Viewpoint, double FOV);
+	void RenderTextureView(FCanvasTexture* tex, std::function<void(IntRect &)> renderFunc) override;
 
 public:
 
@@ -32,13 +32,16 @@ public:
 	void NextEye(int eyecount) override;
 	void SetSceneRenderTarget(bool useSSAO) override;
 	void UpdateShadowMap() override;
+	void WaitForCommands(bool finish) override;
+	void SetSaveBuffers(bool yes) override;
+	void CopyScreenToBuffer(int width, int height, uint8_t* buffer) override;
+	bool FlipSavePic() const override { return true; }
 
 	FRenderState* RenderState() override;
 	void CleanForRestart() override;
 	void UpdatePalette() override;
 	uint32_t GetCaps() override;
 	const char* DeviceName() const override;
-	void WriteSavePic(player_t *player, FileWriter *file, int width, int height) override;
 	sector_t *RenderView(player_t *player) override;
 	void SetTextureFilterMode() override;
 	IHardwareTexture *CreateHardwareTexture() override;

@@ -61,7 +61,6 @@
 #include "engineerrors.h"
 
 void Draw2D(F2DDrawer *drawer, FRenderState &state);
-void DoWriteSavePic(FileWriter *file, ESSType ssformat, uint8_t *scr, int width, int height, sector_t *viewsector, bool upsidedown);
 
 EXTERN_CVAR(Bool, r_drawvoxels)
 EXTERN_CVAR(Int, gl_tonemap)
@@ -318,53 +317,6 @@ void VulkanFrameBuffer::WaitForCommands(bool finish)
 	}
 }
 
-void VulkanFrameBuffer::WriteSavePic(player_t *player, FileWriter *file, int width, int height)
-{
-	if (!V_IsHardwareRenderer())
-	{
-		Super::WriteSavePic(player, file, width, height);
-	}
-	else
-	{
-		IntRect bounds;
-		bounds.left = 0;
-		bounds.top = 0;
-		bounds.width = width;
-		bounds.height = height;
-
-		// we must be sure the GPU finished reading from the buffer before we fill it with new data.
-		WaitForCommands(false);
-
-		// Switch to render buffers dimensioned for the savepic
-		mActiveRenderBuffers = mSaveBuffers.get();
-
-		mPostprocess->ImageTransitionScene(true);
-
-		hw_ClearFakeFlat();
-		GetRenderState()->SetVertexBuffer(screen->mVertexData);
-		screen->mVertexData->Reset();
-		screen->mLights->Clear();
-		screen->mViewpoints->Clear();
-
-		// This shouldn't overwrite the global viewpoint even for a short time.
-		FRenderViewpoint savevp;
-		sector_t *viewsector = RenderViewpoint(savevp, players[consoleplayer].camera, &bounds, r_viewpoint.FieldOfView.Degrees, 1.6f, 1.6f, true, false);
-		GetRenderState()->EnableStencil(false);
-		GetRenderState()->SetNoSoftLightLevel();
-
-		int numpixels = width * height;
-		uint8_t * scr = (uint8_t *)M_Malloc(numpixels * 3);
-		CopyScreenToBuffer(width, height, scr);
-
-		DoWriteSavePic(file, SS_RGB, scr, width, height, viewsector, false);
-		M_Free(scr);
-
-		// Switch back the screen render buffers
-		screen->SetViewportRects(nullptr);
-		mActiveRenderBuffers = mScreenBuffers.get();
-	}
-}
-
 sector_t *VulkanFrameBuffer::RenderView(player_t *player)
 {
 	// To do: this is virtually identical to FGLRenderer::RenderView and should be merged.
@@ -411,7 +363,12 @@ sector_t *VulkanFrameBuffer::RenderView(player_t *player)
 		{
 			Level->canvasTextureInfo.UpdateAll([&](AActor *camera, FCanvasTexture *camtex, double fov)
 			{
-				RenderTextureView(camtex, camera, fov);
+				RenderTextureView(camtex, [=](IntRect &bounds)
+					{
+						FRenderViewpoint texvp;
+						float ratio = camtex->aspectRatio;
+						RenderViewpoint(texvp, camera, &bounds, fov, ratio, ratio, false, false);
+				});
 			});
 		}
 		NoInterpolateView = saved_niv;
@@ -436,11 +393,10 @@ sector_t *VulkanFrameBuffer::RenderView(player_t *player)
 	return retsec;
 }
 
-void VulkanFrameBuffer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint, double FOV)
+void VulkanFrameBuffer::RenderTextureView(FCanvasTexture* tex, std::function<void(IntRect &)> renderFunc)
 {
 	auto BaseLayer = static_cast<VkHardwareTexture*>(tex->GetHardwareTexture(0, 0));
 
-	float ratio = tex->aspectRatio;
 	VkTextureImage *image = BaseLayer->GetImage(tex, 0, 0);
 	VkTextureImage *depthStencil = BaseLayer->GetDepthStencil(tex);
 
@@ -457,8 +413,7 @@ void VulkanFrameBuffer::RenderTextureView(FCanvasTexture *tex, AActor *Viewpoint
 	bounds.width = std::min(tex->GetWidth(), image->Image->width);
 	bounds.height = std::min(tex->GetHeight(), image->Image->height);
 
-	FRenderViewpoint texvp;
-	RenderViewpoint(texvp, Viewpoint, &bounds, FOV, ratio, ratio, false, false);
+	renderFunc(bounds);
 
 	mRenderState->EndRenderPass();
 
@@ -634,7 +589,7 @@ FTexture *VulkanFrameBuffer::WipeEndScreen()
 	return tex;
 }
 
-void VulkanFrameBuffer::CopyScreenToBuffer(int w, int h, void *data)
+void VulkanFrameBuffer::CopyScreenToBuffer(int w, int h, uint8_t *data)
 {
 	VkTextureImage image;
 
@@ -865,6 +820,18 @@ void VulkanFrameBuffer::UpdateShadowMap()
 {
 	mPostprocess->UpdateShadowMap();
 }
+
+void VulkanFrameBuffer::SetSaveBuffers(bool yes)
+{
+	if (yes) mActiveRenderBuffers = mSaveBuffers.get();
+	else mActiveRenderBuffers = mScreenBuffers.get();
+}
+
+void VulkanFrameBuffer::ImageTransitionScene(bool unknown)
+{
+	mPostprocess->ImageTransitionScene(unknown);
+}
+
 
 FRenderState* VulkanFrameBuffer::RenderState()
 {
