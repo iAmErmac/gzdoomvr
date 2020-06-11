@@ -92,7 +92,7 @@
 #include "r_sky.h"
 #include "g_levellocals.h"
 #include "actorinlines.h"
-#include "hwrenderer\utility\hw_vrmodes.h"
+#include "hwrenderer/data/hw_vrmodes.h"
 
 
 CVAR(Bool, cl_bloodsplats, true, CVAR_ARCHIVE)

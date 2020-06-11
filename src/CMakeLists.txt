@@ -726,13 +726,9 @@ file( GLOB HEADER_FILES
 	rendering/vulkan/renderer/*.h
 	rendering/vulkan/shaders/*.h
 	rendering/vulkan/textures/*.h
-	rendering/gl/*.h
-	rendering/gl/models/*.h
 	rendering/gl/renderer/*.h
-	rendering/gl/scene/*.h
 	rendering/gl/shaders/*.h
 	rendering/gl/system/*.h
-	rendering/gl/textures/*.h
 	*.h
 )
 
@@ -1010,19 +1006,11 @@ set (PCH_SOURCES
 	rendering/2d/f_wipe.cpp
 	rendering/2d/v_blend.cpp
 	rendering/gl/renderer/gl_renderer.cpp
-	rendering/gl/renderer/gl_renderstate.cpp
-	rendering/gl/renderer/gl_renderbuffers.cpp
-	rendering/gl/renderer/gl_postprocess.cpp
-	rendering/gl/renderer/gl_postprocessstate.cpp
 	rendering/gl/renderer/gl_stereo3d.cpp
 	rendering/gl/shaders/gl_shader.cpp
 	rendering/gl/shaders/gl_shaderprogram.cpp
 	rendering/gl/stereo3d/gl_openvr.cpp
 	rendering/gl/system/gl_framebuffer.cpp
-	rendering/gl/system/gl_debug.cpp
-	rendering/gl/system/gl_buffers.cpp
-	rendering/gl/textures/gl_hwtexture.cpp
-	rendering/gl/textures/gl_samplers.cpp
 	rendering/hwrenderer/hw_entrypoint.cpp
 	rendering/hwrenderer/data/hw_vertexbuilder.cpp
 	rendering/hwrenderer/dynlights/hw_aabbtree.cpp
@@ -1217,6 +1205,14 @@ set (PCH_SOURCES
 	common/rendering/hwrenderer/postprocessing/hw_postprocess.cpp
 	common/rendering/hwrenderer/postprocessing/hw_postprocess_cvars.cpp
 	common/rendering/gl_load/gl_interface.cpp
+	common/rendering/gl/gl_renderstate.cpp
+	common/rendering/gl/gl_renderbuffers.cpp
+	common/rendering/gl/gl_postprocess.cpp
+	common/rendering/gl/gl_postprocessstate.cpp
+	common/rendering/gl/gl_debug.cpp
+	common/rendering/gl/gl_buffers.cpp
+	common/rendering/gl/gl_hwtexture.cpp
+	common/rendering/gl/gl_samplers.cpp
 	common/scripting/core/dictionary.cpp
 	common/scripting/core/dynarrays.cpp
 	common/scripting/core/symbols.cpp
@@ -1329,6 +1325,7 @@ include_directories( .
 	common/rendering
 	common/rendering/hwrenderer/data
 	common/rendering/gl_load
+	common/rendering/gl
 	common/scripting/vm
 	common/scripting/jit
 	common/scripting/core
@@ -1554,6 +1551,7 @@ source_group("Common\\Rendering\\Hardware Renderer" REGULAR_EXPRESSION "^${CMAKE
 source_group("Common\\Rendering\\Hardware Renderer\\Data" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/rendering/hwrenderer/data/.+")
 source_group("Common\\Rendering\\Hardware Renderer\\Postprocessing" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/rendering/hwrenderer/postprocessing/.+")
 source_group("Common\\Rendering\\OpenGL Loader" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/rendering/gl_load/.+")
+source_group("Common\\Rendering\\OpenGL Backend" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/rendering/gl/.+")
 source_group("Common\\Textures" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/textures/.+")
 source_group("Common\\Textures\\Hires" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/textures/hires/.+")
 source_group("Common\\Textures\\Hires\\HQ Resize" REGULAR_EXPRESSION "^${CMAKE_CURRENT_SOURCE_DIR}/common/textures/hires/hqnx/.+")

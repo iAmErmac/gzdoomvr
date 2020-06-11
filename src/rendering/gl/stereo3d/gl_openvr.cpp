@@ -37,7 +37,7 @@
 #include "g_game.h" // G_Add...
 #include "p_local.h" // P_TryMove
 #include "gl/renderer/gl_renderer.h"
-#include "gl/renderer/gl_renderbuffers.h"
+#include "gl_renderbuffers.h"
 #include "v_2ddrawer.h" // crosshair
 #include "hwrenderer/models/hw_models.h"
 #include "g_levellocals.h" // pixelstretch

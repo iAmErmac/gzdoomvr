@@ -61,7 +61,7 @@
 #include "g_levellocals.h"
 #include "events.h"
 #include "actorinlines.h"
-#include "hwrenderer\utility\hw_vrmodes.h"
+#include "hwrenderer/data/hw_vrmodes.h"
 
 static FRandom pr_botrespawn ("BotRespawn");
 static FRandom pr_killmobj ("ActorDie");
