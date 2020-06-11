@@ -37,6 +37,7 @@
 #include "hw_renderstate.h"
 #include "r_videoscale.h"
 #include "hwrenderer/data/hw_vrmodes.h"
+#include "v_draw.h"
 
 
 //===========================================================================

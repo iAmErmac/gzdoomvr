@@ -1,5 +1,7 @@
 
-#include "models.h"
+#include "renderstyle.h"
+#include "matrix.h"
+#include "model.h"
 
 class FModelRenderer
 {
@@ -15,7 +17,7 @@ public:
 
 	virtual VSMatrix GetViewToWorldMatrix() = 0;
 
-	virtual void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
+	virtual void PrepareRenderHUDModel(FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 	virtual void BeginDrawHUDModel(FRenderStyle style, const VSMatrix &objectToWorldMatrix, bool mirrored) = 0;
 	virtual void EndDrawHUDModel(FRenderStyle style) = 0;
 

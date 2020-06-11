@@ -36,6 +36,7 @@
 #include "v_video.h"
 #include "templates.h"
 #include "hw_vrmodes.h"
+#include "v_draw.h"
 
 extern bool vid_hdr_active;
 
@@ -136,7 +137,7 @@ void FGLRenderer::Flush()
 				mBuffers->NextEye(eyeCount);
 		}
 		mBuffers->BlitToEyeTexture(mBuffers->CurrentEye(), false);
-		screen->Clear2D();
+		twod->Clear();
 
 		FGLPostProcessState savedState;
 		FGLDebug::PushGroup("PresentEyes");
@@ -158,7 +159,7 @@ void FGLRenderer::Flush()
 void FGLRenderer::CopyToBackbuffer(const IntRect *bounds, bool applyGamma)
 {
 	screen->Draw2D(false);	// draw all pending 2D stuff before copying the buffer
-	screen->Clear2D();
+	twod->Clear();
 
 	GLPPRenderState renderstate(mBuffers);
 	hw_postprocess.customShaders.Run(&renderstate, "screen");

@@ -57,7 +57,7 @@ VSMatrix FHWModelRenderer::GetViewToWorldMatrix()
 	return objectToWorldMatrix;
 }
 
-void FHWModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix)
+void FHWModelRenderer::PrepareRenderHUDModel(FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix &objectToWorldMatrix)
 {
 	auto vrmode = VRMode::GetVRMode(true);
 	if (vrmode->mEyeCount > 1)
@@ -77,6 +77,7 @@ void FHWModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame
 		}
 		else
 		{
+			AActor* playermo = players[consoleplayer].camera;
 			DVector3 pos = playermo->InterpolatedPosition(r_viewpoint.TicFrac);
 			gl_RenderState.mModelMatrix.translate(pos.X, pos.Z + 40, pos.Y);
 			gl_RenderState.mModelMatrix.rotate(-playermo->Angles.Yaw.Degrees - 90, 0, 1, 0);
@@ -106,7 +107,7 @@ void FHWModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame
 	}
 	else
 	{
-		FModelRenderer::PrepareRenderHUDModel(playermo, smf, ofsX, ofsY, objectToWorldMatrix);
+		FModelRenderer::PrepareRenderHUDModel(smf, ofsX, ofsY, objectToWorldMatrix);
 	}
 }
 

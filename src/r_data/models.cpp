@@ -193,7 +193,7 @@ void RenderHUDModel(FModelRenderer *renderer, DPSprite *psp, float ofsX, float o
 		return;
 
 	VSMatrix objectToWorldMatrix;
-	renderer->PrepareRenderHUDModel(playermo, smf, ofsX, ofsY, objectToWorldMatrix);
+	renderer->PrepareRenderHUDModel(smf, ofsX, ofsY, objectToWorldMatrix);
 
 	float orientation = smf->xscale * smf->yscale * smf->zscale;
 
@@ -202,7 +202,7 @@ void RenderHUDModel(FModelRenderer *renderer, DPSprite *psp, float ofsX, float o
 	renderer->EndDrawHUDModel(playermo->RenderStyle);
 }
 
-void FModelRenderer::PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix)
+void FModelRenderer::PrepareRenderHUDModel(FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix)
 {
 	// The model position and orientation has to be drawn independently from the position of the player,
 	// but we need to position it correctly in the world for light to work properly.

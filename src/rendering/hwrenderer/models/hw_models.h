@@ -44,7 +44,7 @@ class FHWModelRenderer : public FModelRenderer
 public:
 	FHWModelRenderer(HWDrawInfo *d, FRenderState &st, int mli) : modellightindex(mli), di(d), state(st)
 	{}
-	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
+	void PrepareRenderHUDModel(FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix) override;
 	ModelRendererType GetType() const override { return GLModelRendererType; }
 	void BeginDrawModel(FRenderStyle style, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
 	void EndDrawModel(FRenderStyle style, FSpriteModelFrame *smf) override;
