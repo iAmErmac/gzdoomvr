@@ -115,7 +115,7 @@
 #include "scriptutil.h"
 #include "v_palette.h"
 #include "texturemanager.h"
-#include "hwrenderer/utility/hw_clock.h"
+#include "hw_clock.h"
 #include "hwrenderer/scene/hw_drawinfo.h"
 
 #ifdef __unix__
@@ -2865,6 +2865,16 @@ IntRect System_GetSceneRect()
 	mSceneViewport.height = height;
 	return mSceneViewport;
 }
+
+FString System_GetLocationDescription()
+{
+	auto& vp = r_viewpoint;
+	auto Level = vp.ViewLevel;
+	return FStringf("Map %s: \"%s\",\nx = %1.4f, y = %1.4f, z = %1.4f, angle = %1.4f, pitch = %1.4f\n",
+		Level->MapName.GetChars(), Level->LevelName.GetChars(), vp.Pos.X, vp.Pos.Y, vp.Pos.Z, vp.Angles.Yaw.Degrees, vp.Angles.Pitch.Degrees);
+
+}
+
 //==========================================================================
 //
 // DoomSpecificInfo
@@ -3073,6 +3083,7 @@ static int D_DoomMain_Internal (void)
 		System_DisableTextureFilter,
 		System_OnScreenSizeChanged,
 		System_GetSceneRect,
+		System_GetLocationDescription,
 	};
 	sysCallbacks = &syscb;
 	

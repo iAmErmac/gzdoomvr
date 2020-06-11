@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gl\renderer\gl_renderer.h"
+#include "gl_renderer.h"
 #include "matrix.h"
 
 class DFrameBuffer;
