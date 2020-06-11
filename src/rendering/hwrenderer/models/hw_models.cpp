@@ -42,8 +42,7 @@
 #include "hw_renderstate.h"
 #include "hwrenderer/scene/hw_portal.h"
 #include "hw_models.h"
-
-#include "hwrenderer/utility/hw_cvars.h"
+#include "hw_cvars.h"
 #include "hwrenderer/data/hw_vrmodes.h"
 #include "gl/renderer/gl_renderstate.h"
 

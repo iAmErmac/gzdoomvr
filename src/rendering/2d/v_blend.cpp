@@ -46,7 +46,7 @@
 #include "vm.h"
 #include "v_palette.h"
 #include "r_utility.h"
-#include "hwrenderer/utility/hw_cvars.h"
+#include "hw_cvars.h"
 #include "hwrenderer/data/hw_vrmodes.h"
 
 CVAR(Float, underwater_fade_scalar, 1.0f, CVAR_ARCHIVE) // [Nash] user-settable underwater blend intensity
