@@ -1065,6 +1065,7 @@ set (PCH_SOURCES
 	r_data/sprites.cpp
 	r_data/portalgroups.cpp
 	r_data/voxels.cpp
+	r_data/voxeldef.cpp
 	r_data/r_canvastexture.cpp
 	r_data/r_interpolate.cpp
 	r_data/r_vanillatrans.cpp
