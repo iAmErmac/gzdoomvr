@@ -64,8 +64,6 @@
 
 EXTERN_CVAR(Int, screenblocks)
 
-extern bool NoInterpolateView;
-
 namespace OpenGLRenderer
 {
 
@@ -125,7 +123,6 @@ FGLRenderer::~FGLRenderer()
 	}
 	if (PortalQueryObject != 0) glDeleteQueries(1, &PortalQueryObject);
 
-	if (swdrawer) delete swdrawer;
 	if (mBuffers) delete mBuffers;
 	if (mSaveBuffers) delete mSaveBuffers;
 	if (mPresentShader) delete mPresentShader;
@@ -133,20 +130,6 @@ FGLRenderer::~FGLRenderer()
 	if (mPresent3dColumnShader) delete mPresent3dColumnShader;
 	if (mPresent3dRowShader) delete mPresent3dRowShader;
 	if (mShadowMapShader) delete mShadowMapShader;
-}
-
-//===========================================================================
-//
-//
-//
-//===========================================================================
-
-void FGLRenderer::ResetSWScene()
-{
-	// force recreation of the SW scene drawer to ensure it gets a new set of resources.
-	if (swdrawer != nullptr)
-		delete swdrawer;
-	swdrawer = nullptr;
 }
 
 //===========================================================================
