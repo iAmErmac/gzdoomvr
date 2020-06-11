@@ -37,7 +37,7 @@
 #include "hw_vrmodes.h"
 #include "hw_cvars.h"
 #include "hwrenderer/models/hw_models.h"
-#include "hwrenderer/scene/hw_skydome.h"
+#include "hw_skydome.h"
 #include "hwrenderer/scene/hw_fakeflat.h"
 #include "hwrenderer/scene/hw_drawinfo.h"
 #include "hwrenderer/scene/hw_portal.h"
@@ -395,11 +395,6 @@ IHardwareTexture *VulkanFrameBuffer::CreateHardwareTexture()
 FMaterial* VulkanFrameBuffer::CreateMaterial(FGameTexture* tex, int scaleflags)
 {
 	return new VkMaterial(tex, scaleflags);
-}
-
-FModelRenderer *VulkanFrameBuffer::CreateModelRenderer(int mli) 
-{
-	return new FHWModelRenderer(nullptr, *GetRenderState(), mli);
 }
 
 IVertexBuffer *VulkanFrameBuffer::CreateVertexBuffer()

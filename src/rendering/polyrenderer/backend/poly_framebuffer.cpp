@@ -34,7 +34,7 @@
 #include "hw_vrmodes.h"
 #include "hw_cvars.h"
 #include "hwrenderer/models/hw_models.h"
-#include "hwrenderer/scene/hw_skydome.h"
+#include "hw_skydome.h"
 #include "hwrenderer/scene/hw_fakeflat.h"
 #include "hwrenderer/scene/hw_drawinfo.h"
 #include "hwrenderer/scene/hw_portal.h"
@@ -319,11 +319,6 @@ void PolyFrameBuffer::PrecacheMaterial(FMaterial *mat, int translation)
 IHardwareTexture *PolyFrameBuffer::CreateHardwareTexture()
 {
 	return new PolyHardwareTexture();
-}
-
-FModelRenderer *PolyFrameBuffer::CreateModelRenderer(int mli) 
-{
-	return new FHWModelRenderer(nullptr, *GetRenderState(), mli);
 }
 
 IVertexBuffer *PolyFrameBuffer::CreateVertexBuffer()

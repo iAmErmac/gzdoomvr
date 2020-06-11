@@ -47,7 +47,7 @@
 #include "hwrenderer/utility/hw_clock.h"
 #include "hw_vrmodes.h"
 #include "hwrenderer/models/hw_models.h"
-#include "hwrenderer/scene/hw_skydome.h"
+#include "hw_skydome.h"
 #include "hwrenderer/scene/hw_fakeflat.h"
 #include "hwrenderer/data/hw_viewpointbuffer.h"
 #include "hw_lightbuffer.h"
@@ -169,10 +169,8 @@ void OpenGLFrameBuffer::InitializeState()
 	mSkyData = new FSkyVertexBuffer;
 	mViewpoints = new HWViewpointBuffer;
 	mLights = new FLightBuffer();
-
 	GLRenderer = new FGLRenderer(this);
 	GLRenderer->Initialize(GetWidth(), GetHeight());
-
 	static_cast<GLDataBuffer*>(mLights->GetBuffer())->BindBase();
 
 	mDebug = std::make_shared<FGLDebug>();
@@ -325,11 +323,6 @@ void OpenGLFrameBuffer::PrecacheMaterial(FMaterial *mat, int translation)
 	}
 	// unbind everything. 
 	FHardwareTexture::UnbindAll();
-}
-
-FModelRenderer *OpenGLFrameBuffer::CreateModelRenderer(int mli)
-{
-	return new FHWModelRenderer(nullptr, gl_RenderState, mli);
 }
 
 IVertexBuffer *OpenGLFrameBuffer::CreateVertexBuffer()
