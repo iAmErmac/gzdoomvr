@@ -1,7 +1,5 @@
 #pragma once
 #include "model.h"
-#include <r_data\models\models.h>
-#include <r_data\models\models.h>
 
 #define MD2_MAGIC			0x32504449
 #define DMD_MAGIC			0x4D444D44
