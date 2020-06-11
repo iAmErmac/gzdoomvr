@@ -34,6 +34,7 @@
 // HEADER FILES ------------------------------------------------------------
 
 #include "i_module.h"
+#include "i_soundinternal.h"
 #include "i_system.h"
 #include "i_video.h"
 #include "m_argv.h"
@@ -51,11 +52,11 @@
 #include "gl_framebuffer.h"
 
 #ifdef HAVE_VULKAN
-#include "rendering/vulkan/system/vk_framebuffer.h"
+#include "vulkan/system/vk_framebuffer.h"
 #endif
 
 #ifdef HAVE_SOFTPOLY
-#include "rendering/polyrenderer/backend/poly_framebuffer.h"
+#include "poly_framebuffer.h"
 #endif
 
 // MACROS ------------------------------------------------------------------

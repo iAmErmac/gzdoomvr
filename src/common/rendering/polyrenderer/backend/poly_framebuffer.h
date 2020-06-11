@@ -3,7 +3,7 @@
 #include "gl_sysfb.h"
 #include "r_memory.h"
 #include "r_thread.h"
-#include "rendering/polyrenderer/drawers/poly_triangle.h"
+#include "poly_triangle.h"
 
 struct FRenderViewpoint;
 class PolyDataBuffer;
@@ -27,7 +27,7 @@ public:
 	PolyFrameBuffer(void *hMonitor, bool fullscreen);
 	~PolyFrameBuffer();
 
-	void Update();
+	void Update() override;
 
 	bool IsPoly() override { return true; }
 
@@ -37,14 +37,13 @@ public:
 	void PrecacheMaterial(FMaterial *mat, int translation) override;
 	void UpdatePalette() override;
 	void SetTextureFilterMode() override;
-	void TextureFilterChanged() override;
 	void BeginFrame() override;
 	void BlurScene(float amount) override;
-	void PostProcessScene(bool swscene, int fixedcm, const std::function<void()> &afterBloomDrawEndScene2D) override;
+	void PostProcessScene(bool swscene, int fixedcm, float flash, const std::function<void()> &afterBloomDrawEndScene2D) override;
 	void AmbientOccludeScene(float m5) override;
 	//void SetSceneRenderTarget(bool useSSAO) override;
 
-	IHardwareTexture *CreateHardwareTexture() override;
+	IHardwareTexture *CreateHardwareTexture(int numchannels) override;
 	IVertexBuffer *CreateVertexBuffer() override;
 	IIndexBuffer *CreateIndexBuffer() override;
 	IDataBuffer *CreateDataBuffer(int bindingpoint, bool ssbo, bool needsresize) override;
@@ -65,7 +64,7 @@ public:
 
 private:
 	void RenderTextureView(FCanvasTexture* tex, std::function<void(IntRect &)> renderFunc) override;
-	void UpdateShadowMap();
+	void UpdateShadowMap() override;
 
 	void CheckCanvas();
 

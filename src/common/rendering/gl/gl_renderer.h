@@ -20,13 +20,13 @@ class FLightBuffer;
 class DPSprite;
 class FGLRenderBuffers;
 class FGL2DDrawer;
-class FHardwareTexture;
 class SWSceneDrawer;
 class HWViewpointBuffer;
 struct FRenderViewpoint;
 
 namespace OpenGLRenderer
 {
+	class FHardwareTexture;
 	class FShaderManager;
 	class FSamplerManager;
 	class OpenGLFrameBuffer;
@@ -72,7 +72,7 @@ public:
 
 	void PresentStereo();
 	void RenderScreenQuad();
-	void PostProcessScene(int fixedcm, const std::function<void()> &afterBloomDrawEndScene2D);
+	void PostProcessScene(int fixedcm, float flash, const std::function<void()> &afterBloomDrawEndScene2D);
 	void AmbientOccludeScene(float m5);
 	void ClearTonemapPalette();
 	void BlurScene(float gameinfobluramount);

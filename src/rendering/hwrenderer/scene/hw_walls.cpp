@@ -504,11 +504,26 @@ void HWWall::PutWall(HWDrawInfo *di, bool translucent)
 	}
 
 
+
 	bool solid;
 	if (passflag[type] == 1) solid = true;
 	else if (type == RENDERWALL_FFBLOCK) solid = texture && !texture->isMasked();
 	else solid = false;
-	if (solid) ProcessDecals(di);
+
+	bool hasDecals = solid && seg->sidedef && seg->sidedef->AttachedDecals;
+	if (hasDecals)
+	{
+		// If we want to use the light infos for the decal we cannot delay the creation until the render pass.
+		if (screen->BuffersArePersistent())
+		{
+			if (di->Level->HasDynamicLights && !di->isFullbrightScene() && texture != nullptr)
+			{
+				SetupLights(di, lightdata);
+			}
+		}
+		ProcessDecals(di);
+	}
+
 
 	di->AddWall(this);
 
@@ -1404,6 +1419,7 @@ void HWWall::DoMidTexture(HWDrawInfo *di, seg_t * seg, bool drawfogboundary,
 	{
 		tci.mRenderHeight = -tci.mRenderHeight;
 		tci.mScale.Y = -tci.mScale.Y;
+		flags |= HWF_NOSLICE;
 	}
 	SetWallCoordinates(seg, &tci, texturetop, topleft, topright, bottomleft, bottomright, t_ofs);
 
@@ -1464,7 +1480,7 @@ void HWWall::DoMidTexture(HWDrawInfo *di, seg_t * seg, bool drawfogboundary,
 		FloatRect *splitrect;
 		int v = texture->GetAreas(&splitrect);
 		if (seg->frontsector == seg->backsector) flags |= HWF_NOSPLIT;	// we don't need to do vertex splits if a line has both sides in the same sector
-		if (v>0 && !drawfogboundary && !(seg->linedef->flags&ML_WRAP_MIDTEX))
+		if (v>0 && !drawfogboundary && !(seg->linedef->flags&ML_WRAP_MIDTEX) && !(flags & HWF_NOSLICE))
 		{
 			// split the poly!
 			int i,t=0;
@@ -1641,6 +1657,7 @@ void HWWall::BuildFFBlock(HWDrawInfo *di, seg_t * seg, F3DFloor * rover,
 	lightlevel = savelight;
 	Colormap = savecolor;
 	flags &= ~HWF_CLAMPY;
+	RenderStyle = STYLE_Normal;
 }
 
 

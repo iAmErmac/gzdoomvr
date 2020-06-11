@@ -57,12 +57,14 @@ enum EGameTexFlags
 	GTexf_RenderFullbright = 32,			// always draw fullbright
 	GTexf_DisableFullbrightSprites = 64,	// This texture will not be displayed as fullbright sprite
 	GTexf_BrightmapChecked = 128,			// Check for a colormap-based brightmap was already done.
+	GTexf_AutoMaterialsAdded = 256,			// AddAutoMaterials has been called on this texture.
 };
 
 // Refactoring helper to allow piece by piece adjustment of the API
 class FGameTexture
 {
 	friend class FMaterial;
+	friend class GLDefsParser;	// this needs access to set up the texture properly
 
 	// Material layers. These are shared so reference counting is used.
 	RefCountedPtr<FTexture> Base;
@@ -84,7 +86,7 @@ class FGameTexture
 	float DisplayWidth, DisplayHeight;
 	float ScaleX, ScaleY;
 
-	int8_t shouldUpscaleFlag = 0;				// Without explicit setup, scaling is disabled for a texture.
+	int8_t shouldUpscaleFlag = 1;
 	ETextureType UseType = ETextureType::Wall;	// This texture's primary purpose
 	SpritePositioningInfo* spi = nullptr;
 
@@ -92,6 +94,7 @@ class FGameTexture
 	FMaterial* Material[4] = {  };
 
 	// Material properties
+	FVector2 detailScale = { 1.f, 1.f };
 	float Glossiness = 10.f;
 	float SpecularLevel = 0.1f;
 	float shaderspeed = 1.f;
@@ -108,6 +111,8 @@ class FGameTexture
 
 
 public:
+	float alphaThreshold = 0.5f;
+
 	FGameTexture(FTexture* wrap, const char *name);
 	~FGameTexture();
 	void Setup(FTexture* wrap);
@@ -131,7 +136,7 @@ public:
 
 	ETextureType GetUseType() const { return UseType; }
 	void SetUpscaleFlag(int what) { shouldUpscaleFlag = what; }
-	int GetUpscaleFlag() { return shouldUpscaleFlag; }
+	int GetUpscaleFlag() { return shouldUpscaleFlag == 1; }
 
 	FTexture* GetTexture() { return Base.get(); }
 	int GetSourceLump() const { return Base->GetSourceLump(); }
@@ -207,6 +212,8 @@ public:
 	{
 		Base->CopySize(BaseTexture->Base.get());
 		SetDisplaySize(BaseTexture->GetDisplayWidth(), BaseTexture->GetDisplayHeight());
+		SetOffsets(0, BaseTexture->GetTexelLeftOffset(0), BaseTexture->GetTexelTopOffset(0));
+		SetOffsets(1, BaseTexture->GetTexelLeftOffset(1), BaseTexture->GetTexelTopOffset(1));
 	}
 
 	// Glowing is a pure material property that should not filter down to the actual texture objects.
@@ -234,21 +241,40 @@ public:
 		DisplayHeight = h;
 		ScaleX = TexelWidth / w;
 		ScaleY = TexelHeight / h;
+		if (shouldUpscaleFlag < 2)
+		{
+			shouldUpscaleFlag = ScaleX < 2 && ScaleY < 2;
+		}
 
 		// compensate for roundoff errors
 		if (int(ScaleX * w) != TexelWidth) ScaleX += (1 / 65536.);
 		if (int(ScaleY * h) != TexelHeight) ScaleY += (1 / 65536.);
 
 	}
+	void SetBase(FTexture* Tex)
+	{
+		Base = Tex;
+	}
 	void SetOffsets(int which, int x, int y)
 	{
 		LeftOffset[which] = x;
 		TopOffset[which] = y;
 	}
+	void SetOffsets(int x, int y)
+	{
+		LeftOffset[0] = x;
+		TopOffset[0] = y;
+		LeftOffset[1] = x;
+		TopOffset[1] = y;
+	}
 	void SetScale(float x, float y) 
 	{
 		ScaleX = x;
 		ScaleY = y;
+		if (shouldUpscaleFlag < 2)
+		{
+			shouldUpscaleFlag = ScaleX < 2 && ScaleY < 2;
+		}
 		DisplayWidth = TexelWidth / x;
 		DisplayHeight = TexelHeight / y;
 	}
@@ -282,6 +308,49 @@ public:
 		{
 			if (tex != nullptr) layers.Push(tex.get());
 		}
+	}
+
+	FVector2 GetDetailScale() const
+	{
+		return detailScale;
+	}
+
+	void SetDetailScale(float x, float y)
+	{
+		detailScale.X = x;
+		detailScale.Y = y;
+	}
+
+	FTexture* GetBrightmap()
+	{
+		if (Brightmap.get() || (flags & GTexf_BrightmapChecked)) return Brightmap.get();
+		CreateDefaultBrightmap();
+		return Brightmap.get();
+	}
+	FTexture* GetGlowmap()
+	{
+		return Glowmap.get();
+	}
+	FTexture* GetDetailmap()
+	{
+		return Detailmap.get();
+	}
+
+	void SetGlowmap(FTexture *T)
+	{
+		Glowmap = T;
+	}
+	void SetDetailmap(FTexture* T)
+	{
+		Detailmap = T;
+	}
+	void SetNormalmap(FTexture* T)
+	{
+		Normal = T;
+	}
+	void SetSpecularmap(FTexture* T)
+	{
+		Specular = T;
 	}
 
 };

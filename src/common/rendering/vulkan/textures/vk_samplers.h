@@ -1,14 +1,14 @@
 #ifndef __VK_SAMPLERS_H
 #define __VK_SAMPLERS_H
 
-#include "rendering/vulkan/system/vk_objects.h"
+#include "vulkan/system/vk_objects.h"
 
 class VulkanDevice;
 
 class VkSamplerManager
 {
 	VulkanDevice *vDevice;
-	std::unique_ptr<VulkanSampler> mSamplers[7];
+	std::unique_ptr<VulkanSampler> mSamplers[NUMSAMPLERS];
 
 	//void UnbindAll();
 

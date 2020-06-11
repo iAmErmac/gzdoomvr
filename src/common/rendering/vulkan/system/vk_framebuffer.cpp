@@ -27,7 +27,6 @@
 #include "templates.h"
 #include "r_videoscale.h"
 #include "i_time.h"
-#include "g_game.h"
 #include "v_text.h"
 #include "version.h"
 #include "v_draw.h"
@@ -35,7 +34,6 @@
 #include "hw_clock.h"
 #include "hw_vrmodes.h"
 #include "hw_cvars.h"
-#include "hw_models.h"
 #include "hw_skydome.h"
 #include "hwrenderer/data/hw_viewpointbuffer.h"
 #include "flatvertices.h"
@@ -345,10 +343,10 @@ void VulkanFrameBuffer::RenderTextureView(FCanvasTexture* tex, std::function<voi
 	tex->SetUpdated(true);
 }
 
-void VulkanFrameBuffer::PostProcessScene(bool swscene, int fixedcm, const std::function<void()> &afterBloomDrawEndScene2D)
+void VulkanFrameBuffer::PostProcessScene(bool swscene, int fixedcm, float flash, const std::function<void()> &afterBloomDrawEndScene2D)
 {
 	if (!swscene) mPostprocess->BlitSceneToPostprocess(); // Copy the resulting scene to the current post process texture
-	mPostprocess->PostProcessScene(fixedcm, afterBloomDrawEndScene2D);
+	mPostprocess->PostProcessScene(fixedcm, flash, afterBloomDrawEndScene2D);
 }
 
 const char* VulkanFrameBuffer::DeviceName() const
@@ -381,7 +379,7 @@ void VulkanFrameBuffer::PrecacheMaterial(FMaterial *mat, int translation)
 	}
 }
 
-IHardwareTexture *VulkanFrameBuffer::CreateHardwareTexture()
+IHardwareTexture *VulkanFrameBuffer::CreateHardwareTexture(int numchannels)
 {
 	return new VkHardwareTexture();
 }
@@ -421,11 +419,6 @@ IDataBuffer *VulkanFrameBuffer::CreateDataBuffer(int bindingpoint, bool ssbo, bo
 }
 
 void VulkanFrameBuffer::SetTextureFilterMode()
-{
-	TextureFilterChanged();
-}
-
-void VulkanFrameBuffer::TextureFilterChanged()
 {
 	if (mSamplerManager)
 	{

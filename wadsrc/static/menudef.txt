@@ -735,6 +735,7 @@ OptionMenu "MouseOptions" protected
 	Slider "$MOUSEMNU_STRAFESPEED",		"m_side", 0, 2.5, 0.1
 	StaticText 	""
 	Option "$MOUSEMNU_ALWAYSMOUSELOOK",	"freelook", "OnOff"
+	Option "$MOUSEMNU_INVERTMOUSEX",		"invertmousex", "OnOff"
 	Option "$MOUSEMNU_INVERTMOUSE",		"invertmouse", "OnOff"
 	Option "$MOUSEMNU_LOOKSPRING",		"lookspring", "OnOff"
 	Option "$MOUSEMNU_LOOKSTRAFE",		"lookstrafe", "OnOff"
@@ -1046,6 +1047,7 @@ OptionMenu "HUDOptions" protected
 	Slider "$DSPLYMNU_MOVEBOB",				"movebob", 0, 1.0, 0.05, 2
 	Slider "$DSPLYMNU_STILLBOB",			"stillbob", 0, 1.0, 0.05, 2
 	Slider "$DSPLYMNU_BOBSPEED",			"wbobspeed", 0, 2.0, 0.1
+	Slider "$DSPLYMNU_BOBFIRE",				"wbobfire", 0, 1.0, 0.1
 	StaticText " "
 	Slider "$DSPLYMNU_MENUDIM",					"dimamount", 0, 1.0, 0.05, 2
 	ColorPicker "$DSPLYMNU_DIMCOLOR",			"dimcolor"
@@ -2348,7 +2350,6 @@ OptionValue "TonemapModes"
 	1, "$OPTVAL_UNCHARTED2"
 	2, "$OPTVAL_HEJLDAWSON"
 	3, "$OPTVAL_REINHARD"
-	4, "$OPTVAL_LINEAR_3"
 	5, "$OPTVAL_PALETTE"
 }
 

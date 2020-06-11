@@ -179,6 +179,7 @@ EXTERN_CVAR (Bool, freelook)
 EXTERN_CVAR (Float, m_pitch)
 EXTERN_CVAR (Float, m_yaw)
 EXTERN_CVAR (Bool, invertmouse)
+EXTERN_CVAR (Bool, invertmousex)
 EXTERN_CVAR (Bool, lookstrafe)
 EXTERN_CVAR (Int, screenblocks)
 EXTERN_CVAR (Bool, sv_cheats)
@@ -194,7 +195,7 @@ extern bool insave;
 extern TDeletingArray<FLightDefaults *> LightDefaults;
 
 const char* iwad_folders[13] = { "flats/", "textures/", "hires/", "sprites/", "voxels/", "colormaps/", "acs/", "maps/", "voices/", "patches/", "graphics/", "sounds/", "music/" };
-const char* iwad_reserved[12] = { "mapinfo", "zmapinfo", "gameinfo", "sndinfo", "sbarinfo", "menudef", "gldefs", "animdefs", "decorate", "zscript", "iwadinfo" "maps/" };
+const char* iwad_reserved[12] = { "mapinfo", "zmapinfo", "gameinfo", "sndinfo", "sbarinfo", "menudef", "gldefs", "animdefs", "decorate", "zscript", "iwadinfo", "maps/" };
 
 
 CUSTOM_CVAR(Float, i_timescale, 1.0f, CVAR_NOINITCALL)
@@ -353,6 +354,7 @@ void D_GrabCVarDefaults()
 			sc.ScriptError("Version must be at least 219 (current version %i)", gamelastrunversion);
 
 		FBaseCVar* var;
+		FString CurrentFindCVar;
 
 		while (sc.GetString())
 		{
@@ -360,7 +362,30 @@ void D_GrabCVarDefaults()
 			{
 				sc.MustGetString();
 			}
-			var = FindCVar(sc.String, NULL);
+
+			CurrentFindCVar = sc.String;
+
+			if (lumpversion < 220)
+			{
+				CurrentFindCVar.ToLower();
+
+				// these two got renamed
+				if (strcmp(CurrentFindCVar, "gamma") == 0)
+				{
+					CurrentFindCVar = "vid_gamma";
+				}
+				if (strcmp(CurrentFindCVar, "fullscreen") == 0)
+				{
+					CurrentFindCVar = "vid_fullscreen";
+				}
+
+				// this was removed
+				if (strcmp(CurrentFindCVar, "cd_drive") == 0)
+					break;
+			}
+
+			var = FindCVar(CurrentFindCVar, NULL);
+
 			if (var != NULL)
 			{
 				if (var->GetFlags() & CVAR_ARCHIVE)
@@ -480,7 +505,10 @@ void D_PostEvent (const event_t *ev)
 		}
 		if (!buttonMap.ButtonDown(Button_Strafe) && !lookstrafe)
 		{
-			G_AddViewAngle (int(ev->x * m_yaw * mouse_sensitivity * 8.0), true);
+			int turn = int(ev->x * m_yaw * mouse_sensitivity * 8.0);
+			if (invertmousex)
+				turn = -turn;
+			G_AddViewAngle (turn, true);
 			events[eventhead].x = 0;
 		}
 		if ((events[eventhead].x | events[eventhead].y) == 0)
@@ -3395,6 +3423,7 @@ static int D_DoomMain_Internal (void)
 
 		StartScreen->Progress();
 		V_InitFonts();
+		V_LoadTranslations();
 		UpdateGenericUI(false);
 
 		// [CW] Parse any TEAMINFO lumps.
@@ -3555,6 +3584,9 @@ static int D_DoomMain_Internal (void)
 
 			V_Init2();
 			twod->fullscreenautoaspect = gameinfo.fullscreenautoaspect;
+			// Initialize the size of the 2D drawer so that an attempt to access it outside the draw code won't crash.
+			twod->Begin(screen->GetWidth(), screen->GetHeight());
+			twod->End();
 			UpdateJoystickMenu(NULL);
 			UpdateVRModes();
 
@@ -3876,20 +3908,47 @@ CUSTOM_CVAR(Int, I_FriendlyWindowTitle, 1, CVAR_GLOBALCONFIG|CVAR_ARCHIVE|CVAR_N
 
 void I_UpdateWindowTitle()
 {
+	FString titlestr;
 	switch (I_FriendlyWindowTitle)
 	{
 	case 1:
 		if (level.LevelName && level.LevelName.GetChars()[0])
 		{
-			FString titlestr;
 			titlestr.Format("%s - %s", level.LevelName.GetChars(), GameStartupInfo.Name.GetChars());
-			I_SetWindowTitle(titlestr.GetChars());
 			break;
 		}
 	case 2:
-		I_SetWindowTitle(GameStartupInfo.Name.GetChars());
+		titlestr = GameStartupInfo.Name;
 		break;
 	default:
 		I_SetWindowTitle(NULL);
+		return;
 	}
+
+	// Strip out any color escape sequences before setting a window title
+	TArray<char> copy(titlestr.Len() + 1);
+	const char* srcp = titlestr;
+	char* dstp = copy.Data();
+
+	while (*srcp != 0)
+	{
+
+		if (*srcp != TEXTCOLOR_ESCAPE)
+		{
+			*dstp++ = *srcp++;
+		}
+		else if (srcp[1] == '[')
+		{
+			srcp += 2;
+			while (*srcp != ']' && *srcp != 0) srcp++;
+			if (*srcp == ']') srcp++;
+		}
+		else
+		{
+			if (srcp[1] != 0) srcp += 2;
+			else break;
+		}
+	}
+	*dstp = 0;
+	I_SetWindowTitle(copy.Data());
 }

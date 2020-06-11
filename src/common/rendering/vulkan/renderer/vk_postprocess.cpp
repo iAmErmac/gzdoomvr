@@ -36,6 +36,7 @@
 #include "flatvertices.h"
 #include "r_videoscale.h"
 #include "filesystem.h"
+#include "templates.h"
 
 EXTERN_CVAR(Int, gl_dither_bpc)
 
@@ -59,7 +60,7 @@ void VkPostprocess::SetActiveRenderTarget()
 	fb->GetRenderState()->SetRenderTarget(&buffers->PipelineImage[mCurrentPipelineImage], nullptr, buffers->GetWidth(), buffers->GetHeight(), VK_FORMAT_R16G16B16A16_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
 }
 
-void VkPostprocess::PostProcessScene(int fixedcm, const std::function<void()> &afterBloomDrawEndScene2D)
+void VkPostprocess::PostProcessScene(int fixedcm, float flash, const std::function<void()> &afterBloomDrawEndScene2D)
 {
 	auto fb = GetVulkanFrameBuffer();
 	int sceneWidth = fb->GetBuffers()->GetSceneWidth();
@@ -70,7 +71,7 @@ void VkPostprocess::PostProcessScene(int fixedcm, const std::function<void()> &a
 	hw_postprocess.Pass1(&renderstate, fixedcm, sceneWidth, sceneHeight);
 	SetActiveRenderTarget();
 	afterBloomDrawEndScene2D();
-	hw_postprocess.Pass2(&renderstate, fixedcm, sceneWidth, sceneHeight);
+	hw_postprocess.Pass2(&renderstate, fixedcm, flash, sceneWidth, sceneHeight);
 }
 
 void VkPostprocess::BlitSceneToPostprocess()
@@ -532,10 +533,10 @@ void VkPPRenderState::RenderScreenQuad(VkPPRenderPassSetup *passSetup, VulkanDes
 	auto cmdbuffer = fb->GetDrawCommands();
 
 	VkViewport viewport = { };
-	viewport.x = x;
-	viewport.y = y;
-	viewport.width = width;
-	viewport.height = height;
+	viewport.x = (float)x;
+	viewport.y = (float)y;
+	viewport.width = (float)width;
+	viewport.height = (float)height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
@@ -760,7 +761,7 @@ void VkPPRenderPassSetup::CreatePipeline(const VkPPRenderPassKey &key)
 	builder.addDynamicState(VK_DYNAMIC_STATE_SCISSOR);
 	// Note: the actual values are ignored since we use dynamic viewport+scissor states
 	builder.setViewport(0.0f, 0.0f, 320.0f, 200.0f);
-	builder.setScissor(0.0f, 0.0f, 320.0f, 200.0f);
+	builder.setScissor(0, 0, 320, 200);
 	if (key.StencilTest)
 	{
 		builder.addDynamicState(VK_DYNAMIC_STATE_STENCIL_REFERENCE);

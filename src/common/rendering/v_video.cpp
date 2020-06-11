@@ -289,6 +289,9 @@ void V_UpdateModeSize (int width, int height)
 void V_OutputResized (int width, int height)
 {
 	V_UpdateModeSize(width, height);
+	// set new resolution in 2D drawer
+	twod->Begin(screen->GetWidth(), screen->GetHeight());
+	twod->End();
 	setsizeneeded = true;
 	C_NewModeAdjust();
 	if (sysCallbacks && sysCallbacks->OnScreenSizeChanged) 
@@ -453,11 +456,6 @@ DEFINE_GLOBAL(CleanXfac_1)
 DEFINE_GLOBAL(CleanYfac_1)
 DEFINE_GLOBAL(CleanWidth_1)
 DEFINE_GLOBAL(CleanHeight_1)
-
-IHardwareTexture* CreateHardwareTexture()
-{
-	return screen->CreateHardwareTexture();
-}
 
 //==========================================================================
 //
