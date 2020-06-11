@@ -1016,7 +1016,6 @@ set (PCH_SOURCES
 	rendering/gl/renderer/gl_postprocess.cpp
 	rendering/gl/renderer/gl_postprocessstate.cpp
 	rendering/gl/renderer/gl_stereo3d.cpp
-	rendering/gl/renderer/gl_scene.cpp
 	rendering/gl/shaders/gl_shader.cpp
 	rendering/gl/shaders/gl_shaderprogram.cpp
 	rendering/gl/stereo3d/gl_openvr.cpp
@@ -1025,6 +1024,7 @@ set (PCH_SOURCES
 	rendering/gl/system/gl_buffers.cpp
 	rendering/gl/textures/gl_hwtexture.cpp
 	rendering/gl/textures/gl_samplers.cpp
+	rendering/hwrenderer/hw_entrypoint.cpp
 	rendering/hwrenderer/data/hw_vertexbuilder.cpp
 	rendering/hwrenderer/data/flatvertices.cpp
 	rendering/hwrenderer/data/hw_viewpointbuffer.cpp
