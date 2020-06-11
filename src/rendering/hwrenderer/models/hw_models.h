@@ -28,6 +28,7 @@
 #include "r_data/models/models.h"
 #include "hwrenderer/data/buffers.h"
 #include "hw_modelvertexbuffer.h"
+#include "r_data/models/modelrenderer.h"
 
 class HWSprite;
 struct HWDrawInfo;
@@ -45,12 +46,12 @@ public:
 	{}
 	void PrepareRenderHUDModel(AActor* playermo, FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix);
 	ModelRendererType GetType() const override { return GLModelRendererType; }
-	void BeginDrawModel(AActor *actor, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
-	void EndDrawModel(AActor *actor, FSpriteModelFrame *smf) override;
+	void BeginDrawModel(FRenderStyle style, FSpriteModelFrame *smf, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
+	void EndDrawModel(FRenderStyle style, FSpriteModelFrame *smf) override;
 	IModelVertexBuffer *CreateVertexBuffer(bool needindex, bool singleframe) override;
 	VSMatrix GetViewToWorldMatrix() override;
-	void BeginDrawHUDModel(AActor* actor, const VSMatrix& objectToWorldMatrix, bool mirrored) override;
-	void EndDrawHUDModel(AActor* actor) override;
+	void BeginDrawHUDModel(FRenderStyle style, const VSMatrix &objectToWorldMatrix, bool mirrored) override;
+	void EndDrawHUDModel(FRenderStyle style) override;
 	void SetInterpolation(double interpolation) override;
 	void SetMaterial(FGameTexture *skin, bool clampNoFilter, int translation) override;
 	void DrawArrays(int start, int count) override;

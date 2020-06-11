@@ -283,7 +283,7 @@ namespace s3d
 			if (!isLoaded())
 				return;
 			FMaterial* tex = FMaterial::ValidateTexture(pFTex, false, false);
-			auto vbuf = GetVertexBuffer(renderer);
+			auto vbuf = GetVertexBuffer(renderer->GetType());
 			renderer->SetupFrame(this, 0, 0, 0);
 			renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
 			renderer->DrawElements(pModel->unTriangleCount * 3, 0);
@@ -294,7 +294,7 @@ namespace s3d
 			if (loadState != LOADSTATE_LOADED)
 				return;
 
-			auto vbuf = GetVertexBuffer(renderer);
+			auto vbuf = GetVertexBuffer(renderer->GetType());
 			if (vbuf != NULL)
 				return;
 
@@ -322,7 +322,7 @@ namespace s3d
 
 			vbuf->UnlockVertexBuffer();
 			vbuf->UnlockIndexBuffer();
-			SetVertexBuffer(renderer, vbuf);
+			SetVertexBuffer(renderer->GetType(), vbuf);
 		}
 
 		virtual void AddSkins(uint8_t* hitlist) override
