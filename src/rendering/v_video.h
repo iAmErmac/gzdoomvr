@@ -35,24 +35,17 @@
 #define __V_VIDEO_H__
 
 #include <functional>
-#include "doomtype.h"
 #include "vectors.h"
 
-#include "doomdef.h"
-#include "common/textures/m_png.h"
-#include "dobject.h"
+#include "m_png.h"
 #include "renderstyle.h"
 #include "c_cvars.h"
-#include "v_colortables.h"
 #include "v_2ddrawer.h"
 
 #include "hwrenderer/dynlights/hw_shadowmap.h"
 
 static const int VID_MIN_WIDTH = 320;
 static const int VID_MIN_HEIGHT = 200;
-
-static const int VID_MIN_UI_WIDTH = 640;
-static const int VID_MIN_UI_HEIGHT = 400;
 
 class player_t;
 struct sector_t;
