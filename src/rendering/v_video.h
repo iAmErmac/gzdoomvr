@@ -42,8 +42,7 @@
 #include "c_cvars.h"
 #include "v_2ddrawer.h"
 #include "intrect.h"
-
-#include "hwrenderer/dynlights/hw_shadowmap.h"
+#include "hw_shadowmap.h"
 
 static const int VID_MIN_WIDTH = 320;
 static const int VID_MIN_HEIGHT = 200;
@@ -186,6 +185,10 @@ public:
 	virtual void InitializeState() = 0;	// For stuff that needs 'screen' set.
 	virtual bool IsVulkan() { return false; }
 	virtual bool IsPoly() { return false; }
+	void SetAABBTree(hwrenderer::LevelAABBTree * tree)
+	{
+		mShadowMap.SetAABBTree(tree);
+	}
 
 	virtual DCanvas* GetCanvas() { return nullptr; }
 

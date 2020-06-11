@@ -5,10 +5,7 @@
 #include "stats.h"
 #include <memory>
 
-struct FDynamicLight;
-struct level_info_t;
 class IDataBuffer;
-struct FLevelLocals;
 
 class IShadowMap
 {
@@ -19,10 +16,7 @@ public:
 	void Reset();
 
 	// Test if a world position is in shadow relative to the specified light and returns false if it is
-	bool ShadowTest(FDynamicLight *light, const DVector3 &pos);
-
-	// Returns true if gl_light_shadowmap is enabled and supported by the hardware
-	bool IsEnabled() const;
+	bool ShadowTest(const DVector3 &lpos, const DVector3 &pos);
 
 	static cycle_t UpdateCycles;
 	static int LightsProcessed;
@@ -40,26 +34,37 @@ public:
 		return mAABBTree->NodesCount();
 	}
 
-protected:
-	void CollectLights();
-	bool ValidateAABBTree(FLevelLocals *lev);
+	void SetAABBTree(hwrenderer::LevelAABBTree* tree)
+	{
+		mAABBTree = tree;
+		mNewTree = true;
+	}
 
+	void SetCollectLights(std::function<void()> func)
+	{
+		CollectLights = std::move(func);
+	}
+
+	void SetLight(int index, float x, float y, float z, float r)
+	{
+		index *= 4;
+		mLights[index] = x;
+		mLights[index + 1] = y;
+		mLights[index + 2] = z;
+		mLights[index + 3] = r;
+	}
+
+protected:
 	// Upload the AABB-tree to the GPU
 	void UploadAABBTree();
-
-	// Upload light list to the GPU
 	void UploadLights();
 
 	// Working buffer for creating the list of lights. Stored here to avoid allocating memory each frame
 	TArray<float> mLights;
 
-	// Used to detect when a level change requires the AABB tree to be regenerated
-	level_info_t *mLastLevel = nullptr;
-	unsigned mLastNumNodes = 0;
-	unsigned mLastNumSegs = 0;
-
-	// AABB-tree of the level, used for ray tests
-	std::unique_ptr<hwrenderer::LevelAABBTree> mAABBTree;
+	// AABB-tree of the level, used for ray tests, owned by the playsim, not the renderer.
+	hwrenderer::LevelAABBTree* mAABBTree = nullptr;
+	bool mNewTree = false;
 
 	IShadowMap(const IShadowMap &) = delete;
 	IShadowMap &operator=(IShadowMap &) = delete;
@@ -72,5 +77,7 @@ public:
 	// OpenGL storage buffers for the AABB tree
 	IDataBuffer *mNodesBuffer = nullptr;
 	IDataBuffer *mLinesBuffer = nullptr;
+
+	std::function<void()> CollectLights = nullptr;
 
 };

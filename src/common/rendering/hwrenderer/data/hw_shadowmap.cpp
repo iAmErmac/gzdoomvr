@@ -20,15 +20,11 @@
 //--------------------------------------------------------------------------
 //
 
-#include "hwrenderer/dynlights/hw_shadowmap.h"
+#include "hw_shadowmap.h"
 #include "hw_cvars.h"
 #include "hw_dynlightdata.h"
-#include "hwrenderer/data/buffers.h"
-#include "hwrenderer/data/shaderuniforms.h"
-#include "stats.h"
-#include "g_levellocals.h"
-#include "v_video.h"
-#include "a_dynlight.h"
+#include "buffers.h"
+#include "shaderuniforms.h"
 #include "hwrenderer/postprocessing/hw_postprocess.h"
 
 /*
@@ -63,6 +59,8 @@ cycle_t IShadowMap::UpdateCycles;
 int IShadowMap::LightsProcessed;
 int IShadowMap::LightsShadowmapped;
 
+CVAR(Bool, gl_light_shadowmap, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+
 ADD_STAT(shadowmap)
 {
 	FString out;
@@ -85,85 +83,12 @@ CUSTOM_CVAR(Int, gl_shadowmap_quality, 512, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 	}
 }
 
-CUSTOM_CVAR (Bool, gl_light_shadowmap, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+bool IShadowMap::ShadowTest(const DVector3 &lpos, const DVector3 &pos)
 {
-	if (!self) for (auto Level : AllLevels())
-    {
-		auto light = Level->lights;
-		while (light)
-		{
-            light->mShadowmapIndex = 1024;
-			light = light->next;
-        }
-    }
-}
-
-bool IShadowMap::ShadowTest(FDynamicLight *light, const DVector3 &pos)
-{
-	if (light->shadowmapped && light->GetRadius() > 0.0 && IsEnabled() && mAABBTree)
-		return mAABBTree->RayTest(light->Pos, pos) >= 1.0f;
+	if (mAABBTree && gl_light_shadowmap)
+		return mAABBTree->RayTest(lpos, pos) >= 1.0f;
 	else
 		return true;
-}
-
-bool IShadowMap::IsEnabled() const
-{
-	return gl_light_shadowmap && (screen->hwcaps & RFL_SHADER_STORAGE_BUFFER);
-}
-
-void IShadowMap::CollectLights()
-{
-	if (mLights.Size() != 1024 * 4) mLights.Resize(1024 * 4);
-	int lightindex = 0;
-	auto Level = &level;
-
-	// Todo: this should go through the blockmap in a spiral pattern around the player so that closer lights are preferred.
-	for (auto light = Level->lights; light; light = light->next)
-	{
-		LightsProcessed++;
-		if (light->shadowmapped && light->IsActive() && lightindex < 1024 * 4)
-		{
-			LightsShadowmapped++;
-
-			light->mShadowmapIndex = lightindex >> 2;
-
-			mLights[lightindex] = (float)light->X();
-			mLights[lightindex+1] = (float)light->Y();
-			mLights[lightindex+2] = (float)light->Z();
-			mLights[lightindex+3] = light->GetRadius();
-			lightindex += 4;
-		}
-        else
-        {
-            light->mShadowmapIndex = 1024;
-        }
-
-	}
-
-	for (; lightindex < 1024 * 4; lightindex++)
-	{
-		mLights[lightindex] = 0;
-	}
-}
-
-bool IShadowMap::ValidateAABBTree(FLevelLocals *Level)
-{
-	// Just comparing the level info is not enough. If two MAPINFO-less levels get played after each other, 
-	// they can both refer to the same default level info.
-	if (Level->info != mLastLevel && (Level->nodes.Size() != mLastNumNodes || Level->segs.Size() != mLastNumSegs))
-	{
-		mAABBTree.reset();
-
-		mLastLevel = Level->info;
-		mLastNumNodes = Level->nodes.Size();
-		mLastNumSegs = Level->segs.Size();
-	}
-
-	if (mAABBTree)
-		return true;
-
-	mAABBTree.reset(new hwrenderer::LevelAABBTree(Level));
-	return false;
 }
 
 bool IShadowMap::PerformUpdate()
@@ -173,7 +98,7 @@ bool IShadowMap::PerformUpdate()
 	LightsProcessed = 0;
 	LightsShadowmapped = 0;
 
-	if (IsEnabled())
+	if (gl_light_shadowmap && (screen->hwcaps & RFL_SHADER_STORAGE_BUFFER) && CollectLights != nullptr)
 	{
 		UpdateCycles.Clock();
 		UploadAABBTree();
@@ -185,6 +110,7 @@ bool IShadowMap::PerformUpdate()
 
 void IShadowMap::UploadLights()
 {
+	mLights.Resize(1024 * 4);
 	CollectLights();
 
 	if (mLightList == nullptr)
@@ -196,8 +122,10 @@ void IShadowMap::UploadLights()
 
 void IShadowMap::UploadAABBTree()
 {
-	if (!ValidateAABBTree(&level))
+	if (mNewTree)
 	{
+		mNewTree = false;
+
 		if (!mNodesBuffer)
 			mNodesBuffer = screen->CreateDataBuffer(LIGHTNODES_BINDINGPOINT, true, false);
 		mNodesBuffer->SetData(mAABBTree->NodesSize(), mAABBTree->Nodes());
@@ -223,25 +151,5 @@ void IShadowMap::Reset()
 IShadowMap::~IShadowMap()
 {
 	Reset();
-}
-
-void PPShadowMap::Update(PPRenderState* renderstate)
-{
-	ShadowMapUniforms uniforms;
-	uniforms.ShadowmapQuality = (float)gl_shadowmap_quality;
-	uniforms.NodesCount = screen->mShadowMap.NodesCount();
-
-	renderstate->PushGroup("shadowmap");
-
-	renderstate->Clear();
-	renderstate->Shader = &ShadowMap;
-	renderstate->Uniforms.Set(uniforms);
-	renderstate->Viewport = { 0, 0, gl_shadowmap_quality, 1024 };
-	renderstate->SetShadowMapBuffers(true);
-	renderstate->SetOutputShadowMap();
-	renderstate->SetNoBlend();
-	renderstate->Draw();
-
-	renderstate->PopGroup();
 }
 

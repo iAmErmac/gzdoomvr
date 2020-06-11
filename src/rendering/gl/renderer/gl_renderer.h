@@ -8,7 +8,7 @@
 #include "matrix.h"
 #include "gl_renderbuffers.h"
 #include "hwrenderer/scene/hw_portal.h"
-#include "hwrenderer/dynlights/hw_shadowmap.h"
+#include "hw_shadowmap.h"
 #include <functional>
 
 #ifdef _MSC_VER
@@ -90,7 +90,7 @@ public:
 	bool StartOffscreen();
 	void EndOffscreen();
 
-	void BindToFrameBuffer(FTexture *mat);
+	void BindToFrameBuffer(FTexture* tex);
 
 private:
 	void gl_FillScreen();
