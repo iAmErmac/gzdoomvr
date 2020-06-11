@@ -25,26 +25,20 @@
 #include "templates.h"
 #include "r_videoscale.h"
 #include "i_time.h"
-#include "g_game.h"
 #include "v_text.h"
 #include "i_video.h"
 #include "v_draw.h"
+#include "colormaps.h"
 
 #include "hw_clock.h"
 #include "hw_vrmodes.h"
 #include "hw_cvars.h"
-#include "hw_models.h"
 #include "hw_skydome.h"
-#include "hwrenderer/scene/hw_fakeflat.h"
-#include "hwrenderer/scene/hw_drawinfo.h"
-#include "hwrenderer/scene/hw_portal.h"
 #include "hwrenderer/data/hw_viewpointbuffer.h"
 #include "flatvertices.h"
 #include "hwrenderer/data/shaderuniforms.h"
 #include "hw_lightbuffer.h"
 #include "hwrenderer/postprocessing/hw_postprocess.h"
-
-#include "swrenderer/r_swscene.h"
 
 #include "poly_framebuffer.h"
 #include "poly_buffers.h"
@@ -53,11 +47,6 @@
 #include "engineerrors.h"
 
 void Draw2D(F2DDrawer *drawer, FRenderState &state, bool outside2D = false);
-
-EXTERN_CVAR(Bool, r_drawvoxels)
-EXTERN_CVAR(Int, gl_tonemap)
-EXTERN_CVAR(Int, screenblocks)
-EXTERN_CVAR(Bool, cl_capfps)
 
 extern int rendered_commandbuffers;
 extern int current_rendered_commandbuffers;
@@ -416,12 +405,14 @@ void PolyFrameBuffer::BeginFrame()
 	SetViewportRects(nullptr);
 	CheckCanvas();
 
+#if 0
 	swrenderer::R_InitFuzzTable(GetCanvas()->GetPitch());
 	static int next_random = 0;
 	swrenderer::fuzzpos = (swrenderer::fuzzpos + swrenderer::fuzz_random_x_offset[next_random] * FUZZTABLE / 100) % FUZZTABLE;
 	next_random++;
 	if (next_random == FUZZ_RANDOM_X_SIZE)
 		next_random = 0;
+#endif
 }
 
 void PolyFrameBuffer::Draw2D(bool outside2D)
