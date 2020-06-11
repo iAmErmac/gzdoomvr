@@ -26,11 +26,11 @@
 */
 
 #include "vectors.h" // RAD2DEG
-#include "doomtype.h" // M_PI
 #include "hwrenderer/utility/hw_cvars.h"
 #include "hw_vrmodes.h"
 #include "v_video.h"
-#include <gl\stereo3d\gl_openvr.h>
+#include "gl/stereo3d/gl_openvr.h"
+#include "version.h"
 
 // Set up 3D-specific console variables:
 CVAR(Int, vr_mode, 10, CVAR_GLOBALCONFIG)

@@ -1104,24 +1104,3 @@ void Postprocess::Pass2(PPRenderState* state, int fixedcm, int sceneWidth, int s
 	fxaa.Render(state);
 	customShaders.Run(state, "scene");
 }
-
-
-void PPShadowMap::Update(PPRenderState *renderstate)
-{
-	ShadowMapUniforms uniforms;
-	uniforms.ShadowmapQuality = (float)gl_shadowmap_quality;
-	uniforms.NodesCount = screen->mShadowMap.NodesCount();
-
-	renderstate->PushGroup("shadowmap");
-
-	renderstate->Clear();
-	renderstate->Shader = &ShadowMap;
-	renderstate->Uniforms.Set(uniforms);
-	renderstate->Viewport = { 0, 0, gl_shadowmap_quality, 1024 };
-	renderstate->SetShadowMapBuffers(true);
-	renderstate->SetOutputShadowMap();
-	renderstate->SetNoBlend();
-	renderstate->Draw();
-
-	renderstate->PopGroup();
-}

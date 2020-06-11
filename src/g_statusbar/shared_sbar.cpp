@@ -64,7 +64,7 @@
 #include "v_palette.h"
 
 #include "../version.h"
-#include <hwrenderer\utility\hw_vrmodes.h>
+#include "hwrenderer/data/hw_vrmodes.h"
 
 #define XHAIRSHRINKSIZE		(1./18)
 #define XHAIRPICKUPSIZE		(2+XHAIRSHRINKSIZE)

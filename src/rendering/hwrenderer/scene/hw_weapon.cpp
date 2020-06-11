@@ -46,8 +46,7 @@
 #include "hwrenderer/data/flatvertices.h"
 #include "hwrenderer/dynlights/hw_lightbuffer.h"
 #include "hw_renderstate.h"
-#include <hwrenderer\utility\hw_vrmodes.h>
-//#include <gl\models\gl_models.h>
+#include "hwrenderer/data/hw_vrmodes.h"
 
 EXTERN_CVAR(Float, transsouls)
 EXTERN_CVAR(Int, gl_fuzztype)

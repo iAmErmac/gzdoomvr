@@ -1041,7 +1041,6 @@ set (PCH_SOURCES
 	rendering/hwrenderer/utility/hw_draw2d.cpp
 	rendering/hwrenderer/utility/hw_lighting.cpp
 	rendering/hwrenderer/utility/hw_shaderpatcher.cpp
-	rendering/hwrenderer/utility/hw_vrmodes.cpp
 	maploader/edata.cpp
 	maploader/specials.cpp
 	maploader/maploader.cpp
@@ -1213,6 +1212,7 @@ set (PCH_SOURCES
 	common/objects/dobjgc.cpp
 	common/objects/dobjtype.cpp
 	common/rendering/r_videoscale.cpp
+	common/rendering/hwrenderer/data/hw_vrmodes.cpp
 	common/rendering/hwrenderer/postprocessing/hw_postprocess.cpp
 	common/rendering/hwrenderer/postprocessing/hw_postprocess_cvars.cpp
 

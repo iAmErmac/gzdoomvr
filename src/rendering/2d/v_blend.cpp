@@ -47,7 +47,7 @@
 #include "v_palette.h"
 #include "r_utility.h"
 #include "hwrenderer/utility/hw_cvars.h"
-#include "rendering\hwrenderer\utility\hw_vrmodes.h"
+#include "hwrenderer/data/hw_vrmodes.h"
 
 CVAR(Float, underwater_fade_scalar, 1.0f, CVAR_ARCHIVE) // [Nash] user-settable underwater blend intensity
 CVAR( Float, blood_fade_scalar, 1.0f, CVAR_ARCHIVE )	// [SP] Pulled from Skulltag - changed default from 0.5 to 1.0

@@ -99,7 +99,7 @@
 #include "actorinlines.h"
 #include "a_dynlight.h"
 #include "fragglescript/t_fs.h"
-#include "hwrenderer\utility\hw_vrmodes.h"
+#include "hwrenderer/data/hw_vrmodes.h"
 
 // MACROS ------------------------------------------------------------------
 

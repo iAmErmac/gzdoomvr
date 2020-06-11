@@ -64,7 +64,7 @@
 #include "actorinlines.h"
 #include "g_game.h"
 #include "i_system.h"
-#include "rendering\hwrenderer\utility\hw_vrmodes.h"
+#include "hwrenderer/data/hw_vrmodes.h"
 
 // EXTERNAL DATA DECLARATIONS ----------------------------------------------
 
