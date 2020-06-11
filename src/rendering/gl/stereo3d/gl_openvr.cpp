@@ -284,7 +284,7 @@ namespace s3d
 				return;
 			FMaterial* tex = FMaterial::ValidateTexture(pFTex, false, false);
 			auto vbuf = GetVertexBuffer(renderer);
-			vbuf->SetupFrame(renderer, 0, 0, 0);
+			renderer->SetupFrame(this, 0, 0, 0);
 			renderer->SetMaterial(pFTex, CLAMP_NONE, translation);
 			renderer->DrawElements(pModel->unTriangleCount * 3, 0);
 		}
