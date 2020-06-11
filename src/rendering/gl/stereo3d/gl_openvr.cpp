@@ -36,10 +36,11 @@
 #include "d_player.h"
 #include "g_game.h" // G_Add...
 #include "p_local.h" // P_TryMove
-#include "gl/renderer/gl_renderer.h"
+#include "gl_renderer.h"
 #include "gl_renderbuffers.h"
 #include "v_2ddrawer.h" // crosshair
-#include "hwrenderer/models/hw_models.h"
+#include "models.h"
+#include "hw_models.h"
 #include "g_levellocals.h" // pixelstretch
 #include "g_statusbar/sbar.h"
 #include <cmath>
@@ -54,6 +55,7 @@
 #include "hwrenderer/data/flatvertices.h"
 #include "hwrenderer/data/hw_viewpointbuffer.h"
 #include "texturemanager.h"
+#include "hwrenderer/scene/hw_drawinfo.h"
 
 #include "gl_openvr.h"
 #include "openvr_include.h"

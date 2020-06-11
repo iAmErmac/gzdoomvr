@@ -305,7 +305,7 @@ public:
 	ERenderStyle renderstyle;
 
 	float alpha;
-	HWSectorPlane plane;
+	::HWSectorPlane plane;
 	int lightlevel;
 	bool stack;
 	bool ceiling;
@@ -426,7 +426,7 @@ inline float Dist2(float x1,float y1,float x2,float y2)
 	return sqrtf((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2));
 }
 
-bool hw_SetPlaneTextureRotation(const HWSectorPlane * secplane, FGameTexture * gltexture, VSMatrix &mat);
+bool hw_SetPlaneTextureRotation(const ::HWSectorPlane * secplane, FGameTexture * gltexture, VSMatrix &mat);
 void hw_GetDynModelLight(AActor *self, FDynLightData &modellightdata);
 
 extern const float LARGE_VALUE;

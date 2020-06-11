@@ -79,6 +79,7 @@ public:
 	void CopyToBackbuffer(const IntRect *bounds, bool applyGamma);
 	void DrawPresentTexture(const IntRect &box, bool applyGamma);
 	void Flush();
+	void BeginFrame();
 	void DrawBlend(FVector4* blend, PalEntry* modulateColor);
     
 	bool StartOffscreen();
