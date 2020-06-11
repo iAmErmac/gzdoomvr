@@ -30,22 +30,16 @@
 ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **---------------------------------------------------------------------------
 **
-*/
+*/ 
 
 #include "gl_system.h"
 #include "files.h"
 #include "v_video.h"
 #include "common/textures/m_png.h"
 #include "filesystem.h"
-#include "doomstat.h"
 #include "i_time.h"
-#include "p_effect.h"
-#include "d_player.h"
-#include "a_dynlight.h"
 #include "cmdlib.h"
 #include "version.h"
-#include "g_game.h"
-#include "swrenderer/r_swscene.h"
 #include "hwrenderer/utility/hw_clock.h"
 
 #include "gl_interface.h"
@@ -55,7 +49,7 @@
 #include "gl/renderer/gl_renderer.h"
 #include "gl_renderstate.h"
 #include "gl_renderbuffers.h"
-#include "gl/shaders/gl_shaderprogram.h"
+#include "gl_shaderprogram.h"
 #include "hw_vrmodes.h"
 #include "flatvertices.h"
 #include "hwrenderer/scene/hw_skydome.h"

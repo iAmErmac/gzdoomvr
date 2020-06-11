@@ -1007,8 +1007,6 @@ set (PCH_SOURCES
 	rendering/2d/v_blend.cpp
 	rendering/gl/renderer/gl_renderer.cpp
 	rendering/gl/renderer/gl_stereo3d.cpp
-	rendering/gl/shaders/gl_shader.cpp
-	rendering/gl/shaders/gl_shaderprogram.cpp
 	rendering/gl/stereo3d/gl_openvr.cpp
 	rendering/gl/system/gl_framebuffer.cpp
 	rendering/hwrenderer/hw_entrypoint.cpp
@@ -1023,7 +1021,6 @@ set (PCH_SOURCES
 	rendering/hwrenderer/utility/hw_clock.cpp
 	rendering/hwrenderer/utility/hw_draw2d.cpp
 	rendering/hwrenderer/utility/hw_lighting.cpp
-	rendering/hwrenderer/utility/hw_shaderpatcher.cpp
 	maploader/edata.cpp
 	maploader/specials.cpp
 	maploader/maploader.cpp
@@ -1203,6 +1200,7 @@ set (PCH_SOURCES
 	common/rendering/hwrenderer/data/hw_lightbuffer.cpp
 	common/rendering/hwrenderer/data/hw_aabbtree.cpp
 	common/rendering/hwrenderer/data/hw_shadowmap.cpp
+	common/rendering/hwrenderer/data/hw_shaderpatcher.cpp
 	common/rendering/hwrenderer/postprocessing/hw_postprocess.cpp
 	common/rendering/hwrenderer/postprocessing/hw_postprocess_cvars.cpp
 	common/rendering/gl_load/gl_interface.cpp
@@ -1214,6 +1212,8 @@ set (PCH_SOURCES
 	common/rendering/gl/gl_buffers.cpp
 	common/rendering/gl/gl_hwtexture.cpp
 	common/rendering/gl/gl_samplers.cpp
+	common/rendering/gl/gl_shader.cpp
+	common/rendering/gl/gl_shaderprogram.cpp
 	common/scripting/core/dictionary.cpp
 	common/scripting/core/dynarrays.cpp
 	common/scripting/core/symbols.cpp

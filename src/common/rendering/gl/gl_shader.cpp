@@ -34,17 +34,16 @@
 #include "cmdlib.h"
 #include "md5.h"
 #include "m_misc.h"
-#include "gl/shaders/gl_shader.h"
-#include "hwrenderer/utility/hw_shaderpatcher.h"
+#include "gl_shader.h"
+#include "hw_shaderpatcher.h"
 #include "hwrenderer/data/shaderuniforms.h"
-#include "hwrenderer/scene/hw_viewpointuniforms.h"
+#include "hw_viewpointuniforms.h"
 #include "hw_lightbuffer.h"
 
 #include "gl_interface.h"
 #include "gl_debug.h"
 #include "matrix.h"
 #include "gl/renderer/gl_renderer.h"
-#include "gl/shaders/gl_shader.h"
 #include <map>
 #include <memory>
 
