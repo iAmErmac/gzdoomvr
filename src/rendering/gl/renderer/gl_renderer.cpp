@@ -51,6 +51,7 @@
 #include "flatvertices.h"
 #include "gl_samplers.h"
 #include "hw_lightbuffer.h"
+#include "hwrenderer/data/hw_viewpointbuffer.h"
 #include "r_videoscale.h"
 #include "hwrenderer/data/hw_vrmodes.h"
 #include "model.h"
