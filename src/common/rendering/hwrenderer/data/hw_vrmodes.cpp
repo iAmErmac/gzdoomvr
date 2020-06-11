@@ -31,6 +31,7 @@
 #include "v_video.h"
 #include "gl/stereo3d/gl_openvr.h"
 #include "version.h"
+#include "i_interface.h"
 
 // Set up 3D-specific console variables:
 CVAR(Int, vr_mode, 10, CVAR_GLOBALCONFIG)
@@ -109,7 +110,9 @@ const VRMode *VRMode::GetVRMode(bool toscreen)
 	static VRMode vrmi_checker(2, isqrt2, isqrt2, 1.f, vrmi_checker_eyes);
 	static s3d::OpenVRMode vrmi_openvr(vrmi_openvr_eyes);
 
-	switch (toscreen && vid_rendermode == 4 ? vr_mode : 0)
+	int mode = !toscreen || (sysCallbacks && sysCallbacks->DisableTextureFilter && sysCallbacks->DisableTextureFilter()) ? 0 : vr_mode;
+
+	switch (mode)
 	{
 	default:
 	case VR_MONO:
