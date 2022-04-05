@@ -248,6 +248,15 @@ class Actor : Thinker native
 	native readonly int FriendlySeeBlocks;
 	native readonly int SpawnTime;
 	private native int InventoryID;	// internal counter.
+	
+	native readonly vector3 AttackPos;
+	native readonly double AttackPitch;
+	native readonly double AttackRoll;
+	native readonly double AttackAngle;
+	native readonly vector3 OffhandPos;
+	native readonly double OffhandPitch;
+	native readonly double OffhandRoll;
+	native readonly double OffhandAngle;
 
 	meta String Obituary;		// Player was killed by this actor
 	meta String HitObituary;		// Player was killed by this actor in melee

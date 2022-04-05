@@ -91,6 +91,9 @@ typedef const char* (*LVR_GetVRInitErrorAsEnglishDescription)(EVRInitError error
 typedef bool (*LVR_IsInterfaceVersionValid)(const char* version);
 typedef uint32_t(*LVR_GetInitToken)();
 
+typedef float vec_t;
+typedef vec_t vec3_t[3];
+
 #define DEFINE_ENTRY(name) static TReqProc<OpenVRModule, L##name> name{#name};
 DEFINE_ENTRY(VR_InitInternal)
 DEFINE_ENTRY(VR_ShutdownInternal)
@@ -1011,6 +1014,35 @@ namespace s3d
 		return false;
 	}
 
+	bool OpenVRMode::GetOffhandWeaponTransform(VSMatrix* out) const
+	{
+		if (GetHandTransform(openvr_rightHanded ? 0 : 1, out))
+		{
+			out->rotate(openvr_weaponRotate, 1, 0, 0);
+			if (openvr_rightHanded)
+				out->scale(-1.0f, 1.0f, 1.0f);
+			return true;
+		}
+		return false;
+	}
+
+	void GetAnglesFromController(int hand, vec3_t weaponangles)
+	{
+		weaponangles[0] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[0]);
+		weaponangles[1] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[1]);
+		weaponangles[2] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[2]);
+	}
+
+	void getMainHandAngles(vec3_t weaponangles)
+	{
+		GetAnglesFromController(openvr_rightHanded ? 1 : 0, weaponangles);
+	}
+
+	void getOffHandAngles(vec3_t weaponangles)
+	{
+		GetAnglesFromController(openvr_rightHanded ? 0 : 1, weaponangles);
+	}
+
 	static DVector3 MapAttackDir(AActor* actor, DAngle yaw, DAngle pitch)
 	{
 		LSMatrix44 mat;
@@ -1421,6 +1453,10 @@ namespace s3d
 			}
 	
 			LSMatrix44 mat;
+			LSMatrix44 matOffhand;
+			vec3_t weaponangles;
+			vec3_t offhandangles;
+
 			if (player)
 			{
 				if (GetWeaponTransform(&mat))
@@ -1431,7 +1467,25 @@ namespace s3d
 					player->mo->AttackPos.Y = mat[3][2];
 					player->mo->AttackPos.Z = mat[3][1];
 
+					getMainHandAngles(weaponangles);
+
+					player->mo->AttackAngle = -deltaYawDegrees - 180 - weaponangles[0];
+					player->mo->AttackPitch = -30 - weaponangles[1];
+					player->mo->AttackRoll = weaponangles[2];
+
 					player->mo->AttackDir = MapAttackDir;
+				}
+				if (GetOffhandWeaponTransform(&matOffhand))
+				{
+					player->mo->OffhandPos.X = matOffhand[3][0];
+					player->mo->OffhandPos.Y = matOffhand[3][2];
+					player->mo->OffhandPos.Z = matOffhand[3][1];
+
+					getOffHandAngles(offhandangles);
+
+					player->mo->OffhandAngle = -deltaYawDegrees - 180 - offhandangles[0];
+					player->mo->OffhandPitch = -30 - offhandangles[1];
+					player->mo->OffhandRoll = offhandangles[2];
 				}
 				if (GetHandTransform(openvr_rightHanded ? 0 : 1, &mat) && openvr_moveFollowsOffHand)
 				{

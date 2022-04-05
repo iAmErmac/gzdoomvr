@@ -112,6 +112,7 @@ public:
 	
 	virtual bool GetHandTransform(int hand, VSMatrix* out) const override;
 	virtual bool GetWeaponTransform(VSMatrix* out) const override;
+	virtual bool GetOffhandWeaponTransform(VSMatrix* out) const;
 	virtual bool RenderPlayerSpritesCrossed() const { return true; }
 	virtual bool RenderPlayerSpritesInScene() const { return true; }
 	virtual bool IsInitialized() const { return hmdWasFound; }
