@@ -57,6 +57,7 @@
 #include "hw_dynlightdata.h"
 #include "hw_lightbuffer.h"
 #include "hw_renderstate.h"
+#include "gl/stereo3d/gl_openvr.h"
 
 extern TArray<spritedef_t> sprites;
 extern TArray<spriteframe_t> SpriteFrames;
@@ -725,6 +726,16 @@ void HWSprite::Process(HWDrawInfo *di, AActor* thing, sector_t * sector, area_t 
 	if (thing == camera && !vp.showviewer)
 	{
 		DVector3 thingorigin = thing->Pos();
+
+		//If we get here, then we want to override the location of the camera actor
+		if (s3d::OpenVRMode::GetVRMode()->GetTeleportLocation(thingpos))
+		{
+			thingorigin = thingpos;
+
+			//Scale Doom Guy up a bit
+			sprscale *= 1.2;
+		}
+
 		if (thruportal == 1) thingorigin += di->Level->Displacements.getOffset(thing->Sector->PortalGroup, sector->PortalGroup);
 		if (fabs(thingorigin.X - vp.ActorPos.X) < 2 && fabs(thingorigin.Y - vp.ActorPos.Y) < 2) return;
 	}

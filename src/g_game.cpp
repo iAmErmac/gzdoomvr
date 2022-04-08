@@ -119,6 +119,7 @@ CVAR (String, save_dir, "", CVAR_ARCHIVE|CVAR_GLOBALCONFIG);
 CVAR (Bool, cl_waitforsave, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG);
 CVAR (Bool, enablescriptscreenshot, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG);
 EXTERN_CVAR (Float, con_midtime);
+EXTERN_CVAR(Bool, vr_teleport);
 
 //==========================================================================
 //
@@ -715,8 +716,11 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 		G_AddViewAngle(joyint(-1280 * joyaxes[JOYAXIS_Yaw]));
 	}
 
-	side -= joyint(sidemove[speed] * joyaxes[JOYAXIS_Side]);
-	forward += joyint(joyaxes[JOYAXIS_Forward] * forwardmove[speed]);
+	if (!vr_teleport) {
+		side -= joyint(sidemove[speed] * joyaxes[JOYAXIS_Side]);
+		forward += joyint(joyaxes[JOYAXIS_Forward] * forwardmove[speed]);
+	}
+
 	fly += joyint(joyaxes[JOYAXIS_Up] * 2048);
 
 	// Handle mice.
