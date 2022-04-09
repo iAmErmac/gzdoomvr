@@ -43,6 +43,7 @@ CVAR(Float, vr_ipd, 0.062f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
 CVAR(Float, vr_screendist, 0.80f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
 
 CVAR(Float, vr_kill_momentum, 0.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Bool, vr_crouch_use_button, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
 // default conversion between (vertical) DOOM units and meters
 CVAR(Float, vr_vunits_per_meter, 32.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS

@@ -2834,7 +2834,8 @@ OptionMenu "OpenVROptions" protected
 	StaticText "$VRPREFMNU_TITLE_LOCOMOTION", gold
 	Option "$VRPREFMNU_MOVEFOLLOW", 			openvr_moveFollowsOffHand,				"HeadHand"
 	Option "$VRPREFMNU_TELEPORTMOVE",		    vr_teleport,							"OnOff"
-	Option "$VRPREFMNU_MOMENTUM",	    		vr_kill_momentum, "OnOff"
+	Option "$VRPREFMNU_MOMENTUM",	    		vr_kill_momentum,						"OnOff"
+	Option "$VRPREFMNU_CROUCHING",				"vr_crouch_use_button",					"OnOff"
 
 	StaticText " "
 	StaticText "$VRPREFMNU_TITLE_HAPTICS", gold

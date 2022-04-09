@@ -105,6 +105,7 @@ vec3_t offhandangles;
 
 bool ready_teleport;
 bool trigger_teleport;
+double HmdHeight;
 
 #define DEFINE_ENTRY(name) static TReqProc<OpenVRModule, L##name> name{#name};
 DEFINE_ENTRY(VR_InitInternal)
@@ -145,19 +146,20 @@ EXTERN_CVAR(Int, screenblocks);
 EXTERN_CVAR(Float, movebob);
 EXTERN_CVAR(Bool, gl_billboard_faces_camera);
 EXTERN_CVAR(Int, gl_multisample);
-EXTERN_CVAR(Float, vr_vunits_per_meter)
-EXTERN_CVAR(Float, vr_floor_offset)
+EXTERN_CVAR(Float, vr_vunits_per_meter);
+EXTERN_CVAR(Float, vr_floor_offset);
 EXTERN_CVAR(Float, vr_ipd);
 
-EXTERN_CVAR(Bool, openvr_rightHanded)
-EXTERN_CVAR(Bool, openvr_moveFollowsOffHand)
+EXTERN_CVAR(Bool, openvr_rightHanded);
+EXTERN_CVAR(Bool, openvr_moveFollowsOffHand);
 EXTERN_CVAR(Bool, vr_teleport);
-EXTERN_CVAR(Bool, openvr_drawControllers)
+EXTERN_CVAR(Bool, openvr_drawControllers);
 EXTERN_CVAR(Float, openvr_weaponRotate);
 EXTERN_CVAR(Float, openvr_weaponScale);
 
 EXTERN_CVAR(Bool, vr_enable_haptics);
-EXTERN_CVAR(Float, vr_kill_momentum)
+EXTERN_CVAR(Float, vr_kill_momentum);
+EXTERN_CVAR(Bool, vr_crouch_use_button);
 
 //HUD control
 EXTERN_CVAR(Float, vr_hud_scale);
@@ -204,10 +206,15 @@ bool IsOpenVRPresent()
 float getDoomPlayerHeightWithoutCrouch(const player_t* player)
 {
 	static float height = 0;
+	if (!vr_crouch_use_button)
+	{
+		return HmdHeight;
+	}
 	if (height == 0)
 	{
 		// Doom thinks this is where you are
-		height = player->viewheight;
+		//height = player->viewheight;
+		height = player->DefaultViewHeight();
 	}
 
 	return height;
@@ -636,6 +643,7 @@ namespace s3d
 			const player_t& player = players[consoleplayer];
 			double vh = getDoomPlayerHeightWithoutCrouch(&player); // Doom thinks this is where you are
 			double hh = ((openvr_X_hmd[1][3] - vr_floor_offset) * vr_vunits_per_meter) / pixelstretch; // HMD is actually here
+			HmdHeight = hh;
 			doom_EyeOffset[2] += hh - vh;
 			// TODO: optionally allow player to jump and crouch by actually jumping and crouching
 		}
@@ -1061,7 +1069,7 @@ namespace s3d
 		player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
 		int OffHandRole = openvr_rightHanded ? 0 : 1;
 
-		if(vr_teleport && player && gamestate == GS_LEVEL && role == OffHandRole)
+		if (vr_teleport && player && gamestate == GS_LEVEL && role == OffHandRole)
 		{
 			float joyForwardMove = newState.rAxis[vrAxis].y - DEAD_ZONE;
 
@@ -1504,6 +1512,20 @@ namespace s3d
 
 			if (player)
 			{
+				double pixelstretch = level.info ? level.info->pixelstretch : 1.2;
+
+				// Thanks to Emawind for the codes for natural crouching
+				if (!vr_crouch_use_button)
+				{
+					static double defaultViewHeight = player->DefaultViewHeight();
+					player->crouching = 10;
+					player->crouchfactor = HmdHeight / defaultViewHeight;
+				}
+				else if (player->crouching == 10)
+				{
+					player->Uncrouch();
+				}
+
 				if (GetWeaponTransform(&mat))
 				{
 					player->mo->OverrideAttackPosDir = true;
@@ -1538,7 +1560,6 @@ namespace s3d
 
 					DAngle yaw(-deltaYawDegrees - 90 - offhandangles[YAW]);
 					DAngle pitch(offhandangles[PITCH] + 30);
-					double pixelstretch = level.info ? level.info->pixelstretch : 1.2;
 
 					// Teleport Logic
 					if (ready_teleport) {
