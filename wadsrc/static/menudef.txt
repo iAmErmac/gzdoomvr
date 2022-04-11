@@ -2830,14 +2830,22 @@ OptionMenu "OpenVROptions" protected
 	StaticText "$VRPREFMNU_TITLE_CONTROLS", gold
 	Option "$VRPREFMNU_HANDED", 				openvr_rightHanded,						"LeftRight"
 	Option "$VRPREFMNU_CONTROLLERMAPPING",		vr_use_alternate_mapping,				"OnOff"
-	Option "$VRPREFMNU_GRIPCOMBO",				vr_secondary_button_mappings,			"OnOff", "vr_use_alternate_mapping"
+	StaticText ""
+	Option "$VRPREFMNU_GRIPCOMBO",				vr_secondary_button_mappings,			"OnOff", vr_use_alternate_mapping
+	StaticText "$VRPREFMNU_GRIPCOMBO_TIP", "Brown"
 
 	StaticText ""
 	StaticText "$VRPREFMNU_TITLE_LOCOMOTION", gold
 	Option "$VRPREFMNU_MOVEFOLLOW", 			openvr_moveFollowsOffHand,				"HeadHand"
 	Option "$VRPREFMNU_TELEPORTMOVE",		    vr_teleport,							"OnOff"
 	Option "$VRPREFMNU_MOMENTUM",	    		vr_kill_momentum,						"OnOff"
+	StaticText ""
 	Option "$VRPREFMNU_CROUCHING",				vr_crouch_use_button,					"OnOff"
+	StaticText "$VRPREFMNU_CROUCHING_TIP", "Brown"
+	StaticText ""
+	Option "$VRPREFMNU_SNAPTURN",				vr_snap_turning,						"OnOff"
+	Slider "$VRPREFMNU_SNAPTURN_ANGLE",			vr_snapTurn,							1.0, 90.0, 1.0, 2, vr_snap_turning
+	StaticText "$VRPREFMNU_SNAPTURN_TIP", "Brown"
 
 	StaticText " "
 	StaticText "$VRPREFMNU_TITLE_HAPTICS", gold
