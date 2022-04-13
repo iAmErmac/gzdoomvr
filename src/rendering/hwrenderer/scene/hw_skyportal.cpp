@@ -36,6 +36,9 @@
 //
 //
 //-----------------------------------------------------------------------------
+
+CVAR(Bool, gl_skydome, true, CVAR_GLOBALCONFIG | CVAR_ARCHIVE);
+
 void HWSkyPortal::DrawContents(HWDrawInfo *di, FRenderState &state)
 {
 	bool drawBoth = false;
@@ -48,7 +51,7 @@ void HWSkyPortal::DrawContents(HWDrawInfo *di, FRenderState &state)
 		di->SetFallbackLightMode();
 		state.SetNoSoftLightLevel();
 	}
-
+	if (!gl_skydome) return;
 
 	state.ResetColor();
 	state.EnableFog(false);

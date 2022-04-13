@@ -157,6 +157,7 @@ EXTERN_CVAR(Bool, vr_use_alternate_mapping);
 EXTERN_CVAR(Bool, vr_secondary_button_mappings);
 EXTERN_CVAR(Bool, openvr_moveFollowsOffHand);
 EXTERN_CVAR(Bool, vr_teleport);
+EXTERN_CVAR(Bool, vr_teleport_forced);
 EXTERN_CVAR(Bool, openvr_drawControllers);
 EXTERN_CVAR(Float, openvr_weaponRotate);
 EXTERN_CVAR(Float, openvr_weaponScale);
@@ -1761,11 +1762,19 @@ namespace s3d
 					}
 					else if (trigger_teleport && m_TeleportTarget == TRACE_HitFloor) {
 						auto vel = player->mo->Vel;
-						player->mo->Vel = DVector3(m_TeleportLocation.X - player->mo->X(),
-							m_TeleportLocation.Y - player->mo->Y(), 0);
 						bool wasOnGround = player->mo->Z() <= player->mo->floorz + 0.1;
 						double oldZ = player->mo->Z();
-						P_XYMovement(player->mo, DVector2(0, 0));
+
+						if(!vr_teleport_forced) {
+							player->mo->Vel = DVector3(m_TeleportLocation.X - player->mo->X(),
+								m_TeleportLocation.Y - player->mo->Y(), 0);
+							P_XYMovement(player->mo, DVector2(0, 0));
+						}
+						else {
+							// Force teleport in places like high stairs where you cannot teleport normally without jumpinng
+							// This teleport mode will telefrag anyone at the teleport location
+							P_TeleportMove(player->mo, m_TeleportLocation, true, true);
+						}
 
 						//if we were on the ground before offsetting, make sure we still are (this fixes not being able to move on lifts)
 						if (player->mo->Z() >= oldZ && wasOnGround) {
