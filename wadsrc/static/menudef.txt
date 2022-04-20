@@ -2980,6 +2980,10 @@ OptionMenu GZDVRQuickMenu protected
 	Option "$GLTEXMNU_TEXFILTER",				gl_texture_filter,		"FilterModes"
 	
 	StaticText " "
+	StaticText "$VRQUICKMNU_MLTSMPLE_TIP"
+	Option "$GLPREFMNU_MULTISAMPLE", 			gl_multisample,			"Multisample"
+	
+	StaticText " "
 	StaticText "$VRQUICKMNU_LIGHTMODE_TIP"
 	Option "$GLPREFMNU_SECLIGHTMODE",			gl_lightmode,			"LightingModes"
 	
