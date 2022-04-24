@@ -1337,6 +1337,7 @@ namespace s3d
 			}
 		}
 		// Offhand trigger is now bindable (sort of)
+		// TODO: need to fix the bug where it expects another input after pressing trigger in a key inputbox
 		// Offhand trigger = Run, Grip + Offhand trigger = unmapped
 		if (role != DominantHandRole)
 		{
@@ -1372,7 +1373,7 @@ namespace s3d
 		// Y/B
 		// Y = Automap, Grip + Y = Fly Up
 		// B = Jump, Grip + B = Main menu
-		// Y will be defaulted to Menu button if grip combo is disabled
+		// B will be defaulted to Menu button if grip combo is disabled
 		if (dominantGripPushed || !vr_secondary_button_mappings) {
 			HandleVRButton(lastState, newState, openvr::vr::k_EButton_ApplicationMenu, KEY_PGUP, role * (KEY_PAD_BACK - KEY_PGUP));
 		}
