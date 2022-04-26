@@ -193,18 +193,19 @@ void RenderHUDModel(FModelRenderer *renderer, DPSprite *psp, float ofsX, float o
 		return;
 
 	VSMatrix objectToWorldMatrix;
-	renderer->PrepareRenderHUDModel(smf, ofsX, ofsY, objectToWorldMatrix);
+	int hand = psp->GetCaller() == playermo->player->OffhandWeapon ? 1 : 0;
+	renderer->PrepareRenderHUDModel(smf, ofsX, ofsY, objectToWorldMatrix, hand);
 
 	float orientation = smf->xscale * smf->yscale * smf->zscale;
 
 	renderer->BeginDrawHUDModel(playermo->RenderStyle, objectToWorldMatrix, orientation < 0);
 	uint32_t trans = psp->GetTranslation() != 0 ? psp->GetTranslation() : 0;
 	if ((psp->Flags & PSPF_PLAYERTRANSLATED)) trans = psp->Owner->mo->Translation;
-	RenderFrameModels(renderer, playermo->Level, smf, psp->GetState(), psp->GetTics(), playermo->player->ReadyWeapon->GetClass(), trans);
+	RenderFrameModels(renderer, playermo->Level, smf, psp->GetState(), psp->GetTics(), psp->GetCaller()->GetClass(), trans);
 	renderer->EndDrawHUDModel(playermo->RenderStyle);
 }
 
-void FModelRenderer::PrepareRenderHUDModel(FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix)
+void FModelRenderer::PrepareRenderHUDModel(FSpriteModelFrame* smf, float ofsX, float ofsY, VSMatrix& objectToWorldMatrix, int hand)
 {
 	// The model position and orientation has to be drawn independently from the position of the player,
 	// but we need to position it correctly in the world for light to work properly.

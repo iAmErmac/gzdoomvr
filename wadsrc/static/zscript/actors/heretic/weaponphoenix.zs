@@ -51,13 +51,15 @@ class PhoenixRod : Weapon
 			return;
 		}
 
-		Weapon weapon = player.ReadyWeapon;
+		int alflags = 0;
+		Weapon weapon = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 		if (weapon != null)
 		{
+			alflags |= weapon.bOffhandWeapon ? ALF_ISOFFHAND : 0;
 			if (!weapon.DepleteAmmo (weapon.bAltFire))
 				return;
 		}
-		SpawnPlayerMissile ("PhoenixFX1");
+		SpawnPlayerMissile ("PhoenixFX1", aimflags: alflags);
 		Thrust(4, angle + 180);
 	}
 
@@ -96,8 +98,17 @@ class PhoenixRodPowered : PhoenixRod
 		DepleteAmmo (bAltFire);
 		Owner.player.refire = 0;
 		Owner.A_StopSound (CHAN_WEAPON);
-		Owner.player.ReadyWeapon = SisterWeapon;
-		Owner.player.SetPsprite(PSP_WEAPON, SisterWeapon.GetReadyState());
+		SisterWeapon.bOffhandWeapon = self.bOffhandWeapon;
+		if (SisterWeapon.bOffhandWeapon)
+		{
+			Owner.player.OffhandWeapon = SisterWeapon;
+			Owner.player.SetPsprite(PSP_OFFHANDWEAPON, SisterWeapon.GetReadyState());
+		}
+		else
+		{
+			Owner.player.ReadyWeapon = SisterWeapon;
+			Owner.player.SetPsprite(PSP_WEAPON, SisterWeapon.GetReadyState());
+		}
 	}
 
 	//----------------------------------------------------------------------------
@@ -110,7 +121,12 @@ class PhoenixRodPowered : PhoenixRod
 	{
 		if (player != null)
 		{
-			PhoenixRodPowered flamethrower = PhoenixRodPowered(player.ReadyWeapon);
+			Weapon weapon = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
+			if (weapon == null)
+			{
+				return;
+			}
+			PhoenixRodPowered flamethrower = PhoenixRodPowered(weapon);
 			if (flamethrower != null)
 			{
 				flamethrower.FlameCount = FLAME_THROWER_TICS;
@@ -133,11 +149,18 @@ class PhoenixRodPowered : PhoenixRod
 			return;
 		}
 
-		PhoenixRodPowered flamethrower = PhoenixRodPowered(player.ReadyWeapon);
+		Weapon weapon = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
+		if (weapon == null)
+		{
+			return;
+		}
+
+		int hand = weapon.bOffhandWeapon ? 1 : 0;
+		PhoenixRodPowered flamethrower = PhoenixRodPowered(weapon);
 		
 		if (flamethrower == null || --flamethrower.FlameCount == 0)
 		{ // Out of flame
-			player.SetPsprite(PSP_WEAPON, flamethrower.FindState("Powerdown"));
+			player.SetPsprite(hand ? PSP_OFFHANDWEAPON : PSP_WEAPON, flamethrower.FindState("Powerdown"));
 			player.refire = 0;
 			A_StopSound (CHAN_WEAPON);
 			return;
@@ -147,15 +170,41 @@ class PhoenixRodPowered : PhoenixRod
 		double xo = Random2[FirePhoenixPL2]() / 128.;
 		double yo = Random2[FirePhoenixPL2]() / 128.;
 		Vector3 spawnpos = Vec3Offset(xo, yo, 26 + slope - Floorclip);
+		
+		// shoot with vr controllers instead of player camra
+		// Thanks to Emawind84 for the fix
+		let velxy = Vel.XY;
+		let directionAngle = angle;
+		let directionPitch = pitch;
+		if (player.mo.OverrideAttackPosDir)
+		{
+			if (hand == 1)
+			{
+				spawnpos = player.mo.OffhandPos;
+				let dir = player.mo.OffhandDir(self, angle, pitch);
+				directionAngle = dir.x;
+				directionPitch = dir.y;
+			}
+			else
+			{
+				spawnpos = player.mo.AttackPos;
+				let dir = player.mo.AttackDir(self, angle, pitch);
+				directionAngle = dir.x;
+				directionPitch = dir.y;
+			}
+			spawnpos.X += xo;
+			spawnpos.Y += yo;
+			slope = -clamp(tan(directionPitch), -5, 5);
+			velxy = (0, 0);
+		}
 
-		slope += 0.1;
 		Actor mo = Spawn("PhoenixFX2", spawnpos, ALLOW_REPLACE);
 		if (mo != null)
 		{
 			mo.target = self;
-			mo.Angle = Angle;
+			mo.Angle = directionAngle;
 			mo.VelFromAngle();
-			mo.Vel.XY += Vel.XY;
+			mo.Vel.XY += velxy;
 			mo.Vel.Z = mo.Speed * slope;
 			mo.CheckMissileSpawn (radius);
 		}
@@ -178,7 +227,7 @@ class PhoenixRodPowered : PhoenixRod
 			return;
 		}
 		A_StopSound (CHAN_WEAPON);
-		Weapon weapon = player.ReadyWeapon;
+		Weapon weapon = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 		if (weapon != null)
 		{
 			weapon.DepleteAmmo (weapon.bAltFire);

@@ -66,8 +66,8 @@ extend class StateProvider
 		{
 			ang += Random2[GunShot]() * (5.625 / 256);
 		}
-
-		LineAttack(ang, PLAYERMISSILERANGE, pitch, damage, 'Hitscan', pufftype);
+		int laflags = invoker == player.OffhandWeapon ? LAF_ISOFFHAND : 0;
+		LineAttack(ang, PLAYERMISSILERANGE, pitch, damage, 'Hitscan', pufftype, laflags);
 	}
 	
 	//===========================================================================
@@ -77,13 +77,13 @@ extend class StateProvider
 
 		if (player != null)
 		{
-			Weapon weap = player.ReadyWeapon;
+			Weapon weap = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 			if (weap != null && invoker == weap && stateinfo != null && stateinfo.mStateType == STATE_Psprite)
 			{
 				if (!weap.DepleteAmmo (weap.bAltFire, true, 1))
 					return;
-
-				player.SetPsprite(PSP_FLASH, weap.FindState('Flash'), true);
+					
+				player.SetPsprite(PSP_FLASH, weap.FindState('Flash'), true, weap);
 			}
 			player.mo.PlayAttacking2 ();
 

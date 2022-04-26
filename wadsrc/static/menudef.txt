@@ -523,6 +523,7 @@ OptionMenu "CustomizeControls" protected
 	StaticText ""
 	Option "$CNTRLMNU_LAYOUT",			"cl_defaultconfiguration", "Layouts"
 	SafeCommand "$OPTMNU_DEFAULTS",		"resetb2defaults"
+	SafeCommand "$OPTMNU_UPDATEMISSING","binddefaults"
 }
 
 OptionMenu "ActionControlsMenu" protected
@@ -534,6 +535,8 @@ OptionMenu "ActionControlsMenu" protected
 	StaticText ""
 	Control    "$CNTRLMNU_ATTACK"           , "+attack"
 	Control    "$CNTRLMNU_ALTATTACK"        , "+altattack"
+	Control    "$CNTRLMNU_OH_ATTACK"        , "+oh_attack"
+	Control    "$CNTRLMNU_OH_ALTATTACK"     , "+oh_altatk"
 	Control    "$CNTRLMNU_RELOAD"           , "+reload"
 	Control    "$CNTRLMNU_ZOOM"             , "+zoom"
 
@@ -596,8 +599,12 @@ OptionMenu "WeaponsControlMenu" protected
 	StaticTextSwitchable "$CNTRLMNU_SWITCHTEXT1", "$CNTRLMNU_SWITCHTEXT2", "ControlMessage"
 
 	StaticText ""
-	Control    "$CNTRLMNU_NEXTWEAPON"     , "weapnext"
-	Control    "$CNTRLMNU_PREVIOUSWEAPON" , "weapprev"
+	Control    "$CNTRLMNU_NEXTWEAPON"				, "weapnext"
+	Control    "$CNTRLMNU_PREVIOUSWEAPON"			, "weapprev"
+	Control    "$CNTRLMNU_OFFHAND_NEXTWEAPON"		, "weapnext 1"
+	Control    "$CNTRLMNU_OFFHAND_PREVIOUSWEAPON"	, "weapprev 1"
+	Control    "$CNTRLMNU_SWITCH_TO_OFFHAND"		, "switchhand 1"
+	Control    "$CNTRLMNU_SWITCH_TO_MAINHAND"		, "switchhand 0"
 
 	StaticText ""
 	Control    "$CNTRLMNU_SLOT1"          , "slot 1"
@@ -638,6 +645,7 @@ OptionMenu "InventoryControlsMenu" protected
 
 	StaticText ""
 	Control    "$CNTRLMNU_DROPWEAPON"   , "weapdrop"
+	Control    "$CNTRLMNU_DROPOFFHANDWEAPON"   , "weapdrop 1"
 }
 
 OptionMenu "OtherControlsMenu" protected

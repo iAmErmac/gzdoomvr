@@ -242,6 +242,7 @@ enum ERailFlags
 	RGF_FULLBRIGHT = 8,
 	RGF_CENTERZ = 16,
 	RGF_NORANDOMPUFFZ = 32,
+	RGF_ISOFFHAND = 64,
 };
 
 // Flags for A_Mushroom
@@ -312,6 +313,7 @@ enum EFireCustomMissileFlags
 	FPF_AIMATANGLE = 1,
 	FPF_TRANSFERTRANSLATION = 2,
 	FPF_NOAUTOAIM = 4,
+	FPF_ISOFFHAND = 8,
 };
 
 // Flags for A_Teleport
@@ -733,6 +735,7 @@ enum EPSPLayers
 	PSP_STRIFEHANDS = -1,
 	PSP_WEAPON = 1,
 	PSP_FLASH = 1000,
+	PSP_OFFHANDWEAPON = 1000000,
 	PSP_TARGETCENTER = int.max - 2,
 	PSP_TARGETLEFT,
 	PSP_TARGETRIGHT
@@ -797,6 +800,9 @@ enum EButtons
 	BT_USER4		= 1<<24,
 
 	BT_RUN			= 1<<25,
+
+	BT_OFFHANDATTACK    = 1<<26,
+	BT_OFFHANDALTATTACK = 1<<27,
 };
 
 // Flags for GetAngle
@@ -859,6 +865,7 @@ enum EAimFlags
 	ALF_NOFRIENDS = 16,
 	ALF_PORTALRESTRICT = 32,	// only work through portals with a global offset (to be used for stuff that cannot remember the calculated FTranslatedLineTarget info)
 	ALF_NOWEAPONCHECK = 64,		// ignore NOAUTOAIM flag on a player's weapon.
+	ALF_ISOFFHAND = 128,
 }
 
 enum ELineAttackFlags
@@ -871,6 +878,7 @@ enum ELineAttackFlags
 	LAF_OVERRIDEZ      = 1 << 5,
 	LAF_ABSOFFSET      = 1 << 6,
 	LAF_ABSPOSITION    = 1 << 7,
+	LAF_ISOFFHAND      = 1 << 8,
 }
 
 enum ELineTraceFlags
@@ -1141,6 +1149,13 @@ enum EWeaponState
 	WF_USER2OK			= 1 << 9,
 	WF_USER3OK			= 1 << 10,
 	WF_USER4OK			= 1 << 11,
+	WF_OFFHANDREADY          = 1 << 12,
+	WF_OFFHANDBOBBING        = 1 << 13,
+	WF_OFFHANDREADYALT       = 1 << 14,
+	WF_OFFHANDSWITCHOK       = 1 << 15,
+	WF_OFFHANDDISABLESWITCH  = 1 << 16,
+	WF_OFFHANDREFIRESWITCHOK = 1 << 17,
+	WF_TWOHANDSTABILIZED     = 1 << 18,
 };
 
 // these flags are for filtering actor visibility based on certain conditions of the renderer's feature support.

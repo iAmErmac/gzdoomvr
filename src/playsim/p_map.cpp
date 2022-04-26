@@ -101,7 +101,7 @@ CVAR(Bool, cl_doautoaim, false, CVAR_ARCHIVE)
 EXTERN_CVAR(Bool, openvr_rightHanded)
 
 static void CheckForPushSpecial(line_t *line, int side, AActor *mobj, DVector2 * posforwindowcheck = NULL);
-static void SpawnShootDecal(AActor *t1, AActor *defaults, const FTraceResults &trace);
+static void SpawnShootDecal(AActor *t1, AActor *defaults, const FTraceResults &trace, int hand = 0);
 static void SpawnDeepSplash(AActor *t1, const FTraceResults &trace, AActor *puff);
 
 static FRandom pr_tracebleed("TraceBleed");
@@ -4340,7 +4340,7 @@ DAngle P_AimLineAttack(AActor *t1, DAngle angle, double distance, FTranslatedLin
 		else
 		{
 			// [BB] Disable autoaim on weapons with WIF_NOAUTOAIM.
-			auto weapon = t1->player->ReadyWeapon;
+			auto weapon = !!(flags & ALF_ISOFFHAND) ? t1->player->OffhandWeapon : t1->player->ReadyWeapon;
 			if ((weapon && (weapon->IntVar(NAME_WeaponFlags) & WIF_NOAUTOAIM)) && !(flags & ALF_NOWEAPONCHECK))
 			{
 				vrange = 0.5;
@@ -4487,6 +4487,7 @@ AActor *P_LineAttack(AActor *t1, DAngle angle, double distance,
 		if (damage > 0) {
 			//Haptics
 			long rightHanded = openvr_rightHanded;
+			rightHanded = (flags & LAF_ISOFFHAND) ? 1 - rightHanded : rightHanded;
 			vrmode->Vibrate(50, rightHanded ? 1 : 0, 0.8f);
 			
 		}
@@ -4500,8 +4501,16 @@ AActor *P_LineAttack(AActor *t1, DAngle angle, double distance,
 
 	if (t1->player != NULL && t1->player->mo->OverrideAttackPosDir)
 	{
-		fromPos = t1->player->mo->AttackPos;
-		direction = t1->player->mo->AttackDir(t1, angle, pitch);
+		if (flags & LAF_ISOFFHAND)
+		{
+			fromPos = t1->player->mo->OffhandPos;
+			direction = t1->player->mo->OffhandDir(t1, angle, pitch);
+		}
+		else
+		{
+			fromPos = t1->player->mo->AttackPos;
+			direction = t1->player->mo->AttackDir(t1, angle, pitch);
+		}
 	}
 	else
 	{
@@ -4510,10 +4519,16 @@ AActor *P_LineAttack(AActor *t1, DAngle angle, double distance,
 	
 	// We need to check the defaults of the replacement here
 	AActor *puffDefaults = GetDefaultByType(pufftype->GetReplacement(t1->Level));
+
+	AActor* weapon;
+	if (t1->player != nullptr)
+	{
+		weapon = (flags & LAF_ISOFFHAND) ? t1->player->OffhandWeapon : t1->player->ReadyWeapon;
+	}
 	
 	TData.hitGhosts = (t1->player != NULL &&
-		t1->player->ReadyWeapon != NULL &&
-		(t1->player->ReadyWeapon->flags2 & MF2_THRUGHOST)) ||
+		weapon != NULL &&
+		(weapon->flags2 & MF2_THRUGHOST)) ||
 		(puffDefaults && (puffDefaults->flags2 & MF2_THRUGHOST));
 	
 	spawnSky = (puffDefaults && (puffDefaults->flags3 & MF3_SKYEXPLODE));
@@ -4656,26 +4671,27 @@ AActor *P_LineAttack(AActor *t1, DAngle angle, double distance,
 			// [RH] Spawn a decal
 			if (trace.HitType == TRACE_HitWall && trace.Line->special != Line_Horizon && !trace.Line->isVisualPortal() && !(flags & LAF_NOIMPACTDECAL) && !(puffDefaults->flags7 & MF7_NODECAL))
 			{
+				int hand = flags & LAF_ISOFFHAND;
 				// [TN] If the actor or weapon has a decal defined, use that one.
 				if (t1->DecalGenerator != NULL ||
-					(t1->player != NULL && t1->player->ReadyWeapon != NULL && t1->player->ReadyWeapon->DecalGenerator != NULL))
+					(weapon != NULL && weapon->DecalGenerator != NULL))
 				{
 					// [ZK] If puff has FORCEDECAL set, do not use the weapon's decal
 					if (puffDefaults->flags7 & MF7_FORCEDECAL && puff != NULL && puff->DecalGenerator)
-						SpawnShootDecal(puff,  puff, trace);
+						SpawnShootDecal(puff,  puff, trace, hand);
 					else
-						SpawnShootDecal(t1, t1, trace);
+						SpawnShootDecal(t1, t1, trace, hand);
 				}
 
 				// Else, look if the bulletpuff has a decal defined.
 				else if (puff != NULL && puff->DecalGenerator)
 				{
-					SpawnShootDecal(puff, puff, trace);
+					SpawnShootDecal(puff, puff, trace, hand);
 				}
 
 				else
 				{
-					SpawnShootDecal(t1, t1, trace);
+					SpawnShootDecal(t1, t1, trace, hand);
 				}
 			}
 			else if (puff != NULL &&
@@ -4736,8 +4752,8 @@ AActor *P_LineAttack(AActor *t1, DAngle angle, double distance,
 			{
 				int dmgflags = DMG_INFLICTOR_IS_PUFF | pflag;
 				// Allow MF5_PIERCEARMOR on a weapon as well.
-				if (t1->player != NULL && (dmgflags & DMG_PLAYERATTACK) && t1->player->ReadyWeapon != NULL &&
-					t1->player->ReadyWeapon->flags5 & MF5_PIERCEARMOR)
+				if ((dmgflags & DMG_PLAYERATTACK) && weapon != NULL &&
+					weapon->flags5 & MF5_PIERCEARMOR)
 				{
 					dmgflags |= DMG_NO_ARMOR;
 				}
@@ -5234,6 +5250,7 @@ static ETraceStatus ProcessRailHit(FTraceResults &res, void *userdata)
 void P_RailAttack(FRailParams *p)
 {
 	DVector3 start;
+	DVector3 direction;
 	FTraceResults trace;
 
 	PClassActor *puffclass = p->puff;
@@ -5260,16 +5277,31 @@ void P_RailAttack(FRailParams *p)
 		puffflags |= PF_NORANDOMZ;
 	}
 
-	DVector2 xy = source->Vec2Angle(p->offset_xy, angle - 90.);
+	if (source->player != NULL && source->player->mo->OverrideAttackPosDir)
+	{
+		if (p->flags & RAF_ISOFFHAND)
+		{
+			start = source->player->mo->OffhandPos;
+			direction = source->player->mo->OffhandDir(source, angle, pitch);
+		}
+		else
+		{
+			start = source->player->mo->AttackPos;
+			direction = source->player->mo->AttackDir(source, angle, pitch);
+		}
+	}
+	else
+	{
+		DVector2 xy = source->Vec2Angle(p->offset_xy, angle - 90.);
+		start = DVector3(xy.X, xy.Y, shootz);
+		direction = vec;
+	}
 
 	RailData rail_data;
 	rail_data.Caller = source;
 	rail_data.limit = p->limit;
 	rail_data.count = 0;
 	rail_data.StopAtOne = !!(p->flags & RAF_NOPIERCE);
-	start.X = xy.X;
-	start.Y = xy.Y;
-	start.Z = shootz;
 
 	int flags;
 
@@ -5310,7 +5342,7 @@ void P_RailAttack(FRailParams *p)
 			rail_data.UseThruBits = !!(thepuff->flags8 & MF8_ALLOWTHRUBITS);
 	}
 
-	Trace(start, source->Sector, vec, p->distance, MF_SHOOTABLE, ML_BLOCKEVERYTHING, source, trace,	flags, ProcessRailHit, &rail_data);
+	Trace(start, source->Sector, direction, p->distance, MF_SHOOTABLE, ML_BLOCKEVERYTHING, source, trace, flags, ProcessRailHit, &rail_data);
 
 	// Hurt anything the trace hit
 	unsigned int i;
@@ -6877,15 +6909,19 @@ bool P_ChangeSector(sector_t *sector, int crunch, double amt, int floorOrCeil, b
 //
 //==========================================================================
 
-void SpawnShootDecal(AActor *t1, AActor *defaults, const FTraceResults &trace)
+void SpawnShootDecal(AActor *t1, AActor *defaults, const FTraceResults &trace, int hand)
 {
 	FDecalBase *decalbase = nullptr;
 
-	if (defaults->player != nullptr && defaults->player->ReadyWeapon != nullptr)
+	if (defaults->player != nullptr)
 	{
-		decalbase = defaults->player->ReadyWeapon->DecalGenerator;
+		AActor* weapon = hand ? defaults->player->OffhandWeapon : defaults->player->ReadyWeapon;
+		if (weapon != nullptr)
+		{
+			decalbase = defaults->player->ReadyWeapon->DecalGenerator;
+		}
 	}
-	else
+	if (decalbase == nullptr)
 	{
 		decalbase = defaults->DecalGenerator;
 	}

@@ -220,6 +220,7 @@ Sound Options,OPTMNU_SOUND,,,,Nastavení zvuku,Soundeinstellungen,,Sono-Agordoj,
 Display Options,OPTMNU_DISPLAY,,,,Nastavení grafiky,Anzeigeeinstellungen,,Ekrano-Agordoj,Opciones de Visualización,,Näyttöasetukset,Options de l'Affichage,Megjelenítés beállítások,Opzioni Display,ディスプレイ オプション,디스플레이 설정,Weergaveopties,Opcje Wyświetlania,Opções de vídeo,,Setări afișare,Экран,Приказ
 Set video mode,OPTMNU_VIDEO,,,,Nastavit režim displeje,Videomodus,,Agordi videoreĝimon,Modos de Vídeo,,Aseta videotila,Choisir Mode D'Affichage,Videó beállítások,Settaggio modalità video,ビデオ 調整,화면 설정,Videomodus instellen,Ustaw tryb wideo,Definir modo de vídeo,,Setare mod video,Видеорежим,Видео мод
 Reset to defaults,OPTMNU_DEFAULTS,,,,Obnovit původní,Auf Vorgaben zurücksetzen,,Restarigi al defaŭltoj,Valores por Defecto,,Palauta oletusasetukset,Réinitialiser les paramètres,Alapértelmezett beállítások használata,Reimposta ai valori di default,初期設定に戻す,초기화,Terugzetten naar standaardinstellingen,Resetuj do domyślnych,Redefinir para configurações padrão,,Revenire la setări implicite,Сбросить все настройки,Врати подразумевано
+Update missing defaults,OPTMNU_UPDATEMISSING,,,,,,,,,,,,,,,,,,,,,,
 Reset to last saved,OPTMNU_RESETTOSAVED,,,,Obnovit naposledy uložené,Auf gespeicherte Werte zurücksetzen,,Restarigi al lasta konservita,Últimos Valores Guardados,,Palauta viimeksi tallennettu tila,Recharger dernière config.,Legutóbbi mentett beállítások használata,Reimposta ai valori salvati l'ultima volta,最後に保存した設定に戻す,이전 설정으로 초기화,Reset naar laatste opgeslagen,Resetuj do ostatnio zapisanych,Redefinir para a última configuração salva,Redefinir para última configuração gravada,Revenire la ultimele setări salvate,Вернуть предыдущие настройки,Врати задње сачувано
 Save current settings,OPTMNU_WRITEINI,,,,Uložit současná nastavení,Aktuelle Einstellungen speichern,,Konservi nunajn reĝimojn,,,Tallenna nykyiset asetukset,,Jelenlegi beállítások mentése,,現在の設定を保存,,Huidige instellingen opslaan ,Zapisz aktualne opcje,Salvar configurações atuais,,Salvează setările curente,,
 Go to console,OPTMNU_CONSOLE,,,,Jít do konzole,Öffne Konsole,,Iri al konzolo,Ir a la consola,,Mene konsoliin,Ouvrir la console,Konzol megnyitása,Vai alla console,コンソールを開く,콘솔로 이동,Ga naar de console,Przejdź do konsoli,Abrir console,Abrir consola,Mergi la consolă,Открыть консоль,Отвори конзолу
@@ -233,6 +234,8 @@ Appuyez sur ECHAP pour annuler.","Nyomj meg egy gombot, ESC a törléshez","Prem
 Controls,CNTRLMNU_CONTROLS,,,,Ovládání,Steuerung,,Regiloj,Controles,,Ohjaimet,Contrôles,Irányítás,Controlli,操作系統,조작,Bedieningselementen,Klawisze,Comandos,Controlos,Control,Управление,Контроле
 Fire,CNTRLMNU_ATTACK,,,,Střelba,Feuer,,Pafi,Fuego,,Tuli,Tirer,Tűz,Fuoco,撃つ,공격,Vuur,Strzał,Atirar,,Foc,Атака,Нападни
 Secondary Fire,CNTRLMNU_ALTATTACK,,,,Sekundární střelba,Alternativfeuer,,Pafi Duarange,Fuego secundario,,Vaihtoehtoistuli,Tir Secondaire,Másodlagos tüzelés,Fuoco secondario,セカンダリ,보조 공격,Secundaire vuur,Strzał Alternatywny,Tiro secundário,,Foc Secundar,Вторичная атака,Секундарни напад
+Offhand Fire,CNTRLMNU_OH_ATTACK,,,,,,,,,,,,,,,,,,,,,,
+Offhand Secondary Fire,CNTRLMNU_OH_ALTATTACK,,,,,,,,,,,,,,,,,,,,,,
 Weapon Reload,CNTRLMNU_RELOAD,,,,Přebít zbraň,Waffe nachladen,Επαναφόρτωση Όπλου,Reŝargi Armilon,Recargar Arma,,Aseen lataus,Recharger Arme,Fegyver újratöltése,Ricarica dell'arma,リロード,무기 장전,Wapenherladen,Przeładowanie Broni,Recarregar arma,,Încărcare Armă,Перезарядка,Напуни
 Use / Open,CNTRLMNU_USE,,,,Použít / otevřít,Benutzen / Öffnen,,Uzi / Malfermi,Usar / Abrir,,Käytä / Avaa,Utiliser/Ouvrir,Akciógomb/Nyitás,Usa / Apri,開く / スイッチ等使用,사용/열기,Gebruik / Openen,Użyj / Otwórz,Usar / Abrir,,Folosește / Deschide,Использовать/открыть,Користи / Отвори
 Move forward,CNTRLMNU_FORWARD,,,,Pohyb vpřed,Vorwärts bewegen,,Movi anatŭen,Avanzar,,Liiku eteenpäin,Avancer,Előre mozgás,Movimento in Avanti,前進,앞으로 이동,Voorwaarts bewegen,Idź do przodu,Mover-se para frente,,Deplasare în față,Движение вперёд,Крећи се напред
@@ -266,6 +269,10 @@ Customize Other Controls,CNTRLMNU_OTHER_TITLE,,,,Nastavit ostatní ovládání,S
 Weapons,CNTRLMNU_WEAPONS,,,,Zbraně,Waffen,,Armiloj,Armas,,Aseet,Armes,Fegyverek,Armi,武器,무기,Wapens,Bronie,Armas,,Arme,Оружие,Оружје
 Next weapon,CNTRLMNU_NEXTWEAPON,,,,Další zbraň,Nächste Waffe,,Sekva armilo,Arma siguiente,,Seuraava ase,Arme Suivante,Következő fegyver,Arma successiva,次の武器,다음 무기,Volgende wapen,Następna broń,Arma seguinte,,Arma următoare,Следующее оружие,Следеће оружје
 Previous weapon,CNTRLMNU_PREVIOUSWEAPON,,,,Předchozí zbraň,Vorherige Waffe,,Antaŭa armilo,Arma anterior,,Edellinen ase,Arme Précédente,Előző fegyver,Arma precedente,前の武器,이전 무기,Vorige wapen,Poprzednia broń,Arma anterior,,Arma anterioară,Предыдущее оружие,Претходно оружје
+Next offhand weapon,CNTRLMNU_OFFHAND_NEXTWEAPON,,,,,,,,,,,,,,,,,,,,,,
+Previous offhand weapon,CNTRLMNU_OFFHAND_PREVIOUSWEAPON,,,,,,,,,,,,,,,,,,,,,,
+Move weapon to mainhand,CNTRLMNU_SWITCH_TO_MAINHAND,,,,,,,,,,,,,,,,,,,,,,
+Move weapon to offhand,CNTRLMNU_SWITCH_TO_OFFHAND,,,,,,,,,,,,,,,,,,,,,,
 Weapon 1,CNTRLMNU_SLOT1,Todo - make game specific,,,Slot zbraně 1,Waffe 1,,Armilo 1,Arma 1,,Aselokero 1,Emplacement D'Arme 1,1. fegyver,Slot arma 1,武器スロット 1,무기 슬롯 1,Wapenslot 1,Broń 1,Arma 1,,Arma 1,Оружие 1,Оружје 1
 Weapon 2,CNTRLMNU_SLOT2,"only show appropriate slots per game
 ",,,Slot zbraně 2,Waffe 2,,Armilo 2,Arma 2,,Aselokero 2,Emplacement D'Arme 2,2. fegyver,Slot arma 2,武器スロット 2,무기 슬롯 2,Wapenslot 2,Broń 2,Arma 2,,Arma 2,Оружие 2,Оружје 2

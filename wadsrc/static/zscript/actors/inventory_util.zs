@@ -349,6 +349,7 @@ extend class Actor
 		if (player != null)
 		{
 			player.ReadyWeapon = null;
+			player.OffhandWeapon = null;
 			player.PendingWeapon = WP_NOCHANGE;
 		}
 	}
@@ -794,7 +795,8 @@ extend class Actor
 
 		if (weaponitem != NULL)
 		{
-			if (player.ReadyWeapon != weaponitem)
+			if ((!weaponitem.bOffhandWeapon && player.ReadyWeapon != weaponitem) ||
+				(weaponitem.bOffhandWeapon && player.OffhandWeapon != weaponitem))
 			{
 				player.PendingWeapon = weaponitem;
 			}

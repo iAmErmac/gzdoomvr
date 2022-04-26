@@ -302,11 +302,30 @@ CCMD (turnspeeds)
 	}
 }
 
+CCMD(switchhand)
+{
+	if (argv.argc() > 1)
+	{
+		int hand = atoi(argv[1]);
+		auto mo = players[consoleplayer].mo;
+		IFVIRTUALPTRNAME(mo, NAME_PlayerPawn, SwitchWeaponHand)
+		{
+			VMValue param[] = { mo, hand };
+			VMCall(func, param, 2, nullptr, 0);
+		}
+	}
+}
+
 CCMD (slot)
 {
 	if (argv.argc() > 1)
 	{
 		int slot = atoi (argv[1]);
+		int hand = 0;
+		if (argv.argc() > 2)
+		{
+			hand = atoi(argv[2]);
+		}
 
 		auto mo = players[consoleplayer].mo;
 		if (slot < NUM_WEAPON_SLOTS && mo)
@@ -314,15 +333,16 @@ CCMD (slot)
 			// Needs to be redone
 			IFVIRTUALPTRNAME(mo, NAME_PlayerPawn, PickWeapon)
 			{
-				VMValue param[] = { mo, slot, !(dmflags2 & DF2_DONTCHECKAMMO) };
+				VMValue param[] = { mo, slot, !(dmflags2 & DF2_DONTCHECKAMMO), hand };
 				VMReturn ret((void**)&SendItemUse);
-				VMCall(func, param, 3, &ret, 1);
+				VMCall(func, param, 4, &ret, 1);
 			}
 		}
 
 		// [Nash] Option to display the name of the weapon being switched to.
 		if ((paused || pauseext) || players[consoleplayer].playerstate != PST_LIVE) return;
-		if (SendItemUse != players[consoleplayer].ReadyWeapon && (displaynametags & 2) && StatusBar && SmallFont && SendItemUse)
+		auto weapon = hand ? players[consoleplayer].OffhandWeapon : players[consoleplayer].ReadyWeapon;
+		if (SendItemUse != weapon && (displaynametags & 2) && StatusBar && SmallFont && SendItemUse)
 		{
 			StatusBar->AttachMessage(Create<DHUDMessageFadeOut>(nullptr, SendItemUse->GetTag(),
 				1.5f, 0.90f, 0, 0, (EColorRange)*nametagcolor, 2.f, 0.35f), MAKE_ID('W', 'E', 'P', 'N'));
@@ -357,15 +377,20 @@ CCMD (turn180)
 
 CCMD (weapnext)
 {
+	int hand = 0;
+	if (argv.argc() > 1)
+	{
+		hand = atoi(argv[1]);
+	}
 	auto mo = players[consoleplayer].mo;
 	if (mo)
 	{
 		// Needs to be redone
 		IFVIRTUALPTRNAME(mo, NAME_PlayerPawn, PickNextWeapon)
 		{
-			VMValue param[] = { mo };
+			VMValue param[] = { mo, hand };
 			VMReturn ret((void**)&SendItemUse);
-			VMCall(func, param, 1, &ret, 1);
+			VMCall(func, param, 2, &ret, 1);
 		}
 	}
 
@@ -376,7 +401,8 @@ CCMD (weapnext)
 		StatusBar->AttachMessage(Create<DHUDMessageFadeOut>(nullptr, SendItemUse->GetTag(),
 			1.5f, 0.90f, 0, 0, (EColorRange)*nametagcolor, 2.f, 0.35f), MAKE_ID( 'W', 'E', 'P', 'N' ));
 	}
-	if (SendItemUse != players[consoleplayer].ReadyWeapon)
+	auto weapon = hand ? players[consoleplayer].OffhandWeapon : players[consoleplayer].ReadyWeapon;
+	if (SendItemUse != weapon)
 	{
 		S_Sound(CHAN_AUTO, 0, "misc/weaponchange", 1.0, ATTN_NONE);
 	}
@@ -384,15 +410,20 @@ CCMD (weapnext)
 
 CCMD (weapprev)
 {
+	int hand = 0;
+	if (argv.argc() > 1)
+	{
+		hand = atoi(argv[1]);
+	}
 	auto mo = players[consoleplayer].mo;
 	if (mo)
 	{
 		// Needs to be redone
 		IFVIRTUALPTRNAME(mo, NAME_PlayerPawn, PickPrevWeapon)
 		{
-			VMValue param[] = { mo };
+			VMValue param[] = { mo, hand };
 			VMReturn ret((void**)&SendItemUse);
-			VMCall(func, param, 1, &ret, 1);
+			VMCall(func, param, 2, &ret, 1);
 		}
 	}
 
@@ -403,7 +434,8 @@ CCMD (weapprev)
 		StatusBar->AttachMessage(Create<DHUDMessageFadeOut>(nullptr, SendItemUse->GetTag(),
 			1.5f, 0.90f, 0, 0, (EColorRange)*nametagcolor, 2.f, 0.35f), MAKE_ID( 'W', 'E', 'P', 'N' ));
 	}
-	if (SendItemUse != players[consoleplayer].ReadyWeapon)
+	auto weapon = hand ? players[consoleplayer].OffhandWeapon : players[consoleplayer].ReadyWeapon;
+	if (SendItemUse != weapon)
 	{
 		S_Sound(CHAN_AUTO, 0, "misc/weaponchange", 1.0, ATTN_NONE);
 	}
@@ -491,7 +523,12 @@ CCMD (invdrop)
 
 CCMD (weapdrop)
 {
-	SendItemDrop = players[consoleplayer].ReadyWeapon;
+	int hand = 0;
+	if (argv.argc() > 1)
+	{
+		hand = atoi(argv[1]) ? 1 : 0;
+	}
+	SendItemDrop = hand ? players[consoleplayer].OffhandWeapon : players[consoleplayer].ReadyWeapon;
 	SendItemDropAmount = -1;
 }
 
@@ -664,6 +701,8 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 	// buttons
 	if (buttonMap.ButtonDown(Button_Attack))		cmd->ucmd.buttons |= BT_ATTACK;
 	if (buttonMap.ButtonDown(Button_AltAttack))		cmd->ucmd.buttons |= BT_ALTATTACK;
+	if (buttonMap.ButtonDown(Button_OH_Attack))		cmd->ucmd.buttons |= BT_OFFHANDATTACK;
+	if (buttonMap.ButtonDown(Button_OH_AltAttack))	cmd->ucmd.buttons |= BT_OFFHANDALTATTACK;
 	if (buttonMap.ButtonDown(Button_Use))			cmd->ucmd.buttons |= BT_USE;
 	if (buttonMap.ButtonDown(Button_Jump))			cmd->ucmd.buttons |= BT_JUMP;
 	if (buttonMap.ButtonDown(Button_Crouch))		cmd->ucmd.buttons |= BT_CROUCH;

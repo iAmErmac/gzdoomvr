@@ -125,7 +125,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 		float sy;
 
 		//TODO Cleanup code for rendering weapon models from sprites in VR mode
-		if (psp->GetID() == PSP_WEAPON && vrmode->RenderPlayerSpritesCrossed())
+		if ((psp->GetID() == PSP_WEAPON || psp->GetID() == PSP_OFFHANDWEAPON) && vrmode->RenderPlayerSpritesCrossed())
 		{
 			if (r_PlayerSprites3DMode == BACK_ONLY)
 				return;
@@ -150,7 +150,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 			float vw = (float)viewwidth;
 			float vh = (float)viewheight;
 
-			FState* spawn = wi->FindState(NAME_Spawn);
+			FState* spawn = psp->GetCaller()->FindState(NAME_Spawn);
 
 			lump = sprites[spawn->sprite].GetSpriteFrame(0, 0, 0., &mirror);
 			if (!lump.isValid()) return;
@@ -355,10 +355,34 @@ static FVector2 BobWeapon(WeaponPosition &weap, DPSprite *psp, double ticFrac)
 		sy += weap.boby;
 	}
 
-	if (psp->Flags & PSPF_ADDWEAPON && psp->GetID() != PSP_WEAPON)
+	DPSprite* readyWeaponPsp = r_viewpoint.camera->player->FindPSprite(PSP_WEAPON);
+	DPSprite* offhandWeaponPsp = r_viewpoint.camera->player->FindPSprite(PSP_OFFHANDWEAPON);
+	float wx, wy;
+
+	if (psp->Flags & PSPF_ADDWEAPON && !(psp->GetID() == PSP_WEAPON || psp->GetID() == PSP_OFFHANDWEAPON))
 	{
-		sx += weap.wx;
-		sy += weap.wy;
+		// Interpolate the main weapon layer once so as to be able to add it to other layers.
+		DPSprite* weapon = psp->GetCaller() == r_viewpoint.camera->player->ReadyWeapon ? readyWeaponPsp : offhandWeaponPsp;
+		if (weapon != nullptr)
+		{
+			if (weapon->firstTic)
+			{
+				wx = weapon->x;
+				wy = weapon->y;
+			}
+			else
+			{
+				wx = weapon->oldx + (weapon->x - weapon->oldx) * r_viewpoint.TicFrac;
+				wy = weapon->oldy + (weapon->y - weapon->oldy) * r_viewpoint.TicFrac;
+			}
+		}
+		else
+		{
+			wx = 0.0001f;
+			wy = 0.0001f;
+		}
+		sx += wx;
+		sy += wy;
 	}
 	return { sx, sy };
 }
@@ -760,7 +784,7 @@ void HWDrawInfo::PreparePlayerSprites(sector_t * viewsector, area_t in_area)
 	for (DPSprite *psp = player->psprites; psp != nullptr && psp->GetID() < PSP_TARGETCENTER; psp = psp->GetNext())
 	{
 		if (!psp->GetState()) continue;
-		FSpriteModelFrame *smf = psp->Caller != nullptr ? FindModelFrame(psp->Caller->GetClass(), psp->GetSprite(), psp->GetFrame(), false) : nullptr;
+		FSpriteModelFrame *smf = psp->GetCaller() != nullptr ? FindModelFrame(psp->GetCaller()->GetClass(), psp->GetSprite(), psp->GetFrame(), false) : nullptr;
 		// This is an 'either-or' proposition. This maybe needs some work to allow overlays with weapon models but as originally implemented this just won't work.
 		if (smf && !hudModelStep) continue;
 		if (!smf && hudModelStep) continue;

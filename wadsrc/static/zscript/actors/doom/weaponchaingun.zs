@@ -56,10 +56,13 @@ extend class StateProvider
 		{
 			return;
 		}
-
-		Weapon weap = player.ReadyWeapon;
+		int hand = 0;
+		int alflags = 0;
+		Weapon weap = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 		if (weap != null && invoker == weap && stateinfo != null && stateinfo.mStateType == STATE_Psprite)
 		{
+			hand = weap.bOffhandWeapon ? 1 : 0;
+			alflags |= hand ? ALF_ISOFFHAND : 0;
 			if (!weap.DepleteAmmo (weap.bAltFire, true, 1))
 				return;
 
@@ -70,7 +73,7 @@ extend class StateProvider
 			{
 				// Removed most of the mess that was here in the C++ code because SetSafeFlash already does some thorough validation.
 				State atk = weap.FindState('Fire');
-				let psp = player.GetPSprite(PSP_WEAPON);
+				let psp = player.GetPSprite(hand ? PSP_OFFHANDWEAPON : PSP_WEAPON);
 				if (psp) 
 				{
 					State cur = psp.CurState;
@@ -80,7 +83,7 @@ extend class StateProvider
 			}
 		}
 		player.mo.PlayAttacking2 ();
-
-		GunShot (!player.refire, "BulletPuff", BulletSlope ());
+		
+		GunShot (!player.refire, "BulletPuff", BulletSlope (aimflags: alflags));
 	}
 }

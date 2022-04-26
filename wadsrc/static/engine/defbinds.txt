@@ -8,3 +8,11 @@ space +jump
 x crouch
 e +use
 mouse2 +altattack
+axis4plus weapnext
+axis4minus weapprev
+axis7plus "weapprev 1"
+axis7minus "weapnext 1"
+axis6plus "switchhand 0"
+axis6minus "switchhand 1"
+alt +oh_altatk
+shift +oh_attack

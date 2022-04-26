@@ -6058,15 +6058,19 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			break;
 
 		case ACSF_GetWeapon:
-            if (activator == NULL || activator->player == NULL || // Non-players do not have weapons
-                activator->player->ReadyWeapon == NULL)
-            {
-                return GlobalACSStrings.AddString("None");
-            }
-            else
-            {
-				return GlobalACSStrings.AddString(activator->player->ReadyWeapon->GetClass()->TypeName.GetChars());
-            }
+		{
+			int hand = (argCount > 0) ? args[0] : 0;
+			AActor* weap = hand ? activator->player->OffhandWeapon : activator->player->ReadyWeapon;
+			if (activator == NULL || activator->player == NULL || // Non-players do not have weapons
+				weap == NULL)
+			{
+				return GlobalACSStrings.AddString("None");
+			}
+			else
+			{
+				return GlobalACSStrings.AddString(weap->GetClass()->TypeName.GetChars());
+			}
+		}
 
 		case ACSF_SpawnDecal:
 			// int SpawnDecal(int tid, str decalname, int flags, fixed angle, int|fixed zoffset, int|fixed distance)
@@ -9654,15 +9658,18 @@ scriptwait:
 			break;
 
         case PCD_CHECKWEAPON:
-            if (activator == NULL || activator->player == NULL || // Non-players do not have weapons
-                activator->player->ReadyWeapon == NULL)
-            {
-                STACK(1) = 0;
-            }
-            else
-            {
-				STACK(1) = activator->player->ReadyWeapon->GetClass()->TypeName == FName(Level->Behaviors.LookupString (STACK(1)), true);
-            }
+			if (activator == NULL || activator->player == NULL || // Non-players do not have weapons
+				(activator->player->ReadyWeapon == NULL && activator->player->OffhandWeapon == NULL))
+			{
+				STACK(1) = 0;
+			}
+			else
+			{
+				auto weapname = FName(Level->Behaviors.LookupString(STACK(1)), true);
+				bool ismain = activator->player->ReadyWeapon && activator->player->ReadyWeapon->GetClass()->TypeName == weapname;
+				bool isoffhand = activator->player->OffhandWeapon && activator->player->OffhandWeapon->GetClass()->TypeName == weapname;
+				STACK(1) = ismain || isoffhand;
+			}
             break;
 
 		case PCD_SETWEAPON:

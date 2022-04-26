@@ -951,6 +951,7 @@ namespace s3d
 	{
 
 		GetWeaponTransform(&gl_RenderState.mModelMatrix);
+		GetOffhandWeaponTransform(&gl_RenderState.mModelMatrix);
 
 		float scale = 0.00125f * openvr_weaponScale;
 		gl_RenderState.mModelMatrix.scale(scale, -scale, scale);
@@ -1044,10 +1045,17 @@ namespace s3d
 
 	bool OpenVRMode::GetOffhandWeaponTransform(VSMatrix* out) const
 	{
+		player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
+		bool autoReverse = true;
+		if (player)
+		{
+			AActor* weap = player->OffhandWeapon;
+			autoReverse = weap == nullptr || !(weap->IntVar(NAME_WeaponFlags) & WIF_NO_AUTO_REVERSE);
+		}
 		if (GetHandTransform(openvr_rightHanded ? 0 : 1, out))
 		{
 			out->rotate(openvr_weaponRotate, 1, 0, 0);
-			if (openvr_rightHanded)
+			if (autoReverse)
 				out->scale(-1.0f, 1.0f, 1.0f);
 			return true;
 		}
@@ -1075,6 +1083,40 @@ namespace s3d
 		LSMatrix44 mat;
 		auto vrmode = VRMode::GetVRMode(true);
 		if (!vrmode->GetWeaponTransform(&mat))
+		{
+			double pc = pitch.Cos();
+
+			DVector3 direction = { pc * yaw.Cos(), pc * yaw.Sin(), -pitch.Sin() };
+			return direction;
+		}
+		double pc = pitch.Cos();
+
+		DVector3 refdirection = { pc * yaw.Cos(), pc * yaw.Sin(), -pitch.Sin() };
+
+		yaw -= actor->Angles.Yaw;
+
+		//ignore specified pitch(would need to compensate for auto aimand no(vanilla) Doom weapon varies this)
+		//pitch -= actor->Angles.Pitch;
+		pitch.Degrees = 0;
+
+		pc = pitch.Cos();
+
+		LSVec3 local = { (float)(pc * yaw.Cos()), (float)(pc * yaw.Sin()), (float)(-pitch.Sin()), 0.0f };
+
+		DVector3 dir;
+		dir.X = local.x * -mat[2][0] + local.y * -mat[0][0] + local.z * -mat[1][0];
+		dir.Y = local.x * -mat[2][2] + local.y * -mat[0][2] + local.z * -mat[1][2];
+		dir.Z = local.x * -mat[2][1] + local.y * -mat[0][1] + local.z * -mat[1][1];
+		dir.MakeUnit();
+
+		return dir;
+	}
+
+	static DVector3 MapOffhandDir(AActor* actor, DAngle yaw, DAngle pitch)
+	{
+		LSMatrix44 mat;
+		auto vrmode = VRMode::GetVRMode(true);
+		if (!vrmode->GetOffhandWeaponTransform(&mat))
 		{
 			double pc = pitch.Cos();
 
@@ -1337,7 +1379,6 @@ namespace s3d
 			}
 		}
 		// Offhand trigger is now bindable (sort of)
-		// TODO: need to fix the bug where it expects another input after pressing trigger in a key inputbox
 		// Offhand trigger = Run, Grip + Offhand trigger = unmapped
 		if (role != DominantHandRole)
 		{
@@ -1373,7 +1414,7 @@ namespace s3d
 		// Y/B
 		// Y = Automap, Grip + Y = Fly Up
 		// B = Jump, Grip + B = Main menu
-		// B will be defaulted to Menu button if grip combo is disabled
+		// Y will be defaulted to Menu button if grip combo is disabled
 		if (dominantGripPushed || !vr_secondary_button_mappings) {
 			HandleVRButton(lastState, newState, openvr::vr::k_EButton_ApplicationMenu, KEY_PGUP, role * (KEY_PAD_BACK - KEY_PGUP));
 		}
@@ -1738,6 +1779,8 @@ namespace s3d
 					player->mo->OffhandAngle = -deltaYawDegrees - 180 - offhandangles[YAW];
 					player->mo->OffhandPitch = -30 - offhandangles[PITCH];
 					player->mo->OffhandRoll = offhandangles[ROLL];
+
+					player->mo->OffhandDir = MapOffhandDir;
 				}
 
 				// Teleport locomotion. Thanks to DrBeef for the codes

@@ -386,7 +386,7 @@ extend class Actor
 		{
 			let player = self.player;
 			if (player == null) return false, null;
-			let weapon = player.ReadyWeapon;
+			let weapon = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 			// Used from a weapon, so use some ammo
 
 			if (weapon == NULL || (useammo && !weapon.DepleteAmmo(weapon.bAltFire)))
@@ -489,7 +489,7 @@ extend class Actor
 		{
 			let player = self.player;
 			if (player == null) return false, null;
-			let weapon = player.ReadyWeapon;
+			let weapon = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 			// Used from a weapon, so use some ammo
 
 			if (weapon == NULL || (useammo && !weapon.DepleteAmmo(weapon.bAltFire)))

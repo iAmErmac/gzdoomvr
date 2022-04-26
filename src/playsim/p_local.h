@@ -116,7 +116,7 @@ AActor *P_OldSpawnMissile(AActor *source, AActor *owner, AActor *dest, PClassAct
 AActor *P_SpawnMissile (AActor* source, AActor* dest, PClassActor *type, AActor* owner = NULL);
 AActor *P_SpawnMissileZ(AActor* source, double z, AActor* dest, PClassActor *type);
 AActor *P_SpawnMissileXYZ(DVector3 pos, AActor *source, AActor *dest, PClassActor *type, bool checkspawn = true, AActor *owner = NULL);
-AActor *P_SpawnMissileAngleZSpeed(AActor *source, double z, PClassActor *type, DAngle angle, double vz, double speed, AActor *owner = NULL, bool checkspawn = true);
+AActor* P_SpawnMissileAngleZSpeed(AActor* source, double z, PClassActor* type, DAngle angle, double vz, double speed, AActor* owner = NULL, bool checkspawn = true, int aimflags = 0);
 AActor *P_SpawnMissileZAimed(AActor *source, double z, AActor *dest, PClassActor *type);
 
 
@@ -126,7 +126,7 @@ AActor *P_SpawnPlayerMissile (AActor *source, double x, double y, double z, PCla
 
 void P_CheckFakeFloorTriggers(AActor *mo, double oldz, bool oldz_has_viewheight = false);
 
-AActor *P_SpawnSubMissile (AActor *source, PClassActor *type, AActor *target);	// Strife uses it
+AActor* P_SpawnSubMissile(AActor* source, PClassActor* type, AActor* target, int aimflags = 0);	// Strife uses it
 
 
 //
@@ -309,6 +309,7 @@ enum	// P_AimLineAttack flags
 	ALF_NOFRIENDS = 16,
 	ALF_PORTALRESTRICT = 32,	// only work through portals with a global offset (to be used for stuff that cannot remember the calculated FTranslatedLineTarget info)
 	ALF_NOWEAPONCHECK = 64,		// ignore NOAUTOAIM flag on a player's weapon.
+	ALF_ISOFFHAND = 128,
 };
 
 enum	// P_LineAttack flags
@@ -321,6 +322,7 @@ enum	// P_LineAttack flags
 	LAF_OVERRIDEZ =     1 << 5,
 	LAF_ABSOFFSET =     1 << 6,
 	LAF_ABSPOSITION =   1 << 7,
+	LAF_ISOFFHAND = 1 << 8,
 };
 
 AActor *P_LineAttack(AActor *t1, DAngle angle, double distance, DAngle pitch, int damage, FName damageType, PClassActor *pufftype, int flags = 0, FTranslatedLineTarget *victim = NULL, int *actualdamage = NULL, double sz = 0.0, double offsetforward = 0.0, double offsetside = 0.0);
@@ -382,6 +384,7 @@ enum	// P_RailAttack / A_RailAttack / A_CustomRailgun / P_DrawRailTrail flags
 	RAF_FULLBRIGHT = 8,
 	RAF_CENTERZ = 16,
 	RAF_NORANDOMPUFFZ = 32,
+	RAF_ISOFFHAND = 64,
 };
 
 
