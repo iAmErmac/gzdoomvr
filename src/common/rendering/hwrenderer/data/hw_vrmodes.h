@@ -82,6 +82,7 @@ struct VRMode
 	virtual bool GetWeaponTransform(VSMatrix* out) const { return false; }
 	virtual bool RenderPlayerSpritesCrossed() const { return false; }
 	virtual bool RenderPlayerSpritesInScene() const { return false; }
+	virtual bool GetTeleportLocation(DVector3& out) const { return false; }
 	virtual bool IsInitialized() const { return true; }
 	virtual void Vibrate(float duration, int channel, float intensity) const { }
 };

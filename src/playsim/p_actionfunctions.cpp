@@ -84,6 +84,8 @@ static FRandom pr_teleport("A_Teleport");
 static FRandom pr_bfgselfdamage("BFGSelfDamage");
 FRandom pr_cajump("CustomJump");
 
+CVAR(Bool, vr_recoil, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+
 //==========================================================================
 //
 // ACustomInventory :: CallStateChain
@@ -1274,6 +1276,13 @@ DEFINE_ACTION_FUNCTION(AActor, A_Recoil)
 {
 	PARAM_SELF_PROLOGUE(AActor);
 	PARAM_FLOAT(xyvel);
+
+	//We don't want to adjust the player's camera - that could make them sick
+	player_t* player = players[consoleplayer].camera ? players[consoleplayer].camera->player : nullptr;
+	if (!vr_recoil && player != nullptr && self != nullptr && player->mo == self)
+	{
+		return 0;
+	}
 
 	self->Thrust(self->Angles.Yaw + 180., xyvel);
 	return 0;
@@ -2802,6 +2811,14 @@ DEFINE_ACTION_FUNCTION(AActor, A_SetAngle)
 	PARAM_INT(ptr);
 
 	AActor *ref = COPY_AAPTR(self, ptr);
+
+	//We don't want to adjust the player's camera - that could make them sick
+	player_t* player = players[consoleplayer].camera ? players[consoleplayer].camera->player : nullptr;
+	if (!vr_recoil && player != nullptr && ref != nullptr && player->mo == ref)
+	{
+		return 0;
+	}
+
 	if (ref != NULL)
 	{
 		ref->SetAngle(angle, flags);
@@ -2826,6 +2843,13 @@ DEFINE_ACTION_FUNCTION(AActor, A_SetPitch)
 
 	AActor *ref = COPY_AAPTR(self, ptr);
 
+	//We don't want to adjust the player's camera - that could make them sick
+	player_t* player = players[consoleplayer].camera ? players[consoleplayer].camera->player : nullptr;
+	if (!vr_recoil && player != nullptr && ref != nullptr && player->mo == ref)
+	{
+		return 0;
+	}
+
 	if (ref != NULL)
 	{
 		ref->SetPitch(pitch, flags);
@@ -2848,6 +2872,13 @@ DEFINE_ACTION_FUNCTION(AActor, A_SetRoll)
 	PARAM_INT	(flags);
 	PARAM_INT	(ptr)	;
 	AActor *ref = COPY_AAPTR(self, ptr);
+
+	//We don't want to adjust the player's camera - that could make them sick
+	player_t* player = players[consoleplayer].camera ? players[consoleplayer].camera->player : nullptr;
+	if (!vr_recoil && player != nullptr && ref != nullptr && player->mo == ref)
+	{
+		return 0;
+	}
 
 	if (ref != NULL)
 	{
@@ -3431,7 +3462,7 @@ DEFINE_ACTION_FUNCTION(AActor, A_WolfAttack)
 
 	// Target can dodge if it can see enemy
 	DAngle angle = absangle(self->target->Angles.Yaw, self->target->AngleTo(self));
-	bool dodge = (P_CheckSight(self->target, self) && angle < 30. * 256. / 360.);	// 30 byteangles ~ 21°
+	bool dodge = (P_CheckSight(self->target, self) && angle < 30. * 256. / 360.);	// 30 byteangles ~ 21ï¿½
 
 	// Distance check is simplistic
 	DVector2 vec = self->Vec2To(self->target);

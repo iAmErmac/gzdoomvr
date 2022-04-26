@@ -591,6 +591,15 @@ void FGameConfigFile::DoGlobalSetup ()
 					if (v.Float < 1.f) v.Float = 1.f;
 				}
 			}
+			if (last < 223)
+			{
+				auto var = FindCVar("gl_sprite_distance_cull", NULL);
+				if (var != NULL) var->ResetToDefault();
+				var = FindCVar("r_sprite_distance_cull", NULL);
+				if (var != NULL) var->ResetToDefault();
+				var = FindCVar("r_line_distance_cull", NULL);
+				if (var != NULL) var->ResetToDefault();
+			}
 		}
 	}
 }

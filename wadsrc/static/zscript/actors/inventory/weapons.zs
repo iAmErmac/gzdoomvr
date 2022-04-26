@@ -446,6 +446,11 @@ class Weapon : StateProvider
 
 	action void A_ZoomFactor(double zoom = 1, int flags = 0)
 	{
+	    CVar recoil = CVar.FindCVar('vr_recoil');
+		if (!recoil.GetBool())
+		{
+			return;
+		}
 		let player = self.player;
 		if (player != NULL && player.ReadyWeapon != NULL)
 		{

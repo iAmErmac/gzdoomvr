@@ -5,12 +5,12 @@
 OptionMenu "OptionsMenuSimple" protected
 {
 	Title "$OPTMNU_TITLE"
+	Submenu "$VRQUICKMNU",			    "GZDVRQuickMenu"
+	Submenu "$VRPREFMNU",    			"OpenVROptions"
+	StaticText " "
 	Submenu "$OPTMNU_CONTROLS",			"CustomizeControls"
 	Submenu "$OPTMNU_MOUSE",			"MouseOptions"
 	Submenu "$OPTMNU_JOYSTICK",			"JoystickOptions"
-	Submenu "$VRPREFMNU",               "OpenVROptions"
-	StaticText " "
-	Submenu "$OPTMNU_PLAYER",			"NewPlayerMenu"
 	StaticText " "
 	Submenu "$OPTMNU_PLAYER",			"NewPlayerMenu"
 	StaticText " "

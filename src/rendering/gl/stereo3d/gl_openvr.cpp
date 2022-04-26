@@ -32,6 +32,8 @@
 #include <string>
 #include <map>
 #include "gl_load/gl_system.h"
+#include "p_trace.h"
+#include "p_linetracedata.h"
 #include "doomtype.h" // Printf
 #include "d_player.h"
 #include "g_game.h" // G_Add...
@@ -91,6 +93,22 @@ typedef const char* (*LVR_GetVRInitErrorAsEnglishDescription)(EVRInitError error
 typedef bool (*LVR_IsInterfaceVersionValid)(const char* version);
 typedef uint32_t(*LVR_GetInitToken)();
 
+typedef float vec_t;
+typedef vec_t vec3_t[3];
+
+#define PITCH 0
+#define YAW 1
+#define ROLL 2
+
+vec3_t weaponangles;
+vec3_t offhandangles;
+
+bool ready_teleport;
+bool trigger_teleport;
+double HmdHeight;
+bool dominantGripPushed;
+float snapTurn;
+
 #define DEFINE_ENTRY(name) static TReqProc<OpenVRModule, L##name> name{#name};
 DEFINE_ENTRY(VR_InitInternal)
 DEFINE_ENTRY(VR_ShutdownInternal)
@@ -130,18 +148,25 @@ EXTERN_CVAR(Int, screenblocks);
 EXTERN_CVAR(Float, movebob);
 EXTERN_CVAR(Bool, gl_billboard_faces_camera);
 EXTERN_CVAR(Int, gl_multisample);
-EXTERN_CVAR(Float, vr_vunits_per_meter)
-EXTERN_CVAR(Float, vr_floor_offset)
+EXTERN_CVAR(Float, vr_vunits_per_meter);
+EXTERN_CVAR(Float, vr_floor_offset);
 EXTERN_CVAR(Float, vr_ipd);
 
-EXTERN_CVAR(Bool, openvr_rightHanded)
-EXTERN_CVAR(Bool, openvr_moveFollowsOffHand)
-EXTERN_CVAR(Bool, openvr_drawControllers)
+EXTERN_CVAR(Bool, openvr_rightHanded);
+EXTERN_CVAR(Bool, vr_use_alternate_mapping);
+EXTERN_CVAR(Bool, vr_secondary_button_mappings);
+EXTERN_CVAR(Bool, openvr_moveFollowsOffHand);
+EXTERN_CVAR(Bool, vr_teleport);
+EXTERN_CVAR(Bool, vr_teleport_forced);
+EXTERN_CVAR(Bool, openvr_drawControllers);
 EXTERN_CVAR(Float, openvr_weaponRotate);
 EXTERN_CVAR(Float, openvr_weaponScale);
 
 EXTERN_CVAR(Bool, vr_enable_haptics);
-EXTERN_CVAR(Float, vr_kill_momentum)
+EXTERN_CVAR(Float, vr_kill_momentum);
+EXTERN_CVAR(Bool, vr_crouch_use_button);
+EXTERN_CVAR(Bool, vr_snap_turning);
+EXTERN_CVAR(Float, vr_snapTurn);
 
 //HUD control
 EXTERN_CVAR(Float, vr_hud_scale);
@@ -188,10 +213,15 @@ bool IsOpenVRPresent()
 float getDoomPlayerHeightWithoutCrouch(const player_t* player)
 {
 	static float height = 0;
+	if (!vr_crouch_use_button)
+	{
+		return HmdHeight;
+	}
 	if (height == 0)
 	{
 		// Doom thinks this is where you are
-		height = player->viewheight;
+		//height = player->viewheight;
+		height = player->DefaultViewHeight();
 	}
 
 	return height;
@@ -409,7 +439,7 @@ namespace s3d
 	}
 
 	using namespace std::chrono;
-	void  OpenVRHaptics::ProcessHaptics() 
+	void  OpenVRHaptics::ProcessHaptics()
 	{
 		if (!vr_enable_haptics) {
 			return;
@@ -424,7 +454,7 @@ namespace s3d
 		for (int i = 0; i < 2; ++i) {
 			if (vibration_channel_duration[i] > 0.0f ||
 				vibration_channel_duration[i] == -1.0f) {
-				
+
 				vrSystem->TriggerHapticPulse(controllerIDs[i], 0, 3999 * vibration_channel_intensity[i]);
 
 				if (vibration_channel_duration[i] != -1.0f) {
@@ -620,6 +650,7 @@ namespace s3d
 			const player_t& player = players[consoleplayer];
 			double vh = getDoomPlayerHeightWithoutCrouch(&player); // Doom thinks this is where you are
 			double hh = ((openvr_X_hmd[1][3] - vr_floor_offset) * vr_vunits_per_meter) / pixelstretch; // HMD is actually here
+			HmdHeight = hh;
 			doom_EyeOffset[2] += hh - vh;
 			// TODO: optionally allow player to jump and crouch by actually jumping and crouching
 		}
@@ -981,19 +1012,19 @@ namespace s3d
 
 			AActor* playermo = player->mo;
 			DVector3 pos = playermo->InterpolatedPosition(r_viewpoint.TicFrac);
-		
+
 			double pixelstretch = level.info ? level.info->pixelstretch : 1.2;
 
 			mat->loadIdentity();
 			mat->translate(r_viewpoint.Pos.X, r_viewpoint.Pos.Z - getDoomPlayerHeightWithoutCrouch(player), r_viewpoint.Pos.Y);
-			mat->scale(vr_vunits_per_meter, vr_vunits_per_meter / pixelstretch , -vr_vunits_per_meter);
+			mat->scale(vr_vunits_per_meter, vr_vunits_per_meter / pixelstretch, -vr_vunits_per_meter);
 			mat->rotate(-deltaYawDegrees - 180, 0, 1, 0);
 			mat->translate(-openvr_origin.x, -vr_floor_offset, -openvr_origin.z);
 
 			LSMatrix44 handToAbs;
 			vSMatrixFromHmdMatrix34(handToAbs, controllers[hand].pose.mDeviceToAbsoluteTracking);
 			mat->multMatrix(handToAbs.transpose());
-			
+
 			return true;
 		}
 		return false;
@@ -1009,6 +1040,34 @@ namespace s3d
 			return true;
 		}
 		return false;
+	}
+
+	bool OpenVRMode::GetOffhandWeaponTransform(VSMatrix* out) const
+	{
+		if (GetHandTransform(openvr_rightHanded ? 0 : 1, out))
+		{
+			out->rotate(openvr_weaponRotate, 1, 0, 0);
+			if (openvr_rightHanded)
+				out->scale(-1.0f, 1.0f, 1.0f);
+			return true;
+		}
+		return false;
+	}
+
+	void getMainHandAngles()
+	{
+		int hand = openvr_rightHanded ? 1 : 0;
+		weaponangles[YAW] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[0]);
+		weaponangles[PITCH] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[1]);
+		weaponangles[ROLL] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[2]);
+	}
+
+	void getOffHandAngles()
+	{
+		int hand = openvr_rightHanded ? 0 : 1;
+		offhandangles[YAW] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[0]);
+		offhandangles[PITCH] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[1]);
+		offhandangles[ROLL] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[2]);
 	}
 
 	static DVector3 MapAttackDir(AActor* actor, DAngle yaw, DAngle pitch)
@@ -1031,7 +1090,7 @@ namespace s3d
 		//ignore specified pitch(would need to compensate for auto aimand no(vanilla) Doom weapon varies this)
 		//pitch -= actor->Angles.Pitch;
 		pitch.Degrees = 0;
-				
+
 		pc = pitch.Cos();
 
 		LSVec3 local = { (float)(pc * yaw.Cos()), (float)(pc * yaw.Sin()), (float)(-pitch.Sin()), 0.0f };
@@ -1088,7 +1147,12 @@ namespace s3d
 		double hmdPitchRadians,
 		double hmdRollRadians) const
 	{
-		hmdYaw = hmdYawRadians;
+		if(vr_snap_turning){
+			hmdYaw = hmdYawRadians + DEG2RAD(snapTurn);
+		}
+		else {
+			hmdYaw = hmdYawRadians;
+		}
 		double hmdpitch = hmdPitchRadians;
 		double hmdroll = hmdRollRadians;
 
@@ -1122,7 +1186,7 @@ namespace s3d
 		// Roll can be local, because it doesn't affect gameplay.
 		if (doTrackHmdRoll)
 			vp.HWAngles.Roll = RAD2DEG(-hmdroll);
-		
+
 		// Late-schedule update to renderer angles directly, too
 		if (doLateScheduledRotationTracking) {
 			if (doTrackHmdPitch) {
@@ -1205,10 +1269,9 @@ namespace s3d
 	static void HandleControllerState(int device, int role, VRControllerState_t& newState)
 	{
 		VRControllerState_t& lastState = controllers[role].lastState;
-
-		//trigger (swaps with handedness)
 		int controller = openvr_rightHanded ? role : 1 - role;
 
+		//trigger (swaps with handedness)
 		if (CurrentMenu == nullptr) //the quit menu is cancelled by any normal keypress, so don't generate the fire while in menus 
 		{
 			HandleVRAxis(lastState, newState, 1, 0, KEY_JOY4, KEY_JOY4, controller * (KEY_PAD_RTRIGGER - KEY_JOY4));
@@ -1240,6 +1303,207 @@ namespace s3d
 		HandleVRButton(lastState, newState, openvr::vr::k_EButton_SteamVR_Touchpad, KEY_PAD_X, role * (KEY_PAD_Y - KEY_PAD_X));
 
 		lastState = newState;
+	}
+
+	// Alternate controller mapping for Oculus, mapping is now similar to QuestZDoom and supports grip combo if enabled
+	static void HandleAlternateControllerMapping(int device, int role, VRControllerState_t& newState)
+	{
+		VRControllerState_t& lastState = controllers[role].lastState;
+		int controller = openvr_rightHanded ? role : 1 - role;
+
+		// Check if main hand grip button is hold down
+		int DominantHandRole = openvr_rightHanded ? 1 : 0;
+		if (vr_secondary_button_mappings
+			&& (lastState.ulButtonPressed & (1LL << openvr::vr::k_EButton_Grip)) != (newState.ulButtonPressed & (1LL << openvr::vr::k_EButton_Grip))
+			&& role == DominantHandRole) {
+			if (newState.ulButtonPressed & (1LL << openvr::vr::k_EButton_Grip)) {
+				dominantGripPushed = true;
+			}
+			else {
+				dominantGripPushed = false;
+			}
+		}
+
+		// main hand trigger is kept unbindable to make sure it always works in menu (swaps with handedness)
+		// openvr::vr::k_EButton_SteamVR_Trigger can be used to catch trigger fire as well but not gonna bother as long following method is not broken
+		// Mainhand trigger = Fire, Grip + Mainhand trigger = Alt Fire
+		if (CurrentMenu == nullptr) //the quit menu is cancelled by any normal keypress, so don't generate the fire while in menus 
+		{
+			if (dominantGripPushed) {
+				HandleVRAxis(lastState, newState, 1, 0, KEY_LALT, KEY_LALT, controller * (KEY_PAD_LTRIGGER - KEY_LALT));
+			}
+			else {
+				HandleVRAxis(lastState, newState, 1, 0, KEY_LSHIFT, KEY_LSHIFT, controller * (KEY_PAD_RTRIGGER - KEY_LSHIFT));
+			}
+		}
+		// Offhand trigger is now bindable (sort of)
+		// TODO: need to fix the bug where it expects another input after pressing trigger in a key inputbox
+		// Offhand trigger = Run, Grip + Offhand trigger = unmapped
+		if (role != DominantHandRole)
+		{
+			if (dominantGripPushed) {
+				HandleVRAxis(lastState, newState, 1, 0, KEY_LALT, KEY_LALT, controller * (KEY_PAD_LTRIGGER - KEY_LALT));
+			}
+			else {
+				HandleVRAxis(lastState, newState, 1, 0, KEY_LSHIFT, KEY_LSHIFT, controller * (KEY_PAD_RTRIGGER - KEY_LSHIFT));
+			}
+		}
+		HandleUIVRAxis(lastState, newState, 1, 0, GK_RETURN, GK_RETURN);
+
+		// joysticks
+		if (axisJoystick != -1)
+		{
+			if (dominantGripPushed) {
+				HandleVRAxis(lastState, newState, axisJoystick, 0, KEY_JOYAXIS4MINUS, KEY_JOYAXIS4PLUS, role * (KEY_JOYAXIS6PLUS - KEY_JOYAXIS4PLUS));
+				HandleVRAxis(lastState, newState, axisJoystick, 1, KEY_JOYAXIS5MINUS, KEY_JOYAXIS5PLUS, role * (KEY_JOYAXIS6PLUS - KEY_JOYAXIS4PLUS));
+			}
+			else {
+				HandleVRAxis(lastState, newState, axisJoystick, 0, KEY_JOYAXIS1MINUS, KEY_JOYAXIS1PLUS, role * (KEY_JOYAXIS3PLUS - KEY_JOYAXIS1PLUS));
+				HandleVRAxis(lastState, newState, axisJoystick, 1, KEY_JOYAXIS2MINUS, KEY_JOYAXIS2PLUS, role * (KEY_JOYAXIS3PLUS - KEY_JOYAXIS1PLUS));
+			}
+			HandleUIVRAxes(lastState, newState, axisJoystick, GK_LEFT, GK_RIGHT, GK_DOWN, GK_UP);
+		}
+
+		// Only offhand grip is bindable in alternate mapping, main hand grip is used for grip combo
+		if(vr_secondary_button_mappings && role != DominantHandRole) {
+			HandleVRButton(lastState, newState, openvr::vr::k_EButton_Grip, KEY_PAD_LSHOULDER, role * (KEY_PAD_RSHOULDER - KEY_PAD_LSHOULDER));
+		}
+		HandleUIVRButton(lastState, newState, openvr::vr::k_EButton_Grip, GK_BACK);
+
+		// Y/B
+		// Y = Automap, Grip + Y = Fly Up
+		// B = Jump, Grip + B = Main menu
+		// B will be defaulted to Menu button if grip combo is disabled
+		if (dominantGripPushed || !vr_secondary_button_mappings) {
+			HandleVRButton(lastState, newState, openvr::vr::k_EButton_ApplicationMenu, KEY_PGUP, role * (KEY_PAD_BACK - KEY_PGUP));
+		}
+		else {
+			HandleVRButton(lastState, newState, openvr::vr::k_EButton_ApplicationMenu, KEY_PAD_DPAD_UP, role * (KEY_PAD_Y - KEY_PAD_DPAD_UP));
+		}
+
+		// X/A
+		// X = Delete keybind (PAD_X), Grip + X = Fly Down
+		// A = Use, Grip + A = Crouch toggle
+		if (dominantGripPushed) {
+			HandleVRButton(lastState, newState, openvr::vr::k_EButton_A, KEY_INS, role * (KEY_PAD_LTHUMB - KEY_INS));
+		}
+		else {
+			HandleVRButton(lastState, newState, openvr::vr::k_EButton_A, KEY_PAD_X, role * (KEY_PAD_A - KEY_PAD_X));
+		}
+
+		// Thumbstick click
+		// Mainhand thumbstick = Use Inventory Item, Grip + Mainhand thumbstick = unmapped
+		// Offhand thumbstick = Jump, Grip + Offhand thumbstick = Stop Flying
+		if (dominantGripPushed) {
+			HandleVRButton(lastState, newState, openvr::vr::k_EButton_SteamVR_Touchpad, KEY_HOME, role * (KEY_TAB - KEY_HOME));
+		}
+		else {
+			HandleVRButton(lastState, newState, openvr::vr::k_EButton_SteamVR_Touchpad, KEY_SPACE, role * (KEY_ENTER - KEY_SPACE));
+		}
+
+		// Rest are unchanged
+
+		//touchpad
+		if (axisTrackpad != -1) {
+			HandleVRAxis(lastState, newState, axisTrackpad, 0, KEY_PAD_LTHUMB_LEFT, KEY_PAD_LTHUMB_RIGHT, role * (KEY_PAD_RTHUMB_LEFT - KEY_PAD_LTHUMB_LEFT));
+			HandleVRAxis(lastState, newState, axisTrackpad, 1, KEY_PAD_LTHUMB_DOWN, KEY_PAD_LTHUMB_UP, role * (KEY_PAD_RTHUMB_DOWN - KEY_PAD_LTHUMB_UP));
+			HandleUIVRAxes(lastState, newState, axisTrackpad, GK_LEFT, GK_RIGHT, GK_DOWN, GK_UP);
+		}
+
+		lastState = newState;
+	}
+
+	// Teleport trigger logic. Thanks to DrBeef for the inspiration of how to use this
+	void HandleTeleportTrigger(int role, VRControllerState_t& newState, int vrAxis)
+	{
+		player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
+		int OffHandRole = openvr_rightHanded ? 0 : 1;
+
+		if (vr_teleport && player && gamestate == GS_LEVEL && menuactive == MENU_Off && role == OffHandRole)
+		{
+			float joyForwardMove = newState.rAxis[vrAxis].y - DEAD_ZONE;
+
+			if ((joyForwardMove > 0.7f) && !ready_teleport) {
+				ready_teleport = true;
+			}
+			else if ((joyForwardMove < 0.6f) && ready_teleport) {
+				ready_teleport = false;
+				trigger_teleport = true;
+			}
+		}
+	}
+
+	// Teleport location where player sprite will be shown
+	bool OpenVRMode::GetTeleportLocation(DVector3& out) const
+	{
+		player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
+		if (vr_teleport &&
+			ready_teleport &&
+			(player && player->mo->health > 0) &&
+			m_TeleportTarget == TRACE_HitFloor) {
+			out = m_TeleportLocation;
+			return true;
+		}
+
+		return false;
+	}
+
+	// Snap-turn logic. Thanks to DrBeef for the codes
+	void HandleSnapTurn(int role, VRControllerState_t& newState, int vrAxis)
+	{
+		player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
+		int MainHandRole = openvr_rightHanded ? 1 : 0;
+
+		// Turning logic
+		static int increaseSnap = true;
+
+		bool snap_turning_on = vr_snap_turning;
+
+		// Use main hand joystick left/right as buttons with grip combo
+		if (vr_use_alternate_mapping && dominantGripPushed) {
+			snap_turning_on = false;
+		}
+
+		if (snap_turning_on && player && gamestate == GS_LEVEL && menuactive == MENU_Off && role == MainHandRole)
+		{
+			float joySideMove = newState.rAxis[vrAxis].x;
+			joySideMove = joySideMove > 0 ? joySideMove - DEAD_ZONE : joySideMove + DEAD_ZONE;
+
+			if (joySideMove > 0.6f) {
+				if (increaseSnap) {
+					snapTurn -= vr_snapTurn;
+					if (vr_snapTurn > 10.0f) {
+						increaseSnap = false;
+					}
+
+					if (snapTurn < -180.0f) {
+						snapTurn += 360.f;
+					}
+				}
+			}
+			else if (joySideMove < 0.4f) {
+				increaseSnap = true;
+			}
+
+			static int decreaseSnap = true;
+			if (joySideMove < -0.6f) {
+				if (decreaseSnap) {
+					snapTurn += vr_snapTurn;
+
+					//If snap turn configured for less than 10 degrees
+					if (vr_snapTurn > 10.0f) {
+						decreaseSnap = false;
+					}
+
+					if (snapTurn > 180.0f) {
+						snapTurn -= 360.f;
+					}
+				}
+			}
+			else if (joySideMove > -0.4f) {
+				decreaseSnap = true;
+			}
+		}
 	}
 
 	VRControllerState_t& OpenVR_GetState(int hand)
@@ -1335,14 +1599,14 @@ namespace s3d
 		);
 
 		TrackedDevicePose_t& hmdPose0 = poses[k_unTrackedDeviceIndex_Hmd];
-		
+
 		if (hmdPose0.bPoseIsValid) {
 			const HmdMatrix34_t& hmdPose = hmdPose0.mDeviceToAbsoluteTracking;
 			HmdVector3d_t eulerAngles = eulerAnglesFromMatrix(hmdPose);
 			updateHmdPose(r_viewpoint, eulerAngles.v[0], eulerAngles.v[1], eulerAngles.v[2]);
 			leftEyeView->setCurrentHmdPose(&hmdPose0);
 			rightEyeView->setCurrentHmdPose(&hmdPose0);
-			
+
 			player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
 
 			// Check for existence of VR motion controllers...
@@ -1414,15 +1678,39 @@ namespace s3d
 						}
 					}
 
-					HandleControllerState(i, role, newState);
-
+					HandleTeleportTrigger(role, newState, axisJoystick);
+					HandleSnapTurn(role, newState, axisJoystick);
+					if(vr_use_alternate_mapping)
+					{
+						HandleAlternateControllerMapping(i, role, newState);
+					}
+					else
+					{
+						HandleControllerState(i, role, newState);
+					}
 
 				}
 			}
-	
+
 			LSMatrix44 mat;
+			LSMatrix44 matOffhand;
+
 			if (player)
 			{
+				double pixelstretch = level.info ? level.info->pixelstretch : 1.2;
+
+				// Thanks to Emawind for the codes for natural crouching
+				if (!vr_crouch_use_button)
+				{
+					static double defaultViewHeight = player->DefaultViewHeight();
+					player->crouching = 10;
+					player->crouchfactor = HmdHeight / defaultViewHeight;
+				}
+				else if (player->crouching == 10)
+				{
+					player->Uncrouch();
+				}
+
 				if (GetWeaponTransform(&mat))
 				{
 					player->mo->OverrideAttackPosDir = true;
@@ -1431,8 +1719,77 @@ namespace s3d
 					player->mo->AttackPos.Y = mat[3][2];
 					player->mo->AttackPos.Z = mat[3][1];
 
+					getMainHandAngles();
+
+					player->mo->AttackAngle = -deltaYawDegrees - 180 - weaponangles[YAW];
+					player->mo->AttackPitch = -30 - weaponangles[PITCH];
+					player->mo->AttackRoll = weaponangles[ROLL];
+
 					player->mo->AttackDir = MapAttackDir;
 				}
+				if (GetOffhandWeaponTransform(&matOffhand))
+				{
+					player->mo->OffhandPos.X = matOffhand[3][0];
+					player->mo->OffhandPos.Y = matOffhand[3][2];
+					player->mo->OffhandPos.Z = matOffhand[3][1];
+
+					getOffHandAngles();
+
+					player->mo->OffhandAngle = -deltaYawDegrees - 180 - offhandangles[YAW];
+					player->mo->OffhandPitch = -30 - offhandangles[PITCH];
+					player->mo->OffhandRoll = offhandangles[ROLL];
+				}
+
+				// Teleport locomotion. Thanks to DrBeef for the codes
+				if (vr_teleport && player->mo->health > 0) {
+
+					DAngle yaw(-deltaYawDegrees - 90 - offhandangles[YAW]);
+					DAngle pitch(offhandangles[PITCH] + 30);
+
+					// Teleport Logic
+					if (ready_teleport) {
+						FLineTraceData trace;
+						if (P_LineTrace(player->mo, yaw, 8192, pitch, TRF_ABSOFFSET | TRF_BLOCKUSE | TRF_BLOCKSELF | TRF_SOLIDACTORS,
+							matOffhand[3][1] - player->mo->Z() + vr_floor_offset,
+							0, 0, &trace))
+						{
+							m_TeleportTarget = trace.HitType;
+							m_TeleportLocation = trace.HitLocation;
+						}
+						else {
+							m_TeleportTarget = TRACE_HitNone;
+							m_TeleportLocation = DVector3(0, 0, 0);
+						}
+					}
+					else if (trigger_teleport && m_TeleportTarget == TRACE_HitFloor) {
+						auto vel = player->mo->Vel;
+						bool wasOnGround = player->mo->Z() <= player->mo->floorz + 0.1;
+						double oldZ = player->mo->Z();
+
+						if(!vr_teleport_forced) {
+							player->mo->Vel = DVector3(m_TeleportLocation.X - player->mo->X(),
+								m_TeleportLocation.Y - player->mo->Y(), 0);
+							P_XYMovement(player->mo, DVector2(0, 0));
+						}
+						else {
+							// Force teleport in places like high stairs where you cannot teleport normally without jumpinng
+							// This teleport mode will telefrag anyone at the teleport location
+							P_TeleportMove(player->mo, m_TeleportLocation, true, true);
+						}
+
+						//if we were on the ground before offsetting, make sure we still are (this fixes not being able to move on lifts)
+						if (player->mo->Z() >= oldZ && wasOnGround) {
+							player->mo->SetZ(player->mo->floorz);
+						}
+						else {
+							player->mo->SetZ(oldZ);
+						}
+						player->mo->Vel = vel;
+					}
+
+					trigger_teleport = false;
+				}
+
 				if (GetHandTransform(openvr_rightHanded ? 0 : 1, &mat) && openvr_moveFollowsOffHand)
 				{
 					player->mo->ThrustAngleOffset = DAngle(RAD2DEG(atan2f(-mat[2][2], -mat[2][0]))) - player->mo->Angles.Yaw;
@@ -1460,9 +1817,12 @@ namespace s3d
 				openvr_origin += openvr_dpos;
 			}
 		}
-		
+
 		I_StartupOpenVR();
 
+		// Smooth turning is activated only when snap turning is turned off
+		if(!vr_snap_turning && !(vr_use_alternate_mapping && dominantGripPushed))
+		{
 		//To feel smooth, yaw changes need to accumulate over the (sub) tic (i.e. render frame, not per tic)
 		unsigned int time = I_msTime();
 		static unsigned int lastTime = time;
@@ -1471,6 +1831,7 @@ namespace s3d
 		lastTime = time;
 
 		G_AddViewAngle(joyint(-1280 * I_OpenVRGetYaw() * delta * 30 / 1000), true);
+		}
 	}
 
 	/* virtual */

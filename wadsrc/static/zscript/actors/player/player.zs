@@ -1065,7 +1065,11 @@ class PlayerPawn : Actor
 		double oldheight = player.viewheight;
 
 		player.crouchdir = direction;
-		player.crouchfactor += crouchspeed;
+		//player.crouchfactor += crouchspeed;
+		if (direction != 0)
+		{
+			player.crouchfactor += crouchspeed;
+		}
 
 		// check whether the move is ok
 		Height  = defaultheight * player.crouchfactor;
@@ -1081,7 +1085,11 @@ class PlayerPawn : Actor
 		}
 		Height = savedheight;
 
-		player.crouchfactor = clamp(player.crouchfactor, 0.5, 1.);
+		//player.crouchfactor = clamp(player.crouchfactor, 0.5, 1.);
+		if (direction != 0)
+		{  // clamp when using crouch with button only
+			player.crouchfactor = clamp(player.crouchfactor, 0.5, 1.);
+		}
 		player.viewheight = ViewHeight * player.crouchfactor;
 		player.crouchviewdelta = player.viewheight - ViewHeight;
 
@@ -1110,7 +1118,12 @@ class PlayerPawn : Actor
 			{
 				int crouchdir = player.crouching;
 
-				if (crouchdir == 0)
+				//if (crouchdir == 0)
+				if (player.crouching == 10)
+				{
+					CrouchMove(0);
+				}
+				else if (crouchdir == 0)
 				{
 					crouchdir = (cmd.buttons & BT_CROUCH) ? -1 : 1;
 				}
@@ -1247,7 +1260,9 @@ class PlayerPawn : Actor
 			Angle += cmd.yaw * (360./65536.);
 		}
 
-		player.onground = (pos.z <= floorz) || bOnMobj || bMBFBouncer || (player.cheats & CF_NOCLIP2);
+		// Improve player movements on slope
+		//player.onground = (pos.z <= floorz) || bOnMobj || bMBFBouncer || (player.cheats & CF_NOCLIP2);
+		player.onground = (pos.z <= floorz + 2) || bOnMobj || bMBFBouncer || (player.cheats & CF_NOCLIP2);
 
 		// killough 10/98:
 		//
@@ -1281,9 +1296,13 @@ class PlayerPawn : Actor
 			// When crouching, speed and bobbing have to be reduced
 			if (CanCrouch() && player.crouchfactor != 1)
 			{
-				fm *= player.crouchfactor;
-				sm *= player.crouchfactor;
-				bobfactor *= player.crouchfactor;
+				//fm *= player.crouchfactor;
+				//sm *= player.crouchfactor;
+				//bobfactor *= player.crouchfactor;
+				double speedfactor = clamp(player.crouchfactor, 0.5, 1.);
+				fm *= speedfactor;
+				sm *= speedfactor;
+				bobfactor *= speedfactor;
 			}
 
 			forwardmove = fm * movefactor * (35 / TICRATE);
@@ -1378,7 +1397,8 @@ class PlayerPawn : Actor
 		// [RH] check for jump
 		if (player.cmd.buttons & BT_JUMP)
 		{
-			if (player.crouchoffset != 0)
+			//if (player.crouchoffset != 0)
+			if (player.crouchfactor < 0.75)
 			{
 				// Jumping while crouching will force an un-crouch but not jump
 				player.crouching = 1;
