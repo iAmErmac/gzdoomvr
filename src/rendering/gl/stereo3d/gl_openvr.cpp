@@ -72,6 +72,7 @@ namespace openvr {
 void I_StartupOpenVR();
 double P_XYMovement(AActor* mo, DVector2 scroll);
 float I_OpenVRGetYaw();
+float I_OpenVRGetDirectionalMove();
 
 extern class DMenu* CurrentMenu;
 
@@ -1414,19 +1415,18 @@ namespace s3d
 	}
 
 	// Teleport trigger logic. Thanks to DrBeef for the inspiration of how to use this
-	void HandleTeleportTrigger(int role, VRControllerState_t& newState, int vrAxis)
+	void HandleTeleportTrigger()
 	{
 		player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
-		int OffHandRole = openvr_rightHanded ? 0 : 1;
 
-		if (vr_teleport && player && gamestate == GS_LEVEL && menuactive == MENU_Off && role == OffHandRole)
+		if (vr_teleport && player && gamestate == GS_LEVEL && menuactive == MENU_Off)
 		{
-			float joyForwardMove = newState.rAxis[vrAxis].y - DEAD_ZONE;
+			float joyDirectionalMove = I_OpenVRGetDirectionalMove();
 
-			if ((joyForwardMove > 0.7f) && !ready_teleport) {
+			if ((joyDirectionalMove > 0.7f) && !ready_teleport) {
 				ready_teleport = true;
 			}
-			else if ((joyForwardMove < 0.6f) && ready_teleport) {
+			else if ((joyDirectionalMove < 0.6f) && ready_teleport) {
 				ready_teleport = false;
 				trigger_teleport = true;
 			}
@@ -1449,7 +1449,7 @@ namespace s3d
 	}
 
 	// Snap-turn logic. Thanks to DrBeef for the codes
-	void HandleSnapTurn(int role, VRControllerState_t& newState, int vrAxis)
+	void HandleSnapTurn()
 	{
 		player_t* player = r_viewpoint.camera ? r_viewpoint.camera->player : nullptr;
 		int MainHandRole = openvr_rightHanded ? 1 : 0;
@@ -1464,12 +1464,11 @@ namespace s3d
 			snap_turning_on = false;
 		}
 
-		if (snap_turning_on && player && gamestate == GS_LEVEL && menuactive == MENU_Off && role == MainHandRole)
+		if (snap_turning_on && player && gamestate == GS_LEVEL && menuactive == MENU_Off)
 		{
-			float joySideMove = newState.rAxis[vrAxis].x;
-			joySideMove = joySideMove > 0 ? joySideMove - DEAD_ZONE : joySideMove + DEAD_ZONE;
+			float joyTurnMove = -I_OpenVRGetYaw();
 
-			if (joySideMove > 0.6f) {
+			if (joyTurnMove > 0.6f) {
 				if (increaseSnap) {
 					snapTurn -= vr_snapTurn;
 					if (vr_snapTurn > 10.0f) {
@@ -1481,12 +1480,12 @@ namespace s3d
 					}
 				}
 			}
-			else if (joySideMove < 0.4f) {
+			else if (joyTurnMove < 0.4f) {
 				increaseSnap = true;
 			}
 
 			static int decreaseSnap = true;
-			if (joySideMove < -0.6f) {
+			if (joyTurnMove < -0.6f) {
 				if (decreaseSnap) {
 					snapTurn += vr_snapTurn;
 
@@ -1500,7 +1499,7 @@ namespace s3d
 					}
 				}
 			}
-			else if (joySideMove > -0.4f) {
+			else if (joyTurnMove > -0.4f) {
 				decreaseSnap = true;
 			}
 		}
@@ -1678,8 +1677,6 @@ namespace s3d
 						}
 					}
 
-					HandleTeleportTrigger(role, newState, axisJoystick);
-					HandleSnapTurn(role, newState, axisJoystick);
 					if(vr_use_alternate_mapping)
 					{
 						HandleAlternateControllerMapping(i, role, newState);
@@ -1832,6 +1829,9 @@ namespace s3d
 
 		G_AddViewAngle(joyint(-1280 * I_OpenVRGetYaw() * delta * 30 / 1000), true);
 		}
+
+		HandleTeleportTrigger();
+		HandleSnapTurn();
 	}
 
 	/* virtual */

@@ -139,6 +139,25 @@ public:
 		return yaw;
 	}
 
+	float GetDirectionalMove()
+	{
+		VRControllerState_t& onState = s3d::OpenVR_GetState(1);
+		VRControllerState_t& offState = s3d::OpenVR_GetState(0);
+
+		float yaw = 0.0f;
+
+		for (int i = 0; i < NUM_AXES; i++)
+		{
+			//must accumulate per render frame, not logical frame
+			if (Axes[i].GameAxis == JOYAXIS_Forward)
+			{
+				yaw += GetAxisValue(i, offState, onState);
+			}
+		}
+
+		return yaw;
+	}
+
 	FString GetName()
 	{
 		return "OpenVR";
@@ -280,6 +299,10 @@ public:
 	{
 		return m_device.GetYaw();
 	}
+	float GetDirectionalMove()
+	{
+		return m_device.GetDirectionalMove();
+	}
 	void GetDevices(TArray<IJoystickConfig *> &sticks)
 	{
 		sticks.Push(&m_device);
@@ -311,6 +334,15 @@ float I_OpenVRGetYaw()
 	if (JoyDevices[INPUT_OpenVR] != NULL)
 	{
 		return ((FOpenVRJoystickManager*)JoyDevices[INPUT_OpenVR])->GetYaw();
+	}
+	return 0;
+}
+
+float I_OpenVRGetDirectionalMove()
+{
+	if (JoyDevices[INPUT_OpenVR] != NULL)
+	{
+		return ((FOpenVRJoystickManager*)JoyDevices[INPUT_OpenVR])->GetDirectionalMove();
 	}
 	return 0;
 }
