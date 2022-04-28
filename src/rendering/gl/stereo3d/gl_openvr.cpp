@@ -546,6 +546,56 @@ namespace s3d
 		return eulerAnglesFromQuat(quatFromMatrix(mat));
 	}
 
+	// rotate quat by pitch
+	// https://stackoverflow.com/questions/4436764/rotating-a-quaternion-on-1-axis/34805024#34805024
+	HmdQuaternion_t makeQuat(float x, float y, float z, float w) {
+		HmdQuaternion_t quat = { x,y,z,w };
+		return quat;
+	}
+	float dot(HmdQuaternion_t a)
+	{
+		return (((a.x * a.x) + (a.y * a.y)) + (a.z * a.z)) + (a.w * a.w);
+	}
+	HmdQuaternion_t normalizeQuat(HmdQuaternion_t q)
+	{
+		float num = dot(q);
+		float inv = 1.0f / (sqrtf(num));
+		return makeQuat(q.x * inv, q.y * inv, q.z * inv, q.w * inv);
+	}
+	HmdQuaternion_t createQuatfromAxisAngle(const float& xx, const float& yy, const float& zz, const float& a)
+	{
+		// Here we calculate the sin( theta / 2) once for optimization
+		float factor = sinf(a / 2.0f);
+
+		HmdQuaternion_t quat;
+		// Calculate the x, y and z of the quaternion
+		quat.x = xx * factor;
+		quat.y = yy * factor;
+		quat.z = zz * factor;
+
+		// Calcualte the w value by cos( theta / 2 )
+		quat.w = cosf(a / 2.0f);
+		return normalizeQuat(quat);
+	}
+	// https://www.euclideanspace.com/maths/algebra/realNormedAlgebra/quaternions/code/index.htm
+	static HmdQuaternion_t multiplyQuat(HmdQuaternion_t q1, HmdQuaternion_t q2) {
+		HmdQuaternion_t q;
+		q.x = q1.x * q2.w + q1.y * q2.z - q1.z * q2.y + q1.w * q2.x;
+		q.y = -q1.x * q2.z + q1.y * q2.w + q1.z * q2.x + q1.w * q2.y;
+		q.z = q1.x * q2.y - q1.y * q2.x + q1.z * q2.w + q1.w * q2.z;
+		q.w = -q1.x * q2.x - q1.y * q2.y - q1.z * q2.z + q1.w * q2.w;
+		return q;
+	}
+
+	static HmdVector3d_t eulerAnglesFromQuatPitchRotate(HmdQuaternion_t quat, float pitch) {
+		HmdQuaternion_t qRot = createQuatfromAxisAngle(0, 0, 1, -pitch * (3.14159f / 180.0f));
+		HmdQuaternion_t q = multiplyQuat(quat, qRot);
+		return eulerAnglesFromQuat(q);
+	}
+	static HmdVector3d_t eulerAnglesFromMatrixPitchRotate(HmdMatrix34_t mat, float pitch) {
+		return eulerAnglesFromQuatPitchRotate(quatFromMatrix(mat), pitch);
+	}
+
 	OpenVREyePose::OpenVREyePose(int eye, float shiftFactor, float scaleFactor)
 		: VREyeInfo(0.0f, 1.f)
 		, eye(eye)
@@ -1059,7 +1109,7 @@ namespace s3d
 	{
 		int hand = openvr_rightHanded ? 1 : 0;
 		weaponangles[YAW] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[0]);
-		weaponangles[PITCH] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[1]);
+		weaponangles[PITCH] = RAD2DEG(eulerAnglesFromMatrixPitchRotate(controllers[hand].pose.mDeviceToAbsoluteTracking, openvr_weaponRotate).v[1]);
 		weaponangles[ROLL] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[2]);
 	}
 
@@ -1067,7 +1117,7 @@ namespace s3d
 	{
 		int hand = openvr_rightHanded ? 0 : 1;
 		offhandangles[YAW] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[0]);
-		offhandangles[PITCH] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[1]);
+		offhandangles[PITCH] = RAD2DEG(eulerAnglesFromMatrixPitchRotate(controllers[hand].pose.mDeviceToAbsoluteTracking, openvr_weaponRotate).v[1]);
 		offhandangles[ROLL] = RAD2DEG(-eulerAnglesFromMatrix(controllers[hand].pose.mDeviceToAbsoluteTracking).v[2]);
 	}
 
@@ -1719,7 +1769,7 @@ namespace s3d
 					getMainHandAngles();
 
 					player->mo->AttackAngle = -deltaYawDegrees - 180 - weaponangles[YAW];
-					player->mo->AttackPitch = -30 - weaponangles[PITCH];
+					player->mo->AttackPitch = weaponangles[PITCH];
 					player->mo->AttackRoll = weaponangles[ROLL];
 
 					player->mo->AttackDir = MapAttackDir;
@@ -1733,7 +1783,7 @@ namespace s3d
 					getOffHandAngles();
 
 					player->mo->OffhandAngle = -deltaYawDegrees - 180 - offhandangles[YAW];
-					player->mo->OffhandPitch = -30 - offhandangles[PITCH];
+					player->mo->OffhandPitch = offhandangles[PITCH];
 					player->mo->OffhandRoll = offhandangles[ROLL];
 				}
 
