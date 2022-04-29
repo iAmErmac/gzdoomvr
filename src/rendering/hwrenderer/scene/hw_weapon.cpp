@@ -133,7 +133,7 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 			float fU1, fV1;
 			float fU2, fV2;
 
-			auto *wi = player->ReadyWeapon;
+			auto *wi = psp->GetID() == PSP_WEAPON ? player->ReadyWeapon : player->OffhandWeapon;
 			if (wi == nullptr)
 				return;
 
@@ -251,29 +251,33 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 void HWDrawInfo::DrawPlayerSprites(bool hudModelStep, FRenderState &state)
 {
 	auto vrmode = VRMode::GetVRMode(true);
-	vrmode->AdjustPlayerSprites(this);
-	
-	auto oldlightmode = lightmode;
-	if (!hudModelStep && isSoftwareLighting()) SetFallbackLightMode();	// Software lighting cannot handle 2D content.
-	for (auto &hudsprite : hudsprites)
+	AActor* playermo = players[consoleplayer].camera;
+	player_t* player = playermo->player;
+	DPSprite* psp = player->psprites;
+
+	vrmode->DrawControllerModels(this, state);
+	for (auto& hudsprite : hudsprites)
 	{
+		if (!hudModelStep) vrmode->AdjustPlayerSprites(this, psp->GetCaller() == player->OffhandWeapon);
+
+		auto oldlightmode = lightmode;
+		if (!hudModelStep && isSoftwareLighting()) SetFallbackLightMode();	// Software lighting cannot handle 2D content.
+
 		if ((!!hudsprite.mframe) == hudModelStep)
 			DrawPSprite(&hudsprite, state);
+
+		state.SetObjectColor(0xffffffff);
+		state.SetDynLight(0, 0, 0);
+		state.EnableBrightmap(false);
+
+		lightmode = oldlightmode;
+
+		if (!hudModelStep)
+		{
+			vrmode->UnAdjustPlayerSprites();
+		}
+		psp = psp->GetNext();
 	}
-	
-	vrmode->DrawControllerModels(this, state);
-
-	state.SetObjectColor(0xffffffff);
-	state.SetDynLight(0, 0, 0);
-	state.EnableBrightmap(false);
-
-	lightmode = oldlightmode;
-	
-	if (!hudModelStep)
-	{
-		vrmode->UnAdjustPlayerSprites();
-	}
-
 }
 
 
@@ -310,8 +314,13 @@ static WeaponPosition GetWeaponPosition(player_t *player, double ticFrac)
 	WeaponPosition w;
 	P_BobWeapon(player, &w.bobx, &w.boby, ticFrac);
 
+	DPSprite* psp = player->psprites;
+	DPSprite* readyWeaponPsp = player->FindPSprite(PSP_WEAPON);
+	DPSprite* offhandWeaponPsp = player->FindPSprite(PSP_OFFHANDWEAPON);
+
 	// Interpolate the main weapon layer once so as to be able to add it to other layers.
-	if ((w.weapon = player->FindPSprite(PSP_WEAPON)) != nullptr)
+	w.weapon = psp->GetCaller() == player->ReadyWeapon ? readyWeaponPsp : offhandWeaponPsp;
+	if (w.weapon != nullptr)
 	{
 		if (w.weapon->firstTic)
 		{
@@ -326,8 +335,8 @@ static WeaponPosition GetWeaponPosition(player_t *player, double ticFrac)
 	}
 	else
 	{
-		w.wx = 0;
-		w.wy = 0;
+		w.wx = 0.0f;
+		w.wy = 0.0f;
 	}
 	return w;
 }
@@ -355,14 +364,15 @@ static FVector2 BobWeapon(WeaponPosition &weap, DPSprite *psp, double ticFrac)
 		sy += weap.boby;
 	}
 
-	DPSprite* readyWeaponPsp = r_viewpoint.camera->player->FindPSprite(PSP_WEAPON);
-	DPSprite* offhandWeaponPsp = r_viewpoint.camera->player->FindPSprite(PSP_OFFHANDWEAPON);
+	player_t *player = r_viewpoint.camera->player;
+	DPSprite* readyWeaponPsp = player->FindPSprite(PSP_WEAPON);
+	DPSprite* offhandWeaponPsp = player->FindPSprite(PSP_OFFHANDWEAPON);
 	float wx, wy;
 
 	if (psp->Flags & PSPF_ADDWEAPON && !(psp->GetID() == PSP_WEAPON || psp->GetID() == PSP_OFFHANDWEAPON))
 	{
 		// Interpolate the main weapon layer once so as to be able to add it to other layers.
-		DPSprite* weapon = psp->GetCaller() == r_viewpoint.camera->player->ReadyWeapon ? readyWeaponPsp : offhandWeaponPsp;
+		DPSprite* weapon = psp->GetCaller() == player->ReadyWeapon ? readyWeaponPsp : offhandWeaponPsp;
 		if (weapon != nullptr)
 		{
 			if (weapon->firstTic)

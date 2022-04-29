@@ -69,13 +69,7 @@ void FHWModelRenderer::PrepareRenderHUDModel(FSpriteModelFrame* smf, float ofsX,
 		// Need to reset the normal matrix too
 		di->VPUniforms.mNormalViewMatrix.loadIdentity();
 
-		if (hand == 0 && vrmode->GetWeaponTransform(&gl_RenderState.mModelMatrix))
-		{
-			float scale = 0.01f;
-			gl_RenderState.mModelMatrix.scale(scale, scale, scale);
-			gl_RenderState.mModelMatrix.translate(0, 5 + gl_weaponOfsZ, 30 + gl_weaponOfsY);
-		}
-		else if (hand == 1 && vrmode->GetOffhandWeaponTransform(&gl_RenderState.mModelMatrix))
+		if (vrmode->GetWeaponTransform(&gl_RenderState.mModelMatrix, hand))
 		{
 			float scale = 0.01f;
 			gl_RenderState.mModelMatrix.scale(scale, scale, scale);

@@ -70,7 +70,7 @@ struct VRMode
 	virtual void TearDown() const {};
 
 	virtual bool IsVR() const { return false; }
-	virtual void AdjustPlayerSprites(HWDrawInfo *di) const {};
+	virtual void AdjustPlayerSprites(HWDrawInfo *di, int hand = 0) const {};
 	virtual void UnAdjustPlayerSprites() const {};
 	virtual void AdjustCrossHair() const {}
 	virtual void UnAdjustCrossHair() const {}
@@ -79,8 +79,7 @@ struct VRMode
 	virtual void Present() const { GLRenderer->PresentStereo(); };
 
 	virtual bool GetHandTransform(int hand, VSMatrix* out) const { return false; }
-	virtual bool GetWeaponTransform(VSMatrix* out) const { return false; }
-	virtual bool GetOffhandWeaponTransform(VSMatrix* out) const { return false; }
+	virtual bool GetWeaponTransform(VSMatrix* out, int hand = 0) const { return false; }
 	virtual bool RenderPlayerSpritesCrossed() const { return false; }
 	virtual bool RenderPlayerSpritesInScene() const { return false; }
 	virtual bool GetTeleportLocation(DVector3& out) const { return false; }
