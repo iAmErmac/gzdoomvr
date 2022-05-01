@@ -160,6 +160,9 @@ EXTERN_CVAR(Bool, openvr_moveFollowsOffHand);
 EXTERN_CVAR(Bool, vr_teleport);
 EXTERN_CVAR(Bool, vr_teleport_forced);
 EXTERN_CVAR(Bool, openvr_drawControllers);
+EXTERN_CVAR(Float, vr_weaponMoveX);
+EXTERN_CVAR(Float, vr_weaponMoveY);
+EXTERN_CVAR(Float, vr_weaponMoveZ);
 EXTERN_CVAR(Float, openvr_weaponRotate);
 EXTERN_CVAR(Float, openvr_weaponScale);
 
@@ -1075,6 +1078,10 @@ namespace s3d
 			LSMatrix44 handToAbs;
 			vSMatrixFromHmdMatrix34(handToAbs, controllers[hand].pose.mDeviceToAbsoluteTracking);
 			mat->multMatrix(handToAbs.transpose());
+			mat->translate(vr_weaponMoveX / 100, 0, vr_weaponMoveX / 3000); // move pivot left/right
+			mat->translate(0, -vr_weaponMoveY / 100, vr_weaponMoveY / 200); // move pivot up/down
+			mat->translate(0, vr_weaponMoveZ / 200, vr_weaponMoveZ / 100); // move pivot forward/backward
+			mat->rotate(openvr_weaponRotate, 1, 0, 0);
 
 			return true;
 		}
@@ -1085,7 +1092,6 @@ namespace s3d
 	{
 		if (GetHandTransform(openvr_rightHanded ? 1 : 0, out))
 		{
-			out->rotate(openvr_weaponRotate, 1, 0, 0);
 			if (!openvr_rightHanded)
 				out->scale(-1.0f, 1.0f, 1.0f);
 			return true;
