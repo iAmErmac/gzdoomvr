@@ -251,32 +251,27 @@ void HWDrawInfo::DrawPSprite(HUDSprite *huds, FRenderState &state)
 void HWDrawInfo::DrawPlayerSprites(bool hudModelStep, FRenderState &state)
 {
 	auto vrmode = VRMode::GetVRMode(true);
-	AActor* playermo = players[consoleplayer].camera;
-	player_t* player = playermo->player;
-	DPSprite* psp = player->psprites;
 
-	vrmode->DrawControllerModels(this, state);
+	auto oldlightmode = lightmode;
+	if (!hudModelStep && isSoftwareLighting()) SetFallbackLightMode();	// Software lighting cannot handle 2D content.
 	for (auto& hudsprite : hudsprites)
 	{
-		if (!hudModelStep) vrmode->AdjustPlayerSprites(this, psp->GetCaller() == player->OffhandWeapon);
-
-		auto oldlightmode = lightmode;
-		if (!hudModelStep && isSoftwareLighting()) SetFallbackLightMode();	// Software lighting cannot handle 2D content.
-
+		if (!hudModelStep) vrmode->AdjustPlayerSprites(this, hudsprite.weapon->GetID() == PSP_OFFHANDWEAPON);
 		if ((!!hudsprite.mframe) == hudModelStep)
 			DrawPSprite(&hudsprite, state);
+	}
 
-		state.SetObjectColor(0xffffffff);
-		state.SetDynLight(0, 0, 0);
-		state.EnableBrightmap(false);
+	vrmode->DrawControllerModels(this, state);
 
-		lightmode = oldlightmode;
+	state.SetObjectColor(0xffffffff);
+	state.SetDynLight(0, 0, 0);
+	state.EnableBrightmap(false);
 
-		if (!hudModelStep)
-		{
-			vrmode->UnAdjustPlayerSprites();
-		}
-		psp = psp->GetNext();
+	lightmode = oldlightmode;
+
+	if (!hudModelStep)
+	{
+		vrmode->UnAdjustPlayerSprites();
 	}
 }
 
@@ -315,6 +310,10 @@ static WeaponPosition GetWeaponPosition(player_t *player, double ticFrac)
 	P_BobWeapon(player, &w.bobx, &w.boby, ticFrac);
 
 	DPSprite* psp = player->psprites;
+
+	if (psp == nullptr) return w;
+
+
 	DPSprite* readyWeaponPsp = player->FindPSprite(PSP_WEAPON);
 	DPSprite* offhandWeaponPsp = player->FindPSprite(PSP_OFFHANDWEAPON);
 

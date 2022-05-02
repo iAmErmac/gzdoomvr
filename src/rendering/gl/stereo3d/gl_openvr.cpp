@@ -1804,12 +1804,12 @@ namespace s3d
 				if (vr_teleport && player->mo->health > 0) {
 
 					DAngle yaw(-deltaYawDegrees - 90 - offhandangles[YAW]);
-					DAngle pitch(offhandangles[PITCH] + 30);
+					DAngle pitch(offhandangles[PITCH]);
 
 					// Teleport Logic
 					if (ready_teleport) {
 						FLineTraceData trace;
-						if (P_LineTrace(player->mo, yaw, 8192, pitch, TRF_ABSOFFSET | TRF_BLOCKUSE | TRF_BLOCKSELF | TRF_SOLIDACTORS,
+						if (P_LineTrace(player->mo, yaw, 8192, -pitch, TRF_ABSOFFSET | TRF_BLOCKUSE | TRF_BLOCKSELF | TRF_SOLIDACTORS,
 							matOffhand[3][1] - player->mo->Z() + vr_floor_offset,
 							0, 0, &trace))
 						{
