@@ -36,6 +36,11 @@
 
 CVAR(Bool,gl_noskyboxes, false, 0)
 
+CUSTOM_CVAR(Bool, gl_skydome, true, CVAR_GLOBALCONFIG | CVAR_ARCHIVE)
+{
+	gl_noskyboxes = !self;
+}
+
 //==========================================================================
 //
 //  Set up the skyinfo struct

@@ -37,10 +37,34 @@
 //
 //-----------------------------------------------------------------------------
 
-CVAR(Bool, gl_skydome, true, CVAR_GLOBALCONFIG | CVAR_ARCHIVE);
+EXTERN_CVAR(Bool, gl_skydome);
 
 void HWSkyPortal::DrawContents(HWDrawInfo *di, FRenderState &state)
 {
+	if (!gl_skydome)
+	{
+		// create a color fill from the texture for the sky if sky dome is disabled
+		auto skyboxtex = origin->texture[0] ? dynamic_cast<FSkyBox*>(origin->texture[0]->GetTexture()) : nullptr;
+		auto tex = skyboxtex ? skyboxtex->GetSkyFace(0) : origin->texture[0];
+		if (tex)
+		{
+			state.SetVertexBuffer(vertexBuffer);
+			auto &primStart = !!(di->Level->flags & LEVEL_FORCETILEDSKY) ? vertexBuffer->mPrimStartBuild : vertexBuffer->mPrimStartDoom;
+			state.EnableTexture(false);
+			auto color = R_GetSkyCapColor(tex).first;
+			if (color.g > 2 * color.r) color.g = color.r; //adjust color if too green
+			state.SetObjectColor(color);
+			int rc = vertexBuffer->mRows + 1;
+			vertexBuffer->RenderRow(state, DT_TriangleFan, 0, primStart);
+			for (int i = 1; i <= vertexBuffer->mRows; i++)
+			{
+				vertexBuffer->RenderRow(state, DT_TriangleStrip, i, primStart, i == 1);
+				vertexBuffer->RenderRow(state, DT_TriangleStrip, rc + i, primStart, false);
+			}
+		}
+		return;
+	}
+
 	bool drawBoth = false;
 	auto &vp = di->Viewpoint;
 
@@ -51,7 +75,6 @@ void HWSkyPortal::DrawContents(HWDrawInfo *di, FRenderState &state)
 		di->SetFallbackLightMode();
 		state.SetNoSoftLightLevel();
 	}
-	if (!gl_skydome) return;
 
 	state.ResetColor();
 	state.EnableFog(false);
