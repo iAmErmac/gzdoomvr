@@ -42,27 +42,42 @@ CVAR(Float, vr_ipd, 0.062f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
 // distance between viewer and the display screen
 CVAR(Float, vr_screendist, 0.80f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
 
+CVAR(Int, vr_desktop_view, 2, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Int, vr_overlayscreen, 2, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Bool, vr_overlayscreen_always, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, vr_overlayscreen_size, 1, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, vr_overlayscreen_dist, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, vr_overlayscreen_vpos, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Int, vr_overlayscreen_bg, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+
+CVAR(Bool, openvr_moveFollowsOffHand, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Int, vr_move_speed, 20, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, vr_run_multiplier, 1.5f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_kill_momentum, 0.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_crouch_use_button, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
 // default conversion between (vertical) DOOM units and meters
 CVAR(Float, vr_vunits_per_meter, 32.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
 CVAR(Float, vr_floor_offset, 0.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
+
+// controller related settings
 CVAR(Bool, openvr_rightHanded, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_use_alternate_mapping, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_secondary_button_mappings, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
-CVAR(Bool, openvr_moveFollowsOffHand, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_teleport, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_teleport_forced, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_snap_turning, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_snapTurn, 45.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, openvr_drawControllers, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+
+// weapon position, scale, rotate settings
 CVAR(Float, vr_weaponMoveX, 0.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_weaponMoveY, 0.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_weaponMoveZ, 0.0f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
-CVAR(Float, openvr_weaponRotate, -40, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, openvr_weaponRotate, -30, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, openvr_weaponScale, 0.3f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
+// haptic settings
 CVAR(Bool, vr_enable_haptics, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_pickup_haptic_level, 0.25f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_quake_haptic_level, 0.8f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
@@ -73,7 +88,7 @@ CVAR(Float, vr_hud_scale, 0.35f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_hud_stereo, 0.f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_hud_distance, 0.70f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_hud_rotate, 5.f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
-CVAR(Bool, vr_hud_fixed_pitch, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Bool, vr_hud_fixed_pitch, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Bool, vr_hud_fixed_roll, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 
 //AutoMap control

@@ -256,7 +256,7 @@ void HWDrawInfo::DrawPlayerSprites(bool hudModelStep, FRenderState &state)
 	if (!hudModelStep && isSoftwareLighting()) SetFallbackLightMode();	// Software lighting cannot handle 2D content.
 	for (auto& hudsprite : hudsprites)
 	{
-		if (!hudModelStep) vrmode->AdjustPlayerSprites(this, hudsprite.weapon->GetID() == PSP_OFFHANDWEAPON);
+		if (!hudModelStep && hudsprite.weapon != nullptr && hudsprite.player != nullptr) vrmode->AdjustPlayerSprites(this, hudsprite.weapon->GetCaller() == hudsprite.player->OffhandWeapon);
 		if ((!!hudsprite.mframe) == hudModelStep)
 			DrawPSprite(&hudsprite, state);
 	}
@@ -312,7 +312,6 @@ static WeaponPosition GetWeaponPosition(player_t *player, double ticFrac)
 	DPSprite* psp = player->psprites;
 
 	if (psp == nullptr) return w;
-
 
 	DPSprite* readyWeaponPsp = player->FindPSprite(PSP_WEAPON);
 	DPSprite* offhandWeaponPsp = player->FindPSprite(PSP_OFFHANDWEAPON);

@@ -1306,6 +1306,20 @@ class PlayerPawn : Actor
 		//player.onground = (pos.z <= floorz) || bOnMobj || bMBFBouncer || (player.cheats & CF_NOCLIP2);
 		player.onground = (pos.z <= floorz + 2) || bOnMobj || bMBFBouncer || (player.cheats & CF_NOCLIP2);
 
+		double friction, movefactor;
+		[friction, movefactor] = GetFriction();
+		CVar vr_momentum = CVar.FindCVar("vr_kill_momentum");
+		//Taken from the Wolf-3D TC - Prevent player having momentum/acceleration to avoid puking
+		if ((!vr_momentum || !vr_momentum.GetInt()) && player.onground && friction == ORIG_FRICTION)
+		{
+			vel *= 0.0001;
+			Speed = Default.Speed * 8;
+		}
+		else
+		{
+			Speed = Default.Speed;
+		}
+
 		// killough 10/98:
 		//
 		// We must apply thrust to the player and bobbing separately, to avoid
@@ -1317,10 +1331,8 @@ class PlayerPawn : Actor
 		{
 			double forwardmove, sidemove;
 			double bobfactor;
-			double friction, movefactor;
 			double fm, sm;
 
-			[friction, movefactor] = GetFriction();
 			bobfactor = friction < ORIG_FRICTION ? movefactor : ORIG_FRICTION_FACTOR;
 			if (!player.onground && !bNoGravity && !waterlevel)
 			{
@@ -2368,14 +2380,14 @@ class PlayerPawn : Actor
 		int startslot, startindex;
 		int slotschecked = 0;
 
-		[found, startslot, startindex] = FindMostRecentWeapon();
-		let ReadyWeapon = player.ReadyWeapon;
-		if (ReadyWeapon == null || found)
+		[found, startslot, startindex] = FindMostRecentWeapon(hand);
+		let weapon = hand ? player.OffhandWeapon : player.ReadyWeapon;
+		if (weapon == null || found)
 		{
 			int slot;
 			int index;
 
-			if (ReadyWeapon == null)
+			if (weapon == null)
 			{
 				startslot = NUM_WEAPON_SLOTS - 1;
 				startindex = player.weapons.SlotSize(startslot) - 1;
@@ -2396,13 +2408,15 @@ class PlayerPawn : Actor
 				}
 				let type = player.weapons.GetWeapon(slot, index);
 				let weap = Weapon(FindInventory(type));
-				if (weap != null && weap.CheckAmmo(Weapon.EitherFire, false))
+				if (weap != null && weap.CheckAmmo(Weapon.EitherFire, false) &&
+					((weap.bOffhandWeapon && hand == 1) ||
+					(!weap.bOffhandWeapon && hand == 0)))
 				{
 					return weap;
 				}
 			} while ((slot != startslot || index != startindex) && slotschecked <= NUM_WEAPON_SLOTS);
 		}
-		return ReadyWeapon;
+		return weapon;
 	}
 
 	//===========================================================================

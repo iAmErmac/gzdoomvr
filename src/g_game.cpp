@@ -120,6 +120,8 @@ CVAR (Bool, cl_waitforsave, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG);
 CVAR (Bool, enablescriptscreenshot, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG);
 EXTERN_CVAR (Float, con_midtime);
 EXTERN_CVAR(Bool, vr_teleport);
+EXTERN_CVAR(Int, vr_move_speed);
+EXTERN_CVAR(Float, vr_run_multiplier);
 
 //==========================================================================
 //
@@ -643,9 +645,9 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 	if (strafe)
 	{
 		if (buttonMap.ButtonDown(Button_Right))
-			side += sidemove[speed];
+			side += (vr_move_speed * (speed ? vr_run_multiplier : 1.0));
 		if (buttonMap.ButtonDown(Button_Left))
-			side -= sidemove[speed];
+			side -= (vr_move_speed * (speed ? vr_run_multiplier : 1.0));
 	}
 	else
 	{
@@ -688,9 +690,9 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 	else
 	{
 		if (buttonMap.ButtonDown(Button_Forward))
-			forward += forwardmove[speed];
+			forward += (vr_move_speed * (speed ? vr_run_multiplier : 1.0));
 		if (buttonMap.ButtonDown(Button_Back))
-			forward -= forwardmove[speed];
+			forward -= (vr_move_speed * (speed ? vr_run_multiplier : 1.0));
 	}
 
 	if (buttonMap.ButtonDown(Button_MoveRight))
@@ -756,8 +758,8 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 	}
 
 	if (!vr_teleport) {
-		side -= joyint(sidemove[speed] * joyaxes[JOYAXIS_Side]);
-		forward += joyint(joyaxes[JOYAXIS_Forward] * forwardmove[speed]);
+		side -= joyint(joyaxes[JOYAXIS_Side] * (vr_move_speed * (speed ? vr_run_multiplier : 1.0)));
+		forward += joyint(joyaxes[JOYAXIS_Forward] * (vr_move_speed * (speed ? vr_run_multiplier : 1.0)));
 	}
 
 	fly += joyint(joyaxes[JOYAXIS_Up] * 2048);
