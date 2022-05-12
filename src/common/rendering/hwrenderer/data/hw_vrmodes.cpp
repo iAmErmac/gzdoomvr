@@ -42,6 +42,14 @@ CVAR(Float, vr_ipd, 0.062f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
 // distance between viewer and the display screen
 CVAR(Float, vr_screendist, 0.80f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG) // METERS
 
+CVAR(Int, vr_desktop_view, 2, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Int, vr_overlayscreen, 2, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Bool, vr_overlayscreen_always, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, vr_overlayscreen_size, 1, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, vr_overlayscreen_dist, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Float, vr_overlayscreen_vpos, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+CVAR(Int, vr_overlayscreen_bg, 0, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+
 CVAR(Bool, openvr_moveFollowsOffHand, false, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Int, vr_move_speed, 20, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 CVAR(Float, vr_run_multiplier, 1.5f, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)

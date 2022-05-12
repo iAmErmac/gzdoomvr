@@ -74,6 +74,9 @@ struct VRMode
 	virtual void UnAdjustPlayerSprites() const {};
 	virtual void AdjustCrossHair() const {}
 	virtual void UnAdjustCrossHair() const {}
+
+	virtual void SetupOverlay() {}
+	virtual void UpdateOverlaySettings() const {}
 	virtual void DrawControllerModels(HWDrawInfo* di, FRenderState& state) const {}
 	
 	virtual void Present() const { GLRenderer->PresentStereo(); };

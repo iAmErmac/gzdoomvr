@@ -2795,6 +2795,47 @@ OptionValue "Sprites3DMode"
 	3, "$VRPREFMNU_FAT_ITEM"
 }
 
+OptionValue "CinemaScreenFollow"
+{
+	0, "Disabled"
+	1, "Stationary"	
+	2, "Follow Head movement"	
+	3, "Follow Main Hand"	
+	4, "Follwo Offhand"
+}
+
+OptionValue "CinemaScreenBG"
+{
+	0, "Black"
+	1, "Red"
+	2, "Green"
+	3, "Blue"
+	4, "Teal"
+	5, "Grey"
+}
+
+OptionValue "DesktopViewModes"
+{
+	0, "Side-By-Side"
+	1, "Left Eye"
+	2, "Right Eye"
+}
+
+OptionMenu CinemaModeOptions protected
+{
+	Title "$VRCMODEMNU_TITLE"
+
+	StaticText " "
+	Option "$VRCINEMAMODE",						vr_overlayscreen,						"CinemaScreenFollow"
+	Option "$VRCINEMAMODE_PLAY",				vr_overlayscreen_always,				"OnOff", vr_overlayscreen
+	Slider "$VRCINEMAMODE_SIZE",				vr_overlayscreen_size,					1.0, 3.0, 0.1, 2, vr_overlayscreen
+	Slider "$VRCINEMAMODE_DIST",				vr_overlayscreen_dist,					-2.0, 2.0, 0.1, 2, vr_overlayscreen
+	Slider "$VRCINEMAMODE_VPOS",				vr_overlayscreen_vpos,					-1.0, 1.0, 0.1, 2, vr_overlayscreen
+	Option "$VRCINEMAMODE_BG",					vr_overlayscreen_bg,					"CinemaScreenBG"
+	StaticText " "
+	SafeCommand "$OPTMNU_DEFAULTS",				"resetcvar vr_overlayscreen vr_overlayscreen_always vr_overlayscreen_size vr_overlayscreen_dist vr_overlayscreen_vpos vr_overlayscreen_bg"
+}
+
 OptionMenu VRHUDOptions protected
 {
 	Title "$VRHUDMNU_TITLE"
@@ -2829,15 +2870,17 @@ OptionMenu "OpenVROptions" protected
 {
 	Title "$VRPREFMNU" 
 	StaticText " "
+    Submenu "$VRCMODEMNU_TITLE",	"CinemaModeOptions"
     Submenu "$VRHUDMNU_TITLE",	"VRHUDOptions"
 
 	StaticText " "
 	StaticText "$VRPREFMNU_TITLE_MISC", gold
+	Option "$VRPREFMNU_DESKTOP",				vr_desktop_view,						"DesktopViewModes"
 	Slider "$VRPREFMNU_WORLDSCALE",				vr_vunits_per_meter,					1, 60, 1, 0
 	Slider "$VRPREFMNU_FLOOROFFSET",			vr_floor_offset,						-2, 2, 0.1, 2
 	StaticText " "
 	Option "$VRPREFMNU_DRAWCONTROLLERS",		openvr_drawControllers,					"OnOff"
-	SafeCommand "$OPTMNU_DEFAULTS",				"resetcvar vr_vunits_per_meter vr_floor_offset openvr_drawControllers"
+	SafeCommand "$OPTMNU_DEFAULTS",				"resetcvar vr_desktop_view vr_vunits_per_meter vr_floor_offset openvr_drawControllers"
 
 	StaticText " "
 	StaticText "$VRPREFMNU_TITLE_CONTROLS", gold
