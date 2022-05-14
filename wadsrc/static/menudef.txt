@@ -3015,50 +3015,75 @@ OptionMenu GZDVRQuickMenu protected
 	Title "$VRQUICKMNU"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_FPS_TIP"
+	StaticText "$VRQUICKMNU_FPS_TIP", Brown
 	Option "$VRQUICKMNU_FPS",					vid_fps,				"OnOff"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_HUDSCALE_TIP"
+	StaticText "$VRQUICKMNU_HUDSCALE_TIP", Brown
 	ScaleSlider "$VRQUICKMNU_MSGSCALE", 		con_scaletext,			0.0, 8.0, 1.0, "$SCALEMNU_USEUI"
 	ScaleSlider "$VRQUICKMNU_HUDSCALE", 		hud_scale,				-1.0, 8.0, 1.0, "$SCALEMNU_USEUI", "$SCALEMNU_USEFS"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_JUMP_TIP"
+	StaticText "$VRQUICKMNU_RESSCALE_TIP", Brown
+	Slider "$VIDMNU_SCALEFACTOR",				vid_scalefactor,		0.25, 2.0, 0.25, 2
+	
+	StaticText " "
+	StaticText "$VRQUICKMNU_JUMP_TIP", Brown
 	Option "$GMPLYMNU_ALLOWJUMP",				sv_jump,				"JumpCrouchFreeLook"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_RUN_TIP"
+	StaticText "$VRQUICKMNU_RUN_TIP", Brown
 	Option "$PLYRMNU_ALWAYSRUN",				cl_run,					"OnOff"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_DYNLGHT_TIP"
+	StaticText "$VRQUICKMNU_DYNLGHT_TIP", Brown
 	Option "$GLLIGHTMNU_LIGHTSENABLED",			gl_lights,				"OnOff"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_FIILTER_TIP"
+	StaticText "$VRQUICKMNU_FIILTER_TIP", Brown
 	Option "$GLTEXMNU_TEXFILTER",				gl_texture_filter,		"FilterModes"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_MLTSMPLE_TIP"
+	StaticText "$VRQUICKMNU_FOGMODE_TIP", Brown
+	Option "$GLPREFMNU_FOGMODE",				gl_fogmode,				"FogMode"
+	
+	StaticText " "
+	StaticText "$VRQUICKMNU_MLTSMPLE_TIP", Brown
 	Option "$GLPREFMNU_MULTISAMPLE", 			gl_multisample,			"Multisample"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_LIGHTMODE_TIP"
+	StaticText "$VRQUICKMNU_RENDRQLTY_TIP", Brown
+	Option "$GLPREFMNU_RENDERQUALITY",			gl_seamless,			"Precision"
+	
+	StaticText " "
+	StaticText "$VRQUICKMNU_GLPRECACHETEX_TIP", Brown
+	Option "$GLTEXMNU_PRECACHETEX",				gl_precache,			"YesNo"
+	
+	StaticText " "
+	StaticText "$VRQUICKMNU_LIGHTMODE_TIP", Brown
 	Option "$GLPREFMNU_SECLIGHTMODE",			gl_lightmode,			"LightingModes"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_SKYDOME_TIP"
+	StaticText "$VRQUICKMNU_TONEMAP_TIP", Brown
+	Option "$GLPREFMNU_TONEMAP", 				gl_tonemap,				"TonemapModes"
+	
+	StaticText " "
+	StaticText "$VRQUICKMNU_SKYDOME_TIP", Brown
 	Option "$GLPREFMNU_RENDERSKYDOME",			gl_skydome, 			"YesNo"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_SPRTSHDW_TIP"
+	StaticText "$VRQUICKMNU_SPRTSHDW_TIP", Brown
 	Option "$DSPLYMNU_SPRITESHADOW",			r_actorspriteshadow,	"SpriteShadowModes"
 	
 	StaticText " "
-	StaticText "$VRQUICKMNU_SPRTCULL_TIP"
+	StaticText "$VRQUICKMNU_PRTCLDCL_TIP", Brown
+	Slider "$DSPLYMNU_MAXPARTICLES",			r_maxparticles,			100, 10000, 100, 0
+	Slider "$DSPLYMNU_MAXDECALS",				cl_maxdecals,			0, 10000, 100, 0
+	
+	StaticText " "
+	StaticText "$VRQUICKMNU_SPRTCULL_TIP", Brown
 	ScaleSlider "$DSPLYMNU_SPRITECULL",			gl_sprite_distance_cull, 0.0, 8000.0, 500.0, "Culling disabled"
 
 	StaticText " "
-	SafeCommand "$OPTMNU_DEFAULTS",				"resetcvar vid_fps con_scaletext hud_scale sv_jump gl_lights gl_texture_filter gl_multisample gl_lightmode gl_skydome r_actorspriteshadow gl_sprite_distance_cull"
+	SafeCommand "$OPTMNU_DEFAULTS",				"resetcvar vid_fps con_scaletext hud_scale vid_scalefactor sv_jump cl_run gl_lights gl_texture_filter gl_fogmode gl_multisample gl_seamless gl_precache gl_lightmode gl_tonemap gl_skydome r_actorspriteshadow r_maxparticles cl_maxdecals gl_sprite_distance_cull"
 }
