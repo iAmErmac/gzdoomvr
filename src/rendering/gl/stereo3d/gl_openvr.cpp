@@ -888,7 +888,7 @@ namespace s3d
 			// without compositor background the game goes in/out of steamvr and gets glitchy
 			vrCompositor->Submit(EVREye(eye), blankTexture, &tBounds, EVRSubmitFlags_Submit_Default);
 
-			static VRTextureBounds_t oBounds = { 0, 0.2, 0.8, 0.8 }; // screen texture crop for overlay
+			static VRTextureBounds_t oBounds = { 0, 0.05, 0.8, 0.95 }; // screen texture crop for overlay
 
 			// set screen texture on overly instead of compositor
 			vrOverlay->SetOverlayTexture(overlayHandle, eyeTexture);
@@ -1413,7 +1413,7 @@ namespace s3d
 		}
 
 		if (!forceDisableOverlay && vr_overlayscreen > 0 &&
-			(gamestate == GS_INTRO || gamestate == GS_TITLELEVEL || gamestate == GS_INTERMISSION || gamestate == GS_DEMOSCREEN || gamestate == GS_MENUSCREEN || menuactive == MENU_On || paused)
+			(gamestate == GS_INTRO || gamestate == GS_TITLELEVEL || gamestate == GS_INTERMISSION || gamestate == GS_DEMOSCREEN || gamestate == GS_MENUSCREEN || menuactive == MENU_On || menuactive == MENU_WaitKey || paused)
 		)
 			doTrackHmdAngles = false;
 		else
@@ -1585,8 +1585,10 @@ namespace s3d
 				HandleVRAxis(lastState, newState, 1, 0, KEY_LSHIFT, KEY_LSHIFT, controller * (KEY_PAD_RTRIGGER - KEY_LSHIFT));
 			}
 		}
+
+		HandleUIVRAxis(lastState, newState, 1, 0, GK_RETURN, GK_RETURN);
+
 		// Offhand trigger is now bindable (sort of)
-		// TODO: need to fix the bug where it expects another input after pressing trigger in a key inputbox
 		// Offhand trigger = Run, Grip + Offhand trigger = unmapped
 		if (role != DominantHandRole)
 		{
@@ -1597,7 +1599,6 @@ namespace s3d
 				HandleVRAxis(lastState, newState, 1, 0, KEY_LSHIFT, KEY_LSHIFT, controller * (KEY_PAD_RTRIGGER - KEY_LSHIFT));
 			}
 		}
-		HandleUIVRAxis(lastState, newState, 1, 0, GK_RETURN, GK_RETURN);
 
 		// joysticks
 		if (axisJoystick != -1)
