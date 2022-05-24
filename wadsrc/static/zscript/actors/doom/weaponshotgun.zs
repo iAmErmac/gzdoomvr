@@ -62,7 +62,7 @@ extend class StateProvider
 			return;
 		}
 		int alflags = 0;
-		A_StartSound ("weapons/shotgf", CHAN_WEAPON);
+		int snd_channel = CHAN_WEAPON;
 		Weapon weap = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 		if (weap != null && invoker == weap && stateinfo != null && stateinfo.mStateType == STATE_Psprite)
 		{
@@ -73,6 +73,7 @@ extend class StateProvider
 			player.SetPsprite(PSP_FLASH, weap.FindState('Flash'), true, weap);
 		}
 		player.mo.PlayAttacking2 ();
+		A_StartSound ("weapons/shotgf", snd_channel);
 		
 		double pitch = BulletSlope (aimflags: alflags);
 

@@ -74,12 +74,16 @@ extend class StateProvider
 	action void A_FirePistol()
 	{
 		bool accurate;
+		int alflags = 0;
+		int snd_channel = CHAN_WEAPON;
 
 		if (player != null)
 		{
 			Weapon weap = invoker == player.OffhandWeapon ? player.OffhandWeapon : player.ReadyWeapon;
 			if (weap != null && invoker == weap && stateinfo != null && stateinfo.mStateType == STATE_Psprite)
 			{
+				snd_channel = weap.bOffhandWeapon ? CHAN_OFFWEAPON : CHAN_WEAPON;
+				alflags |= weap.bOffhandWeapon ? ALF_ISOFFHAND : 0;
 				if (!weap.DepleteAmmo (weap.bAltFire, true, 1))
 					return;
 					
@@ -94,7 +98,7 @@ extend class StateProvider
 			accurate = true;
 		}
 
-		A_StartSound ("weapons/pistol", CHAN_WEAPON);
-		GunShot (accurate, "BulletPuff", BulletSlope ());
+		A_StartSound ("weapons/pistol", snd_channel);
+		GunShot (accurate, "BulletPuff", BulletSlope (aimflags: alflags));
 	}
 }
