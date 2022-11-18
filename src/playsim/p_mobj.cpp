@@ -6991,7 +6991,7 @@ AActor *P_SpawnPlayerMissile (AActor *source, double x, double y, double z,
 			z = source->floorz;
 		}
 	}
-	DVector3 pos = source->Vec2OffsetZ(x, y, z);
+	DVector3 pos = source->PosAtZ(z);
 	if (source->player != NULL && source->player->mo->OverrideAttackPosDir)
 	{
 		if (aimflags & ALF_ISOFFHAND)
@@ -7014,6 +7014,7 @@ AActor *P_SpawnPlayerMissile (AActor *source, double x, double y, double z,
 	P_PlaySpawnSound(MissileActor, source);
 	MissileActor->target = source;
 	MissileActor->Angles.Yaw = an;
+	MissileActor->SetXY(MissileActor->Vec2Offset(x, y));
 	if (MissileActor->flags3 & (MF3_FLOORHUGGER | MF3_CEILINGHUGGER))
 	{
 		MissileActor->VelFromAngle();
