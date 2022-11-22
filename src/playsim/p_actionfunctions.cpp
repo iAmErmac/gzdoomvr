@@ -1277,11 +1277,12 @@ DEFINE_ACTION_FUNCTION(AActor, A_Recoil)
 	PARAM_SELF_PROLOGUE(AActor);
 	PARAM_FLOAT(xyvel);
 
-	//We don't want to adjust the player's camera - that could make them sick
-	player_t* player = players[consoleplayer].camera ? players[consoleplayer].camera->player : nullptr;
-	if (!vr_recoil && player != nullptr && self != nullptr && player->mo == self)
+	player_t *player = self->player;
+	if (player != nullptr && player->mo == self)
 	{
-		return 0;
+		//We don't want to adjust the player's camera - that could make them sick
+		if (!vr_recoil) return 0;
+		player->keepmomentum = true;
 	}
 
 	self->Thrust(self->Angles.Yaw + 180., xyvel);
